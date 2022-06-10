@@ -2,7 +2,8 @@
 # Preparation stage: layout and chmods #
 ########################################
 
-FROM ubuntu:22.04 as builder
+ARG LINUX_BASEIMAGE_REGISTRY=""
+FROM ${LINUX_BASEIMAGE_REGISTRY}ubuntu:22.04 as builder
 
 WORKDIR /output
 
@@ -32,7 +33,8 @@ RUN gcc -pipe -Wall -Wextra -O2 -shared -fPIC -Wl,--version-script=/tmp/nosys.sy
 # Actual docker image construction #
 ####################################
 
-FROM ubuntu:22.04
+ARG LINUX_BASEIMAGE_REGISTRY=""
+FROM ${LINUX_BASEIMAGE_REGISTRY}ubuntu:22.04
 
 LABEL maintainer "Datadog <package@datadoghq.com>"
 
