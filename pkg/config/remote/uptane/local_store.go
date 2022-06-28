@@ -165,15 +165,12 @@ func (s *localStore) GetMetaVersion(metaName string) (uint64, error) {
 func (s *localStore) GetMetaCustom(metaName string) ([]byte, error) {
 	metas, err := s.GetMeta()
 	if err != nil {
-		fmt.Printf("error in getMeta%s - %s\n", err)
 		return nil, err
 	}
 	meta, found := metas[metaName]
 	if !found {
-		fmt.Printf("did not find %s\n", metaName)
 		return nil, nil
 	}
-	fmt.Printf("found %s\n", metaName)
 	return metaCustom(meta)
 }
 
