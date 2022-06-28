@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config/remote/uptane"
 	"github.com/DataDog/datadog-agent/pkg/proto/msgpgo"
 	"github.com/DataDog/datadog-agent/pkg/proto/pbgo"
+	"github.com/DataDog/datadog-agent/pkg/remoteconfig"
 	"github.com/DataDog/datadog-agent/pkg/version"
 	"github.com/benbjohnson/clock"
 	"github.com/stretchr/testify/assert"
@@ -28,13 +29,13 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+var (
+	testHostname = "testhost"
+)
+
 type mockAPI struct {
 	mock.Mock
 }
-
-const (
-	jsonDecodingError = "unexpected end of JSON input"
-)
 
 func (m *mockAPI) Fetch(ctx context.Context, request *pbgo.LatestConfigsRequest) (*pbgo.LatestConfigsResponse, error) {
 	args := m.Called(ctx, request)
@@ -103,8 +104,13 @@ func newTestService(t *testing.T, api *mockAPI, uptane *mockUptane, clock clock.
 	assert.NoError(t, err)
 	service.api = api
 	service.clock = clock
-	service.uptane = uptane
-	assert.NoError(t, err)
+
+	// Setup the client - this will be a little awkward right now as we smooth over the interface boundaries.
+	// By the end of the PR sequence this should get cleaned up a lot
+	clientTracker := remoteconfig.NewClientTracker(clock, defaultClientsTTL)
+	backendClient := remoteconfig.NewBackendClient(testHostname, version.AgentVersion, uptane, clientTracker)
+	service.backendClient = backendClient
+
 	return service
 }
 
@@ -112,26 +118,27 @@ func TestServiceBackoffFailure(t *testing.T) {
 	api := &mockAPI{}
 	uptaneClient := &mockUptane{}
 	clock := clock.NewMock()
-	service := newTestService(t, api, uptaneClient, clock)
 
 	lastConfigResponse := &pbgo.LatestConfigsResponse{
 		TargetFiles: []*pbgo.File{{Path: "test"}},
 	}
 
 	api.On("Fetch", mock.Anything, &pbgo.LatestConfigsRequest{
-		Hostname:                     service.hostname,
+		Hostname:                     testHostname,
 		AgentVersion:                 version.AgentVersion,
 		CurrentConfigSnapshotVersion: 0,
 		CurrentConfigRootVersion:     0,
 		CurrentDirectorRootVersion:   0,
 		Products:                     []string{},
 		NewProducts:                  []string{},
-		HasError:                     true,
-		Error:                        jsonDecodingError,
+		HasError:                     false,
+		Error:                        "",
 	}).Return(lastConfigResponse, errors.New("simulated HTTP error"))
 	uptaneClient.On("TUFVersionState").Return(uptane.TUFVersions{}, nil)
 	uptaneClient.On("Update", lastConfigResponse).Return(nil)
 	uptaneClient.On("TargetsCustom").Return([]byte{}, nil)
+
+	service := newTestService(t, api, uptaneClient, clock)
 
 	// We'll set the default interal to 1 second to make math less hard
 	service.defaultRefreshInterval = 1 * time.Second
@@ -172,7 +179,6 @@ func TestServiceBackoffFailureRecovery(t *testing.T) {
 	api := &mockAPI{}
 	uptaneClient := &mockUptane{}
 	clock := clock.NewMock()
-	service := newTestService(t, api, uptaneClient, clock)
 
 	lastConfigResponse := &pbgo.LatestConfigsResponse{
 		TargetFiles: []*pbgo.File{{Path: "test"}},
@@ -180,20 +186,21 @@ func TestServiceBackoffFailureRecovery(t *testing.T) {
 
 	api = &mockAPI{}
 	api.On("Fetch", mock.Anything, &pbgo.LatestConfigsRequest{
-		Hostname:                     service.hostname,
+		Hostname:                     testHostname,
 		AgentVersion:                 version.AgentVersion,
 		CurrentConfigSnapshotVersion: 0,
 		CurrentConfigRootVersion:     0,
 		CurrentDirectorRootVersion:   0,
 		Products:                     []string{},
 		NewProducts:                  []string{},
-		HasError:                     true,
-		Error:                        jsonDecodingError,
+		HasError:                     false,
+		Error:                        "",
 	}).Return(lastConfigResponse, nil)
 	uptaneClient.On("TUFVersionState").Return(uptane.TUFVersions{}, nil)
 	uptaneClient.On("Update", lastConfigResponse).Return(nil)
 	uptaneClient.On("TargetsCustom").Return([]byte{}, nil)
-	service.api = api
+
+	service := newTestService(t, api, uptaneClient, clock)
 
 	// Artificially set the backoff error count so we can test recovery
 	service.backoffErrorCount = 3
@@ -308,17 +315,16 @@ func TestService(t *testing.T) {
 		TargetFiles: []*pbgo.File{{Path: "test"}},
 	}
 	api.On("Fetch", mock.Anything, &pbgo.LatestConfigsRequest{
-		Hostname:                     service.hostname,
+		Hostname:                     testHostname,
 		AgentVersion:                 version.AgentVersion,
 		CurrentConfigSnapshotVersion: 0,
 		CurrentConfigRootVersion:     0,
 		CurrentDirectorRootVersion:   0,
 		Products:                     []string{},
 		NewProducts:                  []string{},
-		HasError:                     true,
-		Error:                        jsonDecodingError,
+		HasError:                     false,
+		Error:                        "",
 	}).Return(lastConfigResponse, nil)
-	uptaneClient.On("TUFVersionState").Return(uptane.TUFVersions{}, nil)
 	uptaneClient.On("Update", lastConfigResponse).Return(nil)
 	uptaneClient.On("TargetsCustom").Return([]byte{}, nil)
 
@@ -382,7 +388,7 @@ func TestService(t *testing.T) {
 	uptaneClient.On("TargetFile", "datadog/2/APM_SAMPLING/id/2").Return(fileAPM2, nil)
 	uptaneClient.On("Update", lastConfigResponse).Return(nil)
 	api.On("Fetch", mock.Anything, &pbgo.LatestConfigsRequest{
-		Hostname:                     service.hostname,
+		Hostname:                     testHostname,
 		AgentVersion:                 version.AgentVersion,
 		CurrentConfigRootVersion:     1,
 		CurrentConfigSnapshotVersion: 2,
@@ -481,7 +487,7 @@ func TestServiceClientPredicates(t *testing.T) {
 	uptaneClient.On("TargetFile", "datadog/2/APM_SAMPLING/id/2").Return([]byte(``), nil)
 	uptaneClient.On("Update", lastConfigResponse).Return(nil)
 	api.On("Fetch", mock.Anything, &pbgo.LatestConfigsRequest{
-		Hostname:                     service.hostname,
+		Hostname:                     testHostname,
 		AgentVersion:                 version.AgentVersion,
 		CurrentConfigRootVersion:     0,
 		CurrentConfigSnapshotVersion: 0,

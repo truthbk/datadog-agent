@@ -7,16 +7,11 @@ package service
 
 import (
 	"encoding/base32"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 
-	"github.com/DataDog/datadog-agent/pkg/config/remote/data"
-	"github.com/DataDog/datadog-agent/pkg/config/remote/uptane"
 	"github.com/DataDog/datadog-agent/pkg/proto/msgpgo"
-	"github.com/DataDog/datadog-agent/pkg/proto/pbgo"
-	"github.com/DataDog/datadog-agent/pkg/version"
 	"go.etcd.io/bbolt"
 )
 
@@ -49,50 +44,4 @@ func parseRemoteConfigKey(serializedKey string) (*msgpgo.RemoteConfigKey, error)
 		return nil, fmt.Errorf("invalid remote config key")
 	}
 	return &key, nil
-}
-
-func buildLatestConfigsRequest(hostname string, state uptane.TUFVersions, activeClients []*pbgo.Client, products map[data.Product]struct{}, newProducts map[data.Product]struct{}, lastUpdateErr error, clientState []byte) *pbgo.LatestConfigsRequest {
-	productsList := make([]data.Product, len(products))
-	i := 0
-	for k := range products {
-		productsList[i] = k
-		i++
-	}
-	newProductsList := make([]data.Product, len(newProducts))
-	i = 0
-	for k := range newProducts {
-		newProductsList[i] = k
-		i++
-	}
-
-	lastUpdateErrString := ""
-	if lastUpdateErr != nil {
-		lastUpdateErrString = lastUpdateErr.Error()
-	}
-	return &pbgo.LatestConfigsRequest{
-		Hostname:                     hostname,
-		AgentVersion:                 version.AgentVersion,
-		Products:                     data.ProductListToString(productsList),
-		NewProducts:                  data.ProductListToString(newProductsList),
-		CurrentConfigSnapshotVersion: state.ConfigSnapshot,
-		CurrentConfigRootVersion:     state.ConfigRoot,
-		CurrentDirectorRootVersion:   state.DirectorRoot,
-		ActiveClients:                activeClients,
-		BackendClientState:           clientState,
-		HasError:                     lastUpdateErr != nil,
-		Error:                        lastUpdateErrString,
-	}
-}
-
-type targetsCustom struct {
-	OpaqueBackendState []byte `json:"opaque_backend_state"`
-}
-
-func parseTargetsCustom(rawTargetsCustom []byte) (targetsCustom, error) {
-	var custom targetsCustom
-	err := json.Unmarshal(rawTargetsCustom, &custom)
-	if err != nil {
-		return targetsCustom{}, err
-	}
-	return custom, nil
 }
