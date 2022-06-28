@@ -15,7 +15,7 @@ import (
 
 func TestClients(t *testing.T) {
 	testTTL := time.Second * 5
-	clients := NewClientTracker(testTTL)
+	clients := newClientTracker(testTTL)
 	testClient1 := &pbgo.Client{
 		Id: "client1",
 	}
@@ -23,13 +23,13 @@ func TestClients(t *testing.T) {
 		Id: "client2",
 	}
 	now := time.Now()
-	clients.Seen(testClient1, now)
+	clients.seen(testClient1, now)
 	timestamp := now.Add(time.Second * 4) // 4s
-	clients.Seen(testClient2, timestamp)
-	assert.ElementsMatch(t, []*pbgo.Client{testClient1, testClient2}, clients.ActiveClients(timestamp))
+	clients.seen(testClient2, timestamp)
+	assert.ElementsMatch(t, []*pbgo.Client{testClient1, testClient2}, clients.activeClients(timestamp))
 	timestamp = timestamp.Add(time.Second * 3) // 7s
-	assert.ElementsMatch(t, []*pbgo.Client{testClient2}, clients.ActiveClients(timestamp))
+	assert.ElementsMatch(t, []*pbgo.Client{testClient2}, clients.activeClients(timestamp))
 	timestamp = timestamp.Add(time.Second*2 + time.Nanosecond*1) // 10s1ns
-	assert.ElementsMatch(t, []*pbgo.Client{}, clients.ActiveClients(timestamp))
+	assert.ElementsMatch(t, []*pbgo.Client{}, clients.activeClients(timestamp))
 	assert.Empty(t, clients.clients)
 }

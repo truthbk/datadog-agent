@@ -44,7 +44,7 @@ type BackendClient struct {
 	UptaneClient
 
 	// List of downstream clients that this client needs to ask for configs for from the backend
-	downstreamClients *ClientTracker
+	downstreamClients *clientTracker
 
 	// Informs the backend of any recent errors for DD telemetry
 	lastUpdateErr error
@@ -52,7 +52,7 @@ type BackendClient struct {
 
 // NewBackendClient creates a new BackendClient
 func NewBackendClient(hostname string, version string, uptaneClient UptaneClient, clientsTTL time.Duration) *BackendClient {
-	clientTracker := NewClientTracker(clientsTTL)
+	clientTracker := newClientTracker(clientsTTL)
 
 	return &BackendClient{
 		hostname:          hostname,
@@ -83,7 +83,7 @@ func (c *BackendClient) Apply(update *pbgo.LatestConfigsResponse) error {
 
 // BuildUpdateRequest builds a request struct that the remote config backend can process.
 func (c *BackendClient) BuildUpdateRequest(forceRefresh bool, timestamp time.Time) (*pbgo.LatestConfigsRequest, error) {
-	activeClients := c.downstreamClients.ActiveClients(timestamp)
+	activeClients := c.downstreamClients.activeClients(timestamp)
 	c.refreshProducts(activeClients)
 
 	previousTUFVersions := uptane.TUFVersions{}
@@ -121,7 +121,7 @@ func (c *BackendClient) BuildUpdateRequest(forceRefresh bool, timestamp time.Tim
 // TrackDownstreamClient registers the given downstream client so that the BackendClient will ask for
 // configs on its behalf based on its needs.
 func (c *BackendClient) TrackDownstreamClient(client *pbgo.Client, timestamp time.Time) {
-	c.downstreamClients.Seen(client, timestamp)
+	c.downstreamClients.seen(client, timestamp)
 }
 
 // refreshProducts goes through the current active client list and determines what products

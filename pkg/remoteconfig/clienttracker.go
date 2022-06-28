@@ -20,20 +20,20 @@ func (c *client) expired(timestamp time.Time, ttl time.Duration) bool {
 	return timestamp.After(c.lastSeen.Add(ttl))
 }
 
-type ClientTracker struct {
+type clientTracker struct {
 	clientsTTL time.Duration
 	clients    map[string]*client
 }
 
-func NewClientTracker(clientsTTL time.Duration) *ClientTracker {
-	return &ClientTracker{
+func newClientTracker(clientsTTL time.Duration) *clientTracker {
+	return &clientTracker{
 		clientsTTL: clientsTTL,
 		clients:    make(map[string]*client),
 	}
 }
 
 // seen marks the given client as active
-func (c *ClientTracker) Seen(pbClient *pbgo.Client, timestamp time.Time) {
+func (c *clientTracker) seen(pbClient *pbgo.Client, timestamp time.Time) {
 	pbClient.LastSeen = uint64(timestamp.UnixMilli())
 	c.clients[pbClient.Id] = &client{
 		lastSeen: timestamp,
@@ -42,7 +42,7 @@ func (c *ClientTracker) Seen(pbClient *pbgo.Client, timestamp time.Time) {
 }
 
 // ActiveClients returns the list of active clients as of the given time
-func (c *ClientTracker) ActiveClients(timestamp time.Time) []*pbgo.Client {
+func (c *clientTracker) activeClients(timestamp time.Time) []*pbgo.Client {
 	var activeClients []*pbgo.Client
 	for id, client := range c.clients {
 		if client.expired(timestamp, c.clientsTTL) {
