@@ -45,7 +45,6 @@ const (
 // Service defines the remote config management service responsible for fetching, storing
 // and dispatching the configurations
 type Service struct {
-	sync.Mutex
 	firstUpdate bool
 
 	defaultRefreshInterval time.Duration
@@ -59,6 +58,7 @@ type Service struct {
 	clock clock.Clock
 	api   api.API
 
+	clientLock    sync.RWMutex
 	backendClient *remoteconfig.BackendClient
 }
 
@@ -130,9 +130,8 @@ func NewService() (*Service, error) {
 		clientsTTL = defaultClientsTTL
 	}
 	clock := clock.New()
-	clientTracker := remoteconfig.NewClientTracker(clock, clientsTTL)
 
-	backendClient := remoteconfig.NewBackendClient(hostname, version.AgentVersion, uptaneClient, clientTracker)
+	backendClient := remoteconfig.NewBackendClient(hostname, version.AgentVersion, uptaneClient, clientsTTL)
 
 	return &Service{
 		ctx:                    context.Background(),
@@ -176,24 +175,26 @@ func (s *Service) calculateRefreshInterval() time.Duration {
 }
 
 func (s *Service) refresh() error {
-	s.Lock()
-	request, err := s.backendClient.BuildUpdateRequest(s.forceRefresh())
+	s.clientLock.RLock()
+	request, err := s.backendClient.BuildUpdateRequest(s.forceRefresh(), s.clock.Now())
 	if err != nil {
 		s.backoffErrorCount = s.backoffPolicy.IncError(s.backoffErrorCount)
 		return err
 	}
-	s.Unlock()
+	s.clientLock.RUnlock()
 
 	// The update we get back is tied the state we queried, so we don't need to lock during
 	// the network transaction. This allows others to query the current state while we wait.
+	// The implication here though is that there's only a singular goroutine trying to call the
+	// update loop.
 	response, err := s.api.Fetch(s.ctx, request)
 	if err != nil {
 		s.backoffErrorCount = s.backoffPolicy.IncError(s.backoffErrorCount)
 		return err
 	}
 
-	s.Lock()
-	defer s.Unlock()
+	s.clientLock.Lock()
+	defer s.clientLock.Unlock()
 	err = s.backendClient.Apply(response)
 	if err != nil {
 		s.backoffErrorCount = s.backoffPolicy.IncError(s.backoffErrorCount)
@@ -212,13 +213,19 @@ func (s *Service) forceRefresh() bool {
 
 // ClientGetConfigs is the polling API called by tracers and agents to get the latest configurations
 func (s *Service) ClientGetConfigs(request *pbgo.ClientGetConfigsRequest) (*pbgo.ClientGetConfigsResponse, error) {
-	s.Lock()
-	defer s.Unlock()
 	err := validateRequest(request)
 	if err != nil {
 		return nil, err
 	}
-	s.backendClient.TrackDownstreamClient(request.Client)
+
+	s.clientLock.Lock()
+	s.backendClient.TrackDownstreamClient(request.Client, s.clock.Now())
+	s.clientLock.Unlock()
+
+	// We're done updating the client, everything from here on out just pulls the current state
+	// to facilitate the request.
+	s.clientLock.RLock()
+	defer s.clientLock.RUnlock()
 
 	tufVersions, err := s.backendClient.TUFVersionState()
 	if err != nil {
@@ -271,6 +278,8 @@ func (s *Service) ClientGetConfigs(request *pbgo.ClientGetConfigsRequest) (*pbgo
 
 // ConfigGetState returns the state of the configuration and the director repos in the local store
 func (s *Service) ConfigGetState() (*pbgo.GetStateConfigResponse, error) {
+	s.clientLock.RLock()
+	defer s.clientLock.RUnlock()
 	state, err := s.backendClient.State()
 	if err != nil {
 		return nil, err

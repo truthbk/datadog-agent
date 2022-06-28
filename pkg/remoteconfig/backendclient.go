@@ -3,6 +3,7 @@ package remoteconfig
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	rcdata "github.com/DataDog/datadog-agent/pkg/config/remote/data"
 	"github.com/DataDog/datadog-agent/pkg/config/remote/uptane"
@@ -50,7 +51,9 @@ type BackendClient struct {
 }
 
 // NewBackendClient creates a new BackendClient
-func NewBackendClient(hostname string, version string, uptaneClient UptaneClient, clientTracker *ClientTracker) *BackendClient {
+func NewBackendClient(hostname string, version string, uptaneClient UptaneClient, clientsTTL time.Duration) *BackendClient {
+	clientTracker := NewClientTracker(clientsTTL)
+
 	return &BackendClient{
 		hostname:          hostname,
 		version:           version,
@@ -79,8 +82,8 @@ func (c *BackendClient) Apply(update *pbgo.LatestConfigsResponse) error {
 }
 
 // BuildUpdateRequest builds a request struct that the remote config backend can process.
-func (c *BackendClient) BuildUpdateRequest(forceRefresh bool) (*pbgo.LatestConfigsRequest, error) {
-	activeClients := c.downstreamClients.ActiveClients()
+func (c *BackendClient) BuildUpdateRequest(forceRefresh bool, timestamp time.Time) (*pbgo.LatestConfigsRequest, error) {
+	activeClients := c.downstreamClients.ActiveClients(timestamp)
 	c.refreshProducts(activeClients)
 
 	previousTUFVersions := uptane.TUFVersions{}
@@ -117,8 +120,8 @@ func (c *BackendClient) BuildUpdateRequest(forceRefresh bool) (*pbgo.LatestConfi
 
 // TrackDownstreamClient registers the given downstream client so that the BackendClient will ask for
 // configs on its behalf based on its needs.
-func (c *BackendClient) TrackDownstreamClient(client *pbgo.Client) {
-	c.downstreamClients.Seen(client)
+func (c *BackendClient) TrackDownstreamClient(client *pbgo.Client, timestamp time.Time) {
+	c.downstreamClients.Seen(client, timestamp)
 }
 
 // refreshProducts goes through the current active client list and determines what products

@@ -107,8 +107,7 @@ func newTestService(t *testing.T, api *mockAPI, uptane *mockUptane, clock clock.
 
 	// Setup the client - this will be a little awkward right now as we smooth over the interface boundaries.
 	// By the end of the PR sequence this should get cleaned up a lot
-	clientTracker := remoteconfig.NewClientTracker(clock, defaultClientsTTL)
-	backendClient := remoteconfig.NewBackendClient(testHostname, version.AgentVersion, uptane, clientTracker)
+	backendClient := remoteconfig.NewBackendClient(testHostname, version.AgentVersion, uptane, defaultClientsTTL)
 	service.backendClient = backendClient
 
 	return service
