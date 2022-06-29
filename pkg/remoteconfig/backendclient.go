@@ -6,8 +6,8 @@ import (
 	"time"
 
 	rcdata "github.com/DataDog/datadog-agent/pkg/config/remote/data"
-	"github.com/DataDog/datadog-agent/pkg/config/remote/uptane"
 	"github.com/DataDog/datadog-agent/pkg/proto/pbgo"
+	"github.com/DataDog/datadog-agent/pkg/remoteconfig/uptane"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/version"
 	"github.com/theupdateframework/go-tuf/data"
