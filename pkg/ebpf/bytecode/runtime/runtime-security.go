@@ -4,4 +4,36 @@
 
 package runtime
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
 var RuntimeSecurity = newAsset("runtime-security.c", "871228962c5fcbc5e86eee892dbbe5a729a3189c8bae3f9f77db3f9732ab56c6")
+=======
+var RuntimeSecurity = newAsset("runtime-security.c", "bad9448d20b710e425cfe21c6f62b15d233a2b92fb1cfc41d5e96e1516c83676")
+>>>>>>> afaedfecba... CWS: parse args and envs from the process stack
+=======
+var RuntimeSecurity = newAsset("runtime-security.c", "02ecec1712b89ac6a3ebc29655c399cca30096beb559adf627fd01099b862faa")
+>>>>>>> 0f5c66bb95... change probed functions to account for CentOS 7 kernels not calling them in the same order
+=======
+var RuntimeSecurity = newAsset("runtime-security.c", "c058a0a14a3a24e18668cd330ce623cfc08608b43b527264849c69bc93742a71")
+>>>>>>> fc0885bb06... cleanup old code and rename some variables
+=======
+var RuntimeSecurity = newAsset("runtime-security.c", "a311cddd6d7c41d635e7109dd1be258c57c5d104cbcefd77f9c3086b641ae8c8")
+>>>>>>> 43d1bb17a9... remove check on parsed string count
+=======
+var RuntimeSecurity = newAsset("runtime-security.c", "45ad61d2e0d5e8e5db20d596fcfa470a1b39159bce4ae1769bfc275dd96605ed")
+>>>>>>> fdbf531b80... compute environment variables offset and split args and envs parsing
+=======
+var RuntimeSecurity = newAsset("runtime-security.c", "7ce6f5b86aeef4f702efb5719b00c55b3de831328e7e9353320fb8aeb3fbae6f")
+>>>>>>> 3041139af6... update comments
+=======
+var RuntimeSecurity = newAsset("runtime-security.c", "e22e7621b76e3a85206398a6334034ca473d28daa1011b64886acd88d04cd185")
+>>>>>>> a7a42af8a8... reorder functions to match impersonated helper functions usage
+=======
+var RuntimeSecurity = newAsset("runtime-security.c", "c53af673adbed089f62f48ad771475443649dee52469c9be557c474a4d858a24")
+>>>>>>> 7ef3aeff4c... fix envs offset
