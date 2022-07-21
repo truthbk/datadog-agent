@@ -453,7 +453,7 @@ func TestProcessContext(t *testing.T) {
 			}
 
 			argv := strings.Split(execArgs.(string), " ")
-			assert.Equal(t, 159, len(argv), "incorrect number of args: %s", argv)
+			assert.Equal(t, 201, len(argv), "incorrect number of args: %s", argv)
 
 			for i := 0; i != 159; i++ {
 				expected := args[i]
