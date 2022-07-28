@@ -16,14 +16,13 @@ import (
 	"math"
 	"unsafe"
 
-	"github.com/iovisor/gobpf/pkg/cpupossible"
-	"golang.org/x/sys/unix"
-
 	manager "github.com/DataDog/ebpf-manager"
 	bpflib "github.com/cilium/ebpf"
+	"golang.org/x/sys/unix"
 
 	"github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode/runtime"
+	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
@@ -100,12 +99,11 @@ func (t *TCPQueueLengthTracer) Close() {
 }
 
 func (t *TCPQueueLengthTracer) GetAndFlush() TCPQueueLengthStats {
-	cpus, err := cpupossible.Get()
+	nbCpus, err := kernel.PossibleCPUs()
 	if err != nil {
 		log.Errorf("Failed to get online CPUs: %v", err)
 		return TCPQueueLengthStats{}
 	}
-	nbCpus := len(cpus)
 
 	result := make(TCPQueueLengthStats)
 
@@ -121,7 +119,7 @@ func (t *TCPQueueLengthTracer) GetAndFlush() TCPQueueLengthStats {
 		}
 
 		max := TCPQueueLengthStatsValue{}
-		for _, cpu := range cpus {
+		for cpu := range statsValue {
 			if uint32(statsValue[cpu].read_buffer_max_usage) > max.ReadBufferMaxUsage {
 				max.ReadBufferMaxUsage = uint32(statsValue[cpu].read_buffer_max_usage)
 			}
