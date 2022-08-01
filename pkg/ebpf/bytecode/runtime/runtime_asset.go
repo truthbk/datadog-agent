@@ -17,15 +17,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	model "github.com/DataDog/agent-payload/v5/process"
+	"github.com/DataDog/nikos/types"
 	"golang.org/x/sys/unix"
 
-	model "github.com/DataDog/agent-payload/v5/process"
-
-	"github.com/DataDog/nikos/types"
-
+	"github.com/DataDog/datadog-agent/cmd/system-probe/statsd"
 	"github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/metadata/host"
-	"github.com/DataDog/datadog-agent/pkg/process/statsd"
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/version"
