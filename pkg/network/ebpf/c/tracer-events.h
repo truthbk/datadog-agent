@@ -2,6 +2,7 @@
 #define __TRACER_EVENTS_H
 
 #include "tracer.h"
+#include "perf.h"
 
 #include "tracer-maps.h"
 #include "tracer-telemetry.h"
@@ -95,7 +96,7 @@ static __always_inline void flush_conn_close_if_full(struct pt_regs *ctx) {
         __builtin_memcpy(&batch_copy, batch_ptr, sizeof(batch_copy));
         batch_ptr->len = 0;
         batch_ptr->id++;
-        bpf_perf_event_output(ctx, &conn_close_event, cpu, &batch_copy, sizeof(batch_copy));
+        send_conn_close_event(ctx, &batch_copy);
     }
 }
 

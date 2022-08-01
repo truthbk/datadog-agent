@@ -1,5 +1,6 @@
 #include <linux/kconfig.h>
 #include "tracer.h"
+#include "perf.h"
 #include "bpf_helpers.h"
 #include "ip.h"
 #include "ipv6.h"
@@ -475,9 +476,7 @@ static __always_inline int do_sys_open_helper_exit(struct pt_regs *ctx) {
     // Copy map value into eBPF stack
     lib_path_t lib_path;
     __builtin_memcpy(&lib_path, path, sizeof(lib_path));
-
-    u32 cpu = bpf_get_smp_processor_id();
-    bpf_perf_event_output(ctx, &shared_libraries, cpu, &lib_path, sizeof(lib_path));
+    send_shared_libraries(ctx, &lib_path);
 cleanup:
     bpf_map_delete_elem(&open_at_args, &pid_tgid);
     return 0;

@@ -2,6 +2,7 @@
 #define __HTTP_H
 
 #include "tracer.h"
+#include "perf.h"
 #include "http-types.h"
 #include "http-maps.h"
 
@@ -31,8 +32,7 @@ static __always_inline void http_notify_batch(struct pt_regs *ctx) {
     http_batch_notification_t notification = { 0 };
     notification.cpu = cpu;
     notification.batch_idx = batch_state->idx_to_notify;
-
-    bpf_perf_event_output(ctx, &http_notifications, cpu, &notification, sizeof(http_batch_notification_t));
+    send_http_notifications(ctx, &notification);
     log_debug("http batch notification flushed: cpu: %d idx: %d\n", notification.cpu, notification.batch_idx);
     batch_state->idx_to_notify++;
 }

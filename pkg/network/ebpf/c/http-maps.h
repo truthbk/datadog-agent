@@ -2,6 +2,7 @@
 #define __HTTP_MAPS_H
 
 #include "tracer.h"
+#include "perf.h"
 #include "bpf_helpers.h"
 #include "http-types.h"
 
@@ -16,14 +17,7 @@ struct bpf_map_def SEC("maps/http_in_flight") http_in_flight = {
 };
 
 /* This map used for notifying userspace that a HTTP batch is ready to be consumed */
-struct bpf_map_def SEC("maps/http_notifications") http_notifications = {
-    .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
-    .key_size = sizeof(__u32),
-    .value_size = sizeof(__u32),
-    .max_entries = 0, // This will get overridden at runtime
-    .pinning = 0,
-    .namespace = "",
-};
+PERF_BUFFER(http_notifications, http_batch_notification_t)
 
 /* This map stores finished HTTP transactions in batches so they can be consumed by userspace*/
 struct bpf_map_def SEC("maps/http_batches") http_batches = {
@@ -100,14 +94,7 @@ struct bpf_map_def SEC("maps/open_at_args") open_at_args = {
 };
 
 /* This map used for notifying userspace of a shared library being loaded */
-struct bpf_map_def SEC("maps/shared_libraries") shared_libraries = {
-    .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
-    .key_size = sizeof(__u32),
-    .value_size = sizeof(__u32),
-    .max_entries = 0, // This will get overridden at runtime
-    .pinning = 0,
-    .namespace = "",
-};
+PERF_BUFFER(shared_libraries, lib_path_t)
 
 /* Map used to store the sub program actually used by the socket filter.
  * This is done to avoid memory limitation when attaching a filter to 

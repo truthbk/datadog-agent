@@ -41,14 +41,7 @@ struct bpf_map_def SEC("maps/tcp_ongoing_connect_pid") tcp_ongoing_connect_pid =
 /* Will hold the tcp/udp close events
  * The keys are the cpu number and the values a perf file descriptor for a perf event
  */
-struct bpf_map_def SEC("maps/conn_close_event") conn_close_event = {
-    .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
-    .key_size = sizeof(__u32),
-    .value_size = sizeof(__u32),
-    .max_entries = 0, // This will get overridden at runtime
-    .pinning = 0,
-    .namespace = "",
-};
+PERF_BUFFER(conn_close_event, batch_t)
 
 /* We use this map as a container for batching closed tcp/udp connections
  * The key represents the CPU core. Ideally we should use a BPF_MAP_TYPE_PERCPU_HASH map
