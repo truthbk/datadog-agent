@@ -10,16 +10,13 @@ package kprobe
 
 import (
 	"sync"
-	"time"
 
 	manager "github.com/DataDog/ebpf-manager"
-	"go.uber.org/atomic"
 
-	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network"
+	"github.com/DataDog/datadog-agent/pkg/network/config"
 	netebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 const (
@@ -28,19 +25,20 @@ const (
 )
 
 type tcpCloseConsumer struct {
-	perfHandler  *ddebpf.PerfHandler
+	m            *manager.Manager
+	perfMap      *netebpf.PerfMap
 	batchManager *perfBatchManager
 	requests     chan chan struct{}
 	buffer       *network.ConnectionBuffer
 	once         sync.Once
-
-	// Telemetry
-	perfReceived *atomic.Int64
-	perfLost     *atomic.Int64
 }
 
-func newTCPCloseConsumer(m *manager.Manager, perfHandler *ddebpf.PerfHandler) (*tcpCloseConsumer, error) {
-	connCloseEventMap, _, err := m.GetMap(string(probes.ConnCloseEventMap))
+func newTCPCloseConsumer(cfg *config.Config, m *manager.Manager, opts *manager.Options) (*tcpCloseConsumer, error) {
+	//closedChannelSize := defaultClosedChannelSize
+	//if cfg.ClosedChannelSize > 0 {
+	//	closedChannelSize = cfg.ClosedChannelSize
+	//}
+	perfMap, err := netebpf.NewPerfMap(string(probes.ConnCloseEventMap), m, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -48,22 +46,17 @@ func newTCPCloseConsumer(m *manager.Manager, perfHandler *ddebpf.PerfHandler) (*
 	if err != nil {
 		return nil, err
 	}
-
-	numCPUs := int(connCloseEventMap.MaxEntries())
-	batchManager, err := newPerfBatchManager(connCloseMap, numCPUs)
+	batchManager, err := newPerfBatchManager(connCloseMap)
 	if err != nil {
 		return nil, err
 	}
 
-	c := &tcpCloseConsumer{
-		perfHandler:  perfHandler,
-		batchManager: batchManager,
+	return &tcpCloseConsumer{
 		requests:     make(chan chan struct{}),
+		perfMap:      perfMap,
+		batchManager: batchManager,
 		buffer:       network.NewConnectionBuffer(netebpf.BatchSize, netebpf.BatchSize),
-		perfReceived: atomic.NewInt64(0),
-		perfLost:     atomic.NewInt64(0),
-	}
-	return c, nil
+	}, nil
 }
 
 func (c *tcpCloseConsumer) FlushPending() {
@@ -77,53 +70,56 @@ func (c *tcpCloseConsumer) FlushPending() {
 }
 
 func (c *tcpCloseConsumer) GetStats() map[string]int64 {
-	return map[string]int64{
-		perfReceivedStat: c.perfReceived.Load(),
-		perfLostStat:     c.perfLost.Load(),
-	}
+	return map[string]int64{}
 }
 
 func (c *tcpCloseConsumer) Stop() {
 	if c == nil {
 		return
 	}
-	c.perfHandler.Stop()
+	c.perfMap.Stop()
 	c.once.Do(func() {
 		close(c.requests)
 	})
 }
 
-func (c *tcpCloseConsumer) Start(callback func([]network.ConnectionStats)) {
+func (c *tcpCloseConsumer) Start(callback func([]network.ConnectionStats)) error {
 	if c == nil {
-		return
+		return nil
+	}
+	err := c.perfMap.Start(func(CPU int, data []byte) {
+		batch := netebpf.ToBatch(data)
+		c.batchManager.ExtractBatchInto(c.buffer, batch, CPU)
+		callback(c.buffer.Connections())
+		c.buffer.Reset()
+	})
+	if err != nil {
+		return err
 	}
 
-	var (
-		then        time.Time = time.Now()
-		closedCount int
-		lostCount   int
-	)
+	//var (
+	//	then        = time.Now()
+	//	closedCount int
+	//	lostCount   int
+	//)
 	go func() {
 		for {
 			select {
-			case batchData, ok := <-c.perfHandler.DataChannel:
-				if !ok {
-					return
-				}
-
-				c.perfReceived.Inc()
-				batch := netebpf.ToBatch(batchData.Data)
-				c.batchManager.ExtractBatchInto(c.buffer, batch, batchData.CPU)
-				closedCount += c.buffer.Len()
-				callback(c.buffer.Connections())
-				c.buffer.Reset()
-				batchData.Done()
-			case lostCount, ok := <-c.perfHandler.LostChannel:
-				if !ok {
-					return
-				}
-				c.perfLost.Add(int64(lostCount))
-				lostCount += netebpf.BatchSize
+			//case batchData, ok := <-c.perfHandler.DataChannel:
+			//	if !ok {
+			//		return
+			//	}
+			//	batch := netebpf.ToBatch(batchData.Data)
+			//	c.batchManager.ExtractBatchInto(c.buffer, batch, batchData.CPU)
+			//	closedCount += c.buffer.Len()
+			//	callback(c.buffer.Connections())
+			//	c.buffer.Reset()
+			//	batchData.Done()
+			//case _, ok := <-c.perfHandler.LostChannel:
+			//	if !ok {
+			//		return
+			//	}
+			//	lostCount += netebpf.BatchSize
 			case request, ok := <-c.requests:
 				if !ok {
 					return
@@ -134,20 +130,22 @@ func (c *tcpCloseConsumer) Start(callback func([]network.ConnectionStats)) {
 				callback(oneTimeBuffer.Connections())
 				close(request)
 
-				closedCount += oneTimeBuffer.Len()
-				now := time.Now()
-				elapsed := now.Sub(then)
-				then = now
-				log.Debugf(
-					"tcp close summary: closed_count=%d elapsed=%s closed_rate=%.2f/s lost_count=%d",
-					closedCount,
-					elapsed,
-					float64(closedCount)/elapsed.Seconds(),
-					lostCount,
-				)
-				closedCount = 0
-				lostCount = 0
+				//closedCount += oneTimeBuffer.Len()
+				//now := time.Now()
+				//elapsed := now.Sub(then)
+				//then = now
+				//log.Debugf(
+				//	"tcp close summary: closed_count=%d elapsed=%s closed_rate=%.2f/s lost_count=%d",
+				//	closedCount,
+				//	elapsed,
+				//	float64(closedCount)/elapsed.Seconds(),
+				//	lostCount,
+				//)
+				//closedCount = 0
+				//lostCount = 0
 			}
 		}
 	}()
+
+	return nil
 }

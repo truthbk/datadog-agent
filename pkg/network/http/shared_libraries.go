@@ -20,7 +20,7 @@ import (
 	psfilepath "github.com/DataDog/gopsutil/process/filepath"
 	"github.com/DataDog/gopsutil/process/so"
 
-	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
+	netebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -61,14 +61,14 @@ type soWatcher struct {
 	all        *regexp.Regexp
 	rules      []soRule
 	registered map[string]func(string) error
-	loadEvents *ddebpf.PerfHandler
+	loadEvents *netebpf.PerfMap
 }
 
 type seenKey struct {
 	pid, path string
 }
 
-func newSOWatcher(procRoot string, perfHandler *ddebpf.PerfHandler, rules ...soRule) *soWatcher {
+func newSOWatcher(procRoot string, perfHandler *netebpf.PerfMap, rules ...soRule) *soWatcher {
 	allFilters := make([]string, len(rules))
 	for i, r := range rules {
 		allFilters[i] = r.re.String()
@@ -85,14 +85,22 @@ func newSOWatcher(procRoot string, perfHandler *ddebpf.PerfHandler, rules ...soR
 }
 
 // Start consuming shared-library events
-func (w *soWatcher) Start() {
+func (w *soWatcher) Start() error {
 	seen := make(map[seenKey]struct{})
 	sharedLibraries := w.getSharedLibraries()
 	w.sync(sharedLibraries)
+
+	thisPID, _ := util.GetRootNSPID()
+	err := w.loadEvents.Start(func(CPU int, data []byte) {
+		w.handleEvent(data, thisPID, seen)
+	})
+	if err != nil {
+		return err
+	}
+
 	go func() {
 		ticker := time.NewTicker(soSyncInterval)
 		defer ticker.Stop()
-		thisPID, _ := util.GetRootNSPID()
 
 		for {
 			select {
@@ -100,62 +108,68 @@ func (w *soWatcher) Start() {
 				seen = make(map[seenKey]struct{})
 				sharedLibraries := w.getSharedLibraries()
 				w.sync(sharedLibraries)
-			case event, ok := <-w.loadEvents.DataChannel:
-				if !ok {
-					return
-				}
-
-				lib := toLibPath(event.Data)
-				// if this shared library was loaded by system-probe we ignore it.
-				// this is to avoid a feedback-loop since the shared libraries here monitored
-				// end up being opened by system-probe
-				if int(lib.pid) == thisPID {
-					event.Done()
-					break
-				}
-
-				path := lib.Bytes()
-				for _, r := range w.rules {
-					if !r.re.Match(path) {
-						continue
-					}
-
-					var (
-						libPath = string(path)
-						pidPath = fmt.Sprintf("%s/%d", w.procRoot, lib.pid)
-					)
-
-					// resolving paths is expensive so we cache the libraries we've already seen
-					k := seenKey{pidPath, libPath}
-					if _, ok := seen[k]; ok {
-						break
-					}
-					seen[k] = struct{}{}
-
-					// resolve namespaced path to host path
-					pathResolver := psfilepath.NewResolver(w.procRoot)
-					pathResolver.LoadPIDMounts(pidPath)
-					if hostPath := pathResolver.Resolve(libPath); hostPath != "" {
-						libPath = hostPath
-					}
-
-					libPath = w.canonicalizePath(libPath)
-					if _, registered := w.registered[libPath]; registered {
-						break
-					}
-
-					w.register(libPath, r)
-					break
-				}
-
-				event.Done()
-
-			case <-w.loadEvents.LostChannel:
-				// Nothing to do in this case
-				break
+			case <-w.loadEvents.Done:
+				return
+				//case event, ok := <-w.loadEvents.DataChannel:
+				//	if !ok {
+				//		return
+				//	}
+				//
+				//	w.handleEvent(event, thisPID, seen)
+				//	//event.Done()
+				//
+				//case <-w.loadEvents.LostChannel:
+				//	// Nothing to do in this case
+				//	break
 			}
 		}
 	}()
+	return nil
+}
+
+func (w *soWatcher) handleEvent(data []byte, thisPID int, seen map[seenKey]struct{}) {
+	lib := toLibPath(data)
+	// if this shared library was loaded by system-probe we ignore it.
+	// this is to avoid a feedback-loop since the shared libraries here monitored
+	// end up being opened by system-probe
+	if int(lib.pid) == thisPID {
+		//event.Done()
+		return
+	}
+
+	path := lib.Bytes()
+	for _, r := range w.rules {
+		if !r.re.Match(path) {
+			continue
+		}
+
+		var (
+			libPath = string(path)
+			pidPath = fmt.Sprintf("%s/%d", w.procRoot, lib.pid)
+		)
+
+		// resolving paths is expensive so we cache the libraries we've already seen
+		k := seenKey{pidPath, libPath}
+		if _, ok := seen[k]; ok {
+			break
+		}
+		seen[k] = struct{}{}
+
+		// resolve namespaced path to host path
+		pathResolver := psfilepath.NewResolver(w.procRoot)
+		pathResolver.LoadPIDMounts(pidPath)
+		if hostPath := pathResolver.Resolve(libPath); hostPath != "" {
+			libPath = hostPath
+		}
+
+		libPath = w.canonicalizePath(libPath)
+		if _, registered := w.registered[libPath]; registered {
+			break
+		}
+
+		w.register(libPath, r)
+		break
+	}
 }
 
 func (w *soWatcher) sync(libraries []so.Library) {

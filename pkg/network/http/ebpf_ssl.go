@@ -9,20 +9,19 @@
 package http
 
 import (
-	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
 
-	"github.com/twmb/murmur3"
-
 	manager "github.com/DataDog/ebpf-manager"
 	"github.com/cilium/ebpf"
+	"github.com/twmb/murmur3"
 
 	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/config"
+	netebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -77,7 +76,7 @@ var (
 type sslProgram struct {
 	cfg         *config.Config
 	sockFDMap   *ebpf.Map
-	perfHandler *ddebpf.PerfHandler
+	perfHandler *netebpf.PerfMap
 	watcher     *soWatcher
 	manager     *manager.Manager
 }
@@ -90,33 +89,26 @@ func newSSLProgram(c *config.Config, sockFDMap *ebpf.Map) (*sslProgram, error) {
 	}
 
 	return &sslProgram{
-		cfg:         c,
-		sockFDMap:   sockFDMap,
-		perfHandler: ddebpf.NewPerfHandler(batchNotificationsChanSize),
+		cfg:       c,
+		sockFDMap: sockFDMap,
 	}, nil
 }
 
-func (o *sslProgram) ConfigureManager(m *manager.Manager) {
+func (o *sslProgram) Configure(m *manager.Manager, options *manager.Options) error {
 	if o == nil {
-		return
+		return nil
 	}
-
 	o.manager = m
 
 	if !httpsSupported() {
-		return
+		return nil
 	}
 
-	m.PerfMaps = append(m.PerfMaps, &manager.PerfMap{
-		Map: manager.Map{Name: sharedLibrariesPerfMap},
-		PerfMapOptions: manager.PerfMapOptions{
-			PerfRingBufferSize: 8 * os.Getpagesize(),
-			Watermark:          1,
-			RecordHandler:      o.perfHandler.RecordHandler,
-			LostHandler:        o.perfHandler.LostHandler,
-			RecordGetter:       o.perfHandler.RecordGetter,
-		},
-	})
+	var err error
+	o.perfHandler, err = netebpf.NewPerfMap(sharedLibrariesPerfMap, m, options)
+	if err != nil {
+		return err
+	}
 
 	probeSysOpen := doSysOpen
 	if o.sysOpenAt2Supported() {
@@ -130,29 +122,6 @@ func (o *sslProgram) ConfigureManager(m *manager.Manager) {
 				UID:          probeUID,
 			}, KProbeMaxActive: maxActive},
 		)
-	}
-}
-
-func (o *sslProgram) ConfigureOptions(options *manager.Options) {
-	if o == nil {
-		return
-	}
-
-	if !httpsSupported() {
-		return
-	}
-
-	options.MapSpecEditors[sslSockByCtxMap] = manager.MapSpecEditor{
-		Type:       ebpf.Hash,
-		MaxEntries: uint32(o.cfg.MaxTrackedConnections),
-		EditorFlag: manager.EditMaxEntries,
-	}
-
-	probeSysOpen := doSysOpen
-	if o.sysOpenAt2Supported() {
-		probeSysOpen = doSysOpenAt2
-	}
-	for _, kprobe := range kprobeKretprobePrefix {
 		options.ActivatedProbes = append(options.ActivatedProbes,
 			&manager.ProbeSelector{
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
@@ -164,16 +133,24 @@ func (o *sslProgram) ConfigureOptions(options *manager.Options) {
 		)
 	}
 
+	options.MapSpecEditors[sslSockByCtxMap] = manager.MapSpecEditor{
+		Type:       ebpf.Hash,
+		MaxEntries: uint32(o.cfg.MaxTrackedConnections),
+		EditorFlag: manager.EditMaxEntries,
+	}
+
 	if options.MapEditors == nil {
 		options.MapEditors = make(map[string]*ebpf.Map)
 	}
 
 	options.MapEditors[string(probes.SockByPidFDMap)] = o.sockFDMap
+
+	return nil
 }
 
-func (o *sslProgram) Start() {
+func (o *sslProgram) Start() error {
 	if o == nil {
-		return
+		return nil
 	}
 
 	// Setup shared library watcher and configure the appropriate callbacks
@@ -195,7 +172,7 @@ func (o *sslProgram) Start() {
 		},
 	)
 
-	o.watcher.Start()
+	return o.watcher.Start()
 }
 
 func (o *sslProgram) Stop() {

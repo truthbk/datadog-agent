@@ -62,21 +62,20 @@ type ebpfProgram struct {
 	subprograms []subprogram
 	mapCleaner  *ddebpf.MapCleaner
 
-	batchCompletionHandler *ddebpf.PerfHandler
+	batchCompletionHandler *netebpf.PerfMap
 }
 
 type subprogram interface {
-	ConfigureManager(*manager.Manager)
-	ConfigureOptions(*manager.Options)
-	Start()
+	Configure(*manager.Manager, *manager.Options) error
+	Start() error
 	Stop()
 }
 
 func newEBPFProgram(c *config.Config, offsets []manager.ConstantEditor, sockFD *ebpf.Map) (*ebpfProgram, error) {
-	var bytecode bytecode.AssetReader
+	var bc bytecode.AssetReader
 	var err error
 	if enableRuntimeCompilation(c) {
-		bytecode, err = getRuntimeCompiledHTTP(c)
+		bc, err = getRuntimeCompiledHTTP(c)
 		if err != nil {
 			if !c.AllowPrecompiledFallback {
 				return nil, fmt.Errorf("error compiling network http tracer: %s", err)
@@ -85,14 +84,13 @@ func newEBPFProgram(c *config.Config, offsets []manager.ConstantEditor, sockFD *
 		}
 	}
 
-	if bytecode == nil {
-		bytecode, err = netebpf.ReadHTTPModule(c.BPFDir, c.BPFDebug)
+	if bc == nil {
+		bc, err = netebpf.ReadHTTPModule(c.BPFDir, c.BPFDebug)
 		if err != nil {
 			return nil, fmt.Errorf("could not read bpf module: %s", err)
 		}
 	}
 
-	batchCompletionHandler := ddebpf.NewPerfHandler(batchNotificationsChanSize)
 	mgr := &manager.Manager{
 		Maps: []*manager.Map{
 			{Name: httpInFlightMap},
@@ -105,18 +103,6 @@ func newEBPFProgram(c *config.Config, offsets []manager.ConstantEditor, sockFD *
 			{Name: "fd_by_ssl_bio"},
 			{Name: "ssl_ctx_by_pid_tgid"},
 		},
-		PerfMaps: []*manager.PerfMap{
-			{
-				Map: manager.Map{Name: httpNotificationsPerfMap},
-				PerfMapOptions: manager.PerfMapOptions{
-					PerfRingBufferSize: 8 * os.Getpagesize(),
-					Watermark:          1,
-					RecordHandler:      batchCompletionHandler.RecordHandler,
-					LostHandler:        batchCompletionHandler.LostHandler,
-					RecordGetter:       batchCompletionHandler.RecordGetter,
-				},
-			},
-		},
 		Probes: []*manager.Probe{
 			{ProbeIdentificationPair: manager.ProbeIdentificationPair{EBPFSection: string(probes.TCPSendMsg), EBPFFuncName: "kprobe__tcp_sendmsg", UID: probeUID}, KProbeMaxActive: maxActive},
 			{ProbeIdentificationPair: manager.ProbeIdentificationPair{EBPFSection: string(probes.TCPSendMsgReturn), EBPFFuncName: "kretprobe__tcp_sendmsg", UID: probeUID}, KProbeMaxActive: maxActive},
@@ -126,12 +112,11 @@ func newEBPFProgram(c *config.Config, offsets []manager.ConstantEditor, sockFD *
 
 	sslProgram, _ := newSSLProgram(c, sockFD)
 	program := &ebpfProgram{
-		Manager:                mgr,
-		bytecode:               bytecode,
-		cfg:                    c,
-		offsets:                offsets,
-		batchCompletionHandler: batchCompletionHandler,
-		subprograms:            []subprogram{sslProgram},
+		Manager:     mgr,
+		bytecode:    bc,
+		cfg:         c,
+		offsets:     offsets,
+		subprograms: []subprogram{sslProgram},
 	}
 
 	return program, nil
@@ -140,12 +125,9 @@ func newEBPFProgram(c *config.Config, offsets []manager.ConstantEditor, sockFD *
 func (e *ebpfProgram) Init() error {
 	defer e.bytecode.Close()
 
-	for _, s := range e.subprograms {
-		s.ConfigureManager(e.Manager)
-	}
-	e.Manager.DumpHandler = dumpMapsHandler
-
 	options := manager.Options{
+		DefaultWatermark:          1,
+		DefaultPerfRingBufferSize: 8 * os.Getpagesize(),
 		RLimit: &unix.Rlimit{
 			Cur: math.MaxUint64,
 			Max: math.MaxUint64,
@@ -194,15 +176,19 @@ func (e *ebpfProgram) Init() error {
 	}
 
 	for _, s := range e.subprograms {
-		s.ConfigureOptions(&options)
+		if err := s.Configure(e.Manager, &options); err != nil {
+			return fmt.Errorf("error configuring manager for subprogram: %w", err)
+		}
 	}
+	e.Manager.DumpHandler = dumpMapsHandler
 
-	err := e.InitWithOptions(e.bytecode, options)
+	var err error
+	e.batchCompletionHandler, err = netebpf.NewPerfMap(httpNotificationsPerfMap, e.Manager, &options)
 	if err != nil {
 		return err
 	}
 
-	return nil
+	return e.InitWithOptions(e.bytecode, options)
 }
 
 func (e *ebpfProgram) Start() error {

@@ -10,14 +10,13 @@ package http
 
 import (
 	"fmt"
-
 	"sync"
 
 	manager "github.com/DataDog/ebpf-manager"
 	"github.com/cilium/ebpf"
 
-	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/config"
+	netebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	filterpkg "github.com/DataDog/datadog-agent/pkg/network/filter"
 )
 
@@ -39,7 +38,7 @@ type Monitor struct {
 
 	ebpfProgram            *ebpfProgram
 	batchManager           *batchManager
-	batchCompletionHandler *ddebpf.PerfHandler
+	batchCompletionHandler *netebpf.PerfMap
 	telemetry              *telemetry
 	telemetrySnapshot      *telemetry
 	pollRequests           chan chan HTTPMonitorStats
@@ -117,6 +116,15 @@ func (m *Monitor) Start() error {
 		return nil
 	}
 
+	err := m.batchCompletionHandler.Start(func(CPU int, data []byte) {
+		notification := toHTTPNotification(data)
+		transactions, err := m.batchManager.GetTransactionsFrom(notification)
+		m.process(transactions, err)
+	})
+	if err != nil {
+		return err
+	}
+
 	if err := m.ebpfProgram.Start(); err != nil {
 		return err
 	}
@@ -126,22 +134,24 @@ func (m *Monitor) Start() error {
 		defer m.eventLoopWG.Done()
 		for {
 			select {
-			case dataEvent, ok := <-m.batchCompletionHandler.DataChannel:
-				if !ok {
-					return
-				}
-
-				// The notification we read from the perf ring tells us which HTTP batch of transactions is ready to be consumed
-				notification := toHTTPNotification(dataEvent.Data)
-				transactions, err := m.batchManager.GetTransactionsFrom(notification)
-				m.process(transactions, err)
-				dataEvent.Done()
-			case _, ok := <-m.batchCompletionHandler.LostChannel:
-				if !ok {
-					return
-				}
-
-				m.process(nil, errLostBatch)
+			//case dataEvent, ok := <-m.batchCompletionHandler.DataChannel:
+			//	if !ok {
+			//		return
+			//	}
+			//
+			//	// The notification we read from the perf ring tells us which HTTP batch of transactions is ready to be consumed
+			//	notification := toHTTPNotification(dataEvent.Data)
+			//	transactions, err := m.batchManager.GetTransactionsFrom(notification)
+			//	m.process(transactions, err)
+			//	dataEvent.Done()
+			//case _, ok := <-m.batchCompletionHandler.LostChannel:
+			//	if !ok {
+			//		return
+			//	}
+			//
+			//	m.process(nil, errLostBatch)
+			case <-m.batchCompletionHandler.Done:
+				return
 			case reply, ok := <-m.pollRequests:
 				if !ok {
 					return

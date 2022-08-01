@@ -9,12 +9,10 @@
 package kprobe
 
 import (
-	"os"
 	"strings"
 
 	manager "github.com/DataDog/ebpf-manager"
 
-	"github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
 )
 
@@ -67,7 +65,7 @@ var altProbes = map[probes.ProbeName]string{
 	probes.SKB__FreeDatagramLocked: "kprobe____skb_free_datagram_locked",
 }
 
-func newManager(closedHandler *ebpf.PerfHandler, runtimeTracer bool) *manager.Manager {
+func newManager(runtimeTracer bool) *manager.Manager {
 	mgr := &manager.Manager{
 		Maps: []*manager.Map{
 			{Name: string(probes.ConnMap)},
@@ -90,13 +88,6 @@ func newManager(closedHandler *ebpf.PerfHandler, runtimeTracer bool) *manager.Ma
 		PerfMaps: []*manager.PerfMap{
 			{
 				Map: manager.Map{Name: string(probes.ConnCloseEventMap)},
-				PerfMapOptions: manager.PerfMapOptions{
-					PerfRingBufferSize: 8 * os.Getpagesize(),
-					Watermark:          1,
-					RecordHandler:      closedHandler.RecordHandler,
-					LostHandler:        closedHandler.LostHandler,
-					RecordGetter:       closedHandler.RecordGetter,
-				},
 			},
 		},
 	}

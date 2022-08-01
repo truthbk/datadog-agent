@@ -13,6 +13,8 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/DataDog/datadog-agent/pkg/util/kernel"
+
 	"github.com/cilium/ebpf"
 
 	"github.com/DataDog/datadog-agent/pkg/network"
@@ -41,9 +43,13 @@ type perfBatchManager struct {
 
 // newPerfBatchManager returns a new `perfBatchManager` and initializes the
 // eBPF map that holds the tcp_close batch objects.
-func newPerfBatchManager(batchMap *ebpf.Map, numCPUs int) (*perfBatchManager, error) {
+func newPerfBatchManager(batchMap *ebpf.Map) (*perfBatchManager, error) {
 	if batchMap == nil {
 		return nil, fmt.Errorf("batchMap is nil")
+	}
+	numCPUs, err := kernel.PossibleCPUs()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get count of possible CPUs: %w", err)
 	}
 
 	state := make([]percpuState, numCPUs)
@@ -64,7 +70,7 @@ func newPerfBatchManager(batchMap *ebpf.Map, numCPUs int) (*perfBatchManager, er
 	}, nil
 }
 
-// Extract from the given batch all connections that haven't been processed yet.
+// ExtractBatchInto extracts from the given batch all connections that haven't been processed yet.
 func (p *perfBatchManager) ExtractBatchInto(buffer *network.ConnectionBuffer, b *netebpf.Batch, cpu int) {
 	if cpu >= len(p.stateByCPU) {
 		return

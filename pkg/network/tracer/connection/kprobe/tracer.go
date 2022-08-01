@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"unsafe"
 
 	manager "github.com/DataDog/ebpf-manager"
@@ -19,7 +20,6 @@ import (
 	"go.uber.org/atomic"
 	"golang.org/x/sys/unix"
 
-	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode"
 	"github.com/DataDog/datadog-agent/pkg/network"
 	"github.com/DataDog/datadog-agent/pkg/network/config"
@@ -69,6 +69,8 @@ func newTelemetry() telemetry {
 
 func New(config *config.Config, constants []manager.ConstantEditor) (connection.Tracer, error) {
 	mgrOptions := manager.Options{
+		DefaultWatermark:          1,
+		DefaultPerfRingBufferSize: 8 * os.Getpagesize(),
 		// Extend RLIMIT_MEMLOCK (8) size
 		// On some systems, the default for RLIMIT_MEMLOCK may be as low as 64 bytes.
 		// This will result in an EPERM (Operation not permitted) error, when trying to create an eBPF map
@@ -120,12 +122,7 @@ func New(config *config.Config, constants []manager.ConstantEditor) (connection.
 		return nil, fmt.Errorf("invalid probe configuration: %v", err)
 	}
 
-	closedChannelSize := defaultClosedChannelSize
-	if config.ClosedChannelSize > 0 {
-		closedChannelSize = config.ClosedChannelSize
-	}
-	perfHandlerTCP := ddebpf.NewPerfHandler(closedChannelSize)
-	m := newManager(perfHandlerTCP, runtimeTracer)
+	m := newManager(runtimeTracer)
 	m.DumpHandler = dumpMapsHandler
 
 	// exclude all non-enabled probes to ensure we don't run into problems with unsupported probe types
@@ -145,14 +142,15 @@ func New(config *config.Config, constants []manager.ConstantEditor) (connection.
 				},
 			})
 	}
+
+	closeConsumer, err := newTCPCloseConsumer(config, m, &mgrOptions)
+	if err != nil {
+		return nil, fmt.Errorf("could not create tcpCloseConsumer: %s", err)
+	}
+
 	err = m.InitWithOptions(buf, mgrOptions)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init ebpf manager: %v", err)
-	}
-
-	closeConsumer, err := newTCPCloseConsumer(m, perfHandlerTCP)
-	if err != nil {
-		return nil, fmt.Errorf("could not create tcpCloseConsumer: %s", err)
 	}
 
 	tr := &kprobeTracer{
@@ -195,8 +193,7 @@ func (t *kprobeTracer) Start(callback func([]network.ConnectionStats)) (err erro
 		return fmt.Errorf("could not start ebpf manager: %s", err)
 	}
 
-	t.closeConsumer.Start(callback)
-	return nil
+	return t.closeConsumer.Start(callback)
 }
 
 func (t *kprobeTracer) FlushPending() {
