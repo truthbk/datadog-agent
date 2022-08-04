@@ -26,7 +26,7 @@ const (
 
 type tcpCloseConsumer struct {
 	m            *manager.Manager
-	perfMap      *netebpf.PerfMap
+	perfMap      *netebpf.ChannelPerfMap
 	batchManager *perfBatchManager
 	requests     chan chan struct{}
 	buffer       *network.ConnectionBuffer
@@ -34,11 +34,11 @@ type tcpCloseConsumer struct {
 }
 
 func newTCPCloseConsumer(cfg *config.Config, m *manager.Manager, opts *manager.Options) (*tcpCloseConsumer, error) {
-	//closedChannelSize := defaultClosedChannelSize
-	//if cfg.ClosedChannelSize > 0 {
-	//	closedChannelSize = cfg.ClosedChannelSize
-	//}
-	perfMap, err := netebpf.NewPerfMap(string(probes.ConnCloseEventMap), m, opts)
+	closedChannelSize := defaultClosedChannelSize
+	if cfg.ClosedChannelSize > 0 {
+		closedChannelSize = cfg.ClosedChannelSize
+	}
+	perfMap, err := netebpf.NewChannelPerfMap(string(probes.ConnCloseEventMap), m, opts, closedChannelSize)
 	if err != nil {
 		return nil, err
 	}
@@ -87,12 +87,7 @@ func (c *tcpCloseConsumer) Start(callback func([]network.ConnectionStats)) error
 	if c == nil {
 		return nil
 	}
-	err := c.perfMap.Start(func(CPU int, data []byte) {
-		batch := netebpf.ToBatch(data)
-		c.batchManager.ExtractBatchInto(c.buffer, batch, CPU)
-		callback(c.buffer.Connections())
-		c.buffer.Reset()
-	})
+	err := c.perfMap.Start()
 	if err != nil {
 		return err
 	}
@@ -105,16 +100,16 @@ func (c *tcpCloseConsumer) Start(callback func([]network.ConnectionStats)) error
 	go func() {
 		for {
 			select {
-			//case batchData, ok := <-c.perfHandler.DataChannel:
-			//	if !ok {
-			//		return
-			//	}
-			//	batch := netebpf.ToBatch(batchData.Data)
-			//	c.batchManager.ExtractBatchInto(c.buffer, batch, batchData.CPU)
-			//	closedCount += c.buffer.Len()
-			//	callback(c.buffer.Connections())
-			//	c.buffer.Reset()
-			//	batchData.Done()
+			case batchData, ok := <-c.perfMap.DataChannel:
+				if !ok {
+					return
+				}
+				batch := netebpf.ToBatch(batchData.Data)
+				c.batchManager.ExtractBatchInto(c.buffer, batch, batchData.CPU)
+				//closedCount += c.buffer.Len()
+				callback(c.buffer.Connections())
+				c.buffer.Reset()
+				batchData.Done()
 			//case _, ok := <-c.perfHandler.LostChannel:
 			//	if !ok {
 			//		return

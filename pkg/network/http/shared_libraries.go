@@ -61,14 +61,14 @@ type soWatcher struct {
 	all        *regexp.Regexp
 	rules      []soRule
 	registered map[string]func(string) error
-	loadEvents *netebpf.PerfMap
+	loadEvents *netebpf.ChannelPerfMap
 }
 
 type seenKey struct {
 	pid, path string
 }
 
-func newSOWatcher(procRoot string, perfHandler *netebpf.PerfMap, rules ...soRule) *soWatcher {
+func newSOWatcher(procRoot string, perfHandler *netebpf.ChannelPerfMap, rules ...soRule) *soWatcher {
 	allFilters := make([]string, len(rules))
 	for i, r := range rules {
 		allFilters[i] = r.re.String()
@@ -91,9 +91,7 @@ func (w *soWatcher) Start() error {
 	w.sync(sharedLibraries)
 
 	thisPID, _ := util.GetRootNSPID()
-	err := w.loadEvents.Start(func(CPU int, data []byte) {
-		w.handleEvent(data, thisPID, seen)
-	})
+	err := w.loadEvents.Start()
 	if err != nil {
 		return err
 	}
@@ -110,17 +108,13 @@ func (w *soWatcher) Start() error {
 				w.sync(sharedLibraries)
 			case <-w.loadEvents.Done:
 				return
-				//case event, ok := <-w.loadEvents.DataChannel:
-				//	if !ok {
-				//		return
-				//	}
-				//
-				//	w.handleEvent(event, thisPID, seen)
-				//	//event.Done()
-				//
-				//case <-w.loadEvents.LostChannel:
-				//	// Nothing to do in this case
-				//	break
+			case event, ok := <-w.loadEvents.DataChannel:
+				if !ok {
+					return
+				}
+
+				w.handleEvent(event.Data, thisPID, seen)
+				event.Done()
 			}
 		}
 	}()

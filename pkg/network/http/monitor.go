@@ -38,7 +38,7 @@ type Monitor struct {
 
 	ebpfProgram            *ebpfProgram
 	batchManager           *batchManager
-	batchCompletionHandler *netebpf.PerfMap
+	batchCompletionHandler *netebpf.ChannelPerfMap
 	telemetry              *telemetry
 	telemetrySnapshot      *telemetry
 	pollRequests           chan chan HTTPMonitorStats
@@ -116,11 +116,7 @@ func (m *Monitor) Start() error {
 		return nil
 	}
 
-	err := m.batchCompletionHandler.Start(func(CPU int, data []byte) {
-		notification := toHTTPNotification(data)
-		transactions, err := m.batchManager.GetTransactionsFrom(notification)
-		m.process(transactions, err)
-	})
+	err := m.batchCompletionHandler.Start()
 	if err != nil {
 		return err
 	}
@@ -134,16 +130,16 @@ func (m *Monitor) Start() error {
 		defer m.eventLoopWG.Done()
 		for {
 			select {
-			//case dataEvent, ok := <-m.batchCompletionHandler.DataChannel:
-			//	if !ok {
-			//		return
-			//	}
-			//
-			//	// The notification we read from the perf ring tells us which HTTP batch of transactions is ready to be consumed
-			//	notification := toHTTPNotification(dataEvent.Data)
-			//	transactions, err := m.batchManager.GetTransactionsFrom(notification)
-			//	m.process(transactions, err)
-			//	dataEvent.Done()
+			case dataEvent, ok := <-m.batchCompletionHandler.DataChannel:
+				if !ok {
+					return
+				}
+
+				// The notification we read from the perf ring tells us which HTTP batch of transactions is ready to be consumed
+				notification := toHTTPNotification(dataEvent.Data)
+				transactions, err := m.batchManager.GetTransactionsFrom(notification)
+				m.process(transactions, err)
+				dataEvent.Done()
 			//case _, ok := <-m.batchCompletionHandler.LostChannel:
 			//	if !ok {
 			//		return

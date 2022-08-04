@@ -76,7 +76,7 @@ var (
 type sslProgram struct {
 	cfg         *config.Config
 	sockFDMap   *ebpf.Map
-	perfHandler *netebpf.PerfMap
+	perfHandler *netebpf.ChannelPerfMap
 	watcher     *soWatcher
 	manager     *manager.Manager
 }
@@ -105,7 +105,7 @@ func (o *sslProgram) Configure(m *manager.Manager, options *manager.Options) err
 	}
 
 	var err error
-	o.perfHandler, err = netebpf.NewPerfMap(sharedLibrariesPerfMap, m, options)
+	o.perfHandler, err = netebpf.NewChannelPerfMap(sharedLibrariesPerfMap, m, options, batchNotificationsChanSize)
 	if err != nil {
 		return err
 	}

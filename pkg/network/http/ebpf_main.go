@@ -62,7 +62,7 @@ type ebpfProgram struct {
 	subprograms []subprogram
 	mapCleaner  *ddebpf.MapCleaner
 
-	batchCompletionHandler *netebpf.PerfMap
+	batchCompletionHandler *netebpf.ChannelPerfMap
 }
 
 type subprogram interface {
@@ -183,7 +183,7 @@ func (e *ebpfProgram) Init() error {
 	e.Manager.DumpHandler = dumpMapsHandler
 
 	var err error
-	e.batchCompletionHandler, err = netebpf.NewPerfMap(httpNotificationsPerfMap, e.Manager, &options)
+	e.batchCompletionHandler, err = netebpf.NewChannelPerfMap(httpNotificationsPerfMap, e.Manager, &options, batchNotificationsChanSize)
 	if err != nil {
 		return err
 	}

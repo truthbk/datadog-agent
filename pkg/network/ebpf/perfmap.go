@@ -117,11 +117,17 @@ func (p *PerfMap) Stop() {
 	})
 }
 
+// DataEvent wraps a perf buffer record
 type DataEvent struct {
 	CPU  int
 	Data []byte
 
 	r *perf.Record
+}
+
+// Done indicates that data processing is done, and the memory can be reclaimed
+func (d *DataEvent) Done() {
+	recordPool.Put(d.r)
 }
 
 // ChannelPerfMap wraps PerfMap to provide the data over a buffered channel.
