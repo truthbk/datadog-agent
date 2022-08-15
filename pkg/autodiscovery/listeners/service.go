@@ -184,6 +184,8 @@ func (s *service) filterTemplatesContainerCollectAll(configs map[string]integrat
 		return
 	}
 
+	log.Infof("filtering for %v: %+v", s.adIdentifiers, configs)
+
 	var ccaDigest string
 	foundLogsConfig := false
 	for digest, config := range configs {
@@ -200,6 +202,8 @@ func (s *service) filterTemplatesContainerCollectAll(configs map[string]integrat
 	if foundLogsConfig && ccaDigest != "" {
 		delete(configs, ccaDigest)
 	}
+
+	log.Infof("filtered for %v: %+v", s.adIdentifiers, configs)
 }
 
 // GetExtraConfig returns extra configuration associated with the service.

@@ -69,7 +69,7 @@ func (s *Scheduler) Schedule(configs []integration.Config) {
 		}
 		switch {
 		case s.newSources(config):
-			log.Infof("Received a new logs config: %v", s.configName(config))
+			log.Infof("Received a new logs config %q with AD Identifiers %v -- %+v", s.configName(config), config.ADIdentifiers, config)
 			sources, err := s.toSources(config)
 			if err != nil {
 				log.Warnf("Invalid configuration: %v", err)

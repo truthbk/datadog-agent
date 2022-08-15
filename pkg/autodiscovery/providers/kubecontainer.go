@@ -78,9 +78,7 @@ func (k *KubeContainerConfigProvider) Stream(ctx context.Context) <-chan integra
 				}
 
 				changes := k.processEvents(evBundle)
-				if !changes.IsEmpty() {
-					outCh <- changes
-				}
+				outCh <- changes
 
 				close(evBundle.Ch)
 			}
