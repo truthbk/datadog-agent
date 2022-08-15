@@ -14,12 +14,52 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
+type MetricIndex struct {
+	inner uint64
+}
+
+func NewMetricIndex(mtype uint8, index uint32) MetricIndex {
+	return MetricIndex{
+		inner: uint64(mtype) | (uint64(index) << 8),
+	}
+}
+
+func (mi MetricIndex) Type() MetricType {
+	return MetricType(mi.inner & 0xff)
+}
+
+func init() {
+	if NumMetricTypes > 255 {
+		panic("NumMetricTypes too high")
+	}
+}
+
+func (mi MetricIndex) Index() uint32 {
+	return uint32(mi.inner >> 8)
+}
+
 // ContextMetrics stores all the metrics by context key
-type ContextMetrics map[ckey.ContextKey]Metric
+type ContextMetrics struct{
+	inner *contextMetrics
+}
+
+type contextMetrics struct{
+	indexes    map[ckey.ContextKey]MetricIndex
+	gauges     []Gauge
+	rates      []Rate
+	counts     []Count
+	mcounts    []MonotonicCount
+	histograms []*Histogram
+	historates []*Historate
+	sets       []*Set
+	counters   []*Counter
+}
 
 // MakeContextMetrics returns a new ContextMetrics
 func MakeContextMetrics() ContextMetrics {
-	return ContextMetrics(make(map[ckey.ContextKey]Metric))
+	return ContextMetrics{&contextMetrics{
+		indexes: make(map[ckey.ContextKey]MetricIndex),
+	}}
 }
 
 // AddSampleTelemetry counts number of new metrics added.
@@ -42,51 +82,120 @@ func (a *AddSampleTelemetry) Inc(isStateful bool) {
 }
 
 // AddSample add a sample to the current ContextMetrics and initialize a new metrics if needed.
-func (m ContextMetrics) AddSample(contextKey ckey.ContextKey, sample *MetricSample, timestamp float64, interval int64, t *AddSampleTelemetry) error {
+func (metrics *ContextMetrics) AddSample(contextKey ckey.ContextKey, sample *MetricSample, timestamp float64, interval int64, t *AddSampleTelemetry) error {
+	m := metrics.inner
+
 	if math.IsInf(sample.Value, 0) || math.IsNaN(sample.Value) {
 		return fmt.Errorf("sample with value '%v'", sample.Value)
 	}
-	if _, ok := m[contextKey]; !ok {
+
+	var mtype MetricType
+	var index uint32
+
+	if mi, ok := m.indexes[contextKey]; ok {
+		mtype = mi.Type()
+		index = mi.Index()
+	} else {
+		mtype = sample.Mtype
+		var metric Metric
+
 		switch sample.Mtype {
 		case GaugeType:
-			m[contextKey] = &Gauge{}
+			index = uint32(len(m.gauges))
+			m.gauges = append(m.gauges, Gauge{})
 		case RateType:
-			m[contextKey] = &Rate{}
+			index = uint32(len(m.rates))
+			m.rates = append(m.rates, Rate{})
 		case CountType:
-			m[contextKey] = &Count{}
+			index = uint32(len(m.counts))
+			m.counts = append(m.counts, Count{})
 		case MonotonicCountType:
-			m[contextKey] = &MonotonicCount{}
+			index = uint32(len(m.mcounts))
+			m.mcounts = append(m.mcounts, MonotonicCount{})
 		case HistogramType:
-			m[contextKey] = NewHistogram(interval) // default histogram configuration (no call to `configure`) for now
+			index = uint32(len(m.histograms))
+			m.histograms = append(m.histograms, NewHistogram(interval))
 		case HistorateType:
-			m[contextKey] = NewHistorate(interval) // internal histogram has the configuration for now
+			index = uint32(len(m.historates))
+			m.historates = append(m.historates, NewHistorate(interval))
 		case SetType:
-			m[contextKey] = NewSet()
+			index = uint32(len(m.sets))
+			m.sets = append(m.sets, NewSet())
 		case CounterType:
-			m[contextKey] = NewCounter(interval)
+			index = uint32(len(m.counters))
+			m.counters = append(m.counters, NewCounter(interval))
 		default:
 			err := fmt.Errorf("unknown sample metric type: %v", sample.Mtype)
 			log.Error(err)
 			return err
 		}
-		if t != nil {
-			t.Inc(m[contextKey].isStateful())
-		}
+		m.indexes[contextKey] = NewMetricIndex(uint8(sample.Mtype), index)
+
+		// if t != nil {
+		// 	t.Inc(metric.isStateful())
+		// }
 	}
-	m[contextKey].addSample(sample, timestamp)
+
+	switch mtype {
+	case GaugeType:
+		m.gauges[index].addSample(sample, timestamp)
+	case RateType:
+		m.rates[index].addSample(sample, timestamp)
+	case CountType:
+		m.counts[index].addSample(sample, timestamp)
+	case MonotonicCountType:
+		m.mcounts[index].addSample(sample, timestamp)
+	case HistogramType:
+		m.histograms[index].addSample(sample, timestamp)
+	case HistorateType:
+		m.historates[index].addSample(sample, timestamp)
+	case SetType:
+		m.sets[index].addSample(sample, timestamp)
+	case CounterType:
+		m.counters[index].addSample(sample, timestamp)
+	default:
+		err := fmt.Errorf("unknown sample metric type: %v", sample.Mtype)
+		log.Error(err)
+		return err
+	}
+
+	return nil
+}
+
+func (metrics ContextMetrics) get(metricIndex MetricIndex) Metric {
+	m := metrics.inner
+	idx := metricIndex.Index()
+	switch metricIndex.Type() {
+	case GaugeType:
+		return &m.gauges[idx]
+	case RateType:
+		return &m.rates[idx]
+	case CountType:
+		return &m.counts[idx]
+	case MonotonicCountType:
+		return &m.mcounts[idx]
+	case HistogramType:
+		return m.histograms[idx]
+	case HistorateType:
+		return m.historates[idx]
+	case SetType:
+		return m.sets[idx]
+	case CounterType:
+		return m.counters[idx]
+	}
 	return nil
 }
 
 // Flush flushes every metrics in the ContextMetrics.
 // Returns the slice of Series and a map of errors by context key.
-func (m ContextMetrics) Flush(timestamp float64) ([]*Serie, map[ckey.ContextKey]error) {
+func (metrics ContextMetrics) Flush(timestamp float64) ([]*Serie, map[ckey.ContextKey]error) {
 	var series []*Serie
 	errors := make(map[ckey.ContextKey]error)
 
-	for contextKey, metric := range m {
+	for contextKey, metricIndex := range metrics.inner.indexes {
 		series = flushToSeries(
 			contextKey,
-			metric,
+			metrics.get(metricIndex),
 			timestamp,
 			series,
 			errors)
@@ -139,15 +248,15 @@ func aggregateContextMetricsByContextKey(
 	callback func(ckey.ContextKey, Metric, int),
 	contextKeyChanged func()) {
 	for i := 0; i < len(contextMetricsCollection); i++ {
-		for contextKey, metrics := range contextMetricsCollection[i] {
-			callback(contextKey, metrics, i)
+		for contextKey, metricIndex := range contextMetricsCollection[i].inner.indexes {
+			callback(contextKey, contextMetricsCollection[i].get(metricIndex), i)
 
 			// Find `contextKey` in the remaining contextMetrics
 			for j := i + 1; j < len(contextMetricsCollection); j++ {
 				contextMetrics := contextMetricsCollection[j]
-				if m, found := contextMetrics[contextKey]; found {
-					callback(contextKey, m, j)
-					delete(contextMetrics, contextKey)
+				if metricIndex, found := contextMetrics.inner.indexes[contextKey]; found {
+					callback(contextKey, contextMetrics.get(metricIndex), j)
+					delete(contextMetrics.inner.indexes, contextKey)
 				}
 			}
 			contextKeyChanged()
