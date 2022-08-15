@@ -177,6 +177,8 @@ func (k *KubeContainerConfigProvider) generateConfig(e workloadmeta.Entity) ([]i
 			for idx := range configs {
 				configs[idx].Source = names.Container + ":" + containerEntityName
 			}
+		} else {
+			log.Infof("did not find k8s label: %q %+v", entity.ID, entity.Labels)
 		}
 
 	case *workloadmeta.KubernetesPod:
