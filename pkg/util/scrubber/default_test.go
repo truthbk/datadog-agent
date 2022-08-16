@@ -6,6 +6,7 @@
 package scrubber
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -132,6 +133,9 @@ func TestConfigStripURLPassword(t *testing.T) {
 	assertClean(t,
 		`random_url_key: http://user:password@host:port`,
 		`random_url_key: http://user:********@host:port`)
+	assertClean(t,
+		`{ "key":"tcp://p:ppass@foo.com"}`,
+		`{ "key":"tcp://p:********@foo.com"}`)
 	assertClean(t,
 		`random_url_key: http://user:p@ssw0r)@host:port`,
 		`random_url_key: http://user:********@host:port`)
@@ -524,4 +528,23 @@ func TestBearerToken(t *testing.T) {
 	assertClean(t,
 		`AuthBearer 2fe663014abcd1850076f6d68c0355666db98758262870811cace007cd4a62ba`,
 		`AuthBearer 2fe663014abcd1850076f6d68c0355666db98758262870811cace007cd4a62ba`)
+}
+
+func assertStillValidJSON(t *testing.T, input string) {
+	inputBytes := []byte(input)
+	isOriginalValid := json.Valid(inputBytes)
+	assert.Truef(t, isOriginalValid, "Input %s did not start off as valid json!", input)
+
+	cleaned, err := ScrubBytes(inputBytes)
+	assert.Nil(t, err)
+	isStillValid := json.Valid(cleaned)
+
+	assert.Truef(t, isStillValid, "Input %s was scrubbed to %s, which is no longer valid json", input, string(cleaned))
+}
+
+func TestSafeForJSON(t *testing.T) {
+	assertStillValidJSON(t, `{"hello": "world"}`)
+	assertStillValidJSON(t, `{ "key": "tcp://p:ppass@foo.com"}`)
+	assertStillValidJSON(t, `{ "key":"tcp://p:ppass@foo.com"}`)
+	assertStillValidJSON(t, `{ "key": "api_key: aaaaaaaaaaaaaaaaaaaaaaaaaaaabbbb"}`)
 }
