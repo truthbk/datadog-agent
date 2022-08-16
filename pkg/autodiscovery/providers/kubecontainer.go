@@ -107,28 +107,30 @@ func (k *KubeContainerConfigProvider) processEvents(evBundle workloadmeta.EventB
 				delete(k.configErrors, entityName)
 			}
 
-			configsToAdd := make(map[string]integration.Config)
+			configCache, ok := k.configCache[entityName]
+			if !ok {
+				configCache = make(map[string]integration.Config)
+				k.configCache[entityName] = configCache
+			}
+
+			configsToUnschedule := make(map[string]integration.Config)
+			for digest, config := range configCache {
+				configsToUnschedule[digest] = config
+			}
+
 			for _, config := range configs {
-				configsToAdd[config.Digest()] = config
-			}
-
-			oldConfigs, found := k.configCache[entityName]
-			if found {
-				for digest, config := range oldConfigs {
-					_, ok := configsToAdd[digest]
-					if ok {
-						delete(configsToAdd, digest)
-					} else {
-						delete(k.configCache[entityName], digest)
-						changes.Unschedule = append(changes.Unschedule, config)
-					}
+				digest := config.Digest()
+				if _, ok := configCache[digest]; ok {
+					delete(configsToUnschedule, digest)
+				} else {
+					configCache[digest] = config
+					changes.ScheduleConfig(config)
 				}
-			} else {
-				k.configCache[entityName] = configsToAdd
 			}
 
-			for _, config := range configsToAdd {
-				changes.Schedule = append(changes.Schedule, config)
+			for oldDigest, oldConfig := range configsToUnschedule {
+				delete(configCache, oldDigest)
+				changes.UnscheduleConfig(oldConfig)
 			}
 
 		case workloadmeta.EventTypeUnset:
@@ -177,8 +179,6 @@ func (k *KubeContainerConfigProvider) generateConfig(e workloadmeta.Entity) ([]i
 			for idx := range configs {
 				configs[idx].Source = names.Container + ":" + containerEntityName
 			}
-		} else {
-			log.Infof("did not find k8s label: %q %+v", entity.ID, entity.Labels)
 		}
 
 	case *workloadmeta.KubernetesPod:
