@@ -362,9 +362,8 @@ func (ac *AutoConfig) RemoveScheduler(name string) {
 	ac.scheduler.Deregister(name)
 }
 
-func (ac *AutoConfig) processRemovedConfigs(configs []integration.Config) {
-	changes := ac.cfgMgr.processDelConfigs(configs)
-	ac.applyChanges(changes)
+func (ac *AutoConfig) processRemovedConfigs(configs []integration.Config) integration.ConfigChanges {
+	return ac.cfgMgr.processDelConfigs(configs)
 }
 
 // MapOverLoadedConfigs calls the given function with the map of all

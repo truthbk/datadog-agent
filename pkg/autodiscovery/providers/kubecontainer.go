@@ -108,6 +108,8 @@ func (k *KubeContainerConfigProvider) processEvents(evBundle workloadmeta.EventB
 		case workloadmeta.EventTypeSet:
 			configs, err := k.generateConfig(event.Entity)
 
+			log.Infof("will build a changeset for %q: %+v", entityName, configs)
+
 			if err != nil {
 				k.configErrors[entityName] = err
 			} else if _, ok := k.configErrors[entityName]; ok {
@@ -226,7 +228,7 @@ func (k *KubeContainerConfigProvider) generateConfig(e workloadmeta.Entity) ([]i
 			// appears before an annotation one, it'll cause a logs
 			// config to be scheduled as container_collect_all,
 			// unscheduled, and then re-scheduled correctly.
-			configs = utils.AddContainerCollectAllConfigs(configs, containerEntity)
+			c = utils.AddContainerCollectAllConfigs(c, containerEntity)
 
 			if len(errors) > 0 {
 				errs = append(errs, errors...)

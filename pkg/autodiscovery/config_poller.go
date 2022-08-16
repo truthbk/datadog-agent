@@ -111,13 +111,16 @@ func (cp *configPoller) stream(ch chan struct{}, provider providers.StreamingCon
 					log.Infof("got a changeset unschedule: %+v", changes.Unschedule)
 				}
 
-				ac.processRemovedConfigs(changes.Unschedule)
+				resolvedChanges := integration.ConfigChanges{}
+
+				resolvedChanges.Merge(ac.processRemovedConfigs(changes.Unschedule))
 
 				for _, added := range changes.Schedule {
 					added.Provider = cp.provider.String()
-					resolvedChanges := ac.processNewConfig(added)
-					ac.applyChanges(resolvedChanges)
+					resolvedChanges.Merge(ac.processNewConfig(added))
 				}
+
+				ac.applyChanges(resolvedChanges)
 			}
 
 			if !ranOnce {
