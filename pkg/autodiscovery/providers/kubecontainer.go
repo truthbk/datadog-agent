@@ -80,6 +80,13 @@ func (k *KubeContainerConfigProvider) Stream(ctx context.Context) <-chan integra
 				changes := k.processEvents(evBundle)
 				outCh <- changes
 
+				if len(changes.Schedule) > 0 {
+					log.Infof("got a changeset schedule: %+v", changes.Schedule)
+				}
+				if len(changes.Unschedule) > 0 {
+					log.Infof("got a changeset unschedule: %+v", changes.Unschedule)
+				}
+
 				close(evBundle.Ch)
 			}
 		}
