@@ -10,11 +10,13 @@ package probe
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"time"
 
-	manager "github.com/DataDog/ebpf-manager"
 	"github.com/cilium/ebpf/perf"
+
+	manager "github.com/DataDog/ebpf-manager"
 )
 
 type reOrdererNodePool struct {
@@ -51,64 +53,16 @@ type reOrdererNode struct {
 	generation uint64
 }
 
-type reOrdererHeap struct {
-	heap []*reOrdererNode
+type reOrdererList struct {
+	list []*reOrdererNode
 	pool *reOrdererNodePool
 }
 
-func (h *reOrdererHeap) len() uint64 {
-	return uint64(len(h.heap))
+func (h *reOrdererList) len() uint64 {
+	return uint64(len(h.list))
 }
 
-func (h *reOrdererHeap) swap(i, j int) int {
-	h.heap[i], h.heap[j] = h.heap[j], h.heap[i]
-
-	// generations are not in the same order as timestamp, thus swap them
-	if h.heap[i].timestamp > h.heap[j].timestamp && h.heap[i].generation < h.heap[j].generation {
-		h.heap[i].generation, h.heap[j].generation = h.heap[j].generation, h.heap[i].generation
-	}
-
-	return j
-}
-
-func (h *reOrdererHeap) greater(i, j int) bool {
-	return h.heap[i].timestamp > h.heap[j].timestamp
-}
-
-func (h *reOrdererHeap) up(node *reOrdererNode, i int, metric *ReOrdererMetric) {
-	var parent int
-	for {
-		parent = (i - 1) / 2
-		if parent == i || h.greater(i, parent) {
-			return
-		}
-		i = h.swap(i, parent)
-
-		metric.TotalDepth++
-	}
-}
-
-func (h *reOrdererHeap) down(i int, n int, metric *ReOrdererMetric) {
-	var left, right, largest int
-	for {
-		left = 2*i + 1
-		if left >= n || left < 0 {
-			return
-		}
-		largest, right = left, left+1
-		if right < n && h.greater(left, right) {
-			largest = right
-		}
-		if h.greater(largest, i) {
-			return
-		}
-		i = h.swap(i, largest)
-
-		metric.TotalDepth++
-	}
-}
-
-func (h *reOrdererHeap) enqueue(record *perf.Record, tm uint64, generation uint64, metric *ReOrdererMetric) {
+func (h *reOrdererList) enqueue(record *perf.Record, tm uint64, generation uint64, metric *ReOrdererMetric) {
 	node := h.pool.alloc()
 	node.timestamp = tm
 	node.record = record
@@ -116,43 +70,69 @@ func (h *reOrdererHeap) enqueue(record *perf.Record, tm uint64, generation uint6
 
 	metric.TotalOp++
 
-	h.heap = append(h.heap, node)
-	h.up(node, len(h.heap)-1, metric)
+	if len(h.list) == 0 {
+		h.list = append(h.list, node)
+		return
+	}
+
+	last := h.list[len(h.list)-1]
+	if last.timestamp <= node.timestamp && last.generation <= node.generation {
+		h.list = append(h.list, node)
+		return
+	}
+
+	i := sort.Search(len(h.list), func(i int) bool {
+		return h.list[i].timestamp >= node.timestamp
+	})
+
+	h.list = append(h.list, nil)
+	copy(h.list[i+1:], h.list[i:])
+	h.list[i] = node
+
+	before := i - 1
+	after := i + 1
+	if (before < 0 || h.list[before].generation <= node.generation) &&
+		(after >= len(h.list) || node.generation <= h.list[after].generation) {
+		return
+	}
+
+	for before >= 0 && h.list[before].generation > h.list[before+1].generation {
+		h.list[before].generation, h.list[before+1].generation = h.list[before+1].generation, h.list[before].generation
+		before--
+	}
+
+	for after < len(h.list) && h.list[after-1].generation > h.list[after].generation {
+		h.list[after].generation, h.list[after-1].generation = h.list[after-1].generation, h.list[after].generation
+		after++
+	}
 }
 
-func (h *reOrdererHeap) dequeue(handler func(record *perf.Record), generation uint64, metric *ReOrdererMetric, opts *ReOrdererOpts) {
-	var n, i int
-	var node *reOrdererNode
-
-	for {
-		if n = len(h.heap); n == 0 {
-			return
-		}
-
-		node = h.heap[0]
+func (h *reOrdererList) dequeue(handler func(record *perf.Record), generation uint64, metric *ReOrdererMetric, opts *ReOrdererOpts) {
+	var i int
+	for _, node := range h.list {
 		if node.generation > generation {
-			return
+			break
 		}
-
-		i = n - 1
-		h.swap(0, i)
-		h.down(0, i, metric)
-
-		h.heap[i] = nil
 
 		metric.TotalOp++
 		handler(node.record)
 
 		h.pool.free(node)
 
-		// shrink
-		if cap(h.heap)-len(h.heap) > opts.HeapShrinkDelta {
-			heap := make([]*reOrdererNode, i)
-			copy(heap, h.heap[0:i])
-			h.heap = heap
-		} else {
-			h.heap = h.heap[0:i]
-		}
+		i++
+	}
+
+	if i == len(h.list) {
+		h.list = h.list[:0]
+	} else {
+		h.list = h.list[i:]
+	}
+
+	// shrink
+	if cap(h.list)-len(h.list) > opts.HeapShrinkDelta {
+		list := make([]*reOrdererNode, len(h.list))
+		copy(list, h.list)
+		h.list = list
 	}
 }
 
@@ -183,7 +163,7 @@ type ReOrderer struct {
 	ctx         context.Context
 	queue       chan *perf.Record
 	handler     func(*perf.Record)
-	heap        *reOrdererHeap
+	list        *reOrdererList
 	extractInfo func(*perf.Record) (uint64, uint64, error) // timestamp
 	opts        ReOrdererOpts
 	metric      ReOrdererMetric
@@ -220,19 +200,19 @@ func (r *ReOrderer) Start(wg *sync.WaitGroup) {
 			}
 			lastTm = tm
 
-			if r.heap.len() > r.opts.QueueSize*10 {
+			if r.list.len() > r.opts.QueueSize*10 {
 				r.handler(record)
 			} else {
-				r.heap.enqueue(record, tm, r.generation, &r.metric)
+				r.list.enqueue(record, tm, r.generation, &r.metric)
 			}
-			r.heap.dequeue(r.handler, r.generation-r.opts.Retention, &r.metric, &r.opts)
+			r.list.dequeue(r.handler, r.generation-r.opts.Retention, &r.metric, &r.opts)
 		case <-flushTicker.C:
 			r.generation++
 
 			// force dequeue of a generation in case of low event rate
-			r.heap.dequeue(r.handler, r.generation-r.opts.Retention, &r.metric, &r.opts)
+			r.list.dequeue(r.handler, r.generation-r.opts.Retention, &r.metric, &r.opts)
 		case <-metricTicker.C:
-			r.metric.QueueSize = r.heap.len()
+			r.metric.QueueSize = uint64(r.list.Len())
 
 			select {
 			case r.Metrics <- r.metric:
@@ -262,7 +242,7 @@ func NewReOrderer(ctx context.Context, handler func(record *perf.Record), extrac
 		ctx:     ctx,
 		queue:   make(chan *perf.Record, opts.QueueSize),
 		handler: handler,
-		heap: &reOrdererHeap{
+		list: &reOrdererList{
 			pool: &reOrdererNodePool{},
 		},
 		extractInfo: extractInfo,

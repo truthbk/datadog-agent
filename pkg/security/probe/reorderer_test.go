@@ -20,7 +20,7 @@ import (
 )
 
 func TestOrder(t *testing.T) {
-	heap := &reOrdererHeap{
+	list := &reOrdererList{
 		pool: &reOrdererNodePool{},
 	}
 	metric := ReOrdererMetric{}
@@ -31,12 +31,12 @@ func TestOrder(t *testing.T) {
 		record := perf.Record{
 			RawSample: []byte{byte(n)},
 		}
-		heap.enqueue(&record, uint64(n), 1, &metric)
+		list.enqueue(&record, uint64(n), 1, &metric)
 	}
 
 	var count int
 	var last byte
-	heap.dequeue(func(record *perf.Record) {
+	list.dequeue(func(record *perf.Record) {
 		count++
 		if last > 0 {
 			assert.GreaterOrEqual(t, record.RawSample[0], last)
@@ -48,7 +48,7 @@ func TestOrder(t *testing.T) {
 }
 
 func TestOrderRetention(t *testing.T) {
-	heap := &reOrdererHeap{
+	list := &reOrdererList{
 		pool: &reOrdererNodePool{},
 	}
 	metric := ReOrdererMetric{}
@@ -58,20 +58,20 @@ func TestOrderRetention(t *testing.T) {
 			RawSample: []byte{byte(i)},
 		}
 
-		heap.enqueue(&record, uint64(i), uint64(i/30+1), &metric)
+		list.enqueue(&record, uint64(i), uint64(i/30+1), &metric)
 	}
 
 	var count int
-	heap.dequeue(func(record *perf.Record) { count++ }, 1, &metric, &ReOrdererOpts{})
+	list.dequeue(func(record *perf.Record) { count++ }, 1, &metric, &ReOrdererOpts{})
 	assert.Equal(t, 30, count)
-	heap.dequeue(func(record *perf.Record) { count++ }, 2, &metric, &ReOrdererOpts{})
+	list.dequeue(func(record *perf.Record) { count++ }, 2, &metric, &ReOrdererOpts{})
 	assert.Equal(t, 60, count)
-	heap.dequeue(func(record *perf.Record) { count++ }, 3, &metric, &ReOrdererOpts{})
+	list.dequeue(func(record *perf.Record) { count++ }, 3, &metric, &ReOrdererOpts{})
 	assert.Equal(t, 90, count)
 }
 
 func TestOrderGeneration(t *testing.T) {
-	heap := &reOrdererHeap{
+	list := &reOrdererList{
 		pool: &reOrdererNodePool{},
 	}
 	metric := ReOrdererMetric{}
@@ -79,18 +79,18 @@ func TestOrderGeneration(t *testing.T) {
 	record1 := perf.Record{
 		RawSample: []byte{byte(10)},
 	}
-	heap.enqueue(&record1, uint64(10), uint64(1), &metric)
+	list.enqueue(&record1, uint64(10), uint64(1), &metric)
 
 	record2 := perf.Record{
 		RawSample: []byte{byte(1)},
 	}
-	heap.enqueue(&record2, uint64(1), uint64(2), &metric)
+	list.enqueue(&record2, uint64(1), uint64(2), &metric)
 
 	var data []byte
-	heap.dequeue(func(record *perf.Record) { data = record.RawSample }, 1, &metric, &ReOrdererOpts{})
+	list.dequeue(func(record *perf.Record) { data = record.RawSample }, 1, &metric, &ReOrdererOpts{})
 	assert.Equal(t, 1, int(data[0]))
 
-	heap.dequeue(func(record *perf.Record) { data = record.RawSample }, 2, &metric, &ReOrdererOpts{})
+	list.dequeue(func(record *perf.Record) { data = record.RawSample }, 2, &metric, &ReOrdererOpts{})
 	assert.Equal(t, 10, int(data[0]))
 }
 
