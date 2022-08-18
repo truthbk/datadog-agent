@@ -212,7 +212,7 @@ func (r *ReOrderer) Start(wg *sync.WaitGroup) {
 			// force dequeue of a generation in case of low event rate
 			r.list.dequeue(r.handler, r.generation-r.opts.Retention, &r.metric, &r.opts)
 		case <-metricTicker.C:
-			r.metric.QueueSize = uint64(r.list.Len())
+			r.metric.QueueSize = uint64(r.list.len())
 
 			select {
 			case r.Metrics <- r.metric:
