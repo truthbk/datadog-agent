@@ -34,6 +34,9 @@ const (
 type Config struct {
 	ebpf.Config
 
+	// NPMEnabled is whether the network performance monitoring feature is explicitly enabled or not
+	NPMEnabled bool
+
 	// ServiceMonitoringEnabled is whether the service monitoring feature is enabled or not
 	ServiceMonitoringEnabled bool
 
@@ -181,6 +184,7 @@ func New() *Config {
 	c := &Config{
 		Config: *ebpf.NewConfig(),
 
+		NPMEnabled:               cfg.GetBool(join(netNS, "enabled")),
 		ServiceMonitoringEnabled: cfg.GetBool(join(smNS, "enabled")),
 
 		CollectTCPConns:  !cfg.GetBool(join(spNS, "disable_tcp")),
