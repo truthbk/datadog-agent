@@ -124,16 +124,10 @@ func (h *reOrdererList) dequeue(handler func(record *perf.Record), generation ui
 
 	if i == len(h.list) {
 		h.list = h.list[:0]
-	} else {
-		h.list = h.list[i:]
+		return
 	}
 
-	// shrink
-	if cap(h.list)-len(h.list) > opts.HeapShrinkDelta {
-		list := make([]*reOrdererNode, len(h.list))
-		copy(list, h.list)
-		h.list = list
-	}
+	h.list = h.list[i:]
 }
 
 // ReOrdererOpts options to pass when creating a new instance of ReOrderer
