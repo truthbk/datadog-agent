@@ -31,9 +31,13 @@ var (
 )
 
 func fetchEc2Tags(ctx context.Context) ([]string, error) {
+	instanceIdentity, err := getInstanceIdentity(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if config.Datadog.GetBool("collect_ec2_tags_use_imds") {
 		// prefer to fetch tags from IMDS, falling back to the API
-		tags, err := fetchEc2TagsFromIMDS(ctx)
+		tags, err := fetchEc2TagsFromIMDS(ctx, instanceIdentity)
 		if err == nil {
 			return tags, nil
 		}
@@ -41,10 +45,10 @@ func fetchEc2Tags(ctx context.Context) ([]string, error) {
 		log.Debugf("Could not fetch tags from instance metadata (trying EC2 API instead): %s", err)
 	}
 
-	return fetchEc2TagsFromAPI(ctx)
+	return fetchEc2TagsFromAPI(ctx, instanceIdentity)
 }
 
-func fetchEc2TagsFromIMDS(ctx context.Context) ([]string, error) {
+func fetchEc2TagsFromIMDS(ctx context.Context, instanceIdentity *ec2Identity) ([]string, error) {
 	keysStr, err := getMetadataItem(ctx, "/tags/instance")
 	if err != nil {
 		return nil, err
@@ -53,7 +57,10 @@ func fetchEc2TagsFromIMDS(ctx context.Context) ([]string, error) {
 	// keysStr is a newline-separated list of strings containing tag keys
 	keys := strings.Split(keysStr, "\n")
 
-	tags := make([]string, 0, len(keys))
+	tags := make([]string, 0, len(keys)+3)
+	tags = append(tags, fmt.Sprintf("%s:%s", "region", instanceIdentity.Region))
+	tags = append(tags, fmt.Sprintf("%s:%s", "availability-zone", instanceIdentity.AvailabilityZone))
+	tags = append(tags, fmt.Sprintf("%s:%s", "instance-type", instanceIdentity.InstanceType))
 	for _, key := range keys {
 		// The key is a valid URL component and need not be escaped:
 		//
@@ -72,11 +79,7 @@ func fetchEc2TagsFromIMDS(ctx context.Context) ([]string, error) {
 	return tags, nil
 }
 
-func fetchEc2TagsFromAPI(ctx context.Context) ([]string, error) {
-	instanceIdentity, err := getInstanceIdentity(ctx)
-	if err != nil {
-		return nil, err
-	}
+func fetchEc2TagsFromAPI(ctx context.Context, instanceIdentity *ec2Identity) ([]string, error) {
 
 	// First, try automatic credentials detection. This works in most scenarios,
 	// except when a more specific role (e.g. task role in ECS) does not have
@@ -127,7 +130,10 @@ func getTagsWithCreds(ctx context.Context, instanceIdentity *ec2Identity, awsCre
 		return nil, err
 	}
 
-	tags := []string{}
+	tags := make([]string, 0, len(ec2Tags.Tags)+3)
+	tags = append(tags, fmt.Sprintf("%s:%s", "region", instanceIdentity.Region))
+	tags = append(tags, fmt.Sprintf("%s:%s", "availability-zone", instanceIdentity.AvailabilityZone))
+	tags = append(tags, fmt.Sprintf("%s:%s", "instance-type", instanceIdentity.InstanceType))
 	for _, tag := range ec2Tags.Tags {
 		tags = append(tags, fmt.Sprintf("%s:%s", *tag.Key, *tag.Value))
 	}
@@ -167,8 +173,10 @@ func GetTags(ctx context.Context) ([]string, error) {
 }
 
 type ec2Identity struct {
-	Region     string
-	InstanceID string
+	AvailabilityZone,
+	Region,
+	InstanceID,
+	InstanceType string
 }
 
 func getInstanceIdentity(ctx context.Context) (*ec2Identity, error) {

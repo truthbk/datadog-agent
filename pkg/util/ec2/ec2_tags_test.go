@@ -112,9 +112,17 @@ func TestFetchEc2TagsFromIMDS(t *testing.T) {
 	config.Datadog.Set("ec2_metadata_timeout", 1000)
 	defer resetPackageVars()
 
-	tags, err := fetchEc2TagsFromIMDS(ctx)
+	instanceIdentity := ec2Identity{
+		Region:           "my-region",
+		AvailabilityZone: "my-region-1",
+		InstanceType:     "instance.type",
+	}
+	tags, err := fetchEc2TagsFromIMDS(ctx, &instanceIdentity)
 	require.Nil(t, err)
 	assert.Equal(t, []string{
+		"region:my-region",
+		"availability-zone:my-region-1",
+		"instance-type:instance.type",
 		"Name:some-vm",
 		"Purpose:mining",
 	}, tags)
@@ -130,7 +138,11 @@ func TestFetchEc2TagsFromIMDSError(t *testing.T) {
 	config.Datadog.Set("ec2_metadata_timeout", 1000)
 	defer resetPackageVars()
 
-	_, err := fetchEc2TagsFromIMDS(ctx)
+	_, err := fetchEc2TagsFromIMDS(ctx, &ec2Identity{
+		Region:           "my-region",
+		AvailabilityZone: "my-region-1",
+		InstanceType:     "instance.type",
+	})
 	require.Error(t, err)
 }
 
