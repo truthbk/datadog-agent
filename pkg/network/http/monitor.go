@@ -123,6 +123,7 @@ func (m *Monitor) Start() error {
 
 	m.eventLoopWG.Add(1)
 	go func() {
+		var batchMutex sync.Mutex
 		defer m.eventLoopWG.Done()
 		for {
 			select {
@@ -134,7 +135,12 @@ func (m *Monitor) Start() error {
 				// The notification we read from the perf ring tells us which HTTP batch of transactions is ready to be consumed
 				notification := toHTTPNotification(dataEvent.Data)
 				transactions, err := m.batchManager.GetTransactionsFrom(notification)
-				m.process(transactions, err)
+				go func() {
+					batchMutex.Lock()
+					defer batchMutex.Unlock()
+					m.process(transactions, err)
+				}()
+
 				dataEvent.Done()
 			case _, ok := <-m.batchCompletionHandler.LostChannel:
 				if !ok {
@@ -148,6 +154,8 @@ func (m *Monitor) Start() error {
 				}
 
 				transactions := m.batchManager.GetPendingTransactions()
+				batchMutex.Lock()
+				defer batchMutex.Unlock()
 				m.process(transactions, nil)
 
 				delta := m.telemetry.reset()
