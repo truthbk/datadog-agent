@@ -28,6 +28,7 @@ type flowAccumulator struct {
 	flows             map[uint64]flowWrapper
 	mu                sync.Mutex
 	flowFlushInterval time.Duration
+	flowContextTTL    time.Duration
 }
 
 func newFlowWrapper(flow *common.Flow) flowWrapper {
@@ -42,12 +43,13 @@ func newFlowAccumulator(aggregatorFlushInterval time.Duration) *flowAccumulator 
 	return &flowAccumulator{
 		flows:             make(map[uint64]flowWrapper),
 		flowFlushInterval: aggregatorFlushInterval,
+		flowContextTTL:    aggregatorFlushInterval,
 	}
 }
 
 // flush will flush specific flow context (distinct hash) if nextFlush is reached
 // once a flow context is flushed nextFlush will be updated to the next flush time
-// Specific flow context in `flowAccumulator.flows` map will be deleted if XXX
+// Specific flow context in `flowAccumulator.flows` map will be deleted if `flowContextTTL`
 // is reached to avoid keeping flow context that are not seen anymore.
 func (f *flowAccumulator) flush() []*common.Flow {
 	f.mu.Lock()
@@ -64,8 +66,8 @@ func (f *flowAccumulator) flush() []*common.Flow {
 			flowsToFlush = append(flowsToFlush, flow.flow)
 			flow.lastSuccessfulFlush = now
 			flow.flow = nil
-		} else if flow.lastSuccessfulFlush.Before(now) {
-			// delete flow wrapper if there is no successful flushes since last flush
+		} else if flow.lastSuccessfulFlush.Add(f.flowContextTTL).Before(now) {
+			// delete flow wrapper if there is no successful flushes since `flowContextTTL`
 			delete(f.flows, key)
 			continue
 		}
