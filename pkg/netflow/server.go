@@ -6,6 +6,12 @@
 package netflow
 
 import (
+	"fmt"
+	"net/http"
+	_ "net/http/pprof"
+)
+
+import (
 	"context"
 	"time"
 
@@ -32,6 +38,10 @@ type Server struct {
 // NewNetflowServer configures and returns a running SNMP traps server.
 func NewNetflowServer(sender aggregator.Sender) (*Server, error) {
 	var listeners []*netflowListener
+
+	go func() {
+		fmt.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 
 	mainConfig, err := config.ReadConfig()
 	if err != nil {
