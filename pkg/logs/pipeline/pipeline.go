@@ -115,7 +115,7 @@ func getStrategy(inputChan chan *message.Message, outputChan chan *message.Paylo
 	if endpoints.UseHTTP || serverless {
 		encoder := sender.IdentityContentType
 		if endpoints.Main.UseCompression {
-			encoder = sender.NewGzipContentEncoding(endpoints.Main.CompressionLevel)
+			encoder = sender.NewZstdContentEncoding(endpoints.Main.CompressionLevel)
 		}
 		return sender.NewBatchStrategy(inputChan, outputChan, sender.ArraySerializer, endpoints.BatchWait, endpoints.BatchMaxSize, endpoints.BatchMaxContentSize, "logs", encoder)
 	}

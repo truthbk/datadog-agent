@@ -8,6 +8,8 @@ package sender
 import (
 	"bytes"
 	"compress/gzip"
+
+	"github.com/DataDog/zstd"
 )
 
 // ContentEncoding encodes the payload
@@ -70,4 +72,29 @@ func (c *GzipContentEncoding) encode(payload []byte) ([]byte, error) {
 		return nil, err
 	}
 	return compressedPayload.Bytes(), nil
+}
+
+type ZstdContentEncoding struct {
+	level int
+}
+
+// NewGzipContentEncoding creates a new Gzip content type
+func NewZstdContentEncoding(level int) *ZstdContentEncoding {
+	return &ZstdContentEncoding{
+		level,
+	}
+}
+
+func (c *ZstdContentEncoding) name() string {
+	return "zstd"
+}
+
+func (c *ZstdContentEncoding) encode(payload []byte) ([]byte, error) {
+
+	compressedPayload, err := zstd.Compress(nil, payload)
+	if err != nil {
+		return nil, err
+	}
+
+	return compressedPayload, nil
 }
