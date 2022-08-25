@@ -87,7 +87,7 @@ func getExpectedConnections(encodedWithQueryType bool, httpOutBlob []byte) *mode
 				IpTranslation: &model.IPTranslation{
 					ReplSrcIP:   "20.1.1.1",
 					ReplDstIP:   "20.1.1.1",
-					ReplSrcPort: int32(40000),
+					ReplSrcPort: int32(40),
 					ReplDstPort: int32(80),
 				},
 
@@ -169,7 +169,7 @@ func TestSerialization(t *testing.T) {
 					IPTranslation: &network.IPTranslation{
 						ReplSrcIP:   util.AddressFromString("20.1.1.1"),
 						ReplDstIP:   util.AddressFromString("20.1.1.1"),
-						ReplSrcPort: 40000,
+						ReplSrcPort: 40,
 						ReplDstPort: 80,
 					},
 
@@ -218,7 +218,7 @@ func TestSerialization(t *testing.T) {
 			http.NewKey(
 				util.AddressFromString("20.1.1.1"),
 				util.AddressFromString("20.1.1.1"),
-				40000,
+				40,
 				80,
 				"/testpath",
 				true,

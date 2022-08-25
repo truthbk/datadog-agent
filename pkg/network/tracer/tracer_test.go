@@ -1692,46 +1692,43 @@ func TestHTTPSViaLibraryIntegration(t *testing.T) {
 		name  string
 		value bool
 	}{
-		{name: "without keep-alives", value: false},
-		{name: "with keep-alives", value: true},
+		{name: " without keep-alives", value: false},
+		{name: " with keep-alives", value: true},
 	} {
-		t.Run(keepAlives.name, func(t *testing.T) {
-			// Spin-up HTTPS server
-			serverDoneFn := testutil.HTTPServer(t, "127.0.0.1:443", testutil.Options{
-				EnableTLS:        true,
-				EnableKeepAlives: keepAlives.value,
-			})
-			t.Cleanup(serverDoneFn)
-
-			for _, test := range tests {
-				t.Run(test.name, func(t *testing.T) {
-					fetch, err := exec.LookPath(test.fetchCmd[0])
-					if err != nil {
-						t.Skipf("%s not found; skipping test.", test.fetchCmd)
-					}
-					ldd, err := exec.LookPath("ldd")
-					if err != nil {
-						t.Skip("ldd not found; skipping test.")
-					}
-					linked, _ := exec.Command(ldd, fetch).Output()
-
-					foundSSLLib := false
-					for _, lib := range tlsLibs {
-						libSSLPath := lib.FindString(string(linked))
-						if _, err := os.Stat(libSSLPath); err == nil {
-							foundSSLLib = true
-							break
-						}
-					}
-					if !foundSSLLib {
-						t.Fatalf("%s not linked with any of these libs %v", test.name, tlsLibs)
-					}
-
-					testHTTPSLibrary(t, test.fetchCmd)
-
-				})
-			}
+		// Spin-up HTTPS server
+		serverDoneFn := testutil.HTTPServer(t, "127.0.0.1:443", testutil.Options{
+			EnableTLS:        true,
+			EnableKeepAlives: keepAlives.value,
 		})
+		for _, test := range tests {
+			t.Run(test.name+keepAlives.name, func(t *testing.T) {
+				fetch, err := exec.LookPath(test.fetchCmd[0])
+				if err != nil {
+					t.Skipf("%s not found; skipping test.", test.fetchCmd)
+				}
+				ldd, err := exec.LookPath("ldd")
+				if err != nil {
+					t.Skip("ldd not found; skipping test.")
+				}
+				linked, _ := exec.Command(ldd, fetch).Output()
+
+				foundSSLLib := false
+				for _, lib := range tlsLibs {
+					libSSLPath := lib.FindString(string(linked))
+					if _, err := os.Stat(libSSLPath); err == nil {
+						foundSSLLib = true
+						break
+					}
+				}
+				if !foundSSLLib {
+					t.Fatalf("%s not linked with any of these libs %v", test.name, tlsLibs)
+				}
+
+				testHTTPSLibrary(t, test.fetchCmd)
+
+			})
+		}
+		serverDoneFn()
 	}
 }
 
@@ -1743,8 +1740,6 @@ func testHTTPSLibrary(t *testing.T, fetchCmd []string) {
 	tr, err := NewTracer(cfg)
 	require.NoError(t, err)
 	defer tr.Stop()
-	err = tr.RegisterClient("1")
-	require.NoError(t, err)
 
 	// Run fetchCmd once to make sure the OpenSSL is detected and uprobes are attached
 	exec.Command(fetchCmd[0]).Run()
@@ -1756,9 +1751,8 @@ func testHTTPSLibrary(t *testing.T, fetchCmd []string) {
 	const targetURL = "https://127.0.0.1:443/200/foobar"
 	cmd := append(fetchCmd, targetURL)
 	requestCmd := exec.Command(cmd[0], cmd[1:]...)
-	var out []byte
-	out, err = requestCmd.CombinedOutput()
-	require.NoErrorf(t, err, "failed to issue request via %s: %s\n%s", fetchCmd, err, string(out))
+	err = requestCmd.Run()
+	require.NoErrorf(t, err, "failed to issue request via %s: %s", fetchCmd, err)
 
 	require.Eventuallyf(t, func() bool {
 		payload, err := tr.GetActiveConnections("1")
