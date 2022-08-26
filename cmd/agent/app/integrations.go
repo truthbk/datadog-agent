@@ -60,6 +60,7 @@ var (
 	versionOnly         bool
 	localWheel          bool
 	thirdParty          bool
+	trustedHost         []string
 	rootDir             string
 	pythonMajorVersion  string
 	pythonMinorVersion  string
@@ -87,6 +88,9 @@ func init() {
 	)
 	installCmd.Flags().BoolVarP(
 		&thirdParty, "third-party", "t", false, "install a community or vendor-contributed integration",
+	)
+	installCmd.Flags().StringArrayVarP(
+		&trustedHost, "trusted-host", "", nil, "mark this host or host:port pair as trusted, even though it does not have valid or any HTTPS.",
 	)
 }
 
@@ -464,6 +468,14 @@ func install(cmd *cobra.Command, args []string) error {
 			"%s %s is not compatible with datadog-checks-base %s shipped in the agent",
 			integration, versionToInstall, shippedBaseVersion,
 		)
+	}
+	if 0 < len(trustedHost) {
+		args := make([]string, len(trustedHost)+1)
+		args[0] = "--trusted-host"
+		for i := range trustedHost {
+			args[i+1] = trustedHost[i]
+		}
+		pipArgs = append(pipArgs, trustedHost...)
 	}
 
 	// Install the wheel
