@@ -1,0 +1,5 @@
+---
+enhancements:
+  - |
+    Add ``--trusted-host`` flag to ``integration install``
+    command for avoiding ``CERTIFICATE_VERIFY_FAILED``.
