@@ -638,6 +638,11 @@ def build_http_ebpf_files(ctx, build_dir, kernel_release=None, strip_object_file
     if strip_object_files:
         strip_network_ebpf_obj_file(ctx, False, build_dir, "http", True)
 
+    # copy http-debug.o
+    src=os.path.join(build_dir, "http-debug.o")
+    dst=os.path.join(".", "pkg", "network", "http", "debugging", "cmd", "http-debug.o")
+    shutil.copyfile(src, dst)
+
     build_network_ebpf_compile_file(ctx, False, build_dir, "http", False, network_prebuilt_dir, network_flags)
     build_network_ebpf_link_file(ctx, False, build_dir, "http", False, network_flags)
     if strip_object_files:

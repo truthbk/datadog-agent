@@ -23,6 +23,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/network/config"
 	netebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
+	"github.com/DataDog/datadog-agent/pkg/process/util"
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -165,6 +166,10 @@ func (e *ebpfProgram) Init() error {
 	}
 	e.Manager.DumpHandler = dumpMapsHandler
 
+	var constantEditors []manager.ConstantEditor
+	constantEditors = append(constantEditors, e.offsets...)
+	constantEditors = append(constantEditors, httpDebugFilters(e.cfg)...)
+
 	options := manager.Options{
 		RLimit: &unix.Rlimit{
 			Cur: math.MaxUint64,
@@ -210,7 +215,7 @@ func (e *ebpfProgram) Init() error {
 				},
 			},
 		},
-		ConstantEditors: e.offsets,
+		ConstantEditors: constantEditors,
 	}
 
 	for _, s := range e.subprograms {
@@ -290,4 +295,32 @@ func enableRuntimeCompilation(c *config.Config) bool {
 	}
 
 	return kversion >= kernel.VersionCode(4, 5, 0)
+}
+
+func httpDebugFilters(c *config.Config) []manager.ConstantEditor {
+	var (
+		saddrl uint64
+		saddrh uint64
+		daddrl uint64
+		daddrh uint64
+	)
+
+	if c.HTTPFilterSaddr != "" {
+		saddr := util.AddressFromString(c.HTTPFilterSaddr)
+		saddrl, saddrh = util.ToLowHigh(saddr)
+	}
+
+	if c.HTTPFilterDaddr != "" {
+		daddr := util.AddressFromString(c.HTTPFilterDaddr)
+		daddrl, daddrh = util.ToLowHigh(daddr)
+	}
+
+	return []manager.ConstantEditor{
+		{Name: "filter_sport", Value: uint64(c.HTTPFilterSport)},
+		{Name: "filter_dport", Value: uint64(c.HTTPFilterDport)},
+		{Name: "filter_saddr_l", Value: saddrl},
+		{Name: "filter_saddr_h", Value: saddrh},
+		{Name: "filter_daddr_l", Value: daddrl},
+		{Name: "filter_daddr_h", Value: daddrh},
+	}
 }
