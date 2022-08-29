@@ -127,7 +127,16 @@ def build(
     ctx.run(cmd.format(**args), env=env)
 
 
-@task
+@task(
+    help={
+        "skip-object-files": "Skip rebuilding of object files before running tests.",
+        "output-path": "run `go test` with the flags `-c -o output_path`, which *compiles* the test suite into a single binary. This artifact is meant to be used in conjunction with kitchen tests.",
+        "skip-linters": "do not run the linting phase before running tests.",
+        "kernel-release": "select the kernel headers' version used to build eBPF objects.",
+        "failfast": "stop the tests on first failure.",
+        "run": "run `go test` with the `-run` flag, only running tests that match the given regex",
+    }
+)
 def test(
     ctx,
     packages=TEST_PACKAGES,
@@ -144,10 +153,8 @@ def test(
 ):
     """
     Run tests on eBPF parts
-    If skip_object_files is set to True, this won't rebuild object files
-    If output_path is set, we run `go test` with the flags `-c -o output_path`, which *compiles* the test suite
-    into a single binary. This artifact is meant to be used in conjunction with kitchen tests.
     """
+
     if os.getenv("GOPATH") is None:
         raise Exit(
             code=1,
