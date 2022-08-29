@@ -1,6 +1,6 @@
 #include <linux/kconfig.h>
 #include "tracer.h"
-#include "bpf_helpers.h"
+#include "bpf_tracing.h"
 #include "ip.h"
 #include "ipv6.h"
 #include "http.h"

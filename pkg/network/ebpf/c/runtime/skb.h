@@ -9,7 +9,7 @@
 #include <uapi/linux/tcp.h>
 
 #include "tracer.h"
-#include "bpf_helpers.h"
+#include "bpf_tracing.h"
 #include "bpf_endian.h"
 #include "ipv6.h"
 

@@ -1,6 +1,6 @@
 #include "kconfig.h"
 #include "offset-guess.h"
-#include "bpf_helpers.h"
+#include "bpf_tracing.h"
 #include "map-defs.h"
 
 #include <net/net_namespace.h>
@@ -14,9 +14,9 @@
  * and the values being a struct sock *.
  */
 BPF_HASH_MAP(connectsock_ipv6, __u64, void*, 1024)
-    
+
 BPF_HASH_MAP(tracer_status, __u64, tracer_status_t, 1)
-    
+
 static __always_inline bool proc_t_comm_equals(proc_t a, proc_t b) {
     for (int i = 0; i < TASK_COMM_LEN; i++) {
         if (a.comm[i] != b.comm[i]) {

@@ -1,5 +1,5 @@
 #include "tracer.h"
-#include "bpf_helpers.h"
+#include "bpf_tracing.h"
 #include "ip.h"
 #include "defs.h"
 

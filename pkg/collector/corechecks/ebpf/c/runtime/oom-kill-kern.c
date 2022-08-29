@@ -3,7 +3,7 @@
 #include <linux/version.h>
 #include <linux/oom.h>
 
-#include "bpf_helpers.h"
+#include "bpf_tracing.h"
 #include "bpf-common.h"
 #include "oom-kill-kern-user.h"
 #include "map-defs.h"

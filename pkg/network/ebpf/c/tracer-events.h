@@ -7,7 +7,7 @@
 #include "tracer-telemetry.h"
 #include "tcp_states.h"
 
-#include "bpf_helpers.h"
+#include "bpf_tracing.h"
 
 static __always_inline int get_proto(conn_tuple_t *t) {
     return (t->metadata & CONN_TYPE_TCP) ? CONN_TYPE_TCP : CONN_TYPE_UDP;

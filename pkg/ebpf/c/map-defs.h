@@ -1,7 +1,7 @@
 #ifndef _MAP_DEFS_H_
 #define _MAP_DEFS_H_
 
-#include "bpf_helpers.h"
+#include "bpf_tracing.h"
 
 #define __uint(name, val) int (*name)[val]
 #define __type(name, val) typeof(val) *name

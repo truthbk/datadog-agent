@@ -1,7 +1,7 @@
 #ifndef _DEFS_H_
 #define _DEFS_H_
 
-#include "bpf_helpers.h"
+#include "bpf_tracing.h"
 
 #include "constants.h"
 

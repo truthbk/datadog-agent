@@ -5,7 +5,7 @@
 #include "tracer-maps.h"
 #include "tracer-stats.h"
 #include "tracer-telemetry.h"
-#include "bpf_helpers.h"
+#include "bpf_tracing.h"
 #include "bpf_endian.h"
 #include "ip.h"
 #include "netns.h"
