@@ -17,9 +17,7 @@
 #endif
 
 SEC("kprobe/__nf_conntrack_hash_insert")
-int kprobe___nf_conntrack_hash_insert(struct pt_regs* ctx) {
-    struct nf_conn *ct = (struct nf_conn*)PT_REGS_PARM1(ctx);
-
+int BPF_KPROBE(kprobe___nf_conntrack_hash_insert, struct nf_conn *ct) {
     u32 status = ct_status(ct);
     if (!(status&IPS_CONFIRMED) || !(status&IPS_NAT_MASK)) {
         return 0;
@@ -40,8 +38,7 @@ int kprobe___nf_conntrack_hash_insert(struct pt_regs* ctx) {
 }
 
 SEC("kprobe/ctnetlink_fill_info")
-int kprobe_ctnetlink_fill_info(struct pt_regs* ctx) {
-
+int BPF_KPROBE(kprobe_ctnetlink_fill_info, struct sk_buff *skb, u32 portid, u32 seq, u32 type, struct nf_conn *ct) {
     proc_t proc = {};
     bpf_get_current_comm(&proc.comm, sizeof(proc.comm));
 
@@ -49,8 +46,6 @@ int kprobe_ctnetlink_fill_info(struct pt_regs* ctx) {
         log_debug("skipping kprobe/ctnetlink_fill_info invocation from non-system-probe process\n");
         return 0;
     }
-
-    struct nf_conn *ct = (struct nf_conn*)PT_REGS_PARM5(ctx);
 
     u32 status = ct_status(ct);
     if (!(status&IPS_CONFIRMED) || !(status&IPS_NAT_MASK)) {
