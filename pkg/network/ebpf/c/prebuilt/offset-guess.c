@@ -3,6 +3,7 @@
 #include "bpf_tracing.h"
 #include "map-defs.h"
 
+#include <net/inet_sock.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/flow.h>
@@ -146,48 +147,46 @@ static __always_inline int guess_offsets(tracer_status_t* status, char* subject)
 }
 
 SEC("kprobe/ip_make_skb")
-int kprobe__ip_make_skb(struct pt_regs* ctx) {
+int BPF_KPROBE(kprobe__ip_make_skb, struct sock *sk, struct flowi4 *fl4) {
     u64 zero = 0;
     tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);
-
     if (status == NULL) {
         return 0;
     }
 
-    struct flowi4* fl4 = (struct flowi4*)PT_REGS_PARM2(ctx);
     guess_offsets(status, (char*)fl4);
     return 0;
 }
 
 SEC("kprobe/ip6_make_skb")
-int kprobe__ip6_make_skb(struct pt_regs* ctx) {
+int BPF_KPROBE(kprobe__ip6_make_skb, struct sock *sk, void *getfrag, void *from, size_t length, int transhdrlen,
+                                     void *ipc6, struct flowi6 *fl6)
+{
     u64 zero = 0;
     tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);
     if (status == NULL) {
         return 0;
     }
-    struct flowi6* fl6 = (struct flowi6*)PT_REGS_PARM7(ctx);
     guess_offsets(status, (char*)fl6);
     return 0;
 }
 
 SEC("kprobe/ip6_make_skb/pre_4_7_0")
-int kprobe__ip6_make_skb__pre_4_7_0(struct pt_regs* ctx) {
+int BPF_KPROBE(kprobe__ip6_make_skb__pre_4_7_0, struct sock *sk, void *getfrag, void *from, size_t length, int transhdrlen,
+                                                int hlimit, int tclass, struct ipv6_txoptions *opt, struct flowi6 *fl6)
+{
     u64 zero = 0;
     tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);
     if (status == NULL) {
         return 0;
     }
-    struct flowi6* fl6 = (struct flowi6*)PT_REGS_PARM9(ctx);
     guess_offsets(status, (char*)fl6);
     return 0;
 }
 
 /* Used exclusively for offset guessing */
 SEC("kprobe/tcp_getsockopt")
-int kprobe__tcp_getsockopt(struct pt_regs* ctx) {
-    int level = (int)PT_REGS_PARM2(ctx);
-    int optname = (int)PT_REGS_PARM3(ctx);
+int BPF_KPROBE(kprobe__tcp_getsockopt, struct sock *sk, int level, int optname) {
     if (level != SOL_TCP || optname != TCP_INFO) {
         return 0;
     }
@@ -198,7 +197,6 @@ int kprobe__tcp_getsockopt(struct pt_regs* ctx) {
         return 0;
     }
 
-    struct sock* sk = (struct sock*)PT_REGS_PARM1(ctx);
     status->tcp_info_kprobe_status = 1;
     guess_offsets(status, (char*)sk);
 
@@ -207,34 +205,28 @@ int kprobe__tcp_getsockopt(struct pt_regs* ctx) {
 
 /* Used for offset guessing the struct socket->sk field */
 SEC("kprobe/sock_common_getsockopt")
-int kprobe__sock_common_getsockopt(struct pt_regs* ctx) {
+int BPF_KPROBE(kprobe__sock_common_getsockopt, struct socket *socket) {
     u64 zero = 0;
     tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);
     if (status == NULL || status->what != GUESS_SOCKET_SK) {
         return 0;
     }
 
-    struct socket* socket = (struct socket*)PT_REGS_PARM1(ctx);
     guess_offsets(status, (char*)socket);
     return 0;
 }
 
 // Used for offset guessing (see: pkg/ebpf/offsetguess.go)
 SEC("kprobe/tcp_v6_connect")
-int kprobe__tcp_v6_connect(struct pt_regs* ctx) {
-    struct sock* sk;
+int BPF_KPROBE(kprobe__tcp_v6_connect, struct sock *sk) {
     u64 pid = bpf_get_current_pid_tgid();
-
-    sk = (struct sock*)PT_REGS_PARM1(ctx);
-
     bpf_map_update_elem(&connectsock_ipv6, &pid, &sk, BPF_ANY);
-
     return 0;
 }
 
 // Used for offset guessing (see: pkg/ebpf/offsetguess.go)
 SEC("kretprobe/tcp_v6_connect")
-int kretprobe__tcp_v6_connect(struct pt_regs* __attribute__((unused)) ctx) {
+int BPF_KRETPROBE(kretprobe__tcp_v6_connect) {
     u64 pid = bpf_get_current_pid_tgid();
     u64 zero = 0;
     struct sock** skpp;
