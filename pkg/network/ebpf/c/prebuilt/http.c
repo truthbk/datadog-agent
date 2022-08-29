@@ -109,14 +109,14 @@ int socket__http_filter(struct __sk_buff* skb) {
 }
 
 SEC("kprobe/tcp_sendmsg")
-int kprobe__tcp_sendmsg(struct pt_regs* ctx) {
+int BPF_KPROBE(kprobe__tcp_sendmsg, struct sock *sk) {
     // map connection tuple during SSL_do_handshake(ctx)
-    init_ssl_sock_from_do_handshake((struct sock*)PT_REGS_PARM1(ctx));
+    init_ssl_sock_from_do_handshake(sk);
     return 0;
 }
 
 SEC("kretprobe/security_sock_rcv_skb")
-int kretprobe__security_sock_rcv_skb(struct pt_regs* ctx) {
+int BPF_KRETPROBE(kretprobe__security_sock_rcv_skb) {
     // send batch completion notification to userspace
     // because perf events can't be sent from socket filter programs
     http_notify_batch(ctx);
@@ -423,8 +423,7 @@ static __always_inline int fill_path_safe(lib_path_t *path, char *path_argument)
     return 0;
 }
 
-static __always_inline int do_sys_open_helper_enter(struct pt_regs* ctx) {
-    char *path_argument = (char *)PT_REGS_PARM2(ctx);
+static __always_inline int do_sys_open_helper_enter(char *path_argument) {
     lib_path_t path = {0};
     if (bpf_probe_read_user(path.buf, sizeof(path.buf), path_argument) >= 0) {
 // Find the null character and clean up the garbage following it
@@ -452,20 +451,20 @@ static __always_inline int do_sys_open_helper_enter(struct pt_regs* ctx) {
 }
 
 SEC("kprobe/do_sys_open")
-int kprobe__do_sys_open(struct pt_regs* ctx) {
-    return do_sys_open_helper_enter(ctx);
+int BPF_KPROBE(kprobe__do_sys_open, int dfd, char *filename) {
+    return do_sys_open_helper_enter(filename);
 }
 
 SEC("kprobe/do_sys_openat2")
-int kprobe__do_sys_openat2(struct pt_regs* ctx) {
-    return do_sys_open_helper_enter(ctx);
+int BPF_KPROBE(kprobe__do_sys_openat2, int dfd, char *filename) {
+    return do_sys_open_helper_enter(filename);
 }
 
-static __always_inline int do_sys_open_helper_exit(struct pt_regs* ctx) {
+static __always_inline int do_sys_open_helper_exit(struct pt_regs* ctx, long ret) {
     u64 pid_tgid = bpf_get_current_pid_tgid();
 
     // If file couldn't be opened, bail out
-    if ((long)PT_REGS_RC(ctx) < 0) {
+    if (ret < 0) {
         goto cleanup;
     }
 
@@ -500,13 +499,13 @@ cleanup:
 }
 
 SEC("kretprobe/do_sys_open")
-int kretprobe__do_sys_open(struct pt_regs* ctx) {
-    return do_sys_open_helper_exit(ctx);
+int BPF_KRETPROBE(kretprobe__do_sys_open, long ret) {
+    return do_sys_open_helper_exit(ctx, ret);
 }
 
 SEC("kretprobe/do_sys_openat2")
-int kretprobe__do_sys_openat2(struct pt_regs* ctx) {
-    return do_sys_open_helper_exit(ctx);
+int BPF_KRETPROBE(kretprobe__do_sys_openat2, long ret) {
+    return do_sys_open_helper_exit(ctx, ret);
 }
 
 // This number will be interpreted by elf-loader to set the current running kernel version
