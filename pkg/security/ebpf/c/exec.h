@@ -852,6 +852,7 @@ int kprobe_setup_new_exec_args_envs(struct pt_regs *ctx) {
     u64 p_offset;
     LOAD_CONSTANT("linux_binprm_p_offset", p_offset);
     bpf_probe_read(&p, sizeof(p), (char *)bprm + p_offset);
+    // if we fail to retrieve the pointer to the args then don't bother parsing them
     if (p == 0) {
         return 0;
     }

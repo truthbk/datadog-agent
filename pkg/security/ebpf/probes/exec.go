@@ -106,13 +106,6 @@ var execProbes = []*manager.Probe{
 	{
 		ProbeIdentificationPair: manager.ProbeIdentificationPair{
 			UID:          SecurityAgentUID,
-			EBPFSection:  "kprobe/setup_arg_pages",
-			EBPFFuncName: "kprobe_setup_arg_pages",
-		},
-	},
-	{
-		ProbeIdentificationPair: manager.ProbeIdentificationPair{
-			UID:          SecurityAgentUID,
 			EBPFSection:  "kprobe/setup_new_exec",
 			EBPFFuncName: "kprobe_setup_new_exec_interp",
 		},
@@ -122,6 +115,13 @@ var execProbes = []*manager.Probe{
 			UID:          SecurityAgentUID,
 			EBPFSection:  "kprobe/setup_new_exec",
 			EBPFFuncName: "kprobe_setup_new_exec_args_envs",
+		},
+	},
+	{
+		ProbeIdentificationPair: manager.ProbeIdentificationPair{
+			UID:          SecurityAgentUID,
+			EBPFSection:  "kprobe/setup_arg_pages",
+			EBPFFuncName: "kprobe_setup_arg_pages",
 		},
 	},
 	{
