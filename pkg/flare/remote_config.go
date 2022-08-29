@@ -27,6 +27,8 @@ func zipRemoteConfigDB(tempDir, hostname string) error {
 	dstPath := filepath.Join(tempDir, hostname, "remote-config.db")
 	srcPath := filepath.Join(config.Datadog.GetString("run_path"), "remote-config.db")
 
+	log.Errorf("Starting remote-config db")
+
 	err := util.CopyFileAll(srcPath, dstPath)
 	if err != nil {
 		// Prevent from having a clear db here

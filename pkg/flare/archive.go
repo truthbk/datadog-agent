@@ -374,6 +374,8 @@ func createArchive(confSearchPaths SearchPaths, local bool, zipFilePath string, 
 		if err != nil {
 			log.Errorf("Could not export remote-config database: %s", err)
 		}
+	} else {
+		log.Errorf("Not exporting remote-config db")
 	}
 
 	// force a log flush before zipping them
