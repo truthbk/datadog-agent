@@ -87,6 +87,11 @@ int socket__http_filter(struct __sk_buff* skb) {
         return 0;
     }
 
+    // bail out if there is no TCP payload and no TCP flags we're interested in
+    if (skb_info.data_off == skb->len && !(skb_info.tcp_flags&(TCPHDR_FIN|TCPHDR_RST))) {
+        return 0;
+    }
+
     // If the socket is for https and it is finishing,
     // make sure we pass it on to `http_process` to ensure that any ongoing transaction is flushed.
     // Otherwise, don't bother to inspect packet contents

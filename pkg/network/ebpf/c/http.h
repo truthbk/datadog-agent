@@ -1,3 +1,4 @@
+
 #ifndef __HTTP_H
 #define __HTTP_H
 
@@ -47,6 +48,7 @@ static __always_inline void http_enqueue(http_transaction_t *http) {
     u32 cpu = bpf_get_smp_processor_id();
     http_batch_state_t *batch_state = bpf_map_lookup_elem(&http_batch_state, &cpu);
     if (batch_state == NULL) {
+        log_debug("http: error: can't retrieve batch_state\n");
         return;
     }
 
@@ -56,6 +58,7 @@ static __always_inline void http_enqueue(http_transaction_t *http) {
     // Retrieve the batch object
     http_batch_t *batch = bpf_map_lookup_elem(&http_batches, &key);
     if (batch == NULL) {
+        log_debug("http: error: can't retrieve batch\n");
         return;
     }
 
@@ -145,16 +148,18 @@ static __always_inline void http_parse_data(char const *p, http_packet_t *packet
 
 
 static __always_inline http_transaction_t *http_fetch_state(http_transaction_t *http, skb_info_t *skb_info, http_packet_t packet_type) {
+    http_transaction_t *http_ebpf = NULL;
     if (packet_type == HTTP_PACKET_UNKNOWN) {
-        return bpf_map_lookup_elem(&http_in_flight, &http->tup);
+        http_ebpf = bpf_map_lookup_elem(&http_in_flight, &http->tup);
+        goto return_state;
     }
 
     // We detected either a request or a response
     // In this case we initialize (or fetch) state associated to this tuple
     bpf_map_update_elem(&http_in_flight, &http->tup, http, BPF_NOEXIST);
-    http_transaction_t *http_ebpf = bpf_map_lookup_elem(&http_in_flight, &http->tup);
+    http_ebpf = bpf_map_lookup_elem(&http_in_flight, &http->tup);
     if (http_ebpf == NULL || skb_info == NULL) {
-        return http_ebpf;
+        goto return_state;
     }
 
     // Bail out if we've seen this TCP segment before
@@ -165,6 +170,10 @@ static __always_inline http_transaction_t *http_fetch_state(http_transaction_t *
     }
 
     http_ebpf->tcp_seq = skb_info->tcp_seq;
+
+ return_state:
+    if (!http_ebpf && (!skb_info || !(skb_info->tcp_flags&(TCPHDR_FIN|TCPHDR_RST))))
+        log_debug("http: couldn't find state. packet_type=%d src_port=%d src_addr=%llu", packet_type, http->tup.sport, http->tup.saddr_l);
     return http_ebpf;
 }
 
@@ -180,6 +189,7 @@ static __always_inline http_transaction_t* http_should_flush_previous_state(http
     u32 cpu = bpf_get_smp_processor_id();
     http_batch_state_t *batch_state = bpf_map_lookup_elem(&http_batch_state, &cpu);
     if (batch_state == NULL) {
+        log_debug("http: error: couldn't find batch_state\n");
         return NULL;
     }
 
@@ -224,6 +234,10 @@ static __always_inline int http_process(http_transaction_t *http_stack, skb_info
     if (packet_type == HTTP_REQUEST) {
         http_begin_request(http, method, buffer);
     } else if (packet_type == HTTP_RESPONSE) {
+        if (http->request_method == HTTP_METHOD_UNKNOWN) {
+            log_debug("http: response without request src_port=%d src_addr=%llu\n", http->tup.sport, http->tup.saddr_l);
+        }
+
         http_begin_response(http, buffer);
     }
 
