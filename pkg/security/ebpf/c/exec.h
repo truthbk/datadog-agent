@@ -11,8 +11,7 @@
 
 #define MAX_PERF_STR_BUFF_LEN 256
 #define MAX_STR_BUFF_LEN (1 << 15)
-#define MAX_ARRAY_ELEMENT_PER_TAIL 23
-#define MAX_ARRAY_ELEMENT_PER_TAIL_SEQ 22
+#define MAX_ARRAY_ELEMENT_PER_TAIL 22
 #define MAX_ARRAY_ELEMENT_SIZE 4096
 #define MAX_ARGS_ELEMENTS 140
 
@@ -27,13 +26,9 @@ struct str_array_buffer_t {
     char value[MAX_STR_BUFF_LEN];
 };
 
-struct bpf_map_def SEC("maps/args_envs_progs") args_envs_progs = {
-    .type = BPF_MAP_TYPE_PROG_ARRAY,
-    .key_size = sizeof(u32),
-    .value_size = sizeof(u32),
-    .max_entries = 10,
-};
-
+// args_envs_seq_progs is a BPF_MAP_TYPE_PROG_ARRAY that only contains the
+// kprobe/parse_args_envs_seq eBPF program responsible for parsing a sequence of
+// args/envs strings and sending the corresponding events to userspace
 struct bpf_map_def SEC("maps/args_envs_seq_progs") args_envs_seq_progs = {
     .type = BPF_MAP_TYPE_PROG_ARRAY,
     .key_size = sizeof(u32),
@@ -153,112 +148,15 @@ struct proc_cache_t __attribute__((always_inline)) *get_proc_from_cookie(u32 coo
     return bpf_map_lookup_elem(&proc_cache, &cookie);
 }
 
-void __attribute__((always_inline)) parse_str_array(struct pt_regs *ctx, struct str_array_ref_t *array_ref, u64 event_type) {
-    const char **array = array_ref->array;
-    int index = array_ref->index;
-    if (index == 255) {
-        return;
-    }
-
-    array_ref->truncated = 0;
-
-    u32 key = 0;
-    struct str_array_buffer_t *buff = bpf_map_lookup_elem(&str_array_buffers, &key);
-    if (!buff) {
-        return;
-    }
-
-    const char *str;
-    bpf_probe_read(&str, sizeof(str), (void *)&array[index]);
-
-    struct args_envs_event_t event = {
-        .id = array_ref->id,
-    };
-
-    int i = 0;
-    int n = 0;
-
-    void *perf_ptr = &buff->value[0];
-
-#pragma unroll
-    for (i = 0; i < MAX_ARRAY_ELEMENT_PER_TAIL; i++) {
-        void *ptr = &(buff->value[(event.size + sizeof(n)) & (MAX_STR_BUFF_LEN - MAX_ARRAY_ELEMENT_SIZE - 1)]);
-
-        n = bpf_probe_read_str(ptr, MAX_ARRAY_ELEMENT_SIZE, (void *)str);
-        if (n > 0) {
-            n--; // remove trailing 0
-
-            // insert size before the string
-            bpf_probe_read(&(buff->value[event.size&(MAX_STR_BUFF_LEN - MAX_ARRAY_ELEMENT_SIZE - 1)]), sizeof(n), &n);
-
-            int len = n + sizeof(n);
-            if (event.size + len >= MAX_PERF_STR_BUFF_LEN) {
-                // copy value to the event
-                bpf_probe_read(&event.value, MAX_PERF_STR_BUFF_LEN, perf_ptr);
-
-                // an only one argument overflow the limit
-                if (event.size == 0) {
-                    event.size = MAX_PERF_STR_BUFF_LEN;
-                    index++;
-                }
-
-                send_event(ctx, event_type, event);
-                event.size = 0;
-            } else {
-                event.size += len;
-                index++;
-            }
-
-            bpf_probe_read(&str, sizeof(str), (void *)&array[index]);
-        } else {
-            index = 255; // stop here
-            break;
-        }
-    }
-    array_ref->index = index;
-    array_ref->truncated = i == MAX_ARRAY_ELEMENT_PER_TAIL;
-
-    // flush remaining values
-    if (event.size > 0) {
-        bpf_probe_read(&event.value, MAX_PERF_STR_BUFF_LEN, perf_ptr);
-
-        send_event(ctx, event_type, event);
-    }
-}
-
-SEC("kprobe/parse_args_envs")
-int kprobe_parse_args_envs(struct pt_regs *ctx) {
-    struct syscall_cache_t *syscall = peek_syscall(EVENT_EXEC);
-    if (!syscall) {
-        return 0;
-    }
-
-    struct str_array_ref_t *array = &syscall->exec.args;
-    if (syscall->exec.next_tail > MAX_ARGS_ELEMENTS / MAX_ARRAY_ELEMENT_PER_TAIL) {
-        array = &syscall->exec.envs;
-    }
-
-    parse_str_array(ctx, array, EVENT_ARGS_ENVS);
-
-    syscall->exec.next_tail++;
-
-    bpf_tail_call_compat(ctx, &args_envs_progs, syscall->exec.next_tail);
-
-    return 0;
-}
-
 int __attribute__((always_inline)) trace__sys_execveat(struct pt_regs *ctx, const char **argv, const char **env) {
     struct syscall_cache_t syscall = {
         .type = EVENT_EXEC,
         .exec = {
             .args = {
                 .id = bpf_get_prandom_u32(),
-                .array = argv,
-                .index = 0,
             },
             .envs = {
                 .id = bpf_get_prandom_u32(),
-                .array = env,
             }
         }
     };
@@ -658,7 +556,7 @@ int kprobe_exit_itimers(struct pt_regs *ctx) {
     return 0;
 }
 
-void __attribute__((always_inline)) parse_args_envs_seq(struct pt_regs *ctx, struct args_envs_seq_t *args_envs, struct str_array_ref_t *args_envs_info, u64 event_type) {
+void __attribute__((always_inline)) parse_args_envs_seq(struct pt_regs *ctx, struct args_envs_seq_t *args_envs, struct args_envs_context_t *args_envs_info, u64 event_type) {
     const char *args_start = args_envs->args_start;
     int offset = args_envs->offset;
     int str_count = args_envs->str_count;
@@ -680,39 +578,39 @@ void __attribute__((always_inline)) parse_args_envs_seq(struct pt_regs *ctx, str
     };
 
     int i = 0;
-    int n = 0;
+    int bytes_read = 0;
 
-    void *perf_ptr = &buff->value[0];
+    void *buff_ptr = &buff->value[0];
 
 #pragma unroll
-    for (i = 0; i < MAX_ARRAY_ELEMENT_PER_TAIL_SEQ; i++) {
-        void *ptr = &(buff->value[(event.size + sizeof(n)) & (MAX_STR_BUFF_LEN - MAX_ARRAY_ELEMENT_SIZE - 1)]);
+    for (i = 0; i < MAX_ARRAY_ELEMENT_PER_TAIL; i++) {
+        void *string_array_ptr = &(buff->value[(event.size + sizeof(bytes_read)) & (MAX_STR_BUFF_LEN - MAX_ARRAY_ELEMENT_SIZE - 1)]);
 
-        n = bpf_probe_read_str(ptr, MAX_ARRAY_ELEMENT_SIZE, (void *)(args_start + offset));
-        if (n > 0) {
-            n--; // remove trailing 0
+        bytes_read = bpf_probe_read_str(string_array_ptr, MAX_ARRAY_ELEMENT_SIZE, (void *)(args_start + offset));
+        if (bytes_read > 0) {
+            bytes_read--; // remove trailing 0
 
             // insert size before the string
-            bpf_probe_read(&(buff->value[event.size&(MAX_STR_BUFF_LEN - MAX_ARRAY_ELEMENT_SIZE - 1)]), sizeof(n), &n);
+            bpf_probe_read(&(buff->value[event.size&(MAX_STR_BUFF_LEN - MAX_ARRAY_ELEMENT_SIZE - 1)]), sizeof(bytes_read), &bytes_read);
 
-            int len = n + sizeof(n);
-            if (event.size + len >= MAX_PERF_STR_BUFF_LEN) {
+            int data_length = bytes_read + sizeof(bytes_read);
+            if (event.size + data_length >= MAX_PERF_STR_BUFF_LEN) {
                 // copy value to the event
-                bpf_probe_read(&event.value, MAX_PERF_STR_BUFF_LEN, perf_ptr);
+                bpf_probe_read(&event.value, MAX_PERF_STR_BUFF_LEN, buff_ptr);
 
                 // only one argument overflows the limit
                 if (event.size == 0) {
                     event.size = MAX_PERF_STR_BUFF_LEN;
                     str_count++;
-                    offset += n + 1; // count trailing 0
+                    offset += bytes_read + 1; // count trailing 0
                 }
 
                 send_event(ctx, event_type, event);
                 event.size = 0;
             } else {
-                event.size += len;
+                event.size += data_length;
                 str_count++;
-                offset += n + 1;
+                offset += bytes_read + 1;
             }
 
             if (str_count == args_envs->argc || str_count == str_total) {
@@ -725,11 +623,11 @@ void __attribute__((always_inline)) parse_args_envs_seq(struct pt_regs *ctx, str
     }
     args_envs->offset = offset;
     args_envs->str_count = str_count;
-    args_envs_info->truncated = i == MAX_ARRAY_ELEMENT_PER_TAIL_SEQ;
+    args_envs_info->truncated = i == MAX_ARRAY_ELEMENT_PER_TAIL;
 
     // flush remaining values
     if (event.size > 0) {
-        bpf_probe_read(&event.value, MAX_PERF_STR_BUFF_LEN, perf_ptr);
+        bpf_probe_read(&event.value, MAX_PERF_STR_BUFF_LEN, buff_ptr);
 
         send_event(ctx, event_type, event);
     }
@@ -742,17 +640,17 @@ int kprobe_parse_args_envs_seq(struct pt_regs *ctx) {
         return 0;
     }
 
-    struct str_array_ref_t *args_envs_info;
+    struct args_envs_context_t *args_envs_ctx;
 
     if (syscall->exec.args_envs.str_count < syscall->exec.args_envs.argc) {
-        args_envs_info = &syscall->exec.args;
+        args_envs_ctx = &syscall->exec.args;
     } else if (syscall->exec.args_envs.str_count < syscall->exec.args_envs.argc + syscall->exec.args_envs.envc) {
-        args_envs_info = &syscall->exec.envs;
+        args_envs_ctx = &syscall->exec.envs;
     } else {
         return 0;
     }
 
-    parse_args_envs_seq(ctx, &syscall->exec.args_envs, args_envs_info, EVENT_ARGS_ENVS);
+    parse_args_envs_seq(ctx, &syscall->exec.args_envs, args_envs_ctx, EVENT_ARGS_ENVS);
 
     bpf_tail_call_compat(ctx, &args_envs_seq_progs, 0);
 
@@ -770,28 +668,6 @@ int __attribute__((always_inline)) parse_args_and_env(struct pt_regs *ctx) {
 
     //bpf_tail_call_compat(ctx, &args_envs_progs, syscall->exec.next_tail);
     return 0;
-}
-
-SEC("kprobe/prepare_binprm")
-int kprobe_prepare_binprm(struct pt_regs *ctx) {
-    return parse_args_and_env(ctx);
-}
-
-SEC("kprobe/bprm_execve")
-int kprobe_bprm_execve(struct pt_regs *ctx) {
-    return parse_args_and_env(ctx);
-}
-
-SEC("kprobe/security_bprm_check")
-int kprobe_security_bprm_check(struct pt_regs *ctx) {
-    return parse_args_and_env(ctx);
-}
-
-void __attribute__((always_inline)) fill_args_envs(struct exec_event_t *event, struct syscall_cache_t *syscall) {
-    event->args_id = syscall->exec.args.id;
-    event->args_truncated = syscall->exec.args.truncated;
-    event->envs_id = syscall->exec.envs.id;
-    event->envs_truncated = syscall->exec.envs.truncated;
 }
 
 int __attribute__((always_inline)) fetch_interpreter(struct pt_regs *ctx, struct linux_binprm *bprm) {
@@ -866,6 +742,40 @@ int kprobe_setup_new_exec_args_envs(struct pt_regs *ctx) {
     bpf_tail_call_compat(ctx, &args_envs_seq_progs, 0);
 
     return 0;
+}
+
+int __attribute__((always_inline)) fill_exec_span_context(struct pt_regs *ctx) {
+    struct syscall_cache_t *syscall = peek_syscall(EVENT_EXEC);
+    if (!syscall) {
+        return 0;
+    }
+
+    // call it here before the memory get replaced
+    fill_span_context(&syscall->exec.span_context);
+
+    return 0;
+}
+
+SEC("kprobe/prepare_binprm")
+int kprobe_prepare_binprm(struct pt_regs *ctx) {
+    return fill_exec_span_context(ctx);
+}
+
+SEC("kprobe/bprm_execve")
+int kprobe_bprm_execve(struct pt_regs *ctx) {
+    return fill_exec_span_context(ctx);
+}
+
+SEC("kprobe/security_bprm_check")
+int kprobe_security_bprm_check(struct pt_regs *ctx) {
+    return fill_exec_span_context(ctx);
+}
+
+void __attribute__((always_inline)) fill_args_envs(struct exec_event_t *event, struct syscall_cache_t *syscall) {
+    event->args_id = syscall->exec.args.id;
+    event->args_truncated = syscall->exec.args.truncated;
+    event->envs_id = syscall->exec.envs.id;
+    event->envs_truncated = syscall->exec.envs.truncated;
 }
 
 int __attribute__((always_inline)) send_exec_event(struct pt_regs *ctx) {

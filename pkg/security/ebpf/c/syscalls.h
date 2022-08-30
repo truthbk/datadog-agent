@@ -12,11 +12,9 @@ enum {
     ASYNC_SYSCALL
 };
 
-struct str_array_ref_t {
+struct args_envs_context_t {
     u32 id;
-    u8 index;
     u8 truncated;
-    const char **array;
 };
 
 struct args_envs_seq_t {
@@ -141,8 +139,8 @@ struct syscall_cache_t {
         struct {
             struct dentry *dentry;
             struct file_t file;
-            struct str_array_ref_t args;
-            struct str_array_ref_t envs;
+            struct args_envs_context_t args;
+            struct args_envs_context_t envs;
             struct args_envs_seq_t args_envs;
             struct span_context_t span_context;
             struct linux_binprm_t linux_binprm;
