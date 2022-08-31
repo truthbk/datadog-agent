@@ -27,6 +27,7 @@ type telemetry struct {
 	rejected                                    *atomic.Int64 `stats:""` // this happens when an user-defined reject-filter matches a request
 	malformed                                   *atomic.Int64 `stats:""` // this happens when the request doesn't have the expected format
 	aggregations                                *atomic.Int64 `stats:""`
+	incomplete                                  *atomic.Int64 `stats:""`
 }
 
 func newTelemetry() (*telemetry, error) {
@@ -42,6 +43,7 @@ func newTelemetry() (*telemetry, error) {
 		dropped:      atomic.NewInt64(0),
 		rejected:     atomic.NewInt64(0),
 		malformed:    atomic.NewInt64(0),
+		incomplete:   atomic.NewInt64(0),
 		aggregations: atomic.NewInt64(0),
 	}
 
@@ -84,11 +86,12 @@ func (t *telemetry) reset() telemetry {
 	delta.rejected.Store(t.rejected.Swap(0))
 	delta.malformed.Store(t.malformed.Swap(0))
 	delta.aggregations.Store(t.aggregations.Swap(0))
+	delta.incomplete.Store(t.incomplete.Swap(0))
 	delta.elapsed.Store(now - then)
 
 	totalRequests := delta.hits1XX.Load() + delta.hits2XX.Load() + delta.hits3XX.Load() + delta.hits4XX.Load() + delta.hits5XX.Load()
 	log.Debugf(
-		"http stats summary: requests_processed=%d(%.2f/s) requests_missed=%d(%.2f/s) requests_dropped=%d(%.2f/s) requests_rejected=%d(%.2f/s) requests_malformed=%d(%.2f/s) aggregations=%d",
+		"http stats summary: requests_processed=%d(%.2f/s) requests_missed=%d(%.2f/s) requests_dropped=%d(%.2f/s) requests_rejected=%d(%.2f/s) requests_malformed=%d(%.2f/s) incomplete=%d(%.2f/s) aggregations=%d",
 		totalRequests,
 		float64(totalRequests)/float64(delta.elapsed.Load()),
 		delta.misses.Load(),
@@ -99,6 +102,8 @@ func (t *telemetry) reset() telemetry {
 		float64(delta.rejected.Load())/float64(delta.elapsed.Load()),
 		delta.malformed.Load(),
 		float64(delta.malformed.Load())/float64(delta.elapsed.Load()),
+		delta.incomplete.Load(),
+		float64(delta.incomplete.Load())/float64(delta.elapsed.Load()),
 		delta.aggregations.Load(),
 	)
 
