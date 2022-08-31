@@ -84,6 +84,9 @@ func getConfiguration() *config.Config {
 	// on the tracer program
 	c.EnableHTTPSMonitoring = false
 
+	// make sure runtime compilation is off
+	c.EnableRuntimeCompiler = false
+
 	// configure filters using command line arguments
 	flag.Parse()
 	c.HTTPFilterSport = *srcPort
