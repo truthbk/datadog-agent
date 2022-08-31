@@ -48,7 +48,7 @@ static __always_inline void http_enqueue(http_transaction_t *http) {
     u32 cpu = bpf_get_smp_processor_id();
     http_batch_state_t *batch_state = bpf_map_lookup_elem(&http_batch_state, &cpu);
     if (batch_state == NULL) {
-        log_debug("http: error: can't retrieve batch_state\n");
+        log_debug("http (debug) error: can't retrieve batch_state\n");
         return;
     }
 
@@ -58,7 +58,7 @@ static __always_inline void http_enqueue(http_transaction_t *http) {
     // Retrieve the batch object
     http_batch_t *batch = bpf_map_lookup_elem(&http_batches, &key);
     if (batch == NULL) {
-        log_debug("http: error: can't retrieve batch\n");
+        log_debug("http (debug) error: can't retrieve batch\n");
         return;
     }
 
@@ -173,7 +173,7 @@ static __always_inline http_transaction_t *http_fetch_state(http_transaction_t *
 
  return_state:
     if (!http_ebpf && (!skb_info || !(skb_info->tcp_flags&(TCPHDR_FIN|TCPHDR_RST))))
-        log_debug("http: couldn't find state. packet_type=%d src_port=%d src_addr=%llu", packet_type, http->tup.sport, http->tup.saddr_l);
+        log_debug("http (debug) couldn't find state. packet_type=%d src_port=%d src_addr=%llu", packet_type, http->tup.sport, http->tup.saddr_l);
     return http_ebpf;
 }
 
@@ -189,7 +189,7 @@ static __always_inline http_transaction_t* http_should_flush_previous_state(http
     u32 cpu = bpf_get_smp_processor_id();
     http_batch_state_t *batch_state = bpf_map_lookup_elem(&http_batch_state, &cpu);
     if (batch_state == NULL) {
-        log_debug("http: error: couldn't find batch_state\n");
+        log_debug("http (debug) error: couldn't find batch_state\n");
         return NULL;
     }
 
@@ -235,7 +235,7 @@ static __always_inline int http_process(http_transaction_t *http_stack, skb_info
         http_begin_request(http, method, buffer);
     } else if (packet_type == HTTP_RESPONSE) {
         if (http->request_method == HTTP_METHOD_UNKNOWN) {
-            log_debug("http: response without request src_port=%d src_addr=%llu\n", http->tup.sport, http->tup.saddr_l);
+            log_debug("http (debug) response without request src_port=%d src_addr=%llu\n", http->tup.sport, http->tup.saddr_l);
         }
 
         http_begin_response(http, buffer);
