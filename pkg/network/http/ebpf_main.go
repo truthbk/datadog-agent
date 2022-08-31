@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"sync/atomic"
 	"time"
 
 	manager "github.com/DataDog/ebpf-manager"
@@ -263,20 +264,43 @@ func (e *ebpfProgram) setupMapCleaner() {
 		return
 	}
 
+	var incompleteRequests int64
+	var incompleteResponses int64
+	withTelemetry := func(tx *httpTX, shouldDelete bool) bool {
+		if shouldDelete {
+			if tx.request_started > 0 && tx.response_status_code == 0 {
+				atomic.AddInt64(&incompleteRequests, 1)
+			} else if tx.request_started == 0 && tx.response_status_code > 0 {
+				atomic.AddInt64(&incompleteResponses, 1)
+			}
+		}
+
+		return shouldDelete
+	}
+
 	ttl := maxRequestLinger.Nanoseconds()
-	httpMapCleaner.Clean(5*time.Minute, func(now int64, key, val interface{}) bool {
+	httpMapCleaner.Clean(30*time.Second, func(now int64, key, val interface{}) bool {
 		httpTX, ok := val.(*httpTX)
 		if !ok {
 			return false
 		}
 
 		if updated := int64(httpTX.response_last_seen); updated > 0 {
-			return (now - updated) > ttl
+			return withTelemetry(httpTX, (now-updated) > ttl)
 		}
 
 		started := int64(httpTX.request_started)
-		return started > 0 && (now-started) > ttl
+		return withTelemetry(httpTX, started > 0 && (now-started) > ttl)
 	})
+
+	go func() {
+		t := time.NewTicker(30 * time.Second)
+		for range t.C {
+			requests := atomic.SwapInt64(&incompleteRequests, 0)
+			responses := atomic.SwapInt64(&incompleteResponses, 0)
+			log.Debugf("stale HTTP data stuck in eBPF: requests=%d responses=%d", requests, responses)
+		}
+	}()
 
 	e.mapCleaner = httpMapCleaner
 }
