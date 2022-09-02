@@ -412,9 +412,9 @@ func TestProcessContext(t *testing.T) {
 			}
 
 			argv := strings.Split(execArgs.(string), " ")
-			assert.Equal(t, 132, len(argv), "incorrect number of args: %s", argv)
+			assert.Equal(t, 459, len(argv), "incorrect number of args: %s", argv)
 
-			for i := 0; i != 132; i++ {
+			for i := 0; i != 459; i++ {
 				assert.Equal(t, args[i], argv[i], "expected arg not found")
 			}
 
@@ -453,9 +453,9 @@ func TestProcessContext(t *testing.T) {
 			}
 
 			argv := strings.Split(execArgs.(string), " ")
-			assert.Equal(t, 201, len(argv), "incorrect number of args: %s", argv)
+			assert.Equal(t, 474, len(argv), "incorrect number of args: %s", argv)
 
-			for i := 0; i != 159; i++ {
+			for i := 0; i != 474; i++ {
 				expected := args[i]
 				if len(expected) > model.MaxArgEnvSize {
 					expected = args[i][:model.MaxArgEnvSize-4] + "..." // 4 is the size number of the string

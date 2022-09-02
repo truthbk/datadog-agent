@@ -234,18 +234,32 @@ func getExecProbes() []*manager.Probe {
 }
 
 func getExecTailCallRoutes() []manager.TailCallRoute {
-	var routes []manager.TailCallRoute
 
-	for i := uint32(0); i != 1; i++ {
-		route := manager.TailCallRoute{
-			ProgArrayName: "args_envs_seq_progs",
-			Key:           i,
+	routes := []manager.TailCallRoute{
+		{
+			ProgArrayName: "args_envs_progs",
+			Key:           ExecGetEnvsOffsetKey,
 			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				EBPFSection:  "kprobe/parse_args_envs_seq",
-				EBPFFuncName: "kprobe_parse_args_envs_seq",
+				EBPFSection:  "kprobe/get_envs_offset",
+				EBPFFuncName: "kprobe_get_envs_offset",
 			},
-		}
-		routes = append(routes, route)
+		},
+		{
+			ProgArrayName: "args_envs_progs",
+			Key:           ExecParseArgsEnvsSplitKey,
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				EBPFSection:  "kprobe/parse_args_envs_split",
+				EBPFFuncName: "kprobe_parse_args_envs_split",
+			},
+		},
+		{
+			ProgArrayName: "args_envs_progs",
+			Key:           ExecParseArgsEnvsKey,
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				EBPFSection:  "kprobe/parse_args_envs",
+				EBPFFuncName: "kprobe_parse_args_envs",
+			},
+		},
 	}
 
 	return routes

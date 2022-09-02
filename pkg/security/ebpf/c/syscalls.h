@@ -12,17 +12,19 @@ enum {
     ASYNC_SYSCALL
 };
 
-struct args_envs_context_t {
+struct args_envs_t {
+    const char **array;
+    u32 count;          // argc/envc retrieved from the kernel
+    u32 counter;        // counter incremented while parsing args/envs
     u32 id;
     u8 truncated;
 };
 
-struct args_envs_seq_t {
+struct args_envs_parsing_context_t {
     const char *args_start;
-    u32 offset;
-    u32 str_count;
-    int argc;
-    int envc;
+    u64 envs_offset;
+    u64 parsing_offset;
+    u32 args_count;
 };
 
 struct dentry_resolver_input_t {
@@ -139,9 +141,9 @@ struct syscall_cache_t {
         struct {
             struct dentry *dentry;
             struct file_t file;
-            struct args_envs_context_t args;
-            struct args_envs_context_t envs;
-            struct args_envs_seq_t args_envs;
+            struct args_envs_t args;
+            struct args_envs_t envs;
+            struct args_envs_parsing_context_t args_envs_ctx;
             struct span_context_t span_context;
             struct linux_binprm_t linux_binprm;
             u32 next_tail;
