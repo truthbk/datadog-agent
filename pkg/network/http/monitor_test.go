@@ -29,8 +29,8 @@ import (
 func TestHTTPMonitorIntegration(t *testing.T) {
 	currKernelVersion, err := kernel.HostVersion()
 	require.NoError(t, err)
-	if currKernelVersion < kernel.VersionCode(4, 1, 0) {
-		t.Skip("HTTP feature not available on pre 4.1.0 kernels")
+	if currKernelVersion < kernel.VersionCode(4, 14, 0) {
+		t.Skip("HTTP feature not available on pre 4.14.0 kernels")
 	}
 
 	targetAddr := "localhost:8080"
