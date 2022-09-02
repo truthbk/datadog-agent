@@ -777,12 +777,12 @@ int kprobe_get_envs_offset(struct pt_regs *ctx) {
     for (i = 0; i < MAX_ARGS_READ_PER_TAIL; i++) {
         bpf_probe_read(&str, sizeof(str), (void *)&syscall->exec.args.array[syscall->exec.args_envs_ctx.args_count]);
         if (!str) {
-            return 0; // end-of-args reached
+            return 0;
         }
         bytes_read = bpf_probe_read_str(&buff->value[0], MAX_ARRAY_ELEMENT_SIZE, (void *)str);
         if (bytes_read <= 0 || bytes_read == MAX_ARRAY_ELEMENT_SIZE) {
             syscall->exec.args_envs_ctx.envs_offset = 0;
-            return 0; // failed to get args length
+            return 0;
         }
         syscall->exec.args_envs_ctx.envs_offset += bytes_read;
         syscall->exec.args_envs_ctx.args_count++;
@@ -790,7 +790,7 @@ int kprobe_get_envs_offset(struct pt_regs *ctx) {
 
     bpf_tail_call_compat(ctx, &args_envs_progs, EXEC_GET_ENVS_OFFSET);
 
-    syscall->exec.args_envs_ctx.envs_offset = 0; // failed to get args length
+    syscall->exec.args_envs_ctx.envs_offset = 0;
     return 0;
 }
 
@@ -800,7 +800,7 @@ int __attribute__((always_inline)) fill_exec_context(struct pt_regs *ctx) {
         return 0;
     }
 
-    // avoid getting the args length if we already got it from previously called kprobe
+    // avoid getting the args length if we already got it from a previously called kprobe
     if (syscall->exec.args_envs_ctx.args_count == 0) {
         // call it here before the memory get replaced
         fill_span_context(&syscall->exec.span_context);
