@@ -100,11 +100,11 @@ func (f *FallbackConstantFetcher) appendRequest(id string) {
 		value = getFlowi6ULIOffset(f.kernelVersion)
 	case OffsetNameLinuxBinprmStructFile:
 		value = getBinPrmFileFieldOffset(f.kernelVersion)
-	case "linux_binprm_p_offset":
+	case OffsetNameLinuxBinprmP:
 		value = getLinuxBinPrmPOffset(f.kernelVersion)
-	case "linux_binprm_argc_offset":
+	case OffsetNameLinuxBinprmArgc:
 		value = getLinuxBinPrmArgcOffset(f.kernelVersion)
-	case "linux_binprm_envc_offset":
+	case OffsetNameLinuxBinprmEnvc:
 		value = getLinuxBinPrmEnvcOffset(f.kernelVersion)
 	}
 	f.res[id] = value
