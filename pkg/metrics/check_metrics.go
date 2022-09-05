@@ -87,7 +87,7 @@ func (cm *CheckMetrics) Expire(contextKeys []ckey.ContextKey, timestamp float64)
 	expiredStateless := 0.0
 	expiredStateful := 0.0
 	for _, key := range contextKeys {
-		if m, ok := cm.metrics[key]; ok {
+		if m := cm.metrics.getByKey(key); m != nil {
 			if m.isStateful() {
 				expiredStateful++
 				if cm.deadlines == nil {
@@ -96,7 +96,7 @@ func (cm *CheckMetrics) Expire(contextKeys []ckey.ContextKey, timestamp float64)
 				cm.deadlines[key] = timestamp + cm.statefulTimeout
 			} else {
 				expiredStateless++
-				delete(cm.metrics, key)
+				cm.metrics.deleteByKey(key)
 			}
 		}
 	}
@@ -120,7 +120,7 @@ func (cm *CheckMetrics) RemoveExpired(timestamp float64) {
 	for key, deadline := range cm.deadlines {
 		if deadline < timestamp {
 			removed++
-			delete(cm.metrics, key)
+			cm.metrics.deleteByKey(key)
 			delete(cm.deadlines, key)
 		}
 	}
@@ -137,19 +137,20 @@ type CheckMetricsTelemetryAccumulator struct {
 
 // VisitCheckMetrics adds metrics from CheckMetrics instance to the accumulator.
 func (c *CheckMetricsTelemetryAccumulator) VisitCheckMetrics(cm *CheckMetrics) {
-	for k, m := range cm.metrics {
-		if m.isStateful() {
-			c.statefulTotal++
-			if _, ok := cm.deadlines[k]; ok {
-				c.statefulWaiting++
-			}
-		} else {
-			c.statelessTotal++
-			if _, ok := cm.deadlines[k]; ok {
-				c.statelessWaiting++
-			}
-		}
-	}
+	// FIXME(vf): reimplement
+	// for k, m := range cm.metrics {
+	// 	if m.isStateful() {
+	// 		c.statefulTotal++
+	// 		if _, ok := cm.deadlines[k]; ok {
+	// 			c.statefulWaiting++
+	// 		}
+	// 	} else {
+	// 		c.statelessTotal++
+	// 		if _, ok := cm.deadlines[k]; ok {
+	// 			c.statelessWaiting++
+	// 		}
+	// 	}
+	// }
 }
 
 // Flush updates telemetry counters based on aggregated statistics.

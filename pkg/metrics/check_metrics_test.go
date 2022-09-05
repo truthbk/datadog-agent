@@ -19,37 +19,37 @@ func TestCheckMetrics(t *testing.T) {
 	t0 := 16_0000_0000.0
 
 	cm.AddSample(1, &MetricSample{Mtype: GaugeType}, t0, 1)
-	assert.Contains(t, cm.metrics, ckey.ContextKey(1))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(1))
 
 	cm.AddSample(2, &MetricSample{Mtype: MonotonicCountType}, t0, 1)
-	assert.Contains(t, cm.metrics, ckey.ContextKey(2))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(2))
 
 	cm.AddSample(3, &MetricSample{Mtype: MonotonicCountType}, t0, 1)
-	assert.Contains(t, cm.metrics, ckey.ContextKey(3))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(3))
 
 	cm.AddSample(4, &MetricSample{Mtype: GaugeType}, t0, 1)
-	assert.Contains(t, cm.metrics, ckey.ContextKey(4))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(4))
 
 	cm.Expire([]ckey.ContextKey{1, 2}, t0+100)
-	assert.NotContains(t, cm.metrics, ckey.ContextKey(1))
-	assert.Contains(t, cm.metrics, ckey.ContextKey(2))
-	assert.Contains(t, cm.metrics, ckey.ContextKey(3))
-	assert.Contains(t, cm.metrics, ckey.ContextKey(4))
+	assert.NotContains(t, cm.metrics.inner.indexes, ckey.ContextKey(1))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(2))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(3))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(4))
 
 	cm.RemoveExpired(t0 + 100)
-	assert.Contains(t, cm.metrics, ckey.ContextKey(2))
-	assert.Contains(t, cm.metrics, ckey.ContextKey(3))
-	assert.Contains(t, cm.metrics, ckey.ContextKey(4))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(2))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(3))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(4))
 
 	cm.RemoveExpired(t0 + 1100)
-	assert.Contains(t, cm.metrics, ckey.ContextKey(2))
-	assert.Contains(t, cm.metrics, ckey.ContextKey(3))
-	assert.Contains(t, cm.metrics, ckey.ContextKey(4))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(2))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(3))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(4))
 
 	cm.RemoveExpired(t0 + 1101)
-	assert.NotContains(t, cm.metrics, ckey.ContextKey(2))
-	assert.Contains(t, cm.metrics, ckey.ContextKey(3))
-	assert.Contains(t, cm.metrics, ckey.ContextKey(4))
+	assert.NotContains(t, cm.metrics.inner.indexes, ckey.ContextKey(2))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(3))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(4))
 }
 
 func TestCheckMetricsNoExpiry(t *testing.T) {
@@ -57,35 +57,35 @@ func TestCheckMetricsNoExpiry(t *testing.T) {
 	t0 := 16_0000_0000.0
 
 	cm.AddSample(1, &MetricSample{Mtype: GaugeType}, t0, 1)
-	assert.Contains(t, cm.metrics, ckey.ContextKey(1))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(1))
 
 	cm.AddSample(2, &MetricSample{Mtype: MonotonicCountType}, t0, 1)
-	assert.Contains(t, cm.metrics, ckey.ContextKey(2))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(2))
 
 	cm.AddSample(3, &MetricSample{Mtype: MonotonicCountType}, t0, 1)
-	assert.Contains(t, cm.metrics, ckey.ContextKey(3))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(3))
 
 	cm.AddSample(4, &MetricSample{Mtype: GaugeType}, t0, 1)
-	assert.Contains(t, cm.metrics, ckey.ContextKey(4))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(4))
 
 	cm.Expire([]ckey.ContextKey{1, 2}, t0+100)
-	assert.Contains(t, cm.metrics, ckey.ContextKey(1))
-	assert.Contains(t, cm.metrics, ckey.ContextKey(2))
-	assert.Contains(t, cm.metrics, ckey.ContextKey(3))
-	assert.Contains(t, cm.metrics, ckey.ContextKey(4))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(1))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(2))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(3))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(4))
 
 	cm.RemoveExpired(t0 + 100)
-	assert.Contains(t, cm.metrics, ckey.ContextKey(2))
-	assert.Contains(t, cm.metrics, ckey.ContextKey(3))
-	assert.Contains(t, cm.metrics, ckey.ContextKey(4))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(2))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(3))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(4))
 
 	cm.RemoveExpired(t0 + 1100)
-	assert.Contains(t, cm.metrics, ckey.ContextKey(2))
-	assert.Contains(t, cm.metrics, ckey.ContextKey(3))
-	assert.Contains(t, cm.metrics, ckey.ContextKey(4))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(2))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(3))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(4))
 
 	cm.RemoveExpired(t0 + 1101)
-	assert.Contains(t, cm.metrics, ckey.ContextKey(2))
-	assert.Contains(t, cm.metrics, ckey.ContextKey(3))
-	assert.Contains(t, cm.metrics, ckey.ContextKey(4))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(2))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(3))
+	assert.Contains(t, cm.metrics.inner.indexes, ckey.ContextKey(4))
 }

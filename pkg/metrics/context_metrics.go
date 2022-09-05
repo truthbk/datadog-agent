@@ -14,16 +14,19 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
+// MetricIndex is used to store metric type and array index for the given context key
 type MetricIndex struct {
 	inner uint64
 }
 
+// NewMetricIndex TODO
 func NewMetricIndex(mtype uint8, index uint32) MetricIndex {
 	return MetricIndex{
 		inner: uint64(mtype) | (uint64(index) << 8),
 	}
 }
 
+// Type TODO
 func (mi MetricIndex) Type() MetricType {
 	return MetricType(mi.inner & 0xff)
 }
@@ -34,17 +37,19 @@ func init() {
 	}
 }
 
+// Index TODO
 func (mi MetricIndex) Index() uint32 {
 	return uint32(mi.inner >> 8)
 }
 
 // ContextMetrics stores all the metrics by context key
-type ContextMetrics struct{
+type ContextMetrics struct {
 	inner *contextMetrics
 }
 
-type contextMetrics struct{
+type contextMetrics struct {
 	indexes    map[ckey.ContextKey]MetricIndex
+	inverse    map[MetricIndex]ckey.ContextKey
 	gauges     []Gauge
 	rates      []Rate
 	counts     []Count
@@ -59,6 +64,7 @@ type contextMetrics struct{
 func MakeContextMetrics() ContextMetrics {
 	return ContextMetrics{&contextMetrics{
 		indexes: make(map[ckey.ContextKey]MetricIndex),
+		inverse: make(map[MetricIndex]ckey.ContextKey),
 	}}
 }
 
@@ -82,7 +88,7 @@ func (a *AddSampleTelemetry) Inc(isStateful bool) {
 }
 
 // AddSample add a sample to the current ContextMetrics and initialize a new metrics if needed.
-func (metrics *ContextMetrics) AddSample(contextKey ckey.ContextKey, sample *MetricSample, timestamp float64, interval int64, t *AddSampleTelemetry) error {
+func (metrics ContextMetrics) AddSample(contextKey ckey.ContextKey, sample *MetricSample, timestamp float64, interval int64, t *AddSampleTelemetry) error {
 	m := metrics.inner
 
 	if math.IsInf(sample.Value, 0) || math.IsNaN(sample.Value) {
@@ -97,7 +103,6 @@ func (metrics *ContextMetrics) AddSample(contextKey ckey.ContextKey, sample *Met
 		index = mi.Index()
 	} else {
 		mtype = sample.Mtype
-		var metric Metric
 
 		switch sample.Mtype {
 		case GaugeType:
@@ -129,7 +134,10 @@ func (metrics *ContextMetrics) AddSample(contextKey ckey.ContextKey, sample *Met
 			log.Error(err)
 			return err
 		}
-		m.indexes[contextKey] = NewMetricIndex(uint8(sample.Mtype), index)
+
+		idx := NewMetricIndex(uint8(sample.Mtype), index)
+		m.indexes[contextKey] = idx
+		m.inverse[idx] = contextKey
 
 		// if t != nil {
 		// 	t.Inc(metric.isStateful())
@@ -162,6 +170,14 @@ func (metrics *ContextMetrics) AddSample(contextKey ckey.ContextKey, sample *Met
 	return nil
 }
 
+func (metrics ContextMetrics) getByKey(key ckey.ContextKey) Metric {
+	m := metrics.inner
+	if idx, ok := m.indexes[key]; ok {
+		return metrics.get(idx)
+	}
+	return nil
+}
+
 func (metrics ContextMetrics) get(metricIndex MetricIndex) Metric {
 	m := metrics.inner
 	idx := metricIndex.Index()
@@ -184,6 +200,54 @@ func (metrics ContextMetrics) get(metricIndex MetricIndex) Metric {
 		return m.counters[idx]
 	}
 	return nil
+}
+
+func (metrics ContextMetrics) deleteByKey(ckey ckey.ContextKey) {
+	m := metrics.inner
+	keyIdx, ok := m.indexes[ckey]
+	if !ok {
+		return
+	}
+
+	idx := keyIdx.Index()
+	ty := keyIdx.Type()
+
+	switch ty {
+	case GaugeType:
+		top := uint32(len(m.gauges) - 1)
+		topIdx := NewMetricIndex(uint8(ty), top)
+		topKey := m.inverse[topIdx]
+
+		delete(m.indexes, ckey)
+		delete(m.inverse, topIdx)
+
+		if idx != top {
+			m.gauges[idx] = m.gauges[top]
+			m.indexes[topKey] = keyIdx
+			m.inverse[keyIdx] = topKey
+		}
+
+		m.gauges = m.gauges[:top]
+
+	case MonotonicCountType:
+		top := uint32(len(m.mcounts) - 1)
+		topIdx := NewMetricIndex(uint8(ty), top)
+		topKey := m.inverse[topIdx]
+
+		delete(m.indexes, ckey)
+		delete(m.inverse, topIdx)
+
+		if idx != top {
+			m.mcounts[idx] = m.mcounts[top]
+			m.indexes[topKey] = keyIdx
+			m.inverse[keyIdx] = topKey
+		}
+
+		m.mcounts = m.mcounts[:top]
+
+	default:
+		panic("not implemented yet")
+	}
 }
 
 // Flush flushes every metrics in the ContextMetrics.

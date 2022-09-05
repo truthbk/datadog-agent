@@ -310,3 +310,43 @@ func TestContextMetricsHistorateSampling(t *testing.T) {
 		},
 		series[4])
 }
+
+func TestContextMetricsDelete(t *testing.T) {
+	metrics := MakeContextMetrics()
+	assert.Nil(t, metrics.getByKey(ckey.ContextKey(1)))
+
+	metrics.AddSample(ckey.ContextKey(1), &MetricSample{Mtype: GaugeType, Value: 1234}, 12340, 10, nil)
+	assert.Contains(t, metrics.inner.indexes, ckey.ContextKey(1))
+	assert.Contains(t, metrics.inner.inverse, NewMetricIndex(uint8(GaugeType), 0))
+
+	m := metrics.getByKey(ckey.ContextKey(1))
+	assert.NotNil(t, m)
+	assert.Equal(t, 1234.0, m.(*Gauge).gauge)
+	assert.Equal(t, m.(*Gauge), &metrics.inner.gauges[0])
+
+	metrics.AddSample(ckey.ContextKey(2), &MetricSample{Mtype: GaugeType, Value: 4321}, 12341, 10, nil)
+
+	assert.Len(t, metrics.inner.gauges, 2)
+
+	m = metrics.getByKey(ckey.ContextKey(1))
+	assert.NotNil(t, m)
+	assert.Equal(t, 1234.0, m.(*Gauge).gauge)
+
+	m = metrics.getByKey(ckey.ContextKey(2))
+	assert.NotNil(t, m)
+	assert.Equal(t, 4321.0, m.(*Gauge).gauge)
+
+	metrics.deleteByKey(ckey.ContextKey(1))
+
+	assert.Nil(t, metrics.getByKey(ckey.ContextKey(1)))
+	m = metrics.getByKey(ckey.ContextKey(2))
+	assert.NotNil(t, m)
+	assert.Equal(t, 4321.0, m.(*Gauge).gauge)
+	assert.Equal(t, m.(*Gauge), &metrics.inner.gauges[0])
+	assert.Len(t, metrics.inner.gauges, 1)
+
+	metrics.deleteByKey(ckey.ContextKey(2))
+	assert.Empty(t, metrics.inner.indexes)
+	assert.Empty(t, metrics.inner.inverse)
+	assert.Empty(t, metrics.inner.gauges)
+}
