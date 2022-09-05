@@ -30,7 +30,6 @@ ALL_TAGS = {
     "jetson",
     "kubeapiserver",
     "kubelet",
-    "linux_bpf",
     "netcgo",  # Force the use of the CGO resolver. This will also have the effect of making the binary non-static
     "npm",
     "orchestrator",
@@ -106,7 +105,7 @@ PROCESS_AGENT_HEROKU_TAGS = PROCESS_AGENT_TAGS.difference(
 SECURITY_AGENT_TAGS = {"netcgo", "secrets", "docker", "containerd", "kubeapiserver", "kubelet", "podman", "zlib"}
 
 # SYSTEM_PROBE_TAGS lists the tags necessary to build system-probe
-SYSTEM_PROBE_TAGS = AGENT_TAGS.union({"clusterchecks", "linux_bpf", "npm"}).difference("python")
+SYSTEM_PROBE_TAGS = AGENT_TAGS.union({"clusterchecks", "npm"}).difference("python")
 
 # TRACE_AGENT_TAGS lists the tags that have to be added when the trace-agent
 TRACE_AGENT_TAGS = {"docker", "containerd", "kubeapiserver", "kubelet", "otlp", "netcgo", "podman", "secrets"}
@@ -129,10 +128,10 @@ AGENT_TEST_TAGS = AGENT_TAGS.union({"clusterchecks"})
 ### Tag exclusion lists
 
 # List of tags to always remove when not building on Linux
-LINUX_ONLY_TAGS = {"netcgo", "systemd", "jetson", "linux_bpf", "podman"}
+LINUX_ONLY_TAGS = {"netcgo", "systemd", "jetson", "podman"}
 
 # List of tags to always remove when building on Windows
-WINDOWS_EXCLUDE_TAGS = {"linux_bpf"}
+WINDOWS_EXCLUDE_TAGS = {}
 
 # List of tags to always remove when building on Darwin/macOS
 DARWIN_EXCLUDED_TAGS = {"docker", "containerd", "cri"}

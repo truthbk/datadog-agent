@@ -3,16 +3,17 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build linux_bpf && !ebpf_bindata
-// +build linux_bpf,!ebpf_bindata
+//go:build linux && !ebpf_bindata
+// +build linux,!ebpf_bindata
 
 package ebpf
 
 import (
+	"github.com/DataDog/datadog-go/v5/statsd"
+
 	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode"
 	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode/runtime"
 	"github.com/DataDog/datadog-agent/pkg/security/config"
-	"github.com/DataDog/datadog-go/v5/statsd"
 )
 
 // TODO change probe.c path to runtime-compilation specific version

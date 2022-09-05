@@ -3,8 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build (linux && !linux_bpf) || (windows && !npm) || (!linux && !windows)
-// +build linux,!linux_bpf windows,!npm !linux,!windows
+//go:build (linux && !linux) || (windows && !npm) || (!linux && !windows)
+// +build linux,!linux windows,!npm !linux,!windows
 
 package tracer
 

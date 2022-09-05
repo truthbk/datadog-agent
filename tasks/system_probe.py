@@ -20,7 +20,6 @@ from .utils import REPO_PATH, bin_name, get_build_flags, get_version_numeric_onl
 BIN_DIR = os.path.join(".", "bin", "system-probe")
 BIN_PATH = os.path.join(BIN_DIR, bin_name("system-probe", android=False))
 
-BPF_TAG = "linux_bpf"
 BUNDLE_TAG = "ebpf_bindata"
 NPM_TAG = "npm"
 GIMME_ENV_VARS = ['GOROOT', 'PATH']
@@ -180,7 +179,7 @@ def ninja_runtime_compilation_files(nw):
         "pkg/security/ebpf/compile.go": "runtime-security",
     }
 
-    nw.rule(name="headerincl", command="go generate -mod=mod -tags linux_bpf $in", depfile="$out.d")
+    nw.rule(name="headerincl", command="go generate -mod=mod $in", depfile="$out.d")
     hash_dir = os.path.join(bc_dir, "runtime")
     rc_dir = os.path.join(build_dir, "runtime")
     for in_path, out_filename in runtime_compiler_files.items():
@@ -422,7 +421,6 @@ def test(
 
     build_tags = [NPM_TAG]
     if not windows:
-        build_tags.append(BPF_TAG)
         if bundle_ebpf:
             build_tags.append(BUNDLE_TAG)
 
@@ -457,8 +455,6 @@ def kitchen_prepare(ctx, windows=is_windows, kernel_release=None):
         shutil.rmtree(KITCHEN_ARTIFACT_DIR)
 
     build_tags = [NPM_TAG]
-    if not windows:
-        build_tags.append(BPF_TAG)
 
     # Retrieve a list of all packages we want to test
     # This handles the elipsis notation (eg. ./pkg/ebpf/...)

@@ -3,8 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build linux_bpf
-// +build linux_bpf
+//go:build linux
+// +build linux
 
 //go:generate go run ../../../../ebpf/include_headers.go ../c/runtime/oom-kill-kern.c ../../../../ebpf/bytecode/build/runtime/oom-kill.c ../../../../ebpf/c
 //go:generate go run ../../../../ebpf/bytecode/runtime/integrity.go ../../../../ebpf/bytecode/build/runtime/oom-kill.c ../../../../ebpf/bytecode/runtime/oom-kill.go runtime
