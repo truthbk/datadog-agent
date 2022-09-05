@@ -112,7 +112,7 @@ var execProbes = []*manager.Probe{
 	},
 	{
 		ProbeIdentificationPair: manager.ProbeIdentificationPair{
-			UID:          SecurityAgentUID,
+			UID:          SecurityAgentUID + "_a",
 			EBPFSection:  "kprobe/setup_new_exec",
 			EBPFFuncName: "kprobe_setup_new_exec_args_envs",
 		},

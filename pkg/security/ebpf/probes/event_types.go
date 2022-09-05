@@ -87,7 +87,7 @@ func GetSelectorsPerEventType() map[eval.EventType][]manager.ProbesSelector {
 						&manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/security_bprm_check", EBPFFuncName: "kprobe_security_bprm_check"}},
 					}},
 					&manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/setup_new_exec", EBPFFuncName: "kprobe_setup_new_exec_interp"}},
-					&manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/setup_new_exec", EBPFFuncName: "kprobe_setup_new_exec_args_envs"}},
+					&manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID + "_a", EBPFSection: "kprobe/setup_new_exec", EBPFFuncName: "kprobe_setup_new_exec_args_envs"}},
 					&manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/setup_arg_pages", EBPFFuncName: "kprobe_setup_arg_pages"}},
 					&manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/exit_itimers", EBPFFuncName: "kprobe_exit_itimers"}},
 					&manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/vfs_open", EBPFFuncName: "kprobe_vfs_open"}},
