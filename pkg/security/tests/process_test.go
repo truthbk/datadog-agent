@@ -366,6 +366,12 @@ func TestProcessContext(t *testing.T) {
 				t.Errorf("not able to get args")
 			}
 
+			args_envs_split, err := event.GetFieldValue("exec.args_envs_split")
+			if err != nil {
+				t.Errorf("not able to get args_envs_split")
+			}
+			fmt.Printf("args_envs_split: %v\n", args_envs_split)
+
 			argv := strings.Split(args.(string), " ")
 			assert.Equal(t, 2, len(argv), "incorrect number of args: %s", argv)
 			assert.Equal(t, 255, len(argv[1]), "wrong arg length")
@@ -411,10 +417,16 @@ func TestProcessContext(t *testing.T) {
 				t.Errorf("not able to get args")
 			}
 
-			argv := strings.Split(execArgs.(string), " ")
-			assert.Equal(t, 459, len(argv), "incorrect number of args: %s", argv)
+			args_envs_split, err := event.GetFieldValue("exec.args_envs_split")
+			if err != nil {
+				t.Errorf("not able to get args_envs_split")
+			}
+			fmt.Printf("args_envs_split: %v\n", args_envs_split)
 
-			for i := 0; i != 459; i++ {
+			argv := strings.Split(execArgs.(string), " ")
+			assert.Equal(t, 367, len(argv), "incorrect number of args: %s", argv)
+
+			for i := 0; i != 367; i++ {
 				assert.Equal(t, args[i], argv[i], "expected arg not found")
 			}
 
@@ -452,10 +464,16 @@ func TestProcessContext(t *testing.T) {
 				t.Errorf("not able to get args")
 			}
 
-			argv := strings.Split(execArgs.(string), " ")
-			assert.Equal(t, 474, len(argv), "incorrect number of args: %s", argv)
+			args_envs_split, err := event.GetFieldValue("exec.args_envs_split")
+			if err != nil {
+				t.Errorf("not able to get args_envs_split")
+			}
+			fmt.Printf("args_envs_split: %v\n", args_envs_split)
 
-			for i := 0; i != 474; i++ {
+			argv := strings.Split(execArgs.(string), " ")
+			assert.Equal(t, 446, len(argv), "incorrect number of args: %s", argv)
+
+			for i := 0; i != 446; i++ {
 				expected := args[i]
 				if len(expected) > model.MaxArgEnvSize {
 					expected = args[i][:model.MaxArgEnvSize-4] + "..." // 4 is the size number of the string

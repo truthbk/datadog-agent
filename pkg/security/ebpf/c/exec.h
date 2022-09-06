@@ -59,6 +59,7 @@ struct exec_event_t {
     u32 args_truncated;
     u32 envs_id;
     u32 envs_truncated;
+    u32 args_envs_split;
 };
 
 // _gen is a suffix for maps storing large structs to work around ebpf object size limits
@@ -639,7 +640,7 @@ int kprobe_parse_args_envs_split(struct pt_regs *ctx) {
 
     struct args_envs_t *args_envs;
 
-    if (syscall->exec.args.counter < syscall->exec.args.count && syscall->exec.args.counter <= MAX_ARGS_ELEMENTS) {
+    if (syscall->exec.args.counter < syscall->exec.args.count && syscall->exec.args_envs_ctx.index < 16) {
         args_envs = &syscall->exec.args;
     } else if (syscall->exec.envs.counter < syscall->exec.envs.count) {
         syscall->exec.args_envs_ctx.parsing_offset = syscall->exec.args_envs_ctx.envs_offset;
@@ -649,6 +650,7 @@ int kprobe_parse_args_envs_split(struct pt_regs *ctx) {
     }
 
     parse_args_envs(ctx, &syscall->exec.args_envs_ctx, args_envs, EVENT_ARGS_ENVS);
+    syscall->exec.args_envs_ctx.index++;
 
     bpf_tail_call_compat(ctx, &args_envs_progs, EXEC_PARSE_ARGS_ENVS_SPLIT);
 
@@ -744,10 +746,11 @@ int kprobe_setup_new_exec_args_envs(struct pt_regs *ctx) {
 
     syscall->exec.args_envs_ctx.args_start = (char *)p;
     syscall->exec.args_envs_ctx.parsing_offset = 0;
+    syscall->exec.args_envs_ctx.index = 0;
     syscall->exec.args.count = argc;
     syscall->exec.envs.count = envc;
 
-    if (syscall->exec.args_envs_ctx.envs_offset != 0) {
+    if (syscall->exec.args_envs_ctx.envs_offset != 0 && syscall->exec.args_envs_ctx.args_count == argc) {
         bpf_tail_call_compat(ctx, &args_envs_progs, EXEC_PARSE_ARGS_ENVS_SPLIT);
     } else {
         bpf_tail_call_compat(ctx, &args_envs_progs, EXEC_PARSE_ARGS_ENVS);
@@ -832,6 +835,7 @@ void __attribute__((always_inline)) fill_args_envs(struct exec_event_t *event, s
     event->args_truncated = syscall->exec.args.truncated;
     event->envs_id = syscall->exec.envs.id;
     event->envs_truncated = syscall->exec.envs.truncated;
+    event->args_envs_split = syscall->exec.args_envs_ctx.envs_offset != 0;
 }
 
 int __attribute__((always_inline)) send_exec_event(struct pt_regs *ctx) {

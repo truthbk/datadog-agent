@@ -86,6 +86,12 @@
           "constants": ""
         },
         {
+          "name": "process.ancestors.args_envs_split",
+          "type": "bool",
+          "definition": "",
+          "constants": ""
+        },
+        {
           "name": "process.ancestors.args_flags",
           "type": "string",
           "definition": "Arguments of the process (as an array)",
@@ -473,6 +479,12 @@
           "name": "process.args",
           "type": "string",
           "definition": "Arguments of the process (as a string)",
+          "constants": ""
+        },
+        {
+          "name": "process.args_envs_split",
+          "type": "bool",
+          "definition": "",
           "constants": ""
         },
         {
@@ -1295,6 +1307,12 @@
           "constants": ""
         },
         {
+          "name": "exec.args_envs_split",
+          "type": "bool",
+          "definition": "",
+          "constants": ""
+        },
+        {
           "name": "exec.args_flags",
           "type": "string",
           "definition": "Arguments of the process (as an array)",
@@ -1691,6 +1709,12 @@
           "name": "exit.args",
           "type": "string",
           "definition": "Arguments of the process (as a string)",
+          "constants": ""
+        },
+        {
+          "name": "exit.args_envs_split",
+          "type": "bool",
+          "definition": "",
           "constants": ""
         },
         {
@@ -2843,6 +2867,12 @@
           "constants": ""
         },
         {
+          "name": "ptrace.tracee.ancestors.args_envs_split",
+          "type": "bool",
+          "definition": "",
+          "constants": ""
+        },
+        {
           "name": "ptrace.tracee.ancestors.args_flags",
           "type": "string",
           "definition": "Arguments of the process (as an array)",
@@ -3230,6 +3260,12 @@
           "name": "ptrace.tracee.args",
           "type": "string",
           "definition": "Arguments of the process (as a string)",
+          "constants": ""
+        },
+        {
+          "name": "ptrace.tracee.args_envs_split",
+          "type": "bool",
+          "definition": "",
           "constants": ""
         },
         {
@@ -4331,6 +4367,12 @@
           "constants": ""
         },
         {
+          "name": "signal.target.ancestors.args_envs_split",
+          "type": "bool",
+          "definition": "",
+          "constants": ""
+        },
+        {
           "name": "signal.target.ancestors.args_flags",
           "type": "string",
           "definition": "Arguments of the process (as an array)",
@@ -4718,6 +4760,12 @@
           "name": "signal.target.args",
           "type": "string",
           "definition": "Arguments of the process (as a string)",
+          "constants": ""
+        },
+        {
+          "name": "signal.target.args_envs_split",
+          "type": "bool",
+          "definition": "",
           "constants": ""
         },
         {

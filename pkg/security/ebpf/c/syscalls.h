@@ -25,6 +25,7 @@ struct args_envs_parsing_context_t {
     u64 envs_offset;
     u64 parsing_offset;
     u32 args_count;
+    u32 index;
 };
 
 struct dentry_resolver_input_t {

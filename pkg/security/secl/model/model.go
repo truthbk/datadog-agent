@@ -373,6 +373,7 @@ type Process struct {
 	Envs          []string `field:"envs,handler:ResolveProcessEnvs:100" msg:"envs,omitempty"`                                                                                                                                           // Environment variable names of the process
 	Envp          []string `field:"envp,handler:ResolveProcessEnvp:100" msg:"-"`                                                                                                                                                        // Environment variables of the process
 	EnvsTruncated bool     `field:"envs_truncated,handler:ResolveProcessEnvsTruncated" msg:"envs_truncated,omitempty"`                                                                                                                  // Indicator of environment variables truncation
+	ArgsEnvsSplit bool     `field:"args_envs_split" msg:"-" json:"-"`
 
 	// symlink to the process binary
 	SymlinkPathnameStr [MaxSymlinks]string `field:"-" msg:"-" json:"-"`
