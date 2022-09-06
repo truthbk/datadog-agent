@@ -195,6 +195,7 @@ The *file.rights* attribute can now be used in addition to *file.mode*. *file.mo
 | `process.ancestors.egroup` | string | Effective group of the process |  |
 | `process.ancestors.envp` | string | Environment variables of the process |  |
 | `process.ancestors.envs` | string | Environment variable names of the process |  |
+| `process.ancestors.envs_offset` | int |  |  |
 | `process.ancestors.envs_truncated` | bool | Indicator of environment variables truncation |  |
 | `process.ancestors.euid` | int | Effective UID of the process |  |
 | `process.ancestors.euser` | string | Effective user of the process |  |
@@ -260,6 +261,7 @@ The *file.rights* attribute can now be used in addition to *file.mode*. *file.mo
 | `process.egroup` | string | Effective group of the process |  |
 | `process.envp` | string | Environment variables of the process |  |
 | `process.envs` | string | Environment variable names of the process |  |
+| `process.envs_offset` | int |  |  |
 | `process.envs_truncated` | bool | Indicator of environment variables truncation |  |
 | `process.euid` | int | Effective UID of the process |  |
 | `process.euser` | string | Effective user of the process |  |
@@ -437,6 +439,7 @@ A process was executed or forked
 | `exec.egroup` | string | Effective group of the process |  |
 | `exec.envp` | string | Environment variables of the process |  |
 | `exec.envs` | string | Environment variable names of the process |  |
+| `exec.envs_offset` | int |  |  |
 | `exec.envs_truncated` | bool | Indicator of environment variables truncation |  |
 | `exec.euid` | int | Effective UID of the process |  |
 | `exec.euser` | string | Effective user of the process |  |
@@ -511,6 +514,7 @@ A process was terminated
 | `exit.egroup` | string | Effective group of the process |  |
 | `exit.envp` | string | Environment variables of the process |  |
 | `exit.envs` | string | Environment variable names of the process |  |
+| `exit.envs_offset` | int |  |  |
 | `exit.envs_truncated` | bool | Indicator of environment variables truncation |  |
 | `exit.euid` | int | Effective UID of the process |  |
 | `exit.euser` | string | Effective user of the process |  |
@@ -739,6 +743,7 @@ A ptrace command was executed
 | `ptrace.tracee.ancestors.egroup` | string | Effective group of the process |  |
 | `ptrace.tracee.ancestors.envp` | string | Environment variables of the process |  |
 | `ptrace.tracee.ancestors.envs` | string | Environment variable names of the process |  |
+| `ptrace.tracee.ancestors.envs_offset` | int |  |  |
 | `ptrace.tracee.ancestors.envs_truncated` | bool | Indicator of environment variables truncation |  |
 | `ptrace.tracee.ancestors.euid` | int | Effective UID of the process |  |
 | `ptrace.tracee.ancestors.euser` | string | Effective user of the process |  |
@@ -804,6 +809,7 @@ A ptrace command was executed
 | `ptrace.tracee.egroup` | string | Effective group of the process |  |
 | `ptrace.tracee.envp` | string | Environment variables of the process |  |
 | `ptrace.tracee.envs` | string | Environment variable names of the process |  |
+| `ptrace.tracee.envs_offset` | int |  |  |
 | `ptrace.tracee.envs_truncated` | bool | Indicator of environment variables truncation |  |
 | `ptrace.tracee.euid` | int | Effective UID of the process |  |
 | `ptrace.tracee.euser` | string | Effective user of the process |  |
@@ -1031,6 +1037,7 @@ A signal was sent
 | `signal.target.ancestors.egroup` | string | Effective group of the process |  |
 | `signal.target.ancestors.envp` | string | Environment variables of the process |  |
 | `signal.target.ancestors.envs` | string | Environment variable names of the process |  |
+| `signal.target.ancestors.envs_offset` | int |  |  |
 | `signal.target.ancestors.envs_truncated` | bool | Indicator of environment variables truncation |  |
 | `signal.target.ancestors.euid` | int | Effective UID of the process |  |
 | `signal.target.ancestors.euser` | string | Effective user of the process |  |
@@ -1096,6 +1103,7 @@ A signal was sent
 | `signal.target.egroup` | string | Effective group of the process |  |
 | `signal.target.envp` | string | Environment variables of the process |  |
 | `signal.target.envs` | string | Environment variable names of the process |  |
+| `signal.target.envs_offset` | int |  |  |
 | `signal.target.envs_truncated` | bool | Indicator of environment variables truncation |  |
 | `signal.target.euid` | int | Effective UID of the process |  |
 | `signal.target.euser` | string | Effective user of the process |  |
