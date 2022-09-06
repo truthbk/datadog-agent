@@ -271,6 +271,11 @@ func applyDatadogConfig(c *config.AgentConfig) error {
 		log.Info("Activating non-local traffic automatically in containerized environment, trace-agent will listen on 0.0.0.0")
 		c.ReceiverHost = "0.0.0.0"
 	}
+
+	log.Error("()()()()()()()()() c.ReceiverHost is ", c.ReceiverHost)  // TODO: no
+	c.ReceiverHost = "0.0.0.0"  // TODO: no
+	log.Error("()()()()()()()()() c.ReceiverHost is now ", c.ReceiverHost)  // TODO: no
+
 	c.StatsdPipeName = coreconfig.Datadog.GetString("dogstatsd_pipe_name")
 	c.StatsdSocket = coreconfig.Datadog.GetString("dogstatsd_socket")
 	c.WindowsPipeName = coreconfig.Datadog.GetString("apm_config.windows_pipe_name")
