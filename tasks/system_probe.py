@@ -20,7 +20,7 @@ from .utils import REPO_PATH, bin_name, get_build_flags, get_version_numeric_onl
 BIN_DIR = os.path.join(".", "bin", "system-probe")
 BIN_PATH = os.path.join(BIN_DIR, bin_name("system-probe", android=False))
 
-BPF_TAG = "linux_bpf"
+BPF_TAG = "linux"
 BUNDLE_TAG = "ebpf_bindata"
 NPM_TAG = "npm"
 GIMME_ENV_VARS = ['GOROOT', 'PATH']

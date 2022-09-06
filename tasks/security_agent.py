@@ -332,6 +332,7 @@ def build_functional_tests(
         env["GOARCH"] = "386"
 
     build_tags = build_tags.split(",")
+    build_tags.append("linux")
     build_tags.append("linux_bpf")
     if bundle_ebpf:
         build_tags.append("ebpf_bindata")
