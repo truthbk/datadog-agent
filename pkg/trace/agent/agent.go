@@ -440,9 +440,11 @@ func (a *Agent) sample(now time.Time, ts *info.TagStats, pt traceutil.ProcessedT
 		ts.TracesPriorityNone.Inc()
 	}
 
-	if priority < 0 {
-		return 0, false, nil
-	}
+	// TODO: Let's see what we get by commenting this out.
+	//       Note that doing so has side-effects.
+	// if priority < 0 {
+	// 	return 0, false, nil
+	// }
 
 	sampled := a.runSamplers(now, pt, hasPriority)
 
