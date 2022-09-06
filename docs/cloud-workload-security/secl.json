@@ -86,12 +86,6 @@
           "constants": ""
         },
         {
-          "name": "process.ancestors.args_envs_split",
-          "type": "bool",
-          "definition": "",
-          "constants": ""
-        },
-        {
           "name": "process.ancestors.args_flags",
           "type": "string",
           "definition": "Arguments of the process (as an array)",
@@ -179,6 +173,12 @@
           "name": "process.ancestors.envs",
           "type": "string",
           "definition": "Environment variable names of the process",
+          "constants": ""
+        },
+        {
+          "name": "process.ancestors.envs_offset",
+          "type": "int",
+          "definition": "",
           "constants": ""
         },
         {
@@ -482,12 +482,6 @@
           "constants": ""
         },
         {
-          "name": "process.args_envs_split",
-          "type": "bool",
-          "definition": "",
-          "constants": ""
-        },
-        {
           "name": "process.args_flags",
           "type": "string",
           "definition": "Arguments of the process (as an array)",
@@ -575,6 +569,12 @@
           "name": "process.envs",
           "type": "string",
           "definition": "Environment variable names of the process",
+          "constants": ""
+        },
+        {
+          "name": "process.envs_offset",
+          "type": "int",
+          "definition": "",
           "constants": ""
         },
         {
@@ -1307,12 +1307,6 @@
           "constants": ""
         },
         {
-          "name": "exec.args_envs_split",
-          "type": "bool",
-          "definition": "",
-          "constants": ""
-        },
-        {
           "name": "exec.args_flags",
           "type": "string",
           "definition": "Arguments of the process (as an array)",
@@ -1400,6 +1394,12 @@
           "name": "exec.envs",
           "type": "string",
           "definition": "Environment variable names of the process",
+          "constants": ""
+        },
+        {
+          "name": "exec.envs_offset",
+          "type": "int",
+          "definition": "",
           "constants": ""
         },
         {
@@ -1712,12 +1712,6 @@
           "constants": ""
         },
         {
-          "name": "exit.args_envs_split",
-          "type": "bool",
-          "definition": "",
-          "constants": ""
-        },
-        {
           "name": "exit.args_flags",
           "type": "string",
           "definition": "Arguments of the process (as an array)",
@@ -1817,6 +1811,12 @@
           "name": "exit.envs",
           "type": "string",
           "definition": "Environment variable names of the process",
+          "constants": ""
+        },
+        {
+          "name": "exit.envs_offset",
+          "type": "int",
+          "definition": "",
           "constants": ""
         },
         {
@@ -2867,12 +2867,6 @@
           "constants": ""
         },
         {
-          "name": "ptrace.tracee.ancestors.args_envs_split",
-          "type": "bool",
-          "definition": "",
-          "constants": ""
-        },
-        {
           "name": "ptrace.tracee.ancestors.args_flags",
           "type": "string",
           "definition": "Arguments of the process (as an array)",
@@ -2960,6 +2954,12 @@
           "name": "ptrace.tracee.ancestors.envs",
           "type": "string",
           "definition": "Environment variable names of the process",
+          "constants": ""
+        },
+        {
+          "name": "ptrace.tracee.ancestors.envs_offset",
+          "type": "int",
+          "definition": "",
           "constants": ""
         },
         {
@@ -3263,12 +3263,6 @@
           "constants": ""
         },
         {
-          "name": "ptrace.tracee.args_envs_split",
-          "type": "bool",
-          "definition": "",
-          "constants": ""
-        },
-        {
           "name": "ptrace.tracee.args_flags",
           "type": "string",
           "definition": "Arguments of the process (as an array)",
@@ -3356,6 +3350,12 @@
           "name": "ptrace.tracee.envs",
           "type": "string",
           "definition": "Environment variable names of the process",
+          "constants": ""
+        },
+        {
+          "name": "ptrace.tracee.envs_offset",
+          "type": "int",
+          "definition": "",
           "constants": ""
         },
         {
@@ -4367,12 +4367,6 @@
           "constants": ""
         },
         {
-          "name": "signal.target.ancestors.args_envs_split",
-          "type": "bool",
-          "definition": "",
-          "constants": ""
-        },
-        {
           "name": "signal.target.ancestors.args_flags",
           "type": "string",
           "definition": "Arguments of the process (as an array)",
@@ -4460,6 +4454,12 @@
           "name": "signal.target.ancestors.envs",
           "type": "string",
           "definition": "Environment variable names of the process",
+          "constants": ""
+        },
+        {
+          "name": "signal.target.ancestors.envs_offset",
+          "type": "int",
+          "definition": "",
           "constants": ""
         },
         {
@@ -4763,12 +4763,6 @@
           "constants": ""
         },
         {
-          "name": "signal.target.args_envs_split",
-          "type": "bool",
-          "definition": "",
-          "constants": ""
-        },
-        {
           "name": "signal.target.args_flags",
           "type": "string",
           "definition": "Arguments of the process (as an array)",
@@ -4856,6 +4850,12 @@
           "name": "signal.target.envs",
           "type": "string",
           "definition": "Environment variable names of the process",
+          "constants": ""
+        },
+        {
+          "name": "signal.target.envs_offset",
+          "type": "int",
+          "definition": "",
           "constants": ""
         },
         {

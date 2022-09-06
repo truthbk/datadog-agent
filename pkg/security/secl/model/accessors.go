@@ -591,14 +591,6 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			Field:  field,
 			Weight: 100 * eval.HandlerWeight,
 		}, nil
-	case "exec.args_envs_split":
-		return &eval.BoolEvaluator{
-			EvalFnc: func(ctx *eval.Context) bool {
-				return (*Event)(ctx.Object).Exec.Process.ArgsEnvsSplit
-			},
-			Field:  field,
-			Weight: eval.FunctionWeight,
-		}, nil
 	case "exec.args_flags":
 		return &eval.StringArrayEvaluator{
 			EvalFnc: func(ctx *eval.Context) []string {
@@ -718,6 +710,14 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			},
 			Field:  field,
 			Weight: eval.HandlerWeight,
+		}, nil
+	case "exec.envs_offset":
+		return &eval.IntEvaluator{
+			EvalFnc: func(ctx *eval.Context) int {
+				return int((*Event)(ctx.Object).Exec.Process.EnvsOffset)
+			},
+			Field:  field,
+			Weight: eval.FunctionWeight,
 		}, nil
 	case "exec.envs_truncated":
 		return &eval.BoolEvaluator{
@@ -1127,14 +1127,6 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			Field:  field,
 			Weight: 100 * eval.HandlerWeight,
 		}, nil
-	case "exit.args_envs_split":
-		return &eval.BoolEvaluator{
-			EvalFnc: func(ctx *eval.Context) bool {
-				return (*Event)(ctx.Object).Exit.Process.ArgsEnvsSplit
-			},
-			Field:  field,
-			Weight: eval.FunctionWeight,
-		}, nil
 	case "exit.args_flags":
 		return &eval.StringArrayEvaluator{
 			EvalFnc: func(ctx *eval.Context) []string {
@@ -1270,6 +1262,14 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			},
 			Field:  field,
 			Weight: eval.HandlerWeight,
+		}, nil
+	case "exit.envs_offset":
+		return &eval.IntEvaluator{
+			EvalFnc: func(ctx *eval.Context) int {
+				return int((*Event)(ctx.Object).Exit.Process.EnvsOffset)
+			},
+			Field:  field,
+			Weight: eval.FunctionWeight,
 		}, nil
 	case "exit.envs_truncated":
 		return &eval.BoolEvaluator{
@@ -2679,22 +2679,6 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			}, Field: field,
 			Weight: 100 * eval.IteratorWeight,
 		}, nil
-	case "process.ancestors.args_envs_split":
-		return &eval.BoolArrayEvaluator{
-			EvalFnc: func(ctx *eval.Context) []bool {
-				var results []bool
-				iterator := &ProcessAncestorsIterator{}
-				value := iterator.Front(ctx)
-				for value != nil {
-					element := (*ProcessCacheEntry)(value)
-					result := element.ProcessContext.Process.ArgsEnvsSplit
-					results = append(results, result)
-					value = iterator.Next()
-				}
-				return results
-			}, Field: field,
-			Weight: eval.IteratorWeight,
-		}, nil
 	case "process.ancestors.args_flags":
 		return &eval.StringArrayEvaluator{
 			EvalFnc: func(ctx *eval.Context) []string {
@@ -2929,6 +2913,22 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 					element := (*ProcessCacheEntry)(value)
 					result := element.ProcessContext.Process.Envs
 					results = append(results, result...)
+					value = iterator.Next()
+				}
+				return results
+			}, Field: field,
+			Weight: eval.IteratorWeight,
+		}, nil
+	case "process.ancestors.envs_offset":
+		return &eval.IntArrayEvaluator{
+			EvalFnc: func(ctx *eval.Context) []int {
+				var results []int
+				iterator := &ProcessAncestorsIterator{}
+				value := iterator.Front(ctx)
+				for value != nil {
+					element := (*ProcessCacheEntry)(value)
+					result := int(element.ProcessContext.Process.EnvsOffset)
+					results = append(results, result)
 					value = iterator.Next()
 				}
 				return results
@@ -3735,14 +3735,6 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			Field:  field,
 			Weight: 100 * eval.HandlerWeight,
 		}, nil
-	case "process.args_envs_split":
-		return &eval.BoolEvaluator{
-			EvalFnc: func(ctx *eval.Context) bool {
-				return (*Event)(ctx.Object).ProcessContext.Process.ArgsEnvsSplit
-			},
-			Field:  field,
-			Weight: eval.FunctionWeight,
-		}, nil
 	case "process.args_flags":
 		return &eval.StringArrayEvaluator{
 			EvalFnc: func(ctx *eval.Context) []string {
@@ -3862,6 +3854,14 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			},
 			Field:  field,
 			Weight: eval.HandlerWeight,
+		}, nil
+	case "process.envs_offset":
+		return &eval.IntEvaluator{
+			EvalFnc: func(ctx *eval.Context) int {
+				return int((*Event)(ctx.Object).ProcessContext.Process.EnvsOffset)
+			},
+			Field:  field,
+			Weight: eval.FunctionWeight,
 		}, nil
 	case "process.envs_truncated":
 		return &eval.BoolEvaluator{
@@ -4295,22 +4295,6 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			}, Field: field,
 			Weight: 100 * eval.IteratorWeight,
 		}, nil
-	case "ptrace.tracee.ancestors.args_envs_split":
-		return &eval.BoolArrayEvaluator{
-			EvalFnc: func(ctx *eval.Context) []bool {
-				var results []bool
-				iterator := &ProcessAncestorsIterator{}
-				value := iterator.Front(ctx)
-				for value != nil {
-					element := (*ProcessCacheEntry)(value)
-					result := element.ProcessContext.Process.ArgsEnvsSplit
-					results = append(results, result)
-					value = iterator.Next()
-				}
-				return results
-			}, Field: field,
-			Weight: eval.IteratorWeight,
-		}, nil
 	case "ptrace.tracee.ancestors.args_flags":
 		return &eval.StringArrayEvaluator{
 			EvalFnc: func(ctx *eval.Context) []string {
@@ -4545,6 +4529,22 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 					element := (*ProcessCacheEntry)(value)
 					result := element.ProcessContext.Process.Envs
 					results = append(results, result...)
+					value = iterator.Next()
+				}
+				return results
+			}, Field: field,
+			Weight: eval.IteratorWeight,
+		}, nil
+	case "ptrace.tracee.ancestors.envs_offset":
+		return &eval.IntArrayEvaluator{
+			EvalFnc: func(ctx *eval.Context) []int {
+				var results []int
+				iterator := &ProcessAncestorsIterator{}
+				value := iterator.Front(ctx)
+				for value != nil {
+					element := (*ProcessCacheEntry)(value)
+					result := int(element.ProcessContext.Process.EnvsOffset)
+					results = append(results, result)
 					value = iterator.Next()
 				}
 				return results
@@ -5351,14 +5351,6 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			Field:  field,
 			Weight: 100 * eval.HandlerWeight,
 		}, nil
-	case "ptrace.tracee.args_envs_split":
-		return &eval.BoolEvaluator{
-			EvalFnc: func(ctx *eval.Context) bool {
-				return (*Event)(ctx.Object).PTrace.Tracee.Process.ArgsEnvsSplit
-			},
-			Field:  field,
-			Weight: eval.FunctionWeight,
-		}, nil
 	case "ptrace.tracee.args_flags":
 		return &eval.StringArrayEvaluator{
 			EvalFnc: func(ctx *eval.Context) []string {
@@ -5478,6 +5470,14 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			},
 			Field:  field,
 			Weight: eval.HandlerWeight,
+		}, nil
+	case "ptrace.tracee.envs_offset":
+		return &eval.IntEvaluator{
+			EvalFnc: func(ctx *eval.Context) int {
+				return int((*Event)(ctx.Object).PTrace.Tracee.Process.EnvsOffset)
+			},
+			Field:  field,
+			Weight: eval.FunctionWeight,
 		}, nil
 	case "ptrace.tracee.envs_truncated":
 		return &eval.BoolEvaluator{
@@ -6763,22 +6763,6 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			}, Field: field,
 			Weight: 100 * eval.IteratorWeight,
 		}, nil
-	case "signal.target.ancestors.args_envs_split":
-		return &eval.BoolArrayEvaluator{
-			EvalFnc: func(ctx *eval.Context) []bool {
-				var results []bool
-				iterator := &ProcessAncestorsIterator{}
-				value := iterator.Front(ctx)
-				for value != nil {
-					element := (*ProcessCacheEntry)(value)
-					result := element.ProcessContext.Process.ArgsEnvsSplit
-					results = append(results, result)
-					value = iterator.Next()
-				}
-				return results
-			}, Field: field,
-			Weight: eval.IteratorWeight,
-		}, nil
 	case "signal.target.ancestors.args_flags":
 		return &eval.StringArrayEvaluator{
 			EvalFnc: func(ctx *eval.Context) []string {
@@ -7013,6 +6997,22 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 					element := (*ProcessCacheEntry)(value)
 					result := element.ProcessContext.Process.Envs
 					results = append(results, result...)
+					value = iterator.Next()
+				}
+				return results
+			}, Field: field,
+			Weight: eval.IteratorWeight,
+		}, nil
+	case "signal.target.ancestors.envs_offset":
+		return &eval.IntArrayEvaluator{
+			EvalFnc: func(ctx *eval.Context) []int {
+				var results []int
+				iterator := &ProcessAncestorsIterator{}
+				value := iterator.Front(ctx)
+				for value != nil {
+					element := (*ProcessCacheEntry)(value)
+					result := int(element.ProcessContext.Process.EnvsOffset)
+					results = append(results, result)
 					value = iterator.Next()
 				}
 				return results
@@ -7819,14 +7819,6 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			Field:  field,
 			Weight: 100 * eval.HandlerWeight,
 		}, nil
-	case "signal.target.args_envs_split":
-		return &eval.BoolEvaluator{
-			EvalFnc: func(ctx *eval.Context) bool {
-				return (*Event)(ctx.Object).Signal.Target.Process.ArgsEnvsSplit
-			},
-			Field:  field,
-			Weight: eval.FunctionWeight,
-		}, nil
 	case "signal.target.args_flags":
 		return &eval.StringArrayEvaluator{
 			EvalFnc: func(ctx *eval.Context) []string {
@@ -7946,6 +7938,14 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			},
 			Field:  field,
 			Weight: eval.HandlerWeight,
+		}, nil
+	case "signal.target.envs_offset":
+		return &eval.IntEvaluator{
+			EvalFnc: func(ctx *eval.Context) int {
+				return int((*Event)(ctx.Object).Signal.Target.Process.EnvsOffset)
+			},
+			Field:  field,
+			Weight: eval.FunctionWeight,
 		}, nil
 	case "signal.target.envs_truncated":
 		return &eval.BoolEvaluator{
@@ -8885,7 +8885,6 @@ func (e *Event) GetFields() []eval.Field {
 		"dns.question.name.length",
 		"dns.question.type",
 		"exec.args",
-		"exec.args_envs_split",
 		"exec.args_flags",
 		"exec.args_options",
 		"exec.args_truncated",
@@ -8901,6 +8900,7 @@ func (e *Event) GetFields() []eval.Field {
 		"exec.egroup",
 		"exec.envp",
 		"exec.envs",
+		"exec.envs_offset",
 		"exec.envs_truncated",
 		"exec.euid",
 		"exec.euser",
@@ -8951,7 +8951,6 @@ func (e *Event) GetFields() []eval.Field {
 		"exec.uid",
 		"exec.user",
 		"exit.args",
-		"exit.args_envs_split",
 		"exit.args_flags",
 		"exit.args_options",
 		"exit.args_truncated",
@@ -8969,6 +8968,7 @@ func (e *Event) GetFields() []eval.Field {
 		"exit.egroup",
 		"exit.envp",
 		"exit.envs",
+		"exit.envs_offset",
 		"exit.envs_truncated",
 		"exit.euid",
 		"exit.euser",
@@ -9140,7 +9140,6 @@ func (e *Event) GetFields() []eval.Field {
 		"open.flags",
 		"open.retval",
 		"process.ancestors.args",
-		"process.ancestors.args_envs_split",
 		"process.ancestors.args_flags",
 		"process.ancestors.args_options",
 		"process.ancestors.args_truncated",
@@ -9156,6 +9155,7 @@ func (e *Event) GetFields() []eval.Field {
 		"process.ancestors.egroup",
 		"process.ancestors.envp",
 		"process.ancestors.envs",
+		"process.ancestors.envs_offset",
 		"process.ancestors.envs_truncated",
 		"process.ancestors.euid",
 		"process.ancestors.euser",
@@ -9206,7 +9206,6 @@ func (e *Event) GetFields() []eval.Field {
 		"process.ancestors.uid",
 		"process.ancestors.user",
 		"process.args",
-		"process.args_envs_split",
 		"process.args_flags",
 		"process.args_options",
 		"process.args_truncated",
@@ -9222,6 +9221,7 @@ func (e *Event) GetFields() []eval.Field {
 		"process.egroup",
 		"process.envp",
 		"process.envs",
+		"process.envs_offset",
 		"process.envs_truncated",
 		"process.euid",
 		"process.euser",
@@ -9274,7 +9274,6 @@ func (e *Event) GetFields() []eval.Field {
 		"ptrace.request",
 		"ptrace.retval",
 		"ptrace.tracee.ancestors.args",
-		"ptrace.tracee.ancestors.args_envs_split",
 		"ptrace.tracee.ancestors.args_flags",
 		"ptrace.tracee.ancestors.args_options",
 		"ptrace.tracee.ancestors.args_truncated",
@@ -9290,6 +9289,7 @@ func (e *Event) GetFields() []eval.Field {
 		"ptrace.tracee.ancestors.egroup",
 		"ptrace.tracee.ancestors.envp",
 		"ptrace.tracee.ancestors.envs",
+		"ptrace.tracee.ancestors.envs_offset",
 		"ptrace.tracee.ancestors.envs_truncated",
 		"ptrace.tracee.ancestors.euid",
 		"ptrace.tracee.ancestors.euser",
@@ -9340,7 +9340,6 @@ func (e *Event) GetFields() []eval.Field {
 		"ptrace.tracee.ancestors.uid",
 		"ptrace.tracee.ancestors.user",
 		"ptrace.tracee.args",
-		"ptrace.tracee.args_envs_split",
 		"ptrace.tracee.args_flags",
 		"ptrace.tracee.args_options",
 		"ptrace.tracee.args_truncated",
@@ -9356,6 +9355,7 @@ func (e *Event) GetFields() []eval.Field {
 		"ptrace.tracee.egroup",
 		"ptrace.tracee.envp",
 		"ptrace.tracee.envs",
+		"ptrace.tracee.envs_offset",
 		"ptrace.tracee.envs_truncated",
 		"ptrace.tracee.euid",
 		"ptrace.tracee.euser",
@@ -9512,7 +9512,6 @@ func (e *Event) GetFields() []eval.Field {
 		"signal.pid",
 		"signal.retval",
 		"signal.target.ancestors.args",
-		"signal.target.ancestors.args_envs_split",
 		"signal.target.ancestors.args_flags",
 		"signal.target.ancestors.args_options",
 		"signal.target.ancestors.args_truncated",
@@ -9528,6 +9527,7 @@ func (e *Event) GetFields() []eval.Field {
 		"signal.target.ancestors.egroup",
 		"signal.target.ancestors.envp",
 		"signal.target.ancestors.envs",
+		"signal.target.ancestors.envs_offset",
 		"signal.target.ancestors.envs_truncated",
 		"signal.target.ancestors.euid",
 		"signal.target.ancestors.euser",
@@ -9578,7 +9578,6 @@ func (e *Event) GetFields() []eval.Field {
 		"signal.target.ancestors.uid",
 		"signal.target.ancestors.user",
 		"signal.target.args",
-		"signal.target.args_envs_split",
 		"signal.target.args_flags",
 		"signal.target.args_options",
 		"signal.target.args_truncated",
@@ -9594,6 +9593,7 @@ func (e *Event) GetFields() []eval.Field {
 		"signal.target.egroup",
 		"signal.target.envp",
 		"signal.target.envs",
+		"signal.target.envs_offset",
 		"signal.target.envs_truncated",
 		"signal.target.euid",
 		"signal.target.euser",
@@ -9838,8 +9838,6 @@ func (e *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 		return int(e.DNS.Type), nil
 	case "exec.args":
 		return e.Exec.Process.Args, nil
-	case "exec.args_envs_split":
-		return e.Exec.Process.ArgsEnvsSplit, nil
 	case "exec.args_flags":
 		return e.Exec.Process.Argv, nil
 	case "exec.args_options":
@@ -9870,6 +9868,8 @@ func (e *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 		return e.Exec.Process.Envp, nil
 	case "exec.envs":
 		return e.Exec.Process.Envs, nil
+	case "exec.envs_offset":
+		return int(e.Exec.Process.EnvsOffset), nil
 	case "exec.envs_truncated":
 		return e.Exec.Process.EnvsTruncated, nil
 	case "exec.euid":
@@ -9970,8 +9970,6 @@ func (e *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 		return e.Exec.Process.Credentials.User, nil
 	case "exit.args":
 		return e.Exit.Process.Args, nil
-	case "exit.args_envs_split":
-		return e.Exit.Process.ArgsEnvsSplit, nil
 	case "exit.args_flags":
 		return e.Exit.Process.Argv, nil
 	case "exit.args_options":
@@ -10006,6 +10004,8 @@ func (e *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 		return e.Exit.Process.Envp, nil
 	case "exit.envs":
 		return e.Exit.Process.Envs, nil
+	case "exit.envs_offset":
+		return int(e.Exit.Process.EnvsOffset), nil
 	case "exit.envs_truncated":
 		return e.Exit.Process.EnvsTruncated, nil
 	case "exit.euid":
@@ -10358,18 +10358,6 @@ func (e *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 			ptr = iterator.Next()
 		}
 		return values, nil
-	case "process.ancestors.args_envs_split":
-		var values []bool
-		ctx := eval.NewContext(unsafe.Pointer(e))
-		iterator := &ProcessAncestorsIterator{}
-		ptr := iterator.Front(ctx)
-		for ptr != nil {
-			element := (*ProcessCacheEntry)(ptr)
-			result := element.ProcessContext.Process.ArgsEnvsSplit
-			values = append(values, result)
-			ptr = iterator.Next()
-		}
-		return values, nil
 	case "process.ancestors.args_flags":
 		var values []string
 		ctx := eval.NewContext(unsafe.Pointer(e))
@@ -10547,6 +10535,18 @@ func (e *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 			element := (*ProcessCacheEntry)(ptr)
 			result := element.ProcessContext.Process.Envs
 			values = append(values, result...)
+			ptr = iterator.Next()
+		}
+		return values, nil
+	case "process.ancestors.envs_offset":
+		var values []int
+		ctx := eval.NewContext(unsafe.Pointer(e))
+		iterator := &ProcessAncestorsIterator{}
+		ptr := iterator.Front(ctx)
+		for ptr != nil {
+			element := (*ProcessCacheEntry)(ptr)
+			result := int(element.ProcessContext.Process.EnvsOffset)
+			values = append(values, result)
 			ptr = iterator.Next()
 		}
 		return values, nil
@@ -11140,8 +11140,6 @@ func (e *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 		return values, nil
 	case "process.args":
 		return e.ProcessContext.Process.Args, nil
-	case "process.args_envs_split":
-		return e.ProcessContext.Process.ArgsEnvsSplit, nil
 	case "process.args_flags":
 		return e.ProcessContext.Process.Argv, nil
 	case "process.args_options":
@@ -11172,6 +11170,8 @@ func (e *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 		return e.ProcessContext.Process.Envp, nil
 	case "process.envs":
 		return e.ProcessContext.Process.Envs, nil
+	case "process.envs_offset":
+		return int(e.ProcessContext.Process.EnvsOffset), nil
 	case "process.envs_truncated":
 		return e.ProcessContext.Process.EnvsTruncated, nil
 	case "process.euid":
@@ -11282,18 +11282,6 @@ func (e *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 		for ptr != nil {
 			element := (*ProcessCacheEntry)(ptr)
 			result := element.ProcessContext.Process.Args
-			values = append(values, result)
-			ptr = iterator.Next()
-		}
-		return values, nil
-	case "ptrace.tracee.ancestors.args_envs_split":
-		var values []bool
-		ctx := eval.NewContext(unsafe.Pointer(e))
-		iterator := &ProcessAncestorsIterator{}
-		ptr := iterator.Front(ctx)
-		for ptr != nil {
-			element := (*ProcessCacheEntry)(ptr)
-			result := element.ProcessContext.Process.ArgsEnvsSplit
 			values = append(values, result)
 			ptr = iterator.Next()
 		}
@@ -11475,6 +11463,18 @@ func (e *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 			element := (*ProcessCacheEntry)(ptr)
 			result := element.ProcessContext.Process.Envs
 			values = append(values, result...)
+			ptr = iterator.Next()
+		}
+		return values, nil
+	case "ptrace.tracee.ancestors.envs_offset":
+		var values []int
+		ctx := eval.NewContext(unsafe.Pointer(e))
+		iterator := &ProcessAncestorsIterator{}
+		ptr := iterator.Front(ctx)
+		for ptr != nil {
+			element := (*ProcessCacheEntry)(ptr)
+			result := int(element.ProcessContext.Process.EnvsOffset)
+			values = append(values, result)
 			ptr = iterator.Next()
 		}
 		return values, nil
@@ -12068,8 +12068,6 @@ func (e *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 		return values, nil
 	case "ptrace.tracee.args":
 		return e.PTrace.Tracee.Process.Args, nil
-	case "ptrace.tracee.args_envs_split":
-		return e.PTrace.Tracee.Process.ArgsEnvsSplit, nil
 	case "ptrace.tracee.args_flags":
 		return e.PTrace.Tracee.Process.Argv, nil
 	case "ptrace.tracee.args_options":
@@ -12100,6 +12098,8 @@ func (e *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 		return e.PTrace.Tracee.Process.Envp, nil
 	case "ptrace.tracee.envs":
 		return e.PTrace.Tracee.Process.Envs, nil
+	case "ptrace.tracee.envs_offset":
+		return int(e.PTrace.Tracee.Process.EnvsOffset), nil
 	case "ptrace.tracee.envs_truncated":
 		return e.PTrace.Tracee.Process.EnvsTruncated, nil
 	case "ptrace.tracee.euid":
@@ -12422,18 +12422,6 @@ func (e *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 			ptr = iterator.Next()
 		}
 		return values, nil
-	case "signal.target.ancestors.args_envs_split":
-		var values []bool
-		ctx := eval.NewContext(unsafe.Pointer(e))
-		iterator := &ProcessAncestorsIterator{}
-		ptr := iterator.Front(ctx)
-		for ptr != nil {
-			element := (*ProcessCacheEntry)(ptr)
-			result := element.ProcessContext.Process.ArgsEnvsSplit
-			values = append(values, result)
-			ptr = iterator.Next()
-		}
-		return values, nil
 	case "signal.target.ancestors.args_flags":
 		var values []string
 		ctx := eval.NewContext(unsafe.Pointer(e))
@@ -12611,6 +12599,18 @@ func (e *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 			element := (*ProcessCacheEntry)(ptr)
 			result := element.ProcessContext.Process.Envs
 			values = append(values, result...)
+			ptr = iterator.Next()
+		}
+		return values, nil
+	case "signal.target.ancestors.envs_offset":
+		var values []int
+		ctx := eval.NewContext(unsafe.Pointer(e))
+		iterator := &ProcessAncestorsIterator{}
+		ptr := iterator.Front(ctx)
+		for ptr != nil {
+			element := (*ProcessCacheEntry)(ptr)
+			result := int(element.ProcessContext.Process.EnvsOffset)
+			values = append(values, result)
 			ptr = iterator.Next()
 		}
 		return values, nil
@@ -13204,8 +13204,6 @@ func (e *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 		return values, nil
 	case "signal.target.args":
 		return e.Signal.Target.Process.Args, nil
-	case "signal.target.args_envs_split":
-		return e.Signal.Target.Process.ArgsEnvsSplit, nil
 	case "signal.target.args_flags":
 		return e.Signal.Target.Process.Argv, nil
 	case "signal.target.args_options":
@@ -13236,6 +13234,8 @@ func (e *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 		return e.Signal.Target.Process.Envp, nil
 	case "signal.target.envs":
 		return e.Signal.Target.Process.Envs, nil
+	case "signal.target.envs_offset":
+		return int(e.Signal.Target.Process.EnvsOffset), nil
 	case "signal.target.envs_truncated":
 		return e.Signal.Target.Process.EnvsTruncated, nil
 	case "signal.target.euid":
@@ -13583,8 +13583,6 @@ func (e *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 		return "dns", nil
 	case "exec.args":
 		return "exec", nil
-	case "exec.args_envs_split":
-		return "exec", nil
 	case "exec.args_flags":
 		return "exec", nil
 	case "exec.args_options":
@@ -13614,6 +13612,8 @@ func (e *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 	case "exec.envp":
 		return "exec", nil
 	case "exec.envs":
+		return "exec", nil
+	case "exec.envs_offset":
 		return "exec", nil
 	case "exec.envs_truncated":
 		return "exec", nil
@@ -13715,8 +13715,6 @@ func (e *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 		return "exec", nil
 	case "exit.args":
 		return "exit", nil
-	case "exit.args_envs_split":
-		return "exit", nil
 	case "exit.args_flags":
 		return "exit", nil
 	case "exit.args_options":
@@ -13750,6 +13748,8 @@ func (e *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 	case "exit.envp":
 		return "exit", nil
 	case "exit.envs":
+		return "exit", nil
+	case "exit.envs_offset":
 		return "exit", nil
 	case "exit.envs_truncated":
 		return "exit", nil
@@ -14093,8 +14093,6 @@ func (e *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 		return "open", nil
 	case "process.ancestors.args":
 		return "*", nil
-	case "process.ancestors.args_envs_split":
-		return "*", nil
 	case "process.ancestors.args_flags":
 		return "*", nil
 	case "process.ancestors.args_options":
@@ -14124,6 +14122,8 @@ func (e *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 	case "process.ancestors.envp":
 		return "*", nil
 	case "process.ancestors.envs":
+		return "*", nil
+	case "process.ancestors.envs_offset":
 		return "*", nil
 	case "process.ancestors.envs_truncated":
 		return "*", nil
@@ -14225,8 +14225,6 @@ func (e *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 		return "*", nil
 	case "process.args":
 		return "*", nil
-	case "process.args_envs_split":
-		return "*", nil
 	case "process.args_flags":
 		return "*", nil
 	case "process.args_options":
@@ -14256,6 +14254,8 @@ func (e *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 	case "process.envp":
 		return "*", nil
 	case "process.envs":
+		return "*", nil
+	case "process.envs_offset":
 		return "*", nil
 	case "process.envs_truncated":
 		return "*", nil
@@ -14361,8 +14361,6 @@ func (e *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 		return "ptrace", nil
 	case "ptrace.tracee.ancestors.args":
 		return "ptrace", nil
-	case "ptrace.tracee.ancestors.args_envs_split":
-		return "ptrace", nil
 	case "ptrace.tracee.ancestors.args_flags":
 		return "ptrace", nil
 	case "ptrace.tracee.ancestors.args_options":
@@ -14392,6 +14390,8 @@ func (e *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 	case "ptrace.tracee.ancestors.envp":
 		return "ptrace", nil
 	case "ptrace.tracee.ancestors.envs":
+		return "ptrace", nil
+	case "ptrace.tracee.ancestors.envs_offset":
 		return "ptrace", nil
 	case "ptrace.tracee.ancestors.envs_truncated":
 		return "ptrace", nil
@@ -14493,8 +14493,6 @@ func (e *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 		return "ptrace", nil
 	case "ptrace.tracee.args":
 		return "ptrace", nil
-	case "ptrace.tracee.args_envs_split":
-		return "ptrace", nil
 	case "ptrace.tracee.args_flags":
 		return "ptrace", nil
 	case "ptrace.tracee.args_options":
@@ -14524,6 +14522,8 @@ func (e *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 	case "ptrace.tracee.envp":
 		return "ptrace", nil
 	case "ptrace.tracee.envs":
+		return "ptrace", nil
+	case "ptrace.tracee.envs_offset":
 		return "ptrace", nil
 	case "ptrace.tracee.envs_truncated":
 		return "ptrace", nil
@@ -14837,8 +14837,6 @@ func (e *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 		return "signal", nil
 	case "signal.target.ancestors.args":
 		return "signal", nil
-	case "signal.target.ancestors.args_envs_split":
-		return "signal", nil
 	case "signal.target.ancestors.args_flags":
 		return "signal", nil
 	case "signal.target.ancestors.args_options":
@@ -14868,6 +14866,8 @@ func (e *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 	case "signal.target.ancestors.envp":
 		return "signal", nil
 	case "signal.target.ancestors.envs":
+		return "signal", nil
+	case "signal.target.ancestors.envs_offset":
 		return "signal", nil
 	case "signal.target.ancestors.envs_truncated":
 		return "signal", nil
@@ -14969,8 +14969,6 @@ func (e *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 		return "signal", nil
 	case "signal.target.args":
 		return "signal", nil
-	case "signal.target.args_envs_split":
-		return "signal", nil
 	case "signal.target.args_flags":
 		return "signal", nil
 	case "signal.target.args_options":
@@ -15000,6 +14998,8 @@ func (e *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 	case "signal.target.envp":
 		return "signal", nil
 	case "signal.target.envs":
+		return "signal", nil
+	case "signal.target.envs_offset":
 		return "signal", nil
 	case "signal.target.envs_truncated":
 		return "signal", nil
@@ -15348,8 +15348,6 @@ func (e *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.Int, nil
 	case "exec.args":
 		return reflect.String, nil
-	case "exec.args_envs_split":
-		return reflect.Bool, nil
 	case "exec.args_flags":
 		return reflect.String, nil
 	case "exec.args_options":
@@ -15380,6 +15378,8 @@ func (e *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.String, nil
 	case "exec.envs":
 		return reflect.String, nil
+	case "exec.envs_offset":
+		return reflect.Int, nil
 	case "exec.envs_truncated":
 		return reflect.Bool, nil
 	case "exec.euid":
@@ -15480,8 +15480,6 @@ func (e *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.String, nil
 	case "exit.args":
 		return reflect.String, nil
-	case "exit.args_envs_split":
-		return reflect.Bool, nil
 	case "exit.args_flags":
 		return reflect.String, nil
 	case "exit.args_options":
@@ -15516,6 +15514,8 @@ func (e *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.String, nil
 	case "exit.envs":
 		return reflect.String, nil
+	case "exit.envs_offset":
+		return reflect.Int, nil
 	case "exit.envs_truncated":
 		return reflect.Bool, nil
 	case "exit.euid":
@@ -15858,8 +15858,6 @@ func (e *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.Int, nil
 	case "process.ancestors.args":
 		return reflect.String, nil
-	case "process.ancestors.args_envs_split":
-		return reflect.Bool, nil
 	case "process.ancestors.args_flags":
 		return reflect.String, nil
 	case "process.ancestors.args_options":
@@ -15890,6 +15888,8 @@ func (e *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.String, nil
 	case "process.ancestors.envs":
 		return reflect.String, nil
+	case "process.ancestors.envs_offset":
+		return reflect.Int, nil
 	case "process.ancestors.envs_truncated":
 		return reflect.Bool, nil
 	case "process.ancestors.euid":
@@ -15990,8 +15990,6 @@ func (e *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.String, nil
 	case "process.args":
 		return reflect.String, nil
-	case "process.args_envs_split":
-		return reflect.Bool, nil
 	case "process.args_flags":
 		return reflect.String, nil
 	case "process.args_options":
@@ -16022,6 +16020,8 @@ func (e *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.String, nil
 	case "process.envs":
 		return reflect.String, nil
+	case "process.envs_offset":
+		return reflect.Int, nil
 	case "process.envs_truncated":
 		return reflect.Bool, nil
 	case "process.euid":
@@ -16126,8 +16126,6 @@ func (e *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.Int, nil
 	case "ptrace.tracee.ancestors.args":
 		return reflect.String, nil
-	case "ptrace.tracee.ancestors.args_envs_split":
-		return reflect.Bool, nil
 	case "ptrace.tracee.ancestors.args_flags":
 		return reflect.String, nil
 	case "ptrace.tracee.ancestors.args_options":
@@ -16158,6 +16156,8 @@ func (e *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.String, nil
 	case "ptrace.tracee.ancestors.envs":
 		return reflect.String, nil
+	case "ptrace.tracee.ancestors.envs_offset":
+		return reflect.Int, nil
 	case "ptrace.tracee.ancestors.envs_truncated":
 		return reflect.Bool, nil
 	case "ptrace.tracee.ancestors.euid":
@@ -16258,8 +16258,6 @@ func (e *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.String, nil
 	case "ptrace.tracee.args":
 		return reflect.String, nil
-	case "ptrace.tracee.args_envs_split":
-		return reflect.Bool, nil
 	case "ptrace.tracee.args_flags":
 		return reflect.String, nil
 	case "ptrace.tracee.args_options":
@@ -16290,6 +16288,8 @@ func (e *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.String, nil
 	case "ptrace.tracee.envs":
 		return reflect.String, nil
+	case "ptrace.tracee.envs_offset":
+		return reflect.Int, nil
 	case "ptrace.tracee.envs_truncated":
 		return reflect.Bool, nil
 	case "ptrace.tracee.euid":
@@ -16602,8 +16602,6 @@ func (e *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.Int, nil
 	case "signal.target.ancestors.args":
 		return reflect.String, nil
-	case "signal.target.ancestors.args_envs_split":
-		return reflect.Bool, nil
 	case "signal.target.ancestors.args_flags":
 		return reflect.String, nil
 	case "signal.target.ancestors.args_options":
@@ -16634,6 +16632,8 @@ func (e *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.String, nil
 	case "signal.target.ancestors.envs":
 		return reflect.String, nil
+	case "signal.target.ancestors.envs_offset":
+		return reflect.Int, nil
 	case "signal.target.ancestors.envs_truncated":
 		return reflect.Bool, nil
 	case "signal.target.ancestors.euid":
@@ -16734,8 +16734,6 @@ func (e *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.String, nil
 	case "signal.target.args":
 		return reflect.String, nil
-	case "signal.target.args_envs_split":
-		return reflect.Bool, nil
 	case "signal.target.args_flags":
 		return reflect.String, nil
 	case "signal.target.args_options":
@@ -16766,6 +16764,8 @@ func (e *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.String, nil
 	case "signal.target.envs":
 		return reflect.String, nil
+	case "signal.target.envs_offset":
+		return reflect.Int, nil
 	case "signal.target.envs_truncated":
 		return reflect.Bool, nil
 	case "signal.target.euid":
@@ -17413,15 +17413,6 @@ func (e *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		e.Exec.Process.Args = str
 		return nil
-	case "exec.args_envs_split":
-		if e.Exec.Process == nil {
-			e.Exec.Process = &Process{}
-		}
-		var ok bool
-		if e.Exec.Process.ArgsEnvsSplit, ok = value.(bool); !ok {
-			return &eval.ErrValueTypeMismatch{Field: "Exec.Process.ArgsEnvsSplit"}
-		}
-		return nil
 	case "exec.args_flags":
 		if e.Exec.Process == nil {
 			e.Exec.Process = &Process{}
@@ -17570,6 +17561,16 @@ func (e *Event) SetFieldValue(field eval.Field, value interface{}) error {
 			return &eval.ErrValueTypeMismatch{Field: "Exec.Process.Envs"}
 		}
 		e.Exec.Process.Envs = append(e.Exec.Process.Envs, str)
+		return nil
+	case "exec.envs_offset":
+		if e.Exec.Process == nil {
+			e.Exec.Process = &Process{}
+		}
+		v, ok := value.(int)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "Exec.Process.EnvsOffset"}
+		}
+		e.Exec.Process.EnvsOffset = uint32(v)
 		return nil
 	case "exec.envs_truncated":
 		if e.Exec.Process == nil {
@@ -18046,15 +18047,6 @@ func (e *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		e.Exit.Process.Args = str
 		return nil
-	case "exit.args_envs_split":
-		if e.Exit.Process == nil {
-			e.Exit.Process = &Process{}
-		}
-		var ok bool
-		if e.Exit.Process.ArgsEnvsSplit, ok = value.(bool); !ok {
-			return &eval.ErrValueTypeMismatch{Field: "Exit.Process.ArgsEnvsSplit"}
-		}
-		return nil
 	case "exit.args_flags":
 		if e.Exit.Process == nil {
 			e.Exit.Process = &Process{}
@@ -18217,6 +18209,16 @@ func (e *Event) SetFieldValue(field eval.Field, value interface{}) error {
 			return &eval.ErrValueTypeMismatch{Field: "Exit.Process.Envs"}
 		}
 		e.Exit.Process.Envs = append(e.Exit.Process.Envs, str)
+		return nil
+	case "exit.envs_offset":
+		if e.Exit.Process == nil {
+			e.Exit.Process = &Process{}
+		}
+		v, ok := value.(int)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "Exit.Process.EnvsOffset"}
+		}
+		e.Exit.Process.EnvsOffset = uint32(v)
 		return nil
 	case "exit.envs_truncated":
 		if e.Exit.Process == nil {
@@ -19476,18 +19478,6 @@ func (e *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		e.ProcessContext.Ancestor.ProcessContext.Process.Args = str
 		return nil
-	case "process.ancestors.args_envs_split":
-		if e.ProcessContext == nil {
-			e.ProcessContext = &ProcessContext{}
-		}
-		if e.ProcessContext.Ancestor == nil {
-			e.ProcessContext.Ancestor = &ProcessCacheEntry{}
-		}
-		var ok bool
-		if e.ProcessContext.Ancestor.ProcessContext.Process.ArgsEnvsSplit, ok = value.(bool); !ok {
-			return &eval.ErrValueTypeMismatch{Field: "ProcessContext.Ancestor.ProcessContext.Process.ArgsEnvsSplit"}
-		}
-		return nil
 	case "process.ancestors.args_flags":
 		if e.ProcessContext == nil {
 			e.ProcessContext = &ProcessContext{}
@@ -19681,6 +19671,19 @@ func (e *Event) SetFieldValue(field eval.Field, value interface{}) error {
 			return &eval.ErrValueTypeMismatch{Field: "ProcessContext.Ancestor.ProcessContext.Process.Envs"}
 		}
 		e.ProcessContext.Ancestor.ProcessContext.Process.Envs = append(e.ProcessContext.Ancestor.ProcessContext.Process.Envs, str)
+		return nil
+	case "process.ancestors.envs_offset":
+		if e.ProcessContext == nil {
+			e.ProcessContext = &ProcessContext{}
+		}
+		if e.ProcessContext.Ancestor == nil {
+			e.ProcessContext.Ancestor = &ProcessCacheEntry{}
+		}
+		v, ok := value.(int)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "ProcessContext.Ancestor.ProcessContext.Process.EnvsOffset"}
+		}
+		e.ProcessContext.Ancestor.ProcessContext.Process.EnvsOffset = uint32(v)
 		return nil
 	case "process.ancestors.envs_truncated":
 		if e.ProcessContext == nil {
@@ -20304,15 +20307,6 @@ func (e *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		e.ProcessContext.Process.Args = str
 		return nil
-	case "process.args_envs_split":
-		if e.ProcessContext == nil {
-			e.ProcessContext = &ProcessContext{}
-		}
-		var ok bool
-		if e.ProcessContext.Process.ArgsEnvsSplit, ok = value.(bool); !ok {
-			return &eval.ErrValueTypeMismatch{Field: "ProcessContext.Process.ArgsEnvsSplit"}
-		}
-		return nil
 	case "process.args_flags":
 		if e.ProcessContext == nil {
 			e.ProcessContext = &ProcessContext{}
@@ -20461,6 +20455,16 @@ func (e *Event) SetFieldValue(field eval.Field, value interface{}) error {
 			return &eval.ErrValueTypeMismatch{Field: "ProcessContext.Process.Envs"}
 		}
 		e.ProcessContext.Process.Envs = append(e.ProcessContext.Process.Envs, str)
+		return nil
+	case "process.envs_offset":
+		if e.ProcessContext == nil {
+			e.ProcessContext = &ProcessContext{}
+		}
+		v, ok := value.(int)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "ProcessContext.Process.EnvsOffset"}
+		}
+		e.ProcessContext.Process.EnvsOffset = uint32(v)
 		return nil
 	case "process.envs_truncated":
 		if e.ProcessContext == nil {
@@ -20954,18 +20958,6 @@ func (e *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		e.PTrace.Tracee.Ancestor.ProcessContext.Process.Args = str
 		return nil
-	case "ptrace.tracee.ancestors.args_envs_split":
-		if e.PTrace.Tracee == nil {
-			e.PTrace.Tracee = &ProcessContext{}
-		}
-		if e.PTrace.Tracee.Ancestor == nil {
-			e.PTrace.Tracee.Ancestor = &ProcessCacheEntry{}
-		}
-		var ok bool
-		if e.PTrace.Tracee.Ancestor.ProcessContext.Process.ArgsEnvsSplit, ok = value.(bool); !ok {
-			return &eval.ErrValueTypeMismatch{Field: "PTrace.Tracee.Ancestor.ProcessContext.Process.ArgsEnvsSplit"}
-		}
-		return nil
 	case "ptrace.tracee.ancestors.args_flags":
 		if e.PTrace.Tracee == nil {
 			e.PTrace.Tracee = &ProcessContext{}
@@ -21159,6 +21151,19 @@ func (e *Event) SetFieldValue(field eval.Field, value interface{}) error {
 			return &eval.ErrValueTypeMismatch{Field: "PTrace.Tracee.Ancestor.ProcessContext.Process.Envs"}
 		}
 		e.PTrace.Tracee.Ancestor.ProcessContext.Process.Envs = append(e.PTrace.Tracee.Ancestor.ProcessContext.Process.Envs, str)
+		return nil
+	case "ptrace.tracee.ancestors.envs_offset":
+		if e.PTrace.Tracee == nil {
+			e.PTrace.Tracee = &ProcessContext{}
+		}
+		if e.PTrace.Tracee.Ancestor == nil {
+			e.PTrace.Tracee.Ancestor = &ProcessCacheEntry{}
+		}
+		v, ok := value.(int)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "PTrace.Tracee.Ancestor.ProcessContext.Process.EnvsOffset"}
+		}
+		e.PTrace.Tracee.Ancestor.ProcessContext.Process.EnvsOffset = uint32(v)
 		return nil
 	case "ptrace.tracee.ancestors.envs_truncated":
 		if e.PTrace.Tracee == nil {
@@ -21782,15 +21787,6 @@ func (e *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		e.PTrace.Tracee.Process.Args = str
 		return nil
-	case "ptrace.tracee.args_envs_split":
-		if e.PTrace.Tracee == nil {
-			e.PTrace.Tracee = &ProcessContext{}
-		}
-		var ok bool
-		if e.PTrace.Tracee.Process.ArgsEnvsSplit, ok = value.(bool); !ok {
-			return &eval.ErrValueTypeMismatch{Field: "PTrace.Tracee.Process.ArgsEnvsSplit"}
-		}
-		return nil
 	case "ptrace.tracee.args_flags":
 		if e.PTrace.Tracee == nil {
 			e.PTrace.Tracee = &ProcessContext{}
@@ -21939,6 +21935,16 @@ func (e *Event) SetFieldValue(field eval.Field, value interface{}) error {
 			return &eval.ErrValueTypeMismatch{Field: "PTrace.Tracee.Process.Envs"}
 		}
 		e.PTrace.Tracee.Process.Envs = append(e.PTrace.Tracee.Process.Envs, str)
+		return nil
+	case "ptrace.tracee.envs_offset":
+		if e.PTrace.Tracee == nil {
+			e.PTrace.Tracee = &ProcessContext{}
+		}
+		v, ok := value.(int)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "PTrace.Tracee.Process.EnvsOffset"}
+		}
+		e.PTrace.Tracee.Process.EnvsOffset = uint32(v)
 		return nil
 	case "ptrace.tracee.envs_truncated":
 		if e.PTrace.Tracee == nil {
@@ -23104,18 +23110,6 @@ func (e *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		e.Signal.Target.Ancestor.ProcessContext.Process.Args = str
 		return nil
-	case "signal.target.ancestors.args_envs_split":
-		if e.Signal.Target == nil {
-			e.Signal.Target = &ProcessContext{}
-		}
-		if e.Signal.Target.Ancestor == nil {
-			e.Signal.Target.Ancestor = &ProcessCacheEntry{}
-		}
-		var ok bool
-		if e.Signal.Target.Ancestor.ProcessContext.Process.ArgsEnvsSplit, ok = value.(bool); !ok {
-			return &eval.ErrValueTypeMismatch{Field: "Signal.Target.Ancestor.ProcessContext.Process.ArgsEnvsSplit"}
-		}
-		return nil
 	case "signal.target.ancestors.args_flags":
 		if e.Signal.Target == nil {
 			e.Signal.Target = &ProcessContext{}
@@ -23309,6 +23303,19 @@ func (e *Event) SetFieldValue(field eval.Field, value interface{}) error {
 			return &eval.ErrValueTypeMismatch{Field: "Signal.Target.Ancestor.ProcessContext.Process.Envs"}
 		}
 		e.Signal.Target.Ancestor.ProcessContext.Process.Envs = append(e.Signal.Target.Ancestor.ProcessContext.Process.Envs, str)
+		return nil
+	case "signal.target.ancestors.envs_offset":
+		if e.Signal.Target == nil {
+			e.Signal.Target = &ProcessContext{}
+		}
+		if e.Signal.Target.Ancestor == nil {
+			e.Signal.Target.Ancestor = &ProcessCacheEntry{}
+		}
+		v, ok := value.(int)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "Signal.Target.Ancestor.ProcessContext.Process.EnvsOffset"}
+		}
+		e.Signal.Target.Ancestor.ProcessContext.Process.EnvsOffset = uint32(v)
 		return nil
 	case "signal.target.ancestors.envs_truncated":
 		if e.Signal.Target == nil {
@@ -23932,15 +23939,6 @@ func (e *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		e.Signal.Target.Process.Args = str
 		return nil
-	case "signal.target.args_envs_split":
-		if e.Signal.Target == nil {
-			e.Signal.Target = &ProcessContext{}
-		}
-		var ok bool
-		if e.Signal.Target.Process.ArgsEnvsSplit, ok = value.(bool); !ok {
-			return &eval.ErrValueTypeMismatch{Field: "Signal.Target.Process.ArgsEnvsSplit"}
-		}
-		return nil
 	case "signal.target.args_flags":
 		if e.Signal.Target == nil {
 			e.Signal.Target = &ProcessContext{}
@@ -24089,6 +24087,16 @@ func (e *Event) SetFieldValue(field eval.Field, value interface{}) error {
 			return &eval.ErrValueTypeMismatch{Field: "Signal.Target.Process.Envs"}
 		}
 		e.Signal.Target.Process.Envs = append(e.Signal.Target.Process.Envs, str)
+		return nil
+	case "signal.target.envs_offset":
+		if e.Signal.Target == nil {
+			e.Signal.Target = &ProcessContext{}
+		}
+		v, ok := value.(int)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "Signal.Target.Process.EnvsOffset"}
+		}
+		e.Signal.Target.Process.EnvsOffset = uint32(v)
 		return nil
 	case "signal.target.envs_truncated":
 		if e.Signal.Target == nil {

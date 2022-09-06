@@ -366,11 +366,11 @@ func TestProcessContext(t *testing.T) {
 				t.Errorf("not able to get args")
 			}
 
-			args_envs_split, err := event.GetFieldValue("exec.args_envs_split")
+			envs_offset, err := event.GetFieldValue("exec.envs_offset")
 			if err != nil {
-				t.Errorf("not able to get args_envs_split")
+				t.Errorf("not able to get envs_offset")
 			}
-			fmt.Printf("args_envs_split: %v\n", args_envs_split)
+			fmt.Printf("envs_offset: %v\n", envs_offset)
 
 			argv := strings.Split(args.(string), " ")
 			assert.Equal(t, 2, len(argv), "incorrect number of args: %s", argv)
@@ -417,11 +417,11 @@ func TestProcessContext(t *testing.T) {
 				t.Errorf("not able to get args")
 			}
 
-			args_envs_split, err := event.GetFieldValue("exec.args_envs_split")
+			envs_offset, err := event.GetFieldValue("exec.envs_offset")
 			if err != nil {
-				t.Errorf("not able to get args_envs_split")
+				t.Errorf("not able to get envs_offset")
 			}
-			fmt.Printf("args_envs_split: %v\n", args_envs_split)
+			fmt.Printf("envs_offset: %v\n", envs_offset)
 
 			argv := strings.Split(execArgs.(string), " ")
 			assert.Equal(t, 367, len(argv), "incorrect number of args: %s", argv)
@@ -464,11 +464,11 @@ func TestProcessContext(t *testing.T) {
 				t.Errorf("not able to get args")
 			}
 
-			args_envs_split, err := event.GetFieldValue("exec.args_envs_split")
+			envs_offset, err := event.GetFieldValue("exec.envs_offset")
 			if err != nil {
-				t.Errorf("not able to get args_envs_split")
+				t.Errorf("not able to get envs_offset")
 			}
-			fmt.Printf("args_envs_split: %v\n", args_envs_split)
+			fmt.Printf("envs_offset: %v\n", envs_offset)
 
 			argv := strings.Split(execArgs.(string), " ")
 			assert.Equal(t, 446, len(argv), "incorrect number of args: %s", argv)

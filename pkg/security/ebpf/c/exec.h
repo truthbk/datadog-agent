@@ -59,7 +59,7 @@ struct exec_event_t {
     u32 args_truncated;
     u32 envs_id;
     u32 envs_truncated;
-    u32 args_envs_split;
+    u32 envs_offset;
 };
 
 // _gen is a suffix for maps storing large structs to work around ebpf object size limits
@@ -835,7 +835,7 @@ void __attribute__((always_inline)) fill_args_envs(struct exec_event_t *event, s
     event->args_truncated = syscall->exec.args.truncated;
     event->envs_id = syscall->exec.envs.id;
     event->envs_truncated = syscall->exec.envs.truncated;
-    event->args_envs_split = syscall->exec.args_envs_ctx.envs_offset != 0;
+    event->envs_offset = syscall->exec.args_envs_ctx.envs_offset;
 }
 
 int __attribute__((always_inline)) send_exec_event(struct pt_regs *ctx) {

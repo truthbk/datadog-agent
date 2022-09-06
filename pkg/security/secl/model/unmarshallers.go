@@ -260,7 +260,7 @@ func (e *Process) UnmarshalBinary(data []byte) (int, error) {
 	e.EnvsTruncated = ByteOrder.Uint32(data[read+4:read+8]) == 1
 	read += 8
 
-	e.ArgsEnvsSplit = ByteOrder.Uint32(data[read:read+4]) > 0
+	e.EnvsOffset = ByteOrder.Uint32(data[read : read+4])
 	read += 4
 
 	return validateReadSize(size, read)
