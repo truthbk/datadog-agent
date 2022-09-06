@@ -800,11 +800,12 @@ int __attribute__((always_inline)) fill_exec_context(struct pt_regs *ctx) {
         return 0;
     }
 
-    // avoid getting the args length if we already got it from a previously called kprobe
+    // avoid getting the envs offset if we already got it from a previously called kprobe
     if (syscall->exec.args_envs_ctx.args_count == 0) {
         // call it here before the memory get replaced
         fill_span_context(&syscall->exec.span_context);
 
+        syscall->exec.args_envs_ctx.envs_offset = 0;
         bpf_tail_call_compat(ctx, &args_envs_progs, EXEC_GET_ENVS_OFFSET);
     }
 
