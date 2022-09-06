@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	autoscalingv2 "k8s.io/api/autoscaling/v2beta1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -35,7 +35,7 @@ func TestDiffAutoscalter(t *testing.T) {
 					ResourceVersion: "12",
 					Annotations: map[string]string{
 						"kubectl.kubernetes.io/last-applied-configuration": `
-						"apiVersion":"autoscaling/v2beta1",
+						"apiVersion":"autoscaling/v2beta2",
 						"kind":"HorizontalPodAutoscaler",
 						"metadata":{
 							"annotations":{},
@@ -75,7 +75,7 @@ func TestDiffAutoscalter(t *testing.T) {
 					ResourceVersion: "14",
 					Annotations: map[string]string{
 						"kubectl.kubernetes.io/last-applied-configuration": `
-						"apiVersion":"autoscaling/v2beta1",
+						"apiVersion":"autoscaling/v2beta2",
 						"kind":"HorizontalPodAutoscaler",
 						"metadata":{
 							"annotations":{},
@@ -138,7 +138,7 @@ func TestDiffAutoscalter(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kubectl.kubernetes.io/last-applied-configuration": `
-						"apiVersion":"autoscaling/v2beta1",
+						"apiVersion":"autoscaling/v2beta2",
 						"kind":"HorizontalPodAutoscaler",
 						"metadata":{
 							"annotations":{},
@@ -174,7 +174,7 @@ func TestDiffAutoscalter(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kubectl.kubernetes.io/last-applied-configuration": `
-						"apiVersion":"autoscaling/v2beta1",
+						"apiVersion":"autoscaling/v2beta2",
 						"kind":"HorizontalPodAutoscaler",
 						"metadata":{
 							"annotations":{},

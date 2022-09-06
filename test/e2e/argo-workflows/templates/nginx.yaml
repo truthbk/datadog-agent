@@ -112,7 +112,7 @@ spec:
       resource:
         action: apply
         manifest: |
-          apiVersion: autoscaling/v2beta1
+          apiVersion: autoscaling/v2beta2
           kind: HorizontalPodAutoscaler
           metadata:
             name: nginxext
@@ -179,7 +179,7 @@ spec:
       resource:
         action: delete
         manifest: |
-          apiVersion: autoscaling/v2beta1
+          apiVersion: autoscaling/v2beta2
           kind: HorizontalPodAutoscaler
           metadata:
             name: nginxext

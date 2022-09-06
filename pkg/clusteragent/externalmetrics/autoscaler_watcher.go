@@ -13,13 +13,13 @@ import (
 	"strings"
 	"time"
 
-	autoscaler "k8s.io/api/autoscaling/v2beta1"
+	autoscaler "k8s.io/api/autoscaling/v2beta2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynamic_informer "k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
-	autoscaler_lister "k8s.io/client-go/listers/autoscaling/v2beta1"
+	autoscaler_lister "k8s.io/client-go/listers/autoscaling/v2beta2"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/DataDog/watermarkpodautoscaler/api/v1alpha1"

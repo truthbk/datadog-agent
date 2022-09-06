@@ -12,7 +12,7 @@ import (
 	"reflect"
 	"regexp"
 
-	autoscalingv2 "k8s.io/api/autoscaling/v2beta1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
 
 	"github.com/DataDog/watermarkpodautoscaler/api/v1alpha1"
 
@@ -30,13 +30,13 @@ func InspectHPA(hpa *autoscalingv2.HorizontalPodAutoscaler) (emList []custommetr
 				continue
 			}
 
-			if !IsValidMetricName(metricSpec.External.MetricName) {
-				log.Errorf("Metric name \"%s\" in %s/%s is invalid, skipping processing", metricSpec.External.MetricName, hpa.Namespace, hpa.Name)
+			if !IsValidMetricName(metricSpec.External.Metric.Name) {
+				log.Errorf("Metric name \"%s\" in %s/%s is invalid, skipping processing", metricSpec.External.Metric.Name, hpa.Namespace, hpa.Name)
 				continue
 			}
 
 			em := custommetrics.ExternalMetricValue{
-				MetricName: metricSpec.External.MetricName,
+				MetricName: metricSpec.External.Metric.Name,
 				Ref: custommetrics.ObjectReference{
 					Type:      "horizontal",
 					Name:      hpa.Name,
@@ -66,7 +66,7 @@ func InspectWPA(wpa *v1alpha1.WatermarkPodAutoscaler) (emList []custommetrics.Ex
 			}
 
 			em := custommetrics.ExternalMetricValue{
-				MetricName: metricSpec.External.MetricName,
+				MetricName: metricSpec.External.Metric.Name,
 				Ref: custommetrics.ObjectReference{
 					Type:      "watermark",
 					Name:      wpa.Name,
