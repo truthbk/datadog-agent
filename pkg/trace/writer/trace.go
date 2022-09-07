@@ -8,7 +8,9 @@ package writer
 import (
 	"compress/gzip"
 	"errors"
+	"fmt"  // TODO: no
 	"math"
+	"os"  // TODO: no
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +23,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/trace/pb"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/gogo/protobuf/jsonpb"  // TODO: no
+	// "google.golang.org/protobuf/encoding/protojson"  // TODO: no
 )
 
 // pathTraces is the target host API path for delivering traces.
@@ -239,6 +243,23 @@ func (w *TraceWriter) flush() {
 		log.Errorf("Failed to serialize payload, data dropped: %v", err)
 		return
 	}
+
+	// TODO: no
+	// fmt.Println("AgentPayload: ", protojson.Format(&p))
+	// fmt.Println("AgentPayload:")
+	var marshaler jsonpb.Marshaler
+	// err = marshaler.Marshal(os.Stdout, &p)
+	// if err != nil {
+	// 	log.Errorf("Failed to log payload as JSON: %v", err)
+	// }
+	// Let's try it as a string, since that didn't seem to work.
+	jsonPayload, err := marshaler.MarshalToString(&p)
+	if err != nil {
+		log.Errorf("Failed to log payload as a JSON string: %v", err)
+	} else {
+		fmt.Println("AgentPayload: ", jsonPayload)
+	}
+	// end TODO
 
 	w.stats.BytesUncompressed.Add(int64(len(b)))
 
