@@ -15,27 +15,6 @@ var execProbes = []*manager.Probe{
 	{
 		ProbeIdentificationPair: manager.ProbeIdentificationPair{
 			UID:          SecurityAgentUID,
-			EBPFSection:  "kprobe/prepare_binprm",
-			EBPFFuncName: "kprobe_prepare_binprm",
-		},
-	},
-	{
-		ProbeIdentificationPair: manager.ProbeIdentificationPair{
-			UID:          SecurityAgentUID,
-			EBPFSection:  "kprobe/bprm_execve",
-			EBPFFuncName: "kprobe_bprm_execve",
-		},
-	},
-	{
-		ProbeIdentificationPair: manager.ProbeIdentificationPair{
-			UID:          SecurityAgentUID,
-			EBPFSection:  "kprobe/security_bprm_check",
-			EBPFFuncName: "kprobe_security_bprm_check",
-		},
-	},
-	{
-		ProbeIdentificationPair: manager.ProbeIdentificationPair{
-			UID:          SecurityAgentUID,
 			EBPFSection:  "tracepoint/sched/sched_process_fork",
 			EBPFFuncName: "sched_process_fork",
 		},
@@ -101,6 +80,13 @@ var execProbes = []*manager.Probe{
 			UID:          SecurityAgentUID,
 			EBPFSection:  "kprobe/exit_itimers",
 			EBPFFuncName: "kprobe_exit_itimers",
+		},
+	},
+	{
+		ProbeIdentificationPair: manager.ProbeIdentificationPair{
+			UID:          SecurityAgentUID,
+			EBPFSection:  "kprobe/set_mm_exe_file",
+			EBPFFuncName: "kprobe_set_mm_exe_file",
 		},
 	},
 	{

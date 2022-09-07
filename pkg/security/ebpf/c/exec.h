@@ -797,37 +797,20 @@ int kprobe_get_envs_offset(struct pt_regs *ctx) {
     return 0;
 }
 
-int __attribute__((always_inline)) fill_exec_context(struct pt_regs *ctx) {
+SEC("kprobe/set_mm_exe_file")
+int kprobe_set_mm_exe_file(struct pt_regs *ctx) {
     struct syscall_cache_t *syscall = peek_syscall(EVENT_EXEC);
     if (!syscall) {
         return 0;
     }
 
-    // avoid getting the envs offset if we already got it from a previously called kprobe
-    if (syscall->exec.args_envs_ctx.args_count == 0) {
-        // call it here before the memory get replaced
-        fill_span_context(&syscall->exec.span_context);
+    // call it here before the memory get replaced
+    fill_span_context(&syscall->exec.span_context);
 
-        syscall->exec.args_envs_ctx.envs_offset = 0;
-        bpf_tail_call_compat(ctx, &args_envs_progs, EXEC_GET_ENVS_OFFSET);
-    }
+    syscall->exec.args_envs_ctx.envs_offset = 0;
+    bpf_tail_call_compat(ctx, &args_envs_progs, EXEC_GET_ENVS_OFFSET);
 
     return 0;
-}
-
-SEC("kprobe/prepare_binprm")
-int kprobe_prepare_binprm(struct pt_regs *ctx) {
-    return fill_exec_context(ctx);
-}
-
-SEC("kprobe/bprm_execve")
-int kprobe_bprm_execve(struct pt_regs *ctx) {
-    return fill_exec_context(ctx);
-}
-
-SEC("kprobe/security_bprm_check")
-int kprobe_security_bprm_check(struct pt_regs *ctx) {
-    return fill_exec_context(ctx);
 }
 
 void __attribute__((always_inline)) fill_args_envs(struct exec_event_t *event, struct syscall_cache_t *syscall) {
