@@ -29,7 +29,7 @@ func EncodePayload(m model.MessageBody) ([]byte, error) {
 		return nil, fmt.Errorf("unable to detect message type: %s", err)
 	}
 
-	typeTag := "type:" + msgType.String()
+	typeTag := msgType.String()
 	tlmBytesIn.Add(float64(m.Size()), typeTag)
 
 	var encoded []byte

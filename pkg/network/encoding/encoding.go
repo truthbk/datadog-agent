@@ -25,6 +25,7 @@ var (
 			EmitDefaults: true,
 		},
 	}
+	mDeserializer = newMoleculeDecoder()
 
 	cfgOnce  = sync.Once{}
 	agentCfg *model.AgentConfiguration
@@ -53,7 +54,7 @@ func GetMarshaler(accept string) Marshaler {
 // GetUnmarshaler returns the appropriate Unmarshaler based on the given content type
 func GetUnmarshaler(ctype string) Unmarshaler {
 	if strings.Contains(ctype, ContentTypeProtobuf) {
-		return pSerializer
+		return mDeserializer
 	}
 
 	return jSerializer

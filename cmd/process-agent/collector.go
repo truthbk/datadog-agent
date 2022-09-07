@@ -14,6 +14,7 @@ import (
 	"time"
 
 	model "github.com/DataDog/agent-payload/v5/process"
+
 	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/resolver"
 	"github.com/DataDog/datadog-agent/pkg/forwarder"
@@ -194,6 +195,27 @@ func (l *Collector) runCheck(c checks.Check, results *api.WeightedQueue) {
 	if !c.RealTime() {
 		logCheckDuration(c.Name(), start, runCounter)
 	}
+}
+
+func (l *Collector) runPooledCheck(c checks.CheckWithPooledData, results *api.WeightedQueue) {
+	runCounter := l.nextRunCounter(c.Name())
+	start := time.Now()
+	// update the last collected timestamp for info
+	updateLastCollectTime(start)
+
+	result, err := c.RunWithPooledData(l.cfg, l.nextGroupID())
+	if err != nil {
+		log.Errorf("Unable to run check '%s': %s", c.Name(), err)
+		return
+	}
+	if result.DoneFunc != nil {
+		defer result.DoneFunc()
+	}
+
+	// pooled checks can never store output
+	checks.StoreCheckOutput(c.Name(), nil)
+	l.messagesToResults(start, c.Name(), result.Data, results)
+	logCheckDuration(c.Name(), start, runCounter)
 }
 
 func (l *Collector) runCheckWithRealTime(c checks.CheckWithRealTime, results, rtResults *api.WeightedQueue, options checks.RunOptions) {
@@ -518,7 +540,12 @@ func (l *Collector) runnerForCheck(c checks.Check, exit chan struct{}) (func(), 
 
 	withRealTime, ok := c.(checks.CheckWithRealTime)
 	if !l.runRealTime || !ok {
-		return l.basicRunner(c, results, exit), nil
+		withPooledData, ok := c.(checks.CheckWithPooledData)
+		if ok {
+			return l.pooledDataRunner(withPooledData, results, exit), nil
+		} else {
+			return l.basicRunner(c, results, exit), nil
+		}
 	}
 
 	rtResults := l.resultsQueueForCheck(withRealTime.RealTimeName())
@@ -562,6 +589,24 @@ func (l *Collector) basicRunner(c checks.Check, results *api.WeightedQueue, exit
 					ticker.Stop()
 					ticker = time.NewTicker(d)
 				}
+			case _, ok := <-exit:
+				if !ok {
+					return
+				}
+			}
+		}
+	}
+}
+
+func (l *Collector) pooledDataRunner(c checks.CheckWithPooledData, results *api.WeightedQueue, exit chan struct{}) func() {
+	return func() {
+		l.runPooledCheck(c, results)
+
+		ticker := time.NewTicker(l.cfg.CheckInterval(c.Name()))
+		for {
+			select {
+			case <-ticker.C:
+				l.runPooledCheck(c, results)
 			case _, ok := <-exit:
 				if !ok {
 					return

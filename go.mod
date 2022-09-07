@@ -174,6 +174,7 @@ require (
 	go.uber.org/zap v1.23.0
 	go4.org/netipx v0.0.0-20220812043211-3cc044ffd68d
 	golang.org/x/arch v0.0.0-20190927153633-4e8777c89be4
+	golang.org/x/exp v0.0.0-20220907003533-145caa8ea1d0
 	golang.org/x/mobile v0.0.0-20201217150744-e6ae53a27f4f
 	golang.org/x/net v0.0.0-20220722155237-a158d28d115b
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4

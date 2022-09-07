@@ -36,11 +36,23 @@ type RunResult struct {
 	RealTime []model.MessageBody
 }
 
+// PooledRunResult is a result for a CheckWithPooledData run and allows for a callback when data is no longer used
+type PooledRunResult struct {
+	Data     []model.MessageBody
+	DoneFunc func()
+}
+
 // CheckWithRealTime provides an extended interface for running composite checks
 type CheckWithRealTime interface {
 	Check
 	RealTimeName() string
 	RunWithOptions(cfg *config.AgentConfig, nextGroupID func() int32, options RunOptions) (*RunResult, error)
+}
+
+// CheckWithPooledData provides an extended interface for checks that need to know when data is no longer used
+type CheckWithPooledData interface {
+	Check
+	RunWithPooledData(cfg *config.AgentConfig, groupID int32) (*PooledRunResult, error)
 }
 
 // All is a list of all runnable checks. Putting a check in here does not guarantee it will be run,

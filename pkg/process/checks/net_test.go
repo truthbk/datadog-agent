@@ -7,6 +7,7 @@ package checks
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 
 	model "github.com/DataDog/agent-payload/v5/process"
@@ -26,7 +27,7 @@ func makeConnection(pid int32) *model.Connection {
 }
 
 func makeConnections(n int) []*model.Connection {
-	conns := make([]*model.Connection, 0)
+	conns := make([]*model.Connection, 0, n)
 	for i := 1; i <= n; i++ {
 		c := makeConnection(int32(i))
 		c.Laddr = &model.Addr{ContainerId: fmt.Sprintf("%d", c.Pid)}
@@ -45,15 +46,19 @@ func TestDNSNameEncoding(t *testing.T) {
 	p[3].Raddr.Ip = "1.1.2.4"
 	p[4].Raddr.Ip = "1.1.2.5"
 
-	dns := map[string]*model.DNSEntry{
+	dnsEntries := map[string]*model.DNSEntry{
 		"1.1.2.1": {Names: []string{"host1.domain.com"}},
 		"1.1.2.2": {Names: []string{"host2.domain.com", "host2.domain2.com"}},
 		"1.1.2.3": {Names: []string{"host3.domain.com", "host3.domain2.com", "host3.domain3.com"}},
 		"1.1.2.4": {Names: []string{"host4.domain.com"}},
 		"1.1.2.5": {Names: nil},
 	}
+	cxs := &model.Connections{
+		Conns: p,
+		Dns:   dnsEntries,
+	}
 	cfg := config.NewDefaultAgentConfig()
-	chunks := batchConnections(cfg, 0, p, dns, "nid", nil, nil, nil, nil, nil, nil)
+	chunks := batchConnections(cfg, 0, cxs, "nid")
 	assert.Equal(t, len(chunks), 1)
 
 	chunk := chunks[0]
@@ -62,16 +67,17 @@ func TestDNSNameEncoding(t *testing.T) {
 	for _, conn := range p {
 		ip := conn.Raddr.Ip
 		dnsParsed[ip] = &model.DNSEntry{}
-		model.IterateDNSV2(conns.EncodedDnsLookups, ip,
+		err := model.IterateDNSV2(conns.EncodedDnsLookups, ip,
 			func(i, total int, entry int32) bool {
 				host, e := conns.GetDNSNameByOffset(entry)
 				assert.Nil(t, e)
-				assert.Equal(t, total, len(dns[ip].Names))
+				assert.Equal(t, total, len(dnsEntries[ip].Names))
 				dnsParsed[ip].Names = append(dnsParsed[ip].Names, host)
 				return true
 			})
+		require.NoError(t, err)
 	}
-	assert.Equal(t, dns, dnsParsed)
+	assert.Equal(t, dnsEntries, dnsParsed)
 
 }
 
@@ -115,51 +121,60 @@ func TestNetworkConnectionBatching(t *testing.T) {
 			expectedChunks: 3,
 		},
 	} {
-		cfg.MaxConnsPerMessage = tc.maxSize
-		ctm := map[string]int64{}
-		rctm := map[string]*model.RuntimeCompilationTelemetry{}
-		chunks := batchConnections(cfg, 0, tc.cur, map[string]*model.DNSEntry{}, "nid", ctm, rctm, nil, nil, nil, nil)
-
-		assert.Len(t, chunks, tc.expectedChunks, "len %d", i)
-		total := 0
-		for i, c := range chunks {
-			connections := c.(*model.CollectorConnections)
-			total += len(connections.Connections)
-			assert.Equal(t, int32(tc.expectedChunks), connections.GroupSize, "group size test %d", i)
-
-			// make sure we could get container and pid mapping for connections
-			assert.Equal(t, len(connections.Connections), len(connections.ContainerForPid))
-			assert.Equal(t, "nid", connections.NetworkId)
-			for _, conn := range connections.Connections {
-				assert.Contains(t, connections.ContainerForPid, conn.Pid)
-				assert.Equal(t, fmt.Sprintf("%d", conn.Pid), connections.ContainerForPid[conn.Pid])
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			cfg.MaxConnsPerMessage = tc.maxSize
+			cxs := &model.Connections{
+				Conns:                       tc.cur,
+				Dns:                         map[string]*model.DNSEntry{},
+				ConnTelemetryMap:            map[string]int64{},
+				CompilationTelemetryByAsset: map[string]*model.RuntimeCompilationTelemetry{},
 			}
+			chunks := batchConnections(cfg, 0, cxs, "nid")
 
-			// ensure only first chunk has telemetry
-			if i == 0 {
-				assert.NotNil(t, connections.ConnTelemetryMap)
-				assert.NotNil(t, connections.CompilationTelemetryByAsset)
-			} else {
-				assert.Nil(t, connections.ConnTelemetryMap)
-				assert.Nil(t, connections.CompilationTelemetryByAsset)
+			assert.Len(t, chunks, tc.expectedChunks, "len %d", i)
+			total := 0
+			for i, c := range chunks {
+				idx := i
+				connections := c.(*model.CollectorConnections)
+				total += len(connections.Connections)
+				assert.Equal(t, int32(tc.expectedChunks), connections.GroupSize, "group size test %d", i)
+
+				// make sure we could get container and pid mapping for connections
+				assert.Equal(t, len(connections.Connections), len(connections.ContainerForPid))
+				assert.Equal(t, "nid", connections.NetworkId)
+				for _, conn := range connections.Connections {
+					assert.Contains(t, connections.ContainerForPid, conn.Pid)
+					assert.Equal(t, fmt.Sprintf("%d", conn.Pid), connections.ContainerForPid[conn.Pid])
+				}
+
+				// ensure only first chunk has telemetry
+				if i == 0 {
+					assert.NotNil(t, connections.ConnTelemetryMap, "chunk %d", idx)
+					assert.NotNil(t, connections.CompilationTelemetryByAsset, "chunk %d", idx)
+				} else {
+					assert.Nil(t, connections.ConnTelemetryMap, "chunk %d", idx)
+					assert.Nil(t, connections.CompilationTelemetryByAsset, "chunk %d", idx)
+				}
 			}
-		}
-		assert.Equal(t, tc.expectedTotal, total, "total test %d", i)
+			assert.Equal(t, tc.expectedTotal, total, "total test %d", i)
+		})
 	}
 }
 
 func TestNetworkConnectionBatchingWithDNS(t *testing.T) {
 	p := makeConnections(4)
-
 	p[3].Raddr.Ip = "1.1.2.3"
-	dns := map[string]*model.DNSEntry{
-		"1.1.2.3": {Names: []string{"datacat.edu"}},
-	}
 
 	cfg := config.NewDefaultAgentConfig()
 	cfg.MaxConnsPerMessage = 1
 
-	chunks := batchConnections(cfg, 0, p, dns, "nid", nil, nil, nil, nil, nil, nil)
+	cxs := &model.Connections{
+		Conns: p,
+		Dns: map[string]*model.DNSEntry{
+			"1.1.2.3": {Names: []string{"datacat.edu"}},
+		},
+	}
+	chunks := batchConnections(cfg, 0, cxs, "nid")
 
 	assert.Len(t, chunks, 4)
 	total := 0
@@ -200,7 +215,11 @@ func TestBatchSimilarConnectionsTogether(t *testing.T) {
 	cfg := config.NewDefaultAgentConfig()
 	cfg.MaxConnsPerMessage = 2
 
-	chunks := batchConnections(cfg, 0, p, map[string]*model.DNSEntry{}, "nid", nil, nil, nil, nil, nil, nil)
+	cxs := &model.Connections{
+		Conns: p,
+		Dns:   map[string]*model.DNSEntry{},
+	}
+	chunks := batchConnections(cfg, 0, cxs, "nid")
 
 	assert.Len(t, chunks, 3)
 	total := 0
@@ -285,7 +304,12 @@ func TestNetworkConnectionBatchingWithDomainsByQueryType(t *testing.T) {
 	cfg := config.NewDefaultAgentConfig()
 	cfg.MaxConnsPerMessage = 1
 
-	chunks := batchConnections(cfg, 0, conns, dnsmap, "nid", nil, nil, domains, nil, nil, nil)
+	cxs := &model.Connections{
+		Conns:   conns,
+		Dns:     dnsmap,
+		Domains: domains,
+	}
+	chunks := batchConnections(cfg, 0, cxs, "nid")
 
 	assert.Len(t, chunks, 4)
 	total := 0
@@ -404,7 +428,12 @@ func TestNetworkConnectionBatchingWithDomains(t *testing.T) {
 	cfg := config.NewDefaultAgentConfig()
 	cfg.MaxConnsPerMessage = 1
 
-	chunks := batchConnections(cfg, 0, conns, dnsmap, "nid", nil, nil, domains, nil, nil, nil)
+	cxs := &model.Connections{
+		Conns:   conns,
+		Dns:     dnsmap,
+		Domains: domains,
+	}
+	chunks := batchConnections(cfg, 0, cxs, "nid")
 
 	assert.Len(t, chunks, 4)
 	total := 0
@@ -514,7 +543,11 @@ func TestNetworkConnectionBatchingWithRoutes(t *testing.T) {
 	cfg := config.NewDefaultAgentConfig()
 	cfg.MaxConnsPerMessage = 4
 
-	chunks := batchConnections(cfg, 0, conns, nil, "nid", nil, nil, nil, routes, nil, nil)
+	cxs := &model.Connections{
+		Conns:  conns,
+		Routes: routes,
+	}
+	chunks := batchConnections(cfg, 0, cxs, "nid")
 
 	assert.Len(t, chunks, 2)
 	total := 0
@@ -578,12 +611,16 @@ func TestNetworkConnectionTags(t *testing.T) {
 		{tags: []string{"tag3"}},
 		{tags: []string{"tag2", "tag3"}},
 	}
-	foundTags := []fakeConn{}
+	var foundTags []fakeConn
 
 	cfg := config.NewDefaultAgentConfig()
 	cfg.MaxConnsPerMessage = 4
 
-	chunks := batchConnections(cfg, 0, conns, nil, "nid", nil, nil, nil, nil, tags, nil)
+	cxs := &model.Connections{
+		Conns: conns,
+		Tags:  tags,
+	}
+	chunks := batchConnections(cfg, 0, cxs, "nid")
 
 	assert.Len(t, chunks, 2)
 	total := 0
