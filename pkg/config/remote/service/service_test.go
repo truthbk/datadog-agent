@@ -34,7 +34,7 @@ type mockAPI struct {
 }
 
 const (
-	jsonDecodingError = "unexpected end of JSON input"
+	httpError = "api: simulated HTTP error"
 )
 
 func (m *mockAPI) Fetch(ctx context.Context, request *pbgo.LatestConfigsRequest) (*pbgo.LatestConfigsResponse, error) {
@@ -127,8 +127,6 @@ func TestServiceBackoffFailure(t *testing.T) {
 		CurrentDirectorRootVersion:   0,
 		Products:                     []string{},
 		NewProducts:                  []string{},
-		HasError:                     true,
-		Error:                        jsonDecodingError,
 	}).Return(lastConfigResponse, errors.New("simulated HTTP error"))
 	uptaneClient.On("TUFVersionState").Return(uptane.TUFVersions{}, nil)
 	uptaneClient.On("Update", lastConfigResponse).Return(nil)
@@ -188,8 +186,6 @@ func TestServiceBackoffFailureRecovery(t *testing.T) {
 		CurrentDirectorRootVersion:   0,
 		Products:                     []string{},
 		NewProducts:                  []string{},
-		HasError:                     true,
-		Error:                        jsonDecodingError,
 	}).Return(lastConfigResponse, nil)
 	uptaneClient.On("TUFVersionState").Return(uptane.TUFVersions{}, nil)
 	uptaneClient.On("Update", lastConfigResponse).Return(nil)
@@ -316,8 +312,6 @@ func TestService(t *testing.T) {
 		CurrentDirectorRootVersion:   0,
 		Products:                     []string{},
 		NewProducts:                  []string{},
-		HasError:                     true,
-		Error:                        jsonDecodingError,
 	}).Return(lastConfigResponse, nil)
 	uptaneClient.On("TUFVersionState").Return(uptane.TUFVersions{}, nil)
 	uptaneClient.On("Update", lastConfigResponse).Return(nil)
