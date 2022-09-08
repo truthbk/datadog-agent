@@ -247,6 +247,7 @@ func (w *TraceWriter) flush() {
 	// fmt.Println("AgentPayload: ", protojson.Format(&p))
 	// fmt.Println("AgentPayload:")
 	var marshaler jsonpb.Marshaler
+	marshaler.Indent = "  "
 	// err = marshaler.Marshal(os.Stdout, &p)
 	// if err != nil {
 	// 	log.Errorf("Failed to log payload as JSON: %v", err)

@@ -446,7 +446,13 @@ func (a *Agent) sample(now time.Time, ts *info.TagStats, pt traceutil.ProcessedT
 	// 	return 0, false, nil
 	// }
 
-	sampled := a.runSamplers(now, pt, hasPriority)
+	// TODO: Let's try this instead.
+	var sampled bool
+	if priority < 0 {
+		sampled = false
+	} else {
+		sampled = a.runSamplers(now, pt, hasPriority)
+	}
 
 	filteredChunk = pt.TraceChunk
 	if !sampled {

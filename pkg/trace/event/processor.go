@@ -6,6 +6,7 @@
 package event
 
 import (
+	"fmt"  // TODO: no
 	"github.com/DataDog/datadog-agent/pkg/trace/pb"
 	"github.com/DataDog/datadog-agent/pkg/trace/sampler"
 	"github.com/DataDog/datadog-agent/pkg/trace/traceutil"
@@ -66,6 +67,7 @@ func (p *Processor) Process(root *pb.Span, t *pb.TraceChunk) (numEvents, numExtr
 			continue
 		}
 
+		fmt.Println("()()()()()()()() Extracted a span.")  // TODO: no
 		numExtracted++
 		if _, ok := traceutil.GetMetric(span, sampler.KeySpanSamplingMechanism); !ok {
 			sampled, epsRate := p.maxEPSSample(span, priority)
@@ -78,15 +80,27 @@ func (p *Processor) Process(root *pb.Span, t *pb.TraceChunk) (numEvents, numExtr
 			sampler.SetPreSampleRate(span, preSampleRate)
 			sampler.SetEventExtractionRate(span, extractionRate)
 			sampler.SetAnalyzedSpan(span)
+		} else {
+			// Spans extracted by single span ingestion control receive sampling priority "3", to distinguish from other
+			// sampling cases.
+			// TODO
+			// span.Metrics["_sampling_priority_v1"] = 3;
+			// TODO
+			sampler.SetAnalyzedSpan(span)
 		}
 		if t.DroppedTrace {
 			events = append(events, span)
 		}
 		numEvents++
 	}
+	fmt.Println("()()()()()()()() t.DroppedTrace: ", t.DroppedTrace)
 	if t.DroppedTrace {
 		// we are not keeping anything out of this trace, except the events and sampled single spans
+		fmt.Println("()()()()()() Replacing t.Spans of length ", len(t.Spans), " with events of length ", len(events))
 		t.Spans = events
+		// TODO: scary
+		// t.Priority = 3
+		// t.DroppedTrace = false
 	}
 	return numEvents, numExtracted
 }
