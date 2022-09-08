@@ -204,10 +204,9 @@ def ninja_cgo_type_files(nw, windows):
         nw.rule(
             name="godefs",
             pool="cgo_pool",
-            command='powershell -Command "' 
-            + "(cd $in_dir); "
-            + "(go tool cgo -godefs -- -fsigned-char $in_file > $out_file);"
-            + "(gofmt -w -s $out_file);"
+            command="powershell -Command \"(cd $in_dir) -and "
+            + "(go tool cgo -godefs -- -fsigned-char $in_file > $out_file) -and "
+            + "(gofmt -w -s $out_file) -and "
             + "((Get-content $out_file) | "
             + f"Foreach-Object {{$$_ -replace ([regex]::Escape('{in_regex}')), '$$1 $$2'}} | "
             + "Set-Content $out_file)\"",
