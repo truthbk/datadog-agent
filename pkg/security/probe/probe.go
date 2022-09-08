@@ -526,7 +526,7 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 		}
 
 		// Insert new mount point in cache
-		if err = p.resolvers.MountResolver.Insert(event.Mount); err != nil {
+		if err = p.resolvers.MountResolver.Insert(event.Mount.Mount); err != nil {
 			seclog.Errorf("failed to insert mount event: %v", err)
 			return
 		}

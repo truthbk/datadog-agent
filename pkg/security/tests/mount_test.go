@@ -318,9 +318,9 @@ func TestMountSnapshot(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	checkSnapshotAndModelMatch := func(mntInfo *mountinfo.Info) {
-		mount := mountResolver.Get(uint32(mntInfo.ID), pid)
-		if mount == nil {
-			t.Errorf("could not find mount with id %d", mntInfo.ID)
+		mount, err := mountResolver.Get(uint32(mntInfo.ID), pid)
+		if err != nil {
+			t.Errorf(err.Error())
 			return
 		}
 		assert.Equal(t, uint32(mntInfo.ID), mount.MountID, "snapshot and model mount ID mismatch")
