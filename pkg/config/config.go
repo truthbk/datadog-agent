@@ -1108,7 +1108,7 @@ func InitConfig(config Config) {
 	config.BindEnvAndSetDefault("runtime_security_config.activity_dump.max_dump_size", 20)
 	config.BindEnvAndSetDefault("runtime_security_config.activity_dump.path_merge.enabled", true)
 	config.BindEnvAndSetDefault("runtime_security_config.activity_dump.traced_cgroups_count", 3)
-	config.BindEnvAndSetDefault("runtime_security_config.activity_dump.traced_event_types", []string{"exec", "open", "dns", "bind"})
+	config.BindEnvAndSetDefault("runtime_security_config.activity_dump.traced_event_types", []string{"exec", "open", "dns"})
 	config.BindEnvAndSetDefault("runtime_security_config.activity_dump.cgroup_dump_timeout", 20)
 	config.BindEnvAndSetDefault("runtime_security_config.activity_dump.rate_limiter", 100)
 	config.BindEnvAndSetDefault("runtime_security_config.activity_dump.cgroup_wait_list_size", 0)
