@@ -536,13 +536,6 @@ func (adm *ActivityDumpManager) triggerLoadController() {
 
 	// handle overweight dumps
 	for _, ad := range dumps {
-		dumpSize := ad.ComputeInMemorySize()
-
-		// send dump size in memory metric
-		if err := adm.probe.statsdClient.Gauge(metrics.MetricActivityDumpActiveDumpSizeInMemory, float64(dumpSize), []string{}, 1); err != nil {
-			seclog.Errorf("couldn't send %s metric: %v", metrics.MetricActivityDumpActiveDumpSizeInMemory, err)
-		}
-
 		// stop the dump but do not release the cgroup
 		ad.Stop(false)
 		seclog.Infof("tracing paused for [%s]", ad.GetSelectorStr())
@@ -571,7 +564,14 @@ func (adm *ActivityDumpManager) getOverweightDumps() []*ActivityDump {
 	var dumps []*ActivityDump
 	var toDelete []int
 	for i, ad := range adm.activeDumps {
-		if ad.ComputeInMemorySize() > adm.probe.config.ActivityDumpMaxDumpSize {
+		dumpSize := ad.ComputeInMemorySize()
+
+		// send dump size in memory metric
+		if err := adm.probe.statsdClient.Count(metrics.MetricActivityDumpActiveDumpSizeInMemory, dumpSize, []string{}, 1); err != nil {
+			seclog.Errorf("couldn't send %s metric: %v", metrics.MetricActivityDumpActiveDumpSizeInMemory, err)
+		}
+
+		if dumpSize > int64(adm.probe.config.ActivityDumpMaxDumpSize) {
 			toDelete = append([]int{i}, toDelete...)
 			dumps = append(dumps, ad)
 		}

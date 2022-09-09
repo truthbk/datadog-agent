@@ -281,7 +281,7 @@ func (ad *ActivityDump) AddStorageRequest(request dump.StorageRequest) {
 }
 
 func (ad *ActivityDump) checkInMemorySize() {
-	if ad.computeInMemorySize() < ad.adm.probe.config.ActivityDumpMaxDumpSize {
+	if ad.computeInMemorySize() < int64(ad.adm.probe.config.ActivityDumpMaxDumpSize) {
 		return
 	}
 
@@ -292,14 +292,14 @@ func (ad *ActivityDump) checkInMemorySize() {
 }
 
 // ComputeInMemorySize returns the size of a dump in memory
-func (ad *ActivityDump) ComputeInMemorySize() int {
+func (ad *ActivityDump) ComputeInMemorySize() int64 {
 	ad.Lock()
 	defer ad.Unlock()
 	return ad.computeInMemorySize()
 }
 
 // computeInMemorySize thread unsafe version of ComputeInMemorySize
-func (ad *ActivityDump) computeInMemorySize() int {
+func (ad *ActivityDump) computeInMemorySize() int64 {
 	return ad.nodeStats.approximateSize()
 }
 
@@ -397,6 +397,7 @@ func (ad *ActivityDump) disable() error {
 		// nothing to do
 		return nil
 	}
+	ad.state = Disabled
 
 	// remove comm from kernel space
 	if len(ad.DumpMetadata.Comm) > 0 {
