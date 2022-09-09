@@ -6,15 +6,26 @@
 package checks
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"io/ioutil"
+	"net"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strconv"
 	"testing"
+	"time"
 
 	model "github.com/DataDog/agent-payload/v5/process"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/atomic"
 
+	sysconfig "github.com/DataDog/datadog-agent/cmd/system-probe/config"
 	"github.com/DataDog/datadog-agent/pkg/network/dns"
+	"github.com/DataDog/datadog-agent/pkg/network/testutil"
 	"github.com/DataDog/datadog-agent/pkg/process/config"
 )
 
@@ -637,4 +648,92 @@ func TestNetworkConnectionTags(t *testing.T) {
 
 	assert.Equal(t, 8, total)
 	require.EqualValues(t, expectedTags, foundTags)
+}
+
+func TestNetworkIntegration(t *testing.T) {
+	skipUnless(t, "network-integration")
+	require.Equal(t, 0, os.Getuid(), "you must run this test as root, since it starts system-probe")
+
+	td := t.TempDir()
+	scfgfile := filepath.Join(td, "system-probe.yaml")
+	cfgContent := fmt.Sprintf(`
+system_probe_config:
+  sysprobe_socket: %s
+network_config:
+  enabled: true
+`, filepath.Join(td, "sysprobe.sock"))
+	err := ioutil.WriteFile(scfgfile, []byte(cfgContent), 0666)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	sp := exec.CommandContext(ctx, "../../../bin/system-probe/system-probe", "-c", scfgfile)
+	sp.Env = []string{"DD_LOG_LEVEL=trace"}
+	var out bytes.Buffer
+	sp.Stdout = &out
+	sp.Stderr = &out
+	err = sp.Start()
+	require.NoError(t, err, out.String())
+	t.Cleanup(cancel)
+
+	syscfg, err := sysconfig.New(scfgfile)
+	require.NoError(t, err)
+
+	// process_config.grpc_connection_timeout_secs
+	t.Setenv("DD_PROCESS_CONFIG_GRPC_CONNECTION_TIMEOUT_SECS", "1")
+	cfg, err := config.NewAgentConfig("PROCESS-TEST", "", syscfg)
+	require.NoError(t, err)
+
+	check := &ConnectionsCheck{
+		lastConnsByPID: &atomic.Value{},
+	}
+	check.Init(cfg, nil)
+	t.Cleanup(check.Cleanup)
+
+	const ip = "127.0.0.2"
+	const port = 12345
+	const connCount = 100
+	shutdown := testutil.StartServerTCP(t, net.ParseIP(ip), port)
+	for i := 0; i < connCount; i++ {
+		tcpConn := testutil.PingTCP(t, net.ParseIP(ip), port)
+		tcpConn.Close()
+	}
+	shutdown.Close()
+
+	time.Sleep(1 * time.Second)
+
+	res, err := check.RunWithPooledData(cfg, 1)
+	require.NoError(t, err)
+	require.NotNil(t, res, out.String())
+	require.NotNil(t, res.DoneFunc)
+	t.Cleanup(res.DoneFunc)
+
+	err = sp.Process.Signal(os.Interrupt)
+	require.NoError(t, err)
+	err = sp.Wait()
+	require.NoError(t, err, out.String())
+
+	require.Len(t, res.Data, int(groupSize(connCount*2, cfg.MaxConnsPerMessage)))
+	cc, ok := res.Data[0].(*model.CollectorConnections)
+	require.True(t, ok)
+	// times 2 because we get client and server
+	require.GreaterOrEqual(t, len(cc.Connections), connCount*2)
+
+	// uncomment to see system-probe output
+	//t.Log(out.String())
+}
+
+func skipUnless(t *testing.T, requiredArg string) {
+	for _, arg := range os.Args[1:] {
+		if arg == requiredArg {
+			return
+		}
+	}
+
+	t.Skip(
+		fmt.Sprintf(
+			"skipped %s. you can enable it by using running tests with `-args %s`.\n",
+			t.Name(),
+			requiredArg,
+		),
+	)
 }
