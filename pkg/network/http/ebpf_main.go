@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"reflect"
 
 	manager "github.com/DataDog/ebpf-manager"
 	"github.com/cilium/ebpf"
@@ -166,9 +165,7 @@ func (e *ebpfProgram) Init() error {
 		undefinedProbes = append(undefinedProbes, tc.ProbeIdentificationPair)
 	}
 	for _, s := range e.subprograms {
-		if reflect.ValueOf(s).IsNil() {
-			undefinedProbes = append(undefinedProbes, s.GetAllUndefinedProbes()...)
-		}
+		undefinedProbes = append(undefinedProbes, s.GetAllUndefinedProbes()...)
 	}
 
 	e.Manager.DumpHandler = dumpMapsHandler
