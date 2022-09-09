@@ -543,9 +543,8 @@ func (l *Collector) runnerForCheck(c checks.Check, exit chan struct{}) (func(), 
 		withPooledData, ok := c.(checks.CheckWithPooledData)
 		if ok {
 			return l.pooledDataRunner(withPooledData, results, exit), nil
-		} else {
-			return l.basicRunner(c, results, exit), nil
 		}
+		return l.basicRunner(c, results, exit), nil
 	}
 
 	rtResults := l.resultsQueueForCheck(withRealTime.RealTimeName())
