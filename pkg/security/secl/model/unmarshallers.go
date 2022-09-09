@@ -82,7 +82,8 @@ func (e *Event) UnmarshalBinary(data []byte) (int, error) {
 	e.Type = ByteOrder.Uint32(data[16:20])
 	e.Async = data[20] != 0
 	e.SavedByActivityDumps = data[21] != 0
-	// 22-24: padding
+	e.IsActivityDumpSample = data[22] != 0
+	// padding 1 byte
 
 	return 24, nil
 }

@@ -239,7 +239,8 @@ struct kevent_t {
     u32 type;
     u8 async;
     u8 saved_by_ad;
-    u8 padding[2];
+    u8 is_activity_dump_sample;
+    u8 padding;
 };
 
 struct syscall_t {

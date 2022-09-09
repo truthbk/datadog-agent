@@ -477,14 +477,8 @@ func (ad *ActivityDump) debug(w io.Writer) {
 }
 
 func (ad *ActivityDump) isEventTypeTraced(event *Event) bool {
-	// syscall monitor related event
-	if event.GetEventType() == model.SyscallsEventType && ad.adm.probe.config.ActivityDumpSyscallMonitor {
-		return true
-	}
-
-	// other events
 	var traced bool
-	for _, evtType := range ad.adm.probe.config.ActivityDumpTracedEventTypes {
+	for _, evtType := range ad.LoadConfig.TracedEventTypes {
 		if evtType == event.GetEventType() {
 			traced = true
 		}
@@ -503,8 +497,8 @@ func (ad *ActivityDump) Insert(event *Event) (newEntry bool) {
 		return false
 	}
 
-	// ignore fork events for now
-	if event.GetEventType() == model.ForkEventType {
+	// check if this event type is traced
+	if !ad.isEventTypeTraced(event) {
 		return false
 	}
 
@@ -523,11 +517,6 @@ func (ad *ActivityDump) Insert(event *Event) (newEntry bool) {
 	node := ad.findOrCreateProcessActivityNode(event.ResolveProcessCacheEntry(), Runtime)
 	if node == nil {
 		// a process node couldn't be found for the provided event as it doesn't match the ActivityDump query
-		return false
-	}
-
-	// check if this event type is traced
-	if !ad.isEventTypeTraced(event) {
 		return false
 	}
 

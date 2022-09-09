@@ -397,6 +397,11 @@ func (adm *ActivityDumpManager) ProcessEvent(event *Event) {
 	adm.Lock()
 	defer adm.Unlock()
 
+	// is this event sampled for activity dumps ?
+	if !event.IsActivityDumpSample {
+		return
+	}
+
 	for _, d := range adm.activeDumps {
 		d.Insert(event)
 	}

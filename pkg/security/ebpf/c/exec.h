@@ -69,6 +69,9 @@ struct bpf_map_def SEC("maps/exec_event_gen") exec_event_gen = {
 __attribute__((always_inline)) struct exec_event_t *get_exec_event() {
     u32 key = 0;
     struct exec_event_t *evt = bpf_map_lookup_elem(&exec_event_gen, &key);
+    if (evt != NULL) {
+        evt->event.is_activity_dump_sample = 1;
+    }
     return evt;
 }
 
