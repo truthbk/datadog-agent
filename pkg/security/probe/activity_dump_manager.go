@@ -373,7 +373,7 @@ func (adm *ActivityDumpManager) StopActivityDump(params *api.ActivityDumpStopPar
 	toDelete := -1
 	for i, d := range adm.activeDumps {
 		if d.commMatches(params.GetComm()) {
-			d.Stop(false)
+			d.Stop(true)
 			seclog.Infof("tracing stopped for [%s]", d.GetSelectorStr())
 			toDelete = i
 

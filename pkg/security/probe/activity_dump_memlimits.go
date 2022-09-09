@@ -20,9 +20,9 @@ type ActivityDumpNodeStats struct {
 
 func (stats *ActivityDumpNodeStats) approximateSize() int {
 	var total int
-	total += stats.processNodes * int(unsafe.Sizeof(ProcessActivityNode{}))
-	total += stats.fileNodes * int(unsafe.Sizeof(FileActivityNode{}))
-	total += stats.dnsNodes * int(unsafe.Sizeof(DNSNode{}))
-	total += stats.socketNodes * int(unsafe.Sizeof(SocketNode{}))
+	total += stats.processNodes * int(unsafe.Sizeof(ProcessActivityNode{})) // 1024
+	total += stats.fileNodes * int(unsafe.Sizeof(FileActivityNode{}))       // 80
+	total += stats.dnsNodes * int(unsafe.Sizeof(DNSNode{}))                 // 24
+	total += stats.socketNodes * int(unsafe.Sizeof(SocketNode{}))           // 40
 	return total
 }
