@@ -328,8 +328,6 @@ func (d *AgentDemultiplexer) Run() {
 	go d.aggregator.run()
 
 	if d.noAggStreamWorker != nil {
-		log.Debug("Starting streaming routine for the no-aggregation pipeline")
-
 		go d.noAggStreamWorker.run()
 	}
 
