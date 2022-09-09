@@ -45,10 +45,11 @@ import (
 // "--with-provider-prefixes" and is kept to avoid breaking compatibility.
 
 const (
-	providerPrefixesFlag    = "with-provider-prefixes"
-	providerPrefixSeparator = "@"
-	filePrefix              = "file"
-	k8sSecretPrefix         = "k8s_secret"
+	providerPrefixesFlag             = "with-provider-prefixes"
+	fallbackSecretBackendCommandFlag = "fallback-secret-backend-command"
+	providerPrefixSeparator          = "@"
+	filePrefix                       = "file"
+	k8sSecretPrefix                  = "k8s_secret"
 )
 
 // NewKubeClient TODO <agent-core>
@@ -57,6 +58,7 @@ type NewKubeClient func(timeout time.Duration) (kubernetes.Interface, error)
 func init() {
 	cmd := readSecretCmd
 	cmd.Flags().Bool(providerPrefixesFlag, false, "Use prefixes to select the secrets provider (file, k8s_secret)")
+	cmd.Flags().String(fallbackSecretBackendCommandFlag, "", "Use a fallback Secret Backend Command in case the specified provider is unknown or the secret is not found")
 	SecretHelperCmd.AddCommand(cmd)
 }
 
@@ -78,12 +80,17 @@ var readSecretCmd = &cobra.Command{
 			return err
 		}
 
+		fallbackSecretBackendCommand, err := cmd.Flags().GetString(fallbackSecretBackendCommandFlag)
+		if err != nil {
+			return err
+		}
+
 		dir := ""
 		if len(args) == 1 {
 			dir = args[0]
 		}
 
-		return readSecrets(os.Stdin, os.Stdout, dir, usePrefixes, apiserver.GetKubeClient)
+		return readSecrets(os.Stdin, os.Stdout, dir, usePrefixes, fallbackSecretBackendCommand, apiserver.GetKubeClient)
 	},
 }
 
@@ -92,14 +99,14 @@ type secretsRequest struct {
 	Secrets []string `json:"secrets"`
 }
 
-func readSecrets(r io.Reader, w io.Writer, dir string, usePrefixes bool, newKubeClientFunc NewKubeClient) error {
+func readSecrets(r io.Reader, w io.Writer, dir string, usePrefixes bool, fallbackSecretBackendCommand string, newKubeClientFunc NewKubeClient) error {
 	inputSecrets, err := parseInputSecrets(r)
 	if err != nil {
 		return err
 	}
 
 	if usePrefixes {
-		return writeFetchedSecrets(w, readSecretsUsingPrefixes(inputSecrets, dir, newKubeClientFunc))
+		return writeFetchedSecrets(w, readSecretsUsingPrefixes(inputSecrets, dir, fallbackSecretBackendCommand, newKubeClientFunc))
 	}
 
 	return writeFetchedSecrets(w, readSecretsFromFile(inputSecrets, dir))
@@ -150,8 +157,9 @@ func readSecretsFromFile(secrets []string, dir string) map[string]s.Secret {
 	return res
 }
 
-func readSecretsUsingPrefixes(secrets []string, rootPath string, newKubeClientFunc NewKubeClient) map[string]s.Secret {
+func readSecretsUsingPrefixes(secrets []string, rootPath string, fallbackSecretBackendCommand string, newKubeClientFunc NewKubeClient) map[string]s.Secret {
 	res := make(map[string]s.Secret)
+	secretIDsToFallback := []string{}
 
 	for _, secretID := range secrets {
 		prefix, id, err := parseSecretWithPrefix(secretID, rootPath)
@@ -173,6 +181,30 @@ func readSecretsUsingPrefixes(secrets []string, rootPath string, newKubeClientFu
 		default:
 			res[secretID] = s.Secret{Value: "", ErrorMsg: fmt.Sprintf("provider not supported: %s", prefix)}
 		}
+	}
+
+	// If there's no fallback Secret Backend Command, we return our current result.
+	// Else, if the fallback is set, we try to fetch the fallback, otherwise we keep the previous error.
+	// We go through all secrets, and if there was an error, we add them to the list of secrets to fetch through the fallback method
+	if fallbackSecretBackendCommand == "" {
+		return res
+	}
+
+	for secretID, secretObj := range res {
+		if secretObj.ErrorMsg != "" {
+			// We buffer all secrets that need to be checked with the fallback method in order to fetch them all at once
+			secretIDsToFallback = append(secretIDsToFallback, secretID)
+		}
+	}
+	results, err := s.FetchSecret(secretIDsToFallback, "agent_secret-helper_cmd", fallbackSecretBackendCommand)
+	if err != nil {
+		for _, secretID := range secretIDsToFallback {
+			res[secretID] = s.Secret{Value: "", ErrorMsg: fmt.Sprintf("unable to fetch this secret with the fallback: %s", err.Error())}
+		}
+		return res
+	}
+	for key, v := range results {
+		res[key] = s.Secret{Value: v}
 	}
 
 	return res

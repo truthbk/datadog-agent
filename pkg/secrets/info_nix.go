@@ -24,8 +24,8 @@ func (info *SecretInfo) populateRights() {
 	}
 
 	var stat syscall.Stat_t
-	if err := syscall.Stat(secretBackendCommand, &stat); err != nil {
-		info.RightDetails = fmt.Sprintf("Could not stat %s: %s", secretBackendCommand, err)
+	if err := syscall.Stat(secretBackendCommandDefault, &stat); err != nil {
+		info.RightDetails = fmt.Sprintf("Could not stat %s: %s", secretBackendCommandDefault, err)
 	} else {
 		info.RightDetails = fmt.Sprintf("file mode: %o", stat.Mode)
 	}

@@ -43,7 +43,7 @@ func (b *limitBuffer) Write(p []byte) (n int, err error) {
 	return b.buf.Write(p)
 }
 
-func execCommand(inputPayload string) ([]byte, error) {
+func execCommand(secretBackendCommand string, inputPayload string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(),
 		time.Duration(secretBackendTimeout)*time.Second)
 	defer cancel()
@@ -112,10 +112,10 @@ type Secret struct {
 // for testing purpose
 var runCommand = execCommand
 
-// fetchSecret receives a list of secrets name to fetch, exec a custom
+// FetchSecret receives a list of secrets name to fetch, exec a custom
 // executable to fetch the actual secrets and returns them. Origin should be
 // the name of the configuration where the secret was referenced.
-func fetchSecret(secretsHandle []string, origin string) (map[string]string, error) {
+func FetchSecret(secretsHandle []string, origin string, secretBackendCommand string) (map[string]string, error) {
 	payload := map[string]interface{}{
 		"version": PayloadVersion,
 		"secrets": secretsHandle,
@@ -124,7 +124,7 @@ func fetchSecret(secretsHandle []string, origin string) (map[string]string, erro
 	if err != nil {
 		return nil, fmt.Errorf("could not serialize secrets IDs to fetch password: %s", err)
 	}
-	output, err := runCommand(string(jsonPayload))
+	output, err := runCommand(secretBackendCommand, string(jsonPayload))
 	if err != nil {
 		return nil, err
 	}

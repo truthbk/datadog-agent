@@ -161,7 +161,7 @@ func TestReadSecrets(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var w bytes.Buffer
-			err := readSecrets(strings.NewReader(test.in), &w, path, test.usePrefixes, newKubeClientFunc)
+			err := readSecrets(strings.NewReader(test.in), &w, path, test.usePrefixes, "", newKubeClientFunc)
 			out := string(w.Bytes())
 
 			if test.out != "" {

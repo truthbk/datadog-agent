@@ -169,8 +169,8 @@ func TestWalkerComplex(t *testing.T) {
 }
 
 func TestDecryptNoCommand(t *testing.T) {
-	defer func() { secretFetcher = fetchSecret }()
-	secretFetcher = func(secrets []string, origin string) (map[string]string, error) {
+	defer func() { secretFetcher = FetchSecret }()
+	secretFetcher = func(secrets []string, origin string, secretBackendCommand string) (map[string]string, error) {
 		return nil, fmt.Errorf("some error")
 	}
 
@@ -180,13 +180,13 @@ func TestDecryptNoCommand(t *testing.T) {
 }
 
 func TestDecryptSecretError(t *testing.T) {
-	secretBackendCommand = "some_command"
+	secretBackendCommandDefault = "some_command"
 	defer func() {
-		secretBackendCommand = ""
-		secretFetcher = fetchSecret
+		secretBackendCommandDefault = ""
+		secretFetcher = FetchSecret
 	}()
 
-	secretFetcher = func(secrets []string, origin string) (map[string]string, error) {
+	secretFetcher = func(secrets []string, origin string, secretBackendCommand string) (map[string]string, error) {
 		return nil, fmt.Errorf("some error")
 	}
 
@@ -199,16 +199,16 @@ func TestDecryptSecretError(t *testing.T) {
 // decryption logic, but is left unchanged as a string instead.
 // See https://github.com/DataDog/datadog-agent/pull/6586 for details.
 func TestDecryptSecretStringMapStringWithDashValue(t *testing.T) {
-	secretBackendCommand = "some_command"
+	secretBackendCommandDefault = "some_command"
 
 	defer func() {
-		secretBackendCommand = ""
+		secretBackendCommandDefault = ""
 		secretCache = map[string]string{}
 		secretOrigin = map[string]common.StringSet{}
-		secretFetcher = fetchSecret
+		secretFetcher = FetchSecret
 	}()
 
-	secretFetcher = func(secrets []string, origin string) (map[string]string, error) {
+	secretFetcher = func(secrets []string, origin string, secretBackendCommand string) (map[string]string, error) {
 		assert.Equal(t, []string{
 			"pass1",
 		}, secrets)
@@ -224,16 +224,16 @@ func TestDecryptSecretStringMapStringWithDashValue(t *testing.T) {
 }
 
 func TestDecryptSecretNoCache(t *testing.T) {
-	secretBackendCommand = "some_command"
+	secretBackendCommandDefault = "some_command"
 
 	defer func() {
-		secretBackendCommand = ""
+		secretBackendCommandDefault = ""
 		secretCache = map[string]string{}
 		secretOrigin = map[string]common.StringSet{}
-		secretFetcher = fetchSecret
+		secretFetcher = FetchSecret
 	}()
 
-	secretFetcher = func(secrets []string, origin string) (map[string]string, error) {
+	secretFetcher = func(secrets []string, origin string, secretBackendCommand string) (map[string]string, error) {
 		sort.Strings(secrets)
 		assert.Equal(t, []string{
 			"pass1",
@@ -252,18 +252,18 @@ func TestDecryptSecretNoCache(t *testing.T) {
 }
 
 func TestDecryptSecretPartialCache(t *testing.T) {
-	secretBackendCommand = "some_command"
-	defer func() { secretBackendCommand = "" }()
+	secretBackendCommandDefault = "some_command"
+	defer func() { secretBackendCommandDefault = "" }()
 
 	secretCache["pass1"] = "password1"
 	secretOrigin["pass1"] = common.NewStringSet("test")
 	defer func() {
 		secretCache = map[string]string{}
 		secretOrigin = map[string]common.StringSet{}
-		secretFetcher = fetchSecret
+		secretFetcher = FetchSecret
 	}()
 
-	secretFetcher = func(secrets []string, origin string) (map[string]string, error) {
+	secretFetcher = func(secrets []string, origin string, secretBackendCommand string) (map[string]string, error) {
 		sort.Strings(secrets)
 		assert.Equal(t, []string{
 			"pass2",
@@ -280,8 +280,8 @@ func TestDecryptSecretPartialCache(t *testing.T) {
 }
 
 func TestDecryptSecretFullCache(t *testing.T) {
-	secretBackendCommand = "some_command"
-	defer func() { secretBackendCommand = "" }()
+	secretBackendCommandDefault = "some_command"
+	defer func() { secretBackendCommandDefault = "" }()
 
 	secretCache["pass1"] = "password1"
 	secretCache["pass2"] = "password2"
@@ -290,10 +290,10 @@ func TestDecryptSecretFullCache(t *testing.T) {
 	defer func() {
 		secretCache = map[string]string{}
 		secretOrigin = map[string]common.StringSet{}
-		secretFetcher = fetchSecret
+		secretFetcher = FetchSecret
 	}()
 
-	secretFetcher = func(secrets []string, origin string) (map[string]string, error) {
+	secretFetcher = func(secrets []string, origin string, secretBackendCommand string) (map[string]string, error) {
 		require.Fail(t, "Secret Cache was not used properly")
 		return nil, nil
 	}
@@ -304,16 +304,16 @@ func TestDecryptSecretFullCache(t *testing.T) {
 }
 
 func TestDebugInfo(t *testing.T) {
-	secretBackendCommand = "some_command"
+	secretBackendCommandDefault = "some_command"
 
 	defer func() {
-		secretBackendCommand = ""
+		secretBackendCommandDefault = ""
 		secretCache = map[string]string{}
 		secretOrigin = map[string]common.StringSet{}
 		runCommand = execCommand
 	}()
 
-	runCommand = func(string) ([]byte, error) {
+	runCommand = func(string, string) ([]byte, error) {
 		res := []byte("{\"pass1\":{\"value\":\"password1\"},")
 		res = append(res, []byte("\"pass2\":{\"value\":\"password2\"},")...)
 		res = append(res, []byte("\"pass3\":{\"value\":\"password3\"}}")...)

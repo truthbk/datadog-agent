@@ -23,7 +23,7 @@ var (
 	// list of handles and where they were found
 	secretOrigin map[string]common.StringSet
 
-	secretBackendCommand               string
+	secretBackendCommandDefault        string
 	secretBackendArguments             []string
 	secretBackendTimeout               = 5
 	secretBackendCommandAllowGroupExec bool
@@ -41,7 +41,7 @@ func init() {
 // this package is used by the 'config' package to decrypt itself we can't
 // directly use it.
 func Init(command string, arguments []string, timeout int, maxSize int, groupExecPerm bool) {
-	secretBackendCommand = command
+	secretBackendCommandDefault = command
 	secretBackendArguments = arguments
 	secretBackendTimeout = timeout
 	SecretBackendOutputMaxSize = maxSize
@@ -125,12 +125,12 @@ func isEnc(str string) (bool, string) {
 }
 
 // testing purpose
-var secretFetcher = fetchSecret
+var secretFetcher = FetchSecret
 
 // Decrypt replaces all encrypted secrets in data by executing
 // "secret_backend_command" once if all secrets aren't present in the cache.
 func Decrypt(data []byte, origin string) ([]byte, error) {
-	if data == nil || secretBackendCommand == "" {
+	if data == nil || secretBackendCommandDefault == "" {
 		return data, nil
 	}
 
@@ -168,7 +168,7 @@ func Decrypt(data []byte, origin string) ([]byte, error) {
 
 	// check if any new secrets need to be fetch
 	if len(newHandles) != 0 {
-		secrets, err := secretFetcher(newHandles, origin)
+		secrets, err := secretFetcher(newHandles, origin, secretBackendCommandDefault)
 		if err != nil {
 			return nil, err
 		}
@@ -180,7 +180,7 @@ func Decrypt(data []byte, origin string) ([]byte, error) {
 					log.Debugf("Secret '%s' was retrieved from executable", handle)
 					return secret, nil
 				}
-				// This should never happen since fetchSecret will return an error
+				// This should never happen since FetchSecret will return an error
 				// if not every handles have been fetched.
 				return str, fmt.Errorf("unknown secret '%s'", handle)
 			}
@@ -200,10 +200,10 @@ func Decrypt(data []byte, origin string) ([]byte, error) {
 
 // GetDebugInfo exposes debug informations about secrets to be included in a flare
 func GetDebugInfo() (*SecretInfo, error) {
-	if secretBackendCommand == "" {
+	if secretBackendCommandDefault == "" {
 		return nil, fmt.Errorf("No secret_backend_command set: secrets feature is not enabled")
 	}
-	info := &SecretInfo{ExecutablePath: secretBackendCommand}
+	info := &SecretInfo{ExecutablePath: secretBackendCommandDefault}
 	info.populateRights()
 
 	info.SecretsHandles = map[string][]string{}
