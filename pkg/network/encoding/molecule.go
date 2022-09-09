@@ -236,6 +236,7 @@ func newMoleculeDecoder() *moleculeDecoder {
 }
 
 func (m *moleculeDecoder) Unmarshal(b []byte) (*model.Connections, error) {
+	defer m.reset()
 	conns := connsPool.Get().(*model.Connections)
 	err := m.decodeConnections(b, conns)
 	if err != nil {
@@ -244,6 +245,18 @@ func (m *moleculeDecoder) Unmarshal(b []byte) (*model.Connections, error) {
 		return nil, err
 	}
 	return conns, nil
+}
+
+func (m *moleculeDecoder) reset() {
+	m.connsBuffer.Reset(nil)
+	m.connBuffer.Reset(nil)
+	m.miscBuffer.Reset(nil)
+	m.rcTelemetryBuffer.Reset(nil)
+	m.routeBuffer.Reset(nil)
+	m.dnsEntryBuffer.Reset(nil)
+	m.dnsStatsBuffer.Reset(nil)
+	m.dnsRcodeBuffer.Reset(nil)
+	m.dnsStatsDomainBuffer.Reset(nil)
 }
 
 func (m *moleculeDecoder) decodeConnections(data []byte, conns *model.Connections) error {
