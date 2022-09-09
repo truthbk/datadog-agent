@@ -18,9 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
-	adproto "github.com/DataDog/datadog-agent/pkg/security/adproto/v1"
 	"github.com/DataDog/datadog-agent/pkg/security/ebpf/kernel"
 	"github.com/DataDog/datadog-agent/pkg/security/probe"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
@@ -30,7 +27,7 @@ import (
 var expectedFormats = []string{"json", "protobuf"}
 
 func TestActivityDumps(t *testing.T) {
-	test, err := newTestModule(t, nil, []*rules.RuleDefinition{}, testOpts{enableActivityDump: true})
+	test, err := newTestModule(t, nil, []*rules.RuleDefinition{}, testOpts{enableActivityDump: true, activityDumpRateLimiter: 10})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,6 +215,56 @@ func TestActivityDumps(t *testing.T) {
 			return exitOK && execveOK
 		})
 	})
+
+	test.Run(t, "activity-dump-comm-rate-limiter", func(t *testing.T, kind wrapperType,
+		cmdFunc func(cmd string, args []string, envs []string) *exec.Cmd) {
+
+		outputFiles, err := test.StartActivityDumpComm(t, "testsuite", outputDir, expectedFormats)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		time.Sleep(1 * time.Second) // a quick sleep to let starts and snapshot events to be added to the dump
+
+		for i := 0; i < 200; i++ {
+			temp, err := os.CreateTemp("/tmp", "ad-test-create")
+			fmt.Printf("Create %s\n", temp.Name())
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.Remove(temp.Name())
+		}
+
+		time.Sleep(1 * time.Second) // a quick sleep to let events to be added to the dump
+
+		err = test.StopActivityDumpComm(t, "testsuite")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		validateActivityDumpOutputs(t, test, expectedFormats, outputFiles, func(ad *probe.ActivityDump) bool {
+			nodes := ad.FindMatchingNodes("testsuite")
+			if nodes == nil {
+				t.Fatal("Node not found in activity dump")
+			}
+
+			for _, node := range nodes {
+				tmp := node.Files["tmp"]
+				if tmp == nil {
+					continue
+				}
+				for _, file := range tmp.Children {
+					fmt.Printf("Found root: %s\n", file.Name)
+				}
+				fmt.Printf("Found %d files\n", len(tmp.Children))
+				if len(tmp.Children) > 10 {
+					return false
+				}
+			}
+			return true
+		})
+	})
+
 }
 
 func validateActivityDumpOutputs(t *testing.T, test *testModule, expectedFormats []string, outputFiles []string, msgpValidator func(ad *probe.ActivityDump) bool) {
@@ -249,12 +296,16 @@ func validateActivityDumpOutputs(t *testing.T, test *testModule, expectedFormats
 			if err != nil {
 				t.Fatal(err)
 			}
-			ad := &adproto.ActivityDump{}
-			err = proto.Unmarshal(content, ad)
-			if err != nil {
-				t.Error(err)
+
+			// adm = test.
+			ad := probe.NewEmptyActivityDump()
+			ad.DecodeProtobuf(strings.NewReader(string(content)))
+
+			found := msgpValidator(ad)
+			if !found {
+				t.Error("Invalid activity dump")
 			}
-			perExtOK[ext] = true
+			perExtOK[ext] = found
 
 		default:
 			t.Fatal("Unexpected output file")
