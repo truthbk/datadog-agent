@@ -371,7 +371,7 @@ __attribute__((always_inline)) u8 activity_dump_rate_limiter_allow(struct activi
     if (rate_ctx_p == NULL) {
         struct activity_dump_rate_limiter_ctx rate_ctx = {
             .current_period = now,
-            .counter = 1,
+            .counter = should_count,
         };
         bpf_map_update_elem(&activity_dump_rate_limiters, &cookie, &rate_ctx, BPF_ANY);
         return 1;
@@ -419,7 +419,7 @@ __attribute__((always_inline)) u32 get_activity_dump_state(void *ctx, u32 pid, u
     }
 
     // is this event type traced ?
-    if (mask_has_event(config->event_mask, event_type)) {
+    if (!mask_has_event(config->event_mask, event_type)) {
         return NO_ACTIVITY_DUMP;
     }
 
