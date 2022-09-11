@@ -258,7 +258,7 @@ func (adm *ActivityDumpManager) insertActivityDump(newDump *ActivityDump) error 
 		}
 	}
 
-	// enable the new to start collecting events from kernel space
+	// enable the new dump to start collecting events from kernel space
 	if err := newDump.enable(); err != nil {
 		return fmt.Errorf("couldn't insert new dump: %w", err)
 	}
@@ -567,7 +567,7 @@ func (adm *ActivityDumpManager) getOverweightDumps() []*ActivityDump {
 		dumpSize := ad.ComputeInMemorySize()
 
 		// send dump size in memory metric
-		if err := adm.probe.statsdClient.Count(metrics.MetricActivityDumpActiveDumpSizeInMemory, dumpSize, []string{}, 1); err != nil {
+		if err := adm.probe.statsdClient.Gauge(metrics.MetricActivityDumpActiveDumpSizeInMemory, float64(dumpSize), []string{fmt.Sprintf("dump_index:%d", i)}, 1); err != nil {
 			seclog.Errorf("couldn't send %s metric: %v", metrics.MetricActivityDumpActiveDumpSizeInMemory, err)
 		}
 
