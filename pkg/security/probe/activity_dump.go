@@ -408,12 +408,17 @@ func (ad *ActivityDump) disable() error {
 	}
 	ad.state = Disabled
 
+	// remove activity dump
+	if err := ad.adm.activityDumpsConfigMap.Delete(ad.LoadConfigCookie); err != nil && !errors.Is(err, ebpf.ErrKeyNotExist) {
+		return fmt.Errorf("couldn't delete activity dump load config: %w", err)
+	}
+
 	// remove comm from kernel space
 	if len(ad.DumpMetadata.Comm) > 0 {
 		commB := make([]byte, 16)
 		copy(commB, ad.DumpMetadata.Comm)
 		err := ad.adm.tracedCommsMap.Delete(commB)
-		if err != nil {
+		if err != nil && !errors.Is(err, ebpf.ErrKeyNotExist) {
 			return fmt.Errorf("couldn't delete activity dump filter comm(%s): %v", ad.DumpMetadata.Comm, err)
 		}
 	}
@@ -422,14 +427,9 @@ func (ad *ActivityDump) disable() error {
 	if len(ad.DumpMetadata.ContainerID) > 0 {
 		containerIDB := make([]byte, model.ContainerIDLen)
 		copy(containerIDB, ad.DumpMetadata.ContainerID)
-		if err := ad.adm.tracedCgroupsMap.Delete(containerIDB); err != nil {
+		if err := ad.adm.tracedCgroupsMap.Delete(containerIDB); err != nil && !errors.Is(err, ebpf.ErrKeyNotExist) {
 			return fmt.Errorf("couldn't delete activity dump filter containerID(%s): %v", ad.DumpMetadata.ContainerID, err)
 		}
-	}
-
-	// remove activity dump
-	if err := ad.adm.activityDumpsConfigMap.Delete(ad.LoadConfigCookie); err != nil {
-		return fmt.Errorf("couldn't delete activity dump load config: %w", err)
 	}
 	return nil
 }
