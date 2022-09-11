@@ -329,7 +329,7 @@ func (adm *ActivityDumpManager) DumpActivity(params *api.ActivityDumpParams) (*a
 	newDump := NewActivityDump(adm, func(ad *ActivityDump) {
 		ad.DumpMetadata.Comm = params.GetComm()
 		ad.DumpMetadata.DifferentiateArgs = params.GetDifferentiateArgs()
-		ad.LoadConfig.SetTimeout(time.Duration(params.Timeout) * time.Minute)
+		ad.SetTimeout(time.Duration(params.Timeout) * time.Minute)
 	})
 
 	// add local storage requests

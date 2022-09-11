@@ -118,7 +118,6 @@ type ActivityDump struct {
 	DumpMetadata
 
 	// Load config
-	IsPartialDump    bool                          `json:"-"`
 	LoadConfig       *model.ActivityDumpLoadConfig `json:"-"`
 	LoadConfigCookie uint32                        `json:"-"`
 }
@@ -165,6 +164,7 @@ type WithDumpOption func(ad *ActivityDump)
 // NewActivityDump returns a new instance of an ActivityDump
 func NewActivityDump(adm *ActivityDumpManager, options ...WithDumpOption) *ActivityDump {
 	ad := NewEmptyActivityDump()
+	now := time.Now()
 	ad.DumpMetadata = DumpMetadata{
 		AgentVersion:      version.AgentVersion,
 		AgentCommit:       version.Commit,
@@ -172,7 +172,8 @@ func NewActivityDump(adm *ActivityDumpManager, options ...WithDumpOption) *Activ
 		LinuxDistribution: adm.probe.kernelVersion.OsRelease["PRETTY_NAME"],
 		Name:              fmt.Sprintf("activity-dump-%s", eval.RandString(10)),
 		ProtobufVersion:   ProtobufVersion,
-		Start:             time.Now(),
+		Start:             now,
+		End:               now.Add(adm.probe.config.ActivityDumpCgroupDumpTimeout),
 		Arch:              probes.RuntimeArch,
 	}
 	ad.Host = adm.hostname
@@ -185,7 +186,7 @@ func NewActivityDump(adm *ActivityDumpManager, options ...WithDumpOption) *Activ
 		adm.probe.config.ActivityDumpTracedEventTypes,
 		adm.probe.config.ActivityDumpCgroupDumpTimeout,
 		adm.probe.config.ActivityDumpRateLimiter,
-		ad.Start,
+		now,
 		adm.probe.resolvers.TimeResolver,
 	)
 	ad.LoadConfigCookie = eval.NewCookie()
@@ -310,6 +311,14 @@ func (ad *ActivityDump) SetLoadConfig(cookie uint32, config model.ActivityDumpLo
 
 	// Update metadata
 	ad.DumpMetadata.Start = ad.adm.probe.resolvers.TimeResolver.ResolveMonotonicTimestamp(ad.LoadConfig.StartTimestampRaw)
+	ad.DumpMetadata.End = ad.adm.probe.resolvers.TimeResolver.ResolveMonotonicTimestamp(ad.LoadConfig.EndTimestampRaw)
+}
+
+// SetTimeout updates the activity dump timeout
+func (ad *ActivityDump) SetTimeout(timeout time.Duration) {
+	ad.LoadConfig.SetTimeout(timeout)
+
+	// Update metadata
 	ad.DumpMetadata.End = ad.adm.probe.resolvers.TimeResolver.ResolveMonotonicTimestamp(ad.LoadConfig.EndTimestampRaw)
 }
 
