@@ -44,20 +44,6 @@ func TestMountResolver(t *testing.T) {
 				[]event{
 					{
 						mount: &model.MountEvent{
-<<<<<<< HEAD
-							SyscallEvent:  model.SyscallEvent{},
-							MountID:       127,
-							GroupID:       71,
-							Device:        52,
-							ParentMountID: 0,
-							ParentInode:   0,
-							FSType:        "overlay",
-							MountPointStr: "/var/lib/docker/overlay2/f44b5a1fe134f57a31da79fa2e76ea09f8659a34edfa0fa2c3b4f52adbd91963/merged",
-							RootMountID:   0,
-							RootInode:     0,
-							RootStr:       "",
-							FSTypeRaw:     [16]byte{},
-=======
 							SyscallEvent: model.SyscallEvent{},
 							Mount: model.Mount{
 								MountID:       127,
@@ -71,8 +57,6 @@ func TestMountResolver(t *testing.T) {
 								MountPointStr: "/var/lib/docker/overlay2/f44b5a1fe134f57a31da79fa2e76ea09f8659a34edfa0fa2c3b4f52adbd91963/merged",
 								RootStr:       "",
 							},
-							FSTypeRaw: [16]byte{},
->>>>>>> 2ec792bc41... introduce Mount type to distinguish between mount points and mount events
 						},
 					},
 				},
@@ -134,7 +118,6 @@ func TestMountResolver(t *testing.T) {
 								MountPointStr: "/",
 								RootStr:       "",
 							},
-							FSTypeRaw: [16]byte{},
 						},
 					},
 					{
@@ -152,7 +135,6 @@ func TestMountResolver(t *testing.T) {
 								MountPointStr: "/sys",
 								RootStr:       "",
 							},
-							FSTypeRaw: [16]byte{},
 						},
 					},
 					{
@@ -170,7 +152,6 @@ func TestMountResolver(t *testing.T) {
 								MountPointStr: "/sys/fs/cgroup",
 								RootStr:       "",
 							},
-							FSTypeRaw: [16]byte{},
 						},
 					},
 				},
@@ -242,7 +223,6 @@ func TestMountResolver(t *testing.T) {
 								MountPointStr: "/",
 								RootStr:       "",
 							},
-							FSTypeRaw: [16]byte{},
 						},
 					},
 					{
@@ -260,7 +240,6 @@ func TestMountResolver(t *testing.T) {
 								MountPointStr: "/var/lib/docker/overlay2/f44b5a1fe134f57a31da79fa2e76ea09f8659a34edfa0fa2c3b4f52adbd91963/merged",
 								RootStr:       "",
 							},
-							FSTypeRaw: [16]byte{},
 						},
 					},
 					{
@@ -278,7 +257,6 @@ func TestMountResolver(t *testing.T) {
 								MountPointStr: "/",
 								RootStr:       "",
 							},
-							FSTypeRaw: [16]byte{},
 						},
 					},
 					{
@@ -296,7 +274,6 @@ func TestMountResolver(t *testing.T) {
 								MountPointStr: "proc",
 								RootStr:       "",
 							},
-							FSTypeRaw: [16]byte{},
 						},
 					},
 				},
@@ -411,7 +388,7 @@ func TestMountLoop(t *testing.T) {
 	}
 
 	mr := &MountResolver{
-		mounts: map[uint32]*model.MountEvent{
+		mounts: map[uint32]*model.Mount{
 			1: {
 				MountID:       1,
 				ParentMountID: 3,
