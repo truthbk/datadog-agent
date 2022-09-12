@@ -866,7 +866,7 @@ func (adlc *ActivityDumpLoadConfig) EventUnmarshalBinary(data []byte) (int, erro
 	adlc.StartTimestampRaw = ByteOrder.Uint64(data[16:24])
 	adlc.EndTimestampRaw = ByteOrder.Uint64(data[24:32])
 	adlc.Rate = ByteOrder.Uint32(data[32:36])
-	// padding 4 bytes
+	adlc.Paused = ByteOrder.Uint32(data[36:40])
 	return 40, nil
 }
 

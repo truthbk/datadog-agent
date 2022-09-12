@@ -272,8 +272,10 @@ func (adm *ActivityDumpManager) insertActivityDump(newDump *ActivityDump) error 
 	default:
 	}
 
-	// append activity dump to the list of active dumps
+	// set the AD state now so that we can start inserting new events
 	newDump.SetState(Running)
+
+	// append activity dump to the list of active dumps
 	adm.activeDumps = append(adm.activeDumps, newDump)
 	return nil
 }
@@ -492,6 +494,9 @@ func (adm *ActivityDumpManager) snapshotTracedCgroups() {
 		}
 
 		if _, err = event.ContainerContext.UnmarshalBinary(containerIDB[:]); err != nil {
+			seclog.Errorf("couldn't unmarshal container ID from traced_cgroups key: %v", err)
+			// remove invalid entry
+			_ = adm.tracedCgroupsMap.Delete(containerIDB)
 			continue
 		}
 
@@ -553,6 +558,11 @@ func (adm *ActivityDumpManager) triggerLoadController() {
 			return
 		}
 		seclog.Infof("tracing resumed for [%s]", newDump.GetSelectorStr())
+
+		// remove old load config
+		if err := ad.removeLoadConfig(); err != nil {
+			seclog.Errorf("couldn't clean up old dump [%s]: %v", ad.GetSelectorStr(), err)
+		}
 	}
 }
 
