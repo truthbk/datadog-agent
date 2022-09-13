@@ -45,10 +45,15 @@ func init() {
 		numCPU = 1
 	}
 
-	if numCPU < 64 {
+	switch {
+	case numCPU < 16:
+		defaultEventsRingBufferSize = uint32(8 * 256 * os.Getpagesize())
+	case numCPU < 32:
+		defaultEventsRingBufferSize = uint32(16 * 256 * os.Getpagesize())
+	case numCPU < 64:
+		defaultEventsRingBufferSize = uint32(32 * 256 * os.Getpagesize())
+	default:
 		defaultEventsRingBufferSize = uint32(64 * 256 * os.Getpagesize())
-	} else {
-		defaultEventsRingBufferSize = uint32(128 * 256 * os.Getpagesize())
 	}
 }
 
