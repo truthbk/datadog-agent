@@ -450,7 +450,7 @@ func (mr *MountResolver) GetMountPath(mountID, pid uint32) (string, string, stri
 	return overlayPath, parentPath, mount.RootStr, nil
 }
 
-func (mr *MountResolver) GetMountPointFullPath(mountID uint32) (string, error) {
+func (mr *MountResolver) GetMountFullPath(mountID uint32) (string, error) {
 	if mountID == 0 {
 		return "", ErrMountUndefined
 	}
