@@ -35,6 +35,9 @@ func NewLegacyExtractor(rateByService map[string]float64) Extractor {
 // If this rate doesn't exist or the provided span is not a top level one, then no extraction is done and false is
 // returned as the third value, with the others being invalid.
 func (e *legacyExtractor) Extract(s *pb.Span, priority sampler.SamplingPriority) (float64, bool) {
+	if priority < 0 {
+		return 0, false
+	}
 	if !traceutil.HasTopLevel(s) {
 		return 0, false
 	}

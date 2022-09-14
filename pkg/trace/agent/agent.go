@@ -440,11 +440,20 @@ func (a *Agent) sample(now time.Time, ts *info.TagStats, pt traceutil.ProcessedT
 		ts.TracesPriorityNone.Inc()
 	}
 
+	/* TODO
 	if priority < 0 {
 		return 0, false, nil
 	}
+	*/
+	// TODO: new code yeahhhh!!!
+	var sampled bool
+	if priority < 0 {
+		sampled = false
+	} else {
+		sampled = a.runSamplers(now, pt, hasPriority)
+	}
 
-	sampled := a.runSamplers(now, pt, hasPriority)
+	// sampled := a.runSamplers(now, pt, hasPriority)
 
 	filteredChunk = pt.TraceChunk
 	if !sampled {
@@ -524,8 +533,8 @@ func filteredByTags(root *pb.Span, require, reject []*config.Tag) bool {
 
 func newEventProcessor(conf *config.AgentConfig) *event.Processor {
 	extractors := []event.Extractor{
-		event.NewMetricBasedExtractor(),
 		event.NewSingleSpanExtractor(),
+		event.NewMetricBasedExtractor(),
 	}
 	if len(conf.AnalyzedSpansByService) > 0 {
 		extractors = append(extractors, event.NewFixedRateExtractor(conf.AnalyzedSpansByService))

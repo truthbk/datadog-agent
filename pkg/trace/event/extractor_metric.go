@@ -27,6 +27,9 @@ func NewMetricBasedExtractor() Extractor {
 // NOTE: If priority is UserKeep (manually sampled) any extraction rate bigger than 0 is upscaled to 1 to ensure no
 // extraction sampling is done on this event.
 func (e *metricBasedExtractor) Extract(s *pb.Span, priority sampler.SamplingPriority) (float64, bool) {
+	if priority < 0 {
+		return 0, false
+	}
 	if len(s.Metrics) == 0 {
 		// metric not set
 		return 0, false

@@ -8,7 +8,6 @@ package event
 import (
 	"github.com/DataDog/datadog-agent/pkg/trace/pb"
 	"github.com/DataDog/datadog-agent/pkg/trace/sampler"
-	"github.com/DataDog/datadog-agent/pkg/trace/traceutil"
 )
 
 // Processor is responsible for all the logic surrounding extraction and sampling of APM events from processed traces.
@@ -58,8 +57,8 @@ func (p *Processor) Process(root *pb.Span, t *pb.TraceChunk) (numEvents, numExtr
 	events := []*pb.Span{}
 
 	for _, span := range t.Spans {
-		extractionRate, ok := p.extract(span, priority)
-		if !ok {
+		extractionRate, extractor := p.extract(span, priority)
+		if extractor == nil {
 			continue
 		}
 		if !sampler.SampleByRate(span.TraceID, extractionRate) {
@@ -67,7 +66,7 @@ func (p *Processor) Process(root *pb.Span, t *pb.TraceChunk) (numEvents, numExtr
 		}
 
 		numExtracted++
-		if _, ok := traceutil.GetMetric(span, sampler.KeySpanSamplingMechanism); !ok {
+		if _, ok := extractor.(*singleSpanRateExtractor); !ok {
 			sampled, epsRate := p.maxEPSSample(span, priority)
 			if !sampled {
 				continue
@@ -80,24 +79,27 @@ func (p *Processor) Process(root *pb.Span, t *pb.TraceChunk) (numEvents, numExtr
 			sampler.SetAnalyzedSpan(span)
 		}
 		if t.DroppedTrace {
+			// sampler.SetAnalyzedSpan(span) // TODO: tag _dd.analyzed
 			events = append(events, span)
 		}
 		numEvents++
 	}
 	if t.DroppedTrace {
-		// we are not keeping anything out of this trace, except the events and sampled single spans
+		// TODO: maybe put a comment here (but not this one)
+		t.Priority = int32(sampler.PriorityUserKeep)
+		t.DroppedTrace = false
 		t.Spans = events
 	}
 	return numEvents, numExtracted
 }
 
-func (p *Processor) extract(span *pb.Span, priority sampler.SamplingPriority) (float64, bool) {
+func (p *Processor) extract(span *pb.Span, priority sampler.SamplingPriority) (float64, Extractor) {
 	for _, extractor := range p.extractors {
 		if rate, ok := extractor.Extract(span, priority); ok {
-			return rate, ok
+			return rate, extractor
 		}
 	}
-	return 0, false
+	return 0, nil
 }
 
 func (p *Processor) maxEPSSample(event *pb.Span, priority sampler.SamplingPriority) (sampled bool, rate float64) {

@@ -38,6 +38,9 @@ func NewFixedRateExtractor(rateByServiceAndName map[string]map[string]float64) E
 // extraction rate and a true value. If no extraction happened, false is returned as the third value and the others
 // are invalid.
 func (e *fixedRateExtractor) Extract(s *pb.Span, priority sampler.SamplingPriority) (float64, bool) {
+	if priority < 0 {
+		return 0, false
+	}
 	operations, ok := e.rateByServiceAndName[strings.ToLower(s.Service)]
 	if !ok {
 		return 0, false

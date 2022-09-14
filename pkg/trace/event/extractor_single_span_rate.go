@@ -28,6 +28,8 @@ func (e *singleSpanRateExtractor) Extract(s *pb.Span, _ sampler.SamplingPriority
 	if _, ok := traceutil.GetMetric(s, sampler.KeySpanSamplingMechanism); ok {
 		// If the tag is present, then the tracer wants us to keep the
 		// span. The tracer already accounted for the rate.
+		// t.Priority = 2 // TODO
+		// t.DroppedTrace = false // TODO
 		return 1, true
 	}
 	return 0, false
