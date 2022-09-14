@@ -45,10 +45,6 @@ const (
 // This is a var so that it can be changed for testing
 var defaultResponseTimeout = 30 * time.Second
 
-// Payloads is a slice of pointers to byte arrays, an alias for the slices of
-// payloads we pass into the forwarder
-type Payloads []*[]byte
-
 // Response contains the response details of a successfully posted transaction
 type Response struct {
 	Domain     string

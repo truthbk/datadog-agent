@@ -168,14 +168,14 @@ func (s Serializer) serializePayload(
 	jsonMarshaler marshaler.JSONMarshaler,
 	protoMarshaler marshaler.ProtoMarshaler,
 	compress bool,
-	useV1API bool) (forwarder.Payloads, http.Header, error) {
+	useV1API bool) (transaction.BytesPayloads, http.Header, error) {
 	if useV1API {
 		return s.serializePayloadJSON(jsonMarshaler, compress)
 	}
 	return s.serializePayloadProto(protoMarshaler, compress)
 }
 
-func (s Serializer) serializePayloadJSON(payload marshaler.JSONMarshaler, compress bool) (forwarder.Payloads, http.Header, error) {
+func (s Serializer) serializePayloadJSON(payload marshaler.JSONMarshaler, compress bool) (transaction.BytesPayloads, http.Header, error) {
 	var extraHeaders http.Header
 
 	if compress {
@@ -187,7 +187,7 @@ func (s Serializer) serializePayloadJSON(payload marshaler.JSONMarshaler, compre
 	return s.serializePayloadInternal(payload, compress, extraHeaders, split.JSONMarshalFct)
 }
 
-func (s Serializer) serializePayloadProto(payload marshaler.ProtoMarshaler, compress bool) (forwarder.Payloads, http.Header, error) {
+func (s Serializer) serializePayloadProto(payload marshaler.ProtoMarshaler, compress bool) (transaction.BytesPayloads, http.Header, error) {
 	var extraHeaders http.Header
 	if compress {
 		extraHeaders = protobufExtraHeadersWithCompression
@@ -197,7 +197,7 @@ func (s Serializer) serializePayloadProto(payload marshaler.ProtoMarshaler, comp
 	return s.serializePayloadInternal(payload, compress, extraHeaders, split.ProtoMarshalFct)
 }
 
-func (s Serializer) serializePayloadInternal(payload marshaler.AbstractMarshaler, compress bool, extraHeaders http.Header, marshalFct split.MarshalFct) (forwarder.Payloads, http.Header, error) {
+func (s Serializer) serializePayloadInternal(payload marshaler.AbstractMarshaler, compress bool, extraHeaders http.Header, marshalFct split.MarshalFct) (transaction.BytesPayloads, http.Header, error) {
 	payloads, err := split.Payloads(payload, compress, marshalFct)
 
 	if err != nil {
@@ -237,10 +237,8 @@ func (s Serializer) serializeEventsStreamJSONMarshalerPayload(
 
 		// Do not use CreateMarshalersBySourceType when there are too many source types (Performance issue).
 		if marshaler.Len() > maxItemCountForCreateMarshalersBySourceType {
-			var payloads forwarder.Payloads
 			expvarsSendEventsErrItemTooBigsFallback.Add(1)
-			payloads, extraHeaders, err = s.serializePayload(eventsSerializer, eventsSerializer, true, useV1API)
-			eventPayloads = transaction.NewBytesPayloadsWithoutMetaData(payloads)
+			eventPayloads, extraHeaders, err = s.serializePayload(eventsSerializer, eventsSerializer, true, useV1API)
 		} else {
 			eventPayloads = nil
 			for _, v := range eventsSerializer.CreateMarshalersBySourceType() {
@@ -271,10 +269,7 @@ func (s *Serializer) SendEvents(events metrics.Events) error {
 	if s.enableEventsJSONStream {
 		eventPayloads, extraHeaders, err = s.serializeEventsStreamJSONMarshalerPayload(eventsSerializer, true)
 	} else {
-		var payloads forwarder.Payloads
-		payloads, extraHeaders, err = s.serializePayload(eventsSerializer, eventsSerializer, true, true)
-		eventPayloads = transaction.NewBytesPayloadsWithoutMetaData(payloads)
-
+		eventPayloads, extraHeaders, err = s.serializePayload(eventsSerializer, eventsSerializer, true, true)
 	}
 	if err != nil {
 		return fmt.Errorf("dropping event payload: %s", err)
@@ -298,9 +293,7 @@ func (s *Serializer) SendServiceChecks(serviceChecks metrics.ServiceChecks) erro
 	if s.enableServiceChecksJSONStream {
 		serviceCheckPayloads, extraHeaders, err = s.serializeStreamablePayload(serviceChecksSerializer, stream.DropItemOnErrItemTooBig)
 	} else {
-		var payloads forwarder.Payloads
-		payloads, extraHeaders, err = s.serializePayloadJSON(serviceChecksSerializer, true)
-		serviceCheckPayloads = transaction.NewBytesPayloadsWithoutMetaData(payloads)
+		serviceCheckPayloads, extraHeaders, err = s.serializePayloadJSON(serviceChecksSerializer, true)
 	}
 	if err != nil {
 		return fmt.Errorf("dropping service check payload: %s", err)
@@ -331,9 +324,7 @@ func (s *Serializer) SendIterableSeries(serieSource metrics.SerieSource) error {
 	if useV1API && s.enableJSONStream {
 		seriesBytesPayloads, extraHeaders, err = s.serializeIterableStreamablePayload(seriesSerializer, stream.DropItemOnErrItemTooBig)
 	} else if useV1API && !s.enableJSONStream {
-		var seriesPayloads forwarder.Payloads
-		seriesPayloads, extraHeaders, err = s.serializePayloadJSON(seriesSerializer, true)
-		seriesBytesPayloads = transaction.NewBytesPayloadsWithoutMetaData(seriesPayloads)
+		seriesBytesPayloads, extraHeaders, err = s.serializePayloadJSON(seriesSerializer, true)
 	} else {
 		seriesBytesPayloads, err = seriesSerializer.MarshalSplitCompress(marshaler.DefaultBufferContext())
 		extraHeaders = protobufExtraHeadersWithCompression
@@ -375,7 +366,7 @@ func (s *Serializer) SendSketch(sketches metrics.SketchesSource) error {
 		return fmt.Errorf("dropping sketch payload: %s", err)
 	}
 
-	return s.Forwarder.SubmitSketchSeries(transaction.NewBytesPayloadsWithoutMetaData(splitSketches), extraHeaders)
+	return s.Forwarder.SubmitSketchSeries(splitSketches, extraHeaders)
 }
 
 // SendMetadata serializes a metadata payload and sends it to the forwarder
@@ -405,7 +396,7 @@ func (s *Serializer) sendMetadata(m marshaler.JSONMarshaler, submit func(payload
 		return fmt.Errorf("metadata payload was too big to send (%d bytes compressed, %d bytes uncompressed), metadata payloads cannot be split", len(compressedPayload), len(payload))
 	}
 
-	if err := submit(transaction.NewBytesPayloadsWithoutMetaData(forwarder.Payloads{&compressedPayload}), jsonExtraHeadersWithCompression); err != nil {
+	if err := submit(transaction.NewBytesPayloadsWithoutMetaData([]*[]byte{&compressedPayload}), jsonExtraHeadersWithCompression); err != nil {
 		return err
 	}
 
@@ -429,7 +420,7 @@ func (s *Serializer) SendProcessesMetadata(data interface{}) error {
 	if err != nil {
 		return fmt.Errorf("could not compress processes metadata payload: %s", err)
 	}
-	if err := s.Forwarder.SubmitV1Intake(transaction.NewBytesPayloadsWithoutMetaData(forwarder.Payloads{&compressedPayload}), jsonExtraHeadersWithCompression); err != nil {
+	if err := s.Forwarder.SubmitV1Intake(transaction.NewBytesPayloadsWithoutMetaData([]*[]byte{&compressedPayload}), jsonExtraHeadersWithCompression); err != nil {
 		return err
 	}
 
@@ -478,7 +469,7 @@ func (s *Serializer) SendContainerLifecycleEvent(msgs []ContainerLifecycleMessag
 			return log.Errorf("Unable to encode message: %v", err)
 		}
 
-		payloads := transaction.NewBytesPayloadsWithoutMetaData(forwarder.Payloads{&encoded})
+		payloads := transaction.NewBytesPayloadsWithoutMetaData([]*[]byte{&encoded})
 		if err := s.contlcycleForwarder.SubmitContainerLifecycleEvents(payloads, extraHeaders); err != nil {
 			return log.Errorf("Unable to submit container lifecycle payload: %v", err)
 		}
@@ -531,6 +522,6 @@ func makeOrchestratorPayloads(msg ProcessMessageBody, hostName, clusterID string
 	if err != nil {
 		return nil, nil, err
 	}
-	payloads := forwarder.Payloads{&body}
+	payloads := []*[]byte{&body}
 	return transaction.NewBytesPayloadsWithoutMetaData(payloads), extraHeaders, nil
 }
