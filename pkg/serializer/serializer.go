@@ -207,14 +207,14 @@ func (s Serializer) serializePayloadInternal(payload marshaler.AbstractMarshaler
 	return payloads, extraHeaders, nil
 }
 
-func (s Serializer) serializeStreamablePayload(payload marshaler.StreamJSONMarshaler, policy stream.OnErrItemTooBigPolicy) (forwarder.Payloads, http.Header, error) {
+func (s Serializer) serializeStreamablePayload(payload marshaler.StreamJSONMarshaler, policy stream.OnErrItemTooBigPolicy) (transaction.BytesPayloads, http.Header, error) {
 	adapter := marshaler.NewIterableStreamJSONMarshalerAdapter(payload)
 	payloads, err := s.seriesJSONPayloadBuilder.BuildWithOnErrItemTooBigPolicy(adapter, policy)
 	return payloads, jsonExtraHeadersWithCompression, err
 }
 
-func (s Serializer) serializeIterableStreamablePayload(payload marshaler.IterableStreamWithPointJSONMarshaler, policy stream.OnErrItemTooBigPolicy) (transaction.BytesPayloads, http.Header, error) {
-	payloads, err := s.seriesJSONPayloadBuilder.BuildWithOnErrItemTooBigPolicyMetadata(payload, policy)
+func (s Serializer) serializeIterableStreamablePayload(payload marshaler.IterableStreamJSONMarshaler, policy stream.OnErrItemTooBigPolicy) (transaction.BytesPayloads, http.Header, error) {
+	payloads, err := s.seriesJSONPayloadBuilder.BuildWithOnErrItemTooBigPolicy(payload, policy)
 	return payloads, jsonExtraHeadersWithCompression, err
 }
 
@@ -228,7 +228,7 @@ func (s Serializer) serializeIterableStreamablePayload(payload marshaler.Iterabl
 //
 // If none of the previous methods work, we fallback to the old serialization method (Serializer.serializePayload).
 func (s Serializer) serializeEventsStreamJSONMarshalerPayload(
-	eventsSerializer metricsserializer.Events, useV1API bool) (forwarder.Payloads, http.Header, error) {
+	eventsSerializer metricsserializer.Events, useV1API bool) (transaction.BytesPayloads, http.Header, error) {
 	marshaler := eventsSerializer.CreateSingleMarshaler()
 	eventPayloads, extraHeaders, err := s.serializeStreamablePayload(marshaler, stream.FailOnErrItemTooBig)
 
@@ -237,12 +237,14 @@ func (s Serializer) serializeEventsStreamJSONMarshalerPayload(
 
 		// Do not use CreateMarshalersBySourceType when there are too many source types (Performance issue).
 		if marshaler.Len() > maxItemCountForCreateMarshalersBySourceType {
+			var payloads forwarder.Payloads
 			expvarsSendEventsErrItemTooBigsFallback.Add(1)
-			eventPayloads, extraHeaders, err = s.serializePayload(eventsSerializer, eventsSerializer, true, useV1API)
+			payloads, extraHeaders, err = s.serializePayload(eventsSerializer, eventsSerializer, true, useV1API)
+			eventPayloads = transaction.NewBytesPayloadsWithoutMetaData(payloads)
 		} else {
 			eventPayloads = nil
 			for _, v := range eventsSerializer.CreateMarshalersBySourceType() {
-				var eventPayloadsForSourceType forwarder.Payloads
+				var eventPayloadsForSourceType transaction.BytesPayloads
 				eventPayloadsForSourceType, extraHeaders, err = s.serializeStreamablePayload(v, stream.DropItemOnErrItemTooBig)
 				if err != nil {
 					return nil, nil, err
@@ -267,7 +269,9 @@ func (s *Serializer) SendEvents(events metrics.Events) error {
 
 	eventsSerializer := metricsserializer.Events(events)
 	if s.enableEventsJSONStream {
-		eventPayloads, extraHeaders, err = s.serializeEventsStreamJSONMarshalerPayload(eventsSerializer, true)
+		var payloads transaction.BytesPayloads
+		payloads, extraHeaders, err = s.serializeEventsStreamJSONMarshalerPayload(eventsSerializer, true)
+		eventPayloads = payloads.ToPayloads()
 	} else {
 		eventPayloads, extraHeaders, err = s.serializePayload(eventsSerializer, eventsSerializer, true, true)
 	}
@@ -291,7 +295,9 @@ func (s *Serializer) SendServiceChecks(serviceChecks metrics.ServiceChecks) erro
 	var err error
 
 	if s.enableServiceChecksJSONStream {
-		serviceCheckPayloads, extraHeaders, err = s.serializeStreamablePayload(serviceChecksSerializer, stream.DropItemOnErrItemTooBig)
+		var payloads transaction.BytesPayloads
+		payloads, extraHeaders, err = s.serializeStreamablePayload(serviceChecksSerializer, stream.DropItemOnErrItemTooBig)
+		serviceCheckPayloads = payloads.ToPayloads()
 	} else {
 		serviceCheckPayloads, extraHeaders, err = s.serializePayloadJSON(serviceChecksSerializer, true)
 	}

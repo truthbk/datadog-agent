@@ -43,6 +43,16 @@ func (p *BytesPayload) GetPointCount() int {
 // BytesPayloads is a collection of BytesPayload
 type BytesPayloads []*BytesPayload
 
+// ToPayloads creates []*[]byte from a BytesPayload.
+func (p BytesPayloads) ToPayloads() []*[]byte {
+	var payloads []*[]byte
+	for _, payload := range p {
+		content := payload.GetContent()
+		payloads = append(payloads, &content)
+	}
+	return payloads
+}
+
 // NewBytesPayloadsWithoutMetaData creates BytesPayloads without metadata.
 func NewBytesPayloadsWithoutMetaData(payloads []*[]byte) BytesPayloads {
 	var bytesPayloads BytesPayloads

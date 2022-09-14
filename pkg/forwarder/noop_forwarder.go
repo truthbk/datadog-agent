@@ -26,7 +26,9 @@ func (f NoopForwarder) SubmitV1Series(payload transaction.BytesPayloads, extra h
 }
 
 // SubmitV1Intake does nothing.
-func (f NoopForwarder) SubmitV1Intake(payload Payloads, extra http.Header) error { return nil }
+func (f NoopForwarder) SubmitV1Intake(payload Payloads, extra http.Header) error {
+	return nil
+}
 
 // SubmitV1CheckRuns does nothing.
 func (f NoopForwarder) SubmitV1CheckRuns(payload Payloads, extra http.Header) error { return nil }
