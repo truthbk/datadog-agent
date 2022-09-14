@@ -79,10 +79,10 @@ func testSplitPayloadsSeries(t *testing.T, numPoints int, compress bool) {
 	var splitSeries = []metricsserializer.Series{}
 	for _, payload := range payloads {
 		var s = map[string]metricsserializer.Series{}
-		var localPayload []byte
+		localPayload := payload.GetContent()
 
 		if compress {
-			localPayload, err = compression.Decompress(payload.GetContent())
+			localPayload, err = compression.Decompress(localPayload)
 			require.Nil(t, err)
 		}
 
@@ -192,9 +192,9 @@ func testSplitPayloadsEvents(t *testing.T, numPoints int, compress bool) {
 	unrolledEvents := []interface{}{}
 	for _, payload := range payloads {
 		var s map[string]interface{}
-		var localPayload []byte
+		localPayload := payload.GetContent()
 		if compress {
-			localPayload, err = compression.Decompress(payload.GetContent())
+			localPayload, err = compression.Decompress(localPayload)
 			require.Nil(t, err)
 		}
 
@@ -257,9 +257,9 @@ func testSplitPayloadsServiceChecks(t *testing.T, numPoints int, compress bool) 
 	unrolledServiceChecks := []interface{}{}
 	for _, payload := range payloads {
 		var s []interface{}
-		var localPayload []byte
+		localPayload := payload.GetContent()
 		if compress {
-			localPayload, err = compression.Decompress(payload.GetContent())
+			localPayload, err = compression.Decompress(localPayload)
 			require.Nil(t, err)
 		}
 

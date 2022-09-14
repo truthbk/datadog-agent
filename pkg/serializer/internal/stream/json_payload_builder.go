@@ -197,8 +197,8 @@ func (b *JSONPayloadBuilder) BuildWithOnErrItemTooBigPolicy(
 			}
 		case nil:
 			// All good, continue to next item
-			ok = m.MoveNext()
 			pointCount += m.GetCurrentItemPointCount()
+			ok = m.MoveNext()
 			expvarsTotalItems.Add(1)
 			tlmTotalItems.Inc()
 			continue
