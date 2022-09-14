@@ -31,7 +31,9 @@ func (f NoopForwarder) SubmitV1Intake(payload transaction.BytesPayloads, extra h
 }
 
 // SubmitV1CheckRuns does nothing.
-func (f NoopForwarder) SubmitV1CheckRuns(payload transaction.BytesPayloads, extra http.Header) error { return nil }
+func (f NoopForwarder) SubmitV1CheckRuns(payload transaction.BytesPayloads, extra http.Header) error {
+	return nil
+}
 
 // SubmitSeries does nothing.
 func (f NoopForwarder) SubmitSeries(payload transaction.BytesPayloads, extra http.Header) error {
@@ -44,7 +46,9 @@ func (f NoopForwarder) SubmitSketchSeries(payload transaction.BytesPayloads, ext
 }
 
 // SubmitHostMetadata does nothing.
-func (f NoopForwarder) SubmitHostMetadata(payload transaction.BytesPayloads, extra http.Header) error { return nil }
+func (f NoopForwarder) SubmitHostMetadata(payload transaction.BytesPayloads, extra http.Header) error {
+	return nil
+}
 
 // SubmitAgentChecksMetadata does nothing.
 func (f NoopForwarder) SubmitAgentChecksMetadata(payload transaction.BytesPayloads, extra http.Header) error {
@@ -52,7 +56,9 @@ func (f NoopForwarder) SubmitAgentChecksMetadata(payload transaction.BytesPayloa
 }
 
 // SubmitMetadata does nothing.
-func (f NoopForwarder) SubmitMetadata(payload transaction.BytesPayloads, extra http.Header) error { return nil }
+func (f NoopForwarder) SubmitMetadata(payload transaction.BytesPayloads, extra http.Header) error {
+	return nil
+}
 
 // SubmitProcessChecks does nothing.
 func (f NoopForwarder) SubmitProcessChecks(payload transaction.BytesPayloads, extra http.Header) (chan Response, error) {
