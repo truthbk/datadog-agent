@@ -297,15 +297,20 @@ func RunAgent(ctx context.Context) (err error) {
 
 	// Initialize the remote tagger
 	if coreconfig.Datadog.GetBool("security_agent.remote_tagger") {
-		tagger.SetDefaultTagger(remote.NewTagger())
-		err := tagger.Init(ctx)
+		options, err := remote.NodeAgentOptions()
 		if err != nil {
-			log.Errorf("failed to start the tagger: %s", err)
+			log.Errorf("unable to configure the remote tagger: %s", err)
+		} else {
+			tagger.SetDefaultTagger(remote.NewTagger(options))
+			err := tagger.Init(ctx)
+			if err != nil {
+				log.Errorf("failed to start the tagger: %s", err)
+			}
 		}
 	}
 
 	// Start workloadmeta store
-	store := workloadmeta.GetGlobalStore()
+	store := workloadmeta.CreateGlobalStore(workloadmeta.NodeAgentCatalog)
 	store.Start(ctx)
 
 	complianceAgent, err := startCompliance(hostnameDetected, stopper, statsdClient)
