@@ -1,0 +1,3 @@
+* 'agent run' PR needs to wait for windows stuff
+* move "coreagent" into a module
+    * clean up external use of run.Start/StopAgent
