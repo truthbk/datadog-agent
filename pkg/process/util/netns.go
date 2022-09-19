@@ -14,6 +14,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"strconv"
 	"syscall"
 
 	"github.com/vishvananda/netns"
@@ -21,6 +22,104 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
+
+type NameSpaceType = int
+
+const (
+	IPC  = NameSpaceType(syscall.CLONE_NEWIPC)
+	NET  = NameSpaceType(syscall.CLONE_NEWNET)
+	MNT  = NameSpaceType(syscall.CLONE_NEWNS)
+	PID  = NameSpaceType(syscall.CLONE_NEWPID)
+	USER = NameSpaceType(syscall.CLONE_NEWUSER)
+	UTS  = NameSpaceType(syscall.CLONE_NEWUTS)
+)
+
+var mapNSClonePath = map[NameSpaceType]string{
+	IPC:  "/ns/ipc",
+	NET:  "/ns/net",
+	MNT:  "/ns/mnt",
+	PID:  "/ns/pid",
+	USER: "/ns/user",
+	UTS:  "/ns/uts",
+}
+
+type ProcessNameSpaces struct {
+	procRoot string
+	pid      int
+	m        map[NameSpaceType]netns.NsHandle
+}
+
+func NewProcessNameSpaces(procRoot string, pid int, nss ...NameSpaceType) (pns *ProcessNameSpaces, err error) {
+	pns = &ProcessNameSpaces{
+		procRoot: procRoot,
+		pid:      pid,
+		m:        make(map[NameSpaceType]netns.NsHandle),
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	for _, ns := range nss {
+		pns.m[ns], err = netns.GetFromPath(path.Join(procRoot, strconv.Itoa(pid), mapNSClonePath[ns]))
+		if err != nil {
+			return pns, err
+		}
+	}
+	return pns, nil
+}
+
+func (pns *ProcessNameSpaces) Close() {
+	for _, ns := range pns.m {
+		_ = ns.Close()
+	}
+}
+
+// WithNS executes the given function in the given namespaces set by NewProcessNameSpaces()
+// and then switches back to the previous namespace.
+func (pns *ProcessNameSpaces) WithNS(prevNS *ProcessNameSpaces, fn func() error) error {
+	for NStype, ns := range pns.m {
+		if _, found := prevNS.m[NStype]; !found {
+			return fmt.Errorf("namespace %+v is not set in the caller (previous) namespace", ns)
+		}
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	var err error
+	err = nil
+	var ns netns.NsHandle
+	for _, NStype := range []int{NET, IPC, MNT} {
+		ns = pns.m[NStype]
+		if ns.Equal(prevNS.m[NStype]) {
+			continue
+		}
+
+		fmt.Println(ns)
+		if err = netns.Setns(ns, 0); err != nil {
+			fmt.Println("notnil", ns, NStype, err)
+			break
+		}
+		ns.Close()
+	}
+	if err != nil {
+		return fmt.Errorf("set namespace %+v failed %w", ns, err)
+	}
+
+	fnErr := fn()
+
+	var nsErr error
+	for NStype, ns := range prevNS.m {
+		if err := netns.Setns(ns, NStype); err != nil {
+			nsErr = err
+		}
+	}
+
+	if fnErr != nil {
+		return fnErr
+	}
+	return nsErr
+}
 
 // WithRootNS executes a function within root network namespace and then switch back
 // to the previous namespace. If the thread is already in the root network namespace,
@@ -37,6 +136,31 @@ func WithRootNS(procRoot string, fn func() error) error {
 // WithNS executes the given function in the given network namespace, and then
 // switches back to the previous namespace.
 func WithNS(procRoot string, ns netns.NsHandle, fn func() error) error {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	prevNS, err := netns.Get()
+	if err != nil {
+		return err
+	}
+
+	if ns.Equal(prevNS) {
+		return fn()
+	}
+
+	if err := netns.Set(ns); err != nil {
+		return err
+	}
+
+	fnErr := fn()
+	nsErr := netns.Set(prevNS)
+	if fnErr != nil {
+		return fnErr
+	}
+	return nsErr
+}
+
+func WithNetNS(procRoot string, ns netns.NsHandle, fn func() error) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
