@@ -1286,6 +1286,8 @@ func (p *Probe) setupNewTCClassifierWithNetNSHandle(device model.NetDevice, netn
 			},
 		}
 
+		seclog.Infof("setting up new TC filter: ifindex:%v netns:%v hook:%s prio:%d", newProbe.IfIndex, newProbe.IfIndexNetnsID, newProbe.NetworkDirection, newProbe.TCFilterPrio)
+
 		if err := p.manager.CloneProgram(probes.SecurityAgentUID, newProbe, netnsEditor, nil); err != nil {
 			_ = multierror.Append(&combinedErr, fmt.Errorf("couldn't clone %s: %v", tcProbe.ProbeIdentificationPair, err))
 		} else {
@@ -1301,6 +1303,7 @@ func (p *Probe) flushNetworkNamespace(namespace *NetworkNamespace) {
 	defer p.tcProgramsLock.Unlock()
 	for tcKey, tcProbe := range p.tcPrograms {
 		if tcKey.NetNS == namespace.nsID {
+			seclog.Infof("detaching TC filter: ifindex:%v netns:%v hook:%s prio:%d", tcProbe.IfIndex, tcProbe.IfIndexNetnsID, tcProbe.NetworkDirection, tcProbe.TCFilterPrio)
 			_ = p.manager.DetachHook(tcProbe.ProbeIdentificationPair)
 			delete(p.tcPrograms, tcKey)
 		}
@@ -1327,6 +1330,7 @@ func (p *Probe) flushInactiveProbes() map[uint32]int {
 	var linkName string
 	for tcKey, tcProbe := range p.tcPrograms {
 		if !tcProbe.IsTCFilterActive() {
+			seclog.Infof("detaching TC filter: ifindex:%v netns:%v hook:%s prio:%d", tcProbe.IfIndex, tcProbe.IfIndexNetnsID, tcProbe.NetworkDirection, tcProbe.TCFilterPrio)
 			_ = p.manager.DetachHook(tcProbe.ProbeIdentificationPair)
 			delete(p.tcPrograms, tcKey)
 		} else {
