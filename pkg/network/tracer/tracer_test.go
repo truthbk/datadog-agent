@@ -35,6 +35,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/DataDog/datadog-agent/pkg/network"
@@ -1412,6 +1413,7 @@ func TestConnectedUDPSendIPv6(t *testing.T) {
 func TestConnectionClobber(t *testing.T) {
 	cfg := testConfig()
 	cfg.CollectUDPConns = false
+	// exclude all connections with public src/dst IP
 	cfg.ExcludedDestinationConnections = map[string][]string{
 		"0.0.0.0/2":   {"*"},
 		"64.0.0.0/3":  {"*"},
@@ -1422,6 +1424,7 @@ func TestConnectionClobber(t *testing.T) {
 		"126.0.0.0/8": {"*"},
 		"128.0.0.0/1": {"*"},
 	}
+	cfg.ExcludedSourceConnections = cfg.ExcludedDestinationConnections
 	tr, err := NewTracer(cfg)
 	require.NoError(t, err)
 	defer tr.Stop()
@@ -1440,36 +1443,51 @@ func TestConnectionClobber(t *testing.T) {
 
 	// we only need 1/4 since both send and recv sides will be registered
 	sendCount := tr.activeBuffer.Capacity()/4 + 1
+	clientPorts := make(map[int]int, sendCount)
 	sendAndRecv := func() []net.Conn {
 		connsCh := make(chan net.Conn, sendCount)
 		var conns []net.Conn
+		wg := sync.WaitGroup{}
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			for c := range connsCh {
+				if c == nil {
+					return
+				}
+				_, ps, _ := net.SplitHostPort(c.LocalAddr().String())
+				p, _ := strconv.Atoi(ps)
+				clientPorts[p]++
 				conns = append(conns, c)
 			}
 		}()
 
-		workers := sync.WaitGroup{}
+		g := new(errgroup.Group)
 		for i := 0; i < sendCount; i++ {
-			workers.Add(1)
-			go func() {
-				defer workers.Done()
-
+			g.Go(func() error {
 				c, err := net.DialTimeout("tcp", server.address, 5*time.Second)
-				require.NoError(t, err)
+				if err != nil {
+					return err
+				}
 				connsCh <- c
 
 				buf := make([]byte, 4)
 				_, err = c.Write(buf)
-				require.NoError(t, err)
+				if err != nil {
+					return err
+				}
 
 				_, err = io.ReadFull(c, buf[:0])
-				require.NoError(t, err)
-			}()
+				return err
+			})
 		}
 
-		workers.Wait()
-		close(connsCh)
+		err = g.Wait()
+		require.NoError(t, err)
+		// signal all connections have been created
+		connsCh <- nil
+		// wait for all conns to be stored
+		wg.Wait()
 
 		return conns
 	}
@@ -1491,16 +1509,19 @@ func TestConnectionClobber(t *testing.T) {
 	src := connections.Conns[0].SPort
 	dst := connections.Conns[0].DPort
 	t.Logf("got %d connections", len(connections.Conns))
+	assert.GreaterOrEqual(t, len(connections.Conns), sendCount*2, "not enough connections in first batch")
 	// ensure we didn't grow or shrink the buffer
 	assert.Equal(t, preCap, tr.activeBuffer.Capacity())
 
+	// close all connections from first batch
 	for _, c := range append(conns, serverConns...) {
 		c.Close()
 	}
+	serverConns = serverConns[:0]
 
 	// send second batch so that underlying array gets clobbered
 	conns = sendAndRecv()
-	serverConns = serverConns[:0]
+	// do not close, so the second batch is active
 	defer func() {
 		for _, c := range append(conns, serverConns...) {
 			c.Close()
@@ -1509,10 +1530,45 @@ func TestConnectionClobber(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	t.Logf("got %d connections", len(getConnections(t, tr).Conns))
+	cs := getConnections(t, tr).Conns
+	assert.GreaterOrEqual(t, len(cs), sendCount*4, "not enough connections in second batch")
+	t.Logf("got %d connections", len(cs))
 	assert.Equal(t, src, connections.Conns[0].SPort, "source port should not change")
 	assert.Equal(t, dst, connections.Conns[0].DPort, "dest port should not change")
 	assert.Equal(t, preCap, tr.activeBuffer.Capacity())
+
+	foundClientPorts := maps.Clone(clientPorts)
+	foundServerPorts := maps.Clone(clientPorts)
+	for _, c := range cs {
+		if c.Direction == network.INCOMING {
+			p := int(c.DPort)
+			if _, ok := foundServerPorts[p]; !ok {
+				t.Logf("rogue server connection: %s", c)
+			} else {
+				foundServerPorts[p]--
+			}
+		} else {
+			p := int(c.SPort)
+			if _, ok := foundClientPorts[p]; !ok {
+				t.Logf("rogue client connection: %s", c)
+			} else {
+				foundClientPorts[p]--
+			}
+		}
+	}
+
+	for p, c := range foundClientPorts {
+		if c == 0 {
+			continue
+		}
+		t.Errorf("did not find client connection for port: %d missing count: %d", p, c)
+	}
+	for p, c := range foundServerPorts {
+		if c == 0 {
+			continue
+		}
+		t.Errorf("did not find server connection for port: %d missing count: %d", p, c)
+	}
 }
 
 func TestTCPDirection(t *testing.T) {
