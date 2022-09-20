@@ -14,7 +14,9 @@ import (
 	"time"
 
 	model "github.com/DataDog/agent-payload/v5/process"
+
 	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
+
 	"github.com/DataDog/datadog-agent/pkg/config/resolver"
 	"github.com/DataDog/datadog-agent/pkg/forwarder"
 	"github.com/DataDog/datadog-agent/pkg/forwarder/transaction"
@@ -633,6 +635,7 @@ func (l *Collector) consumePayloads(results *api.WeightedQueue, fwd forwarder.Fo
 				// Pod check contains two parts: metadata and manifest.
 				// The manifest payload header has Content-Encoding:zstd allowing us to decompress payload in the intake
 				if payload.headers.Get(headers.ContentEncodingHeader) == headers.ZSTDContentEncoding {
+					payload.headers.Del(headers.ContentEncodingHeader)
 					responses, err = fwd.SubmitOrchestratorManifests(forwarderPayload, payload.headers)
 				} else {
 					responses, err = fwd.SubmitOrchestratorChecks(forwarderPayload, payload.headers, int(orchestrator.K8sPod))
