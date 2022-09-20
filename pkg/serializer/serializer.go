@@ -514,9 +514,6 @@ func makeOrchestratorPayloads(msg ProcessMessageBody, hostName, clusterID string
 	extraHeaders.Set(headers.EVPOriginHeader, "agent")
 	extraHeaders.Set(headers.EVPOriginVersionHeader, version.AgentVersion)
 	extraHeaders.Set(headers.ContentTypeHeader, headers.ProtobufContentType)
-	if isManifest {
-		extraHeaders.Set(headers.ContentEncodingHeader, headers.ZSTDContentEncoding)
-	}
 
 	body, err := processPayloadEncoder(msg)
 	if err != nil {
