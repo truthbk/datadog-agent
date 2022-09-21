@@ -23,7 +23,6 @@ import (
 
 	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/config"
-	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -169,8 +168,6 @@ func (o *sslProgram) ConfigureOptions(options *manager.Options) {
 	if options.MapEditors == nil {
 		options.MapEditors = make(map[string]*ebpf.Map)
 	}
-
-	options.MapEditors[string(probes.SockByPidFDMap)] = o.sockFDMap
 }
 
 func (o *sslProgram) Start() {

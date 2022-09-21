@@ -165,6 +165,12 @@ type Config struct {
 	// EnableRootNetNs disables using the network namespace of the root process (1)
 	// for things like creating netlink sockets for conntrack updates, etc.
 	EnableRootNetNs bool
+
+	// HTTP Debug Options (not exposed via the standard datadog configuration)
+	HTTPFilterSport int
+	HTTPFilterDport int
+	HTTPFilterSaddr string
+	HTTPFilterDaddr string
 }
 
 func join(pieces ...string) string {

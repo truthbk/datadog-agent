@@ -4,6 +4,7 @@
 #include "tracer.h"
 #include "http-types.h"
 #include "http-maps.h"
+#include "http-debug.h"
 
 #include <uapi/linux/ptrace.h>
 
@@ -204,6 +205,11 @@ static __always_inline bool http_closed(http_transaction_t *http, skb_info_t *sk
 }
 
 static __always_inline int http_process(http_transaction_t *http_stack, skb_info_t *skb_info, __u64 tags) {
+#if DEBUG == 1
+    if (!http_should_process(http_stack))
+        return 0;
+#endif
+
     char *buffer = (char *)http_stack->request_fragment;
     http_packet_t packet_type = HTTP_PACKET_UNKNOWN;
     http_method_t method = HTTP_METHOD_UNKNOWN;

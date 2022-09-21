@@ -70,6 +70,8 @@ func newIncompleteBuffer(c *config.Config, telemetry *telemetry) *incompleteBuff
 }
 
 func (b *incompleteBuffer) Add(tx *httpTX) {
+	b.telemetry.incomplete.Inc()
+
 	key := KeyTuple{
 		SrcIPHigh: uint64(tx.tup.saddr_h),
 		SrcIPLow:  uint64(tx.tup.saddr_l),
