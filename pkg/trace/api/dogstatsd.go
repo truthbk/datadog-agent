@@ -31,6 +31,7 @@ func (r *HTTPReceiver) dogstatsdProxyHandler() http.Handler {
 		} else {
 			network, address = "udp", fmt.Sprintf("%s:%d", r.conf.StatsdHost, r.conf.StatsdPort)
 		}
+		log.Infof("Sending metrics to %v:%v\n", network, address)
 		conn, err := net.Dial(network, address)
 		if err != nil {
 			log.Errorf("Error connecting to %s endpoint at %q: %v", network, address, err)
