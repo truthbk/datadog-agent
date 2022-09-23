@@ -27,6 +27,8 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
+	"github.com/DataDog/datadog-agent/comp/jmx"
+	jmxlog "github.com/DataDog/datadog-agent/comp/jmx/log"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/collector"
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
@@ -97,6 +99,10 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 			fx.Supply(cliParams),
 			fx.Supply(params),
 			core.Bundle,
+			fx.Supply(jmx.BundleParams{
+				SeparateJmxLogFile: false,
+			}),
+			jmx.Bundle,
 		)
 	}
 
@@ -225,7 +231,7 @@ func disableCmdPort() {
 
 // runJmxCommandConsole sets up the common utils necessary for JMX, and executes the command
 // with the Console reporter
-func runJmxCommandConsole(log log.Component, config config.Component, cliParams *cliParams) error {
+func runJmxCommandConsole(log log.Component, jmxlog jmxlog.Component, config config.Component, cliParams *cliParams) error {
 	err := pkgconfig.SetupJMXLogger(cliParams.logFile, "", false, true, false)
 	if err != nil {
 		return fmt.Errorf("Unable to set up JMX logger: %v", err)
