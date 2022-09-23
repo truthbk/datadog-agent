@@ -141,7 +141,8 @@ def pull_base_images(ctx, dockerfile, signed_pull=True):
 
     pull_env = {}
     if signed_pull:
-        pull_env["DOCKER_CONTENT_TRUST"] = "1"
+        # TODO: reenable? pull_env["DOCKER_CONTENT_TRUST"] = "1"
+        pass
 
     for i in images:
         ctx.run(f"docker pull {i}", env=pull_env)
