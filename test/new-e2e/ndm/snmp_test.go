@@ -18,8 +18,8 @@ import (
 	"github.com/DataDog/datadog-agent/test/new-e2e/utils/infra"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/vboulineau/pulumi-definitions/aws"
-	"github.com/vboulineau/pulumi-definitions/aws/ec2/ec2"
+	"github.com/DataDog/test-infra-definitions/aws"
+	"github.com/DataDog/test-infra-definitions/aws/ec2/ec2"
 
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
