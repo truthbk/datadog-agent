@@ -1,5 +1,5 @@
 ARG LINUX_BASEIMAGE_REGISTRY=""
-FROM ${LINUX_BASEIMAGE_REGISTRY}alpine:3.12
+FROM ${LINUX_BASEIMAGE_REGISTRY}library/alpine:3.12
 
 LABEL maintainer "Datadog <package@datadoghq.com>"
 

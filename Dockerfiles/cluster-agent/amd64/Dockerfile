@@ -3,7 +3,7 @@
 ########################################
 
 ARG LINUX_BASEIMAGE_REGISTRY=""
-FROM ${LINUX_BASEIMAGE_REGISTRY}ubuntu:22.04 as builder
+FROM ${LINUX_BASEIMAGE_REGISTRY}library/ubuntu:22.04 as builder
 
 WORKDIR /output
 
@@ -34,7 +34,7 @@ RUN gcc -pipe -Wall -Wextra -O2 -shared -fPIC -Wl,--version-script=/tmp/nosys.sy
 ####################################
 
 ARG LINUX_BASEIMAGE_REGISTRY=""
-FROM ${LINUX_BASEIMAGE_REGISTRY}ubuntu:22.04
+FROM ${LINUX_BASEIMAGE_REGISTRY}library/ubuntu:22.04
 
 LABEL maintainer "Datadog <package@datadoghq.com>"
 

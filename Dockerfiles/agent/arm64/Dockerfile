@@ -1,5 +1,5 @@
 ARG LINUX_BASEIMAGE_REGISTRY=""
-FROM ${LINUX_BASEIMAGE_REGISTRY}ubuntu:22.04 AS baseimage
+FROM ${LINUX_BASEIMAGE_REGISTRY}library/ubuntu:22.04 AS baseimage
 ARG CIBUILD
 # NOTE about APT mirrorlists:
 # It seems that this feature could use some improvement. If you just get mirrorlist
