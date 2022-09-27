@@ -29,7 +29,7 @@ var (
 	ScheduledConfigs = telemetry.NewGaugeWithOpts(
 		subsystem,
 		"scheduled_configs",
-		[]string{"provider", "type"},
+		[]string{"check_name", "provider", "type"},
 		"Number of configs scheduled in Autodiscovery by provider and type.",
 		commonOpts,
 	)

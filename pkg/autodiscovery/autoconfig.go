@@ -473,7 +473,7 @@ func (ac *AutoConfig) GetAutodiscoveryErrors() map[string]map[string]providers.E
 func (ac *AutoConfig) applyChanges(changes integration.ConfigChanges) {
 	if len(changes.Unschedule) > 0 {
 		for _, conf := range changes.Unschedule {
-			telemetry.ScheduledConfigs.Dec(conf.Provider, configType(conf))
+			telemetry.ScheduledConfigs.Dec(conf.Name, conf.Provider, configType(conf))
 		}
 
 		ac.scheduler.Unschedule(changes.Unschedule)
@@ -481,7 +481,7 @@ func (ac *AutoConfig) applyChanges(changes integration.ConfigChanges) {
 
 	if len(changes.Schedule) > 0 {
 		for _, conf := range changes.Schedule {
-			telemetry.ScheduledConfigs.Inc(conf.Provider, configType(conf))
+			telemetry.ScheduledConfigs.Inc(conf.Name, conf.Provider, configType(conf))
 		}
 
 		ac.scheduler.Schedule(changes.Schedule)
