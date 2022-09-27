@@ -35,6 +35,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/network/http"
 	"github.com/DataDog/datadog-agent/pkg/network/netlink"
 	"github.com/DataDog/datadog-agent/pkg/network/tracer/connection"
+	"github.com/DataDog/datadog-agent/pkg/network/tracer/connection/fargate"
 	"github.com/DataDog/datadog-agent/pkg/network/tracer/connection/kprobe"
 	"github.com/DataDog/datadog-agent/pkg/process/procutil"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
@@ -91,9 +92,11 @@ type Tracer struct {
 
 // NewTracer creates a Tracer
 func NewTracer(config *config.Config) (*Tracer, error) {
-	// make sure debugfs is mounted
-	if mounted, err := kernel.IsDebugFSMounted(); !mounted {
-		return nil, fmt.Errorf("system-probe unsupported: %s", err)
+	if !config.IsFargateInstance {
+		// make sure debugfs is mounted
+		if mounted, err := kernel.IsDebugFSMounted(); !mounted {
+			return nil, fmt.Errorf("system-probe unsupported: %s", err)
+		}
 	}
 
 	// check if current platform is using old kernel API because it affects what kprobe are we going to enable
@@ -127,7 +130,13 @@ func NewTracer(config *config.Config) (*Tracer, error) {
 	defer offsetBuf.Close()
 
 	// Offset guessing has been flaky for some customers, so if it fails we'll retry it up to 5 times
-	needsOffsets := !config.EnableRuntimeCompiler || config.AllowPrecompiledFallback
+	needsOffsets := false
+	if config.EnableRuntimeCompiler && config.AllowPrecompiledFallback {
+		needsOffsets = true
+	}
+	if !config.EnableRuntimeCompiler && !config.IsFargateInstance {
+		needsOffsets = true
+	}
 	var constantEditors []manager.ConstantEditor
 	if needsOffsets {
 		for i := 0; i < 5; i++ {
@@ -142,9 +151,17 @@ func NewTracer(config *config.Config) (*Tracer, error) {
 		}
 	}
 
-	ebpfTracer, err := kprobe.New(config, constantEditors)
-	if err != nil {
-		return nil, err
+	var ebpfTracer connection.Tracer
+	if config.IsFargateInstance {
+		ebpfTracer, err = fargate.New(config)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		ebpfTracer, err = kprobe.New(config, constantEditors)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	conntracker, err := newConntracker(config)
@@ -207,7 +224,7 @@ func newConntracker(cfg *config.Config) (netlink.Conntracker, error) {
 
 	var c netlink.Conntracker
 	var err error
-	if cfg.EnableRuntimeCompiler {
+	if cfg.EnableRuntimeCompiler && !cfg.IsFargateInstance {
 		c, err = NewEBPFConntracker(cfg)
 		if err == nil {
 			return c, nil
@@ -480,14 +497,14 @@ func (t *Tracer) getConnections(activeBuffer *network.ConnectionBuffer) (latestU
 
 	var expired []network.ConnectionStats
 	err = t.ebpfTracer.GetConnections(activeBuffer, func(c *network.ConnectionStats) bool {
-		if t.connectionExpired(c, uint64(latestTime), cachedConntrack) {
-			expired = append(expired, *c)
-			if c.Type == network.TCP {
-				t.expiredTCPConns.Inc()
-			}
-			t.closedConns.Inc()
-			return false
-		}
+		//if t.connectionExpired(c, uint64(latestTime), cachedConntrack) {
+		//	expired = append(expired, *c)
+		//	if c.Type == network.TCP {
+		//		t.expiredTCPConns.Inc()
+		//	}
+		//	t.closedConns.Inc()
+		//	return false
+		//}
 
 		if t.shouldSkipConnection(c) {
 			t.skippedConns.Inc()

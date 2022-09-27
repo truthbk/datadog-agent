@@ -60,8 +60,8 @@ var (
 )
 
 var (
-	clientMessageSize = 2 << 8
-	serverMessageSize = 2 << 14
+	clientMessageSize = 2 << 8  // 512
+	serverMessageSize = 2 << 14 // 32768
 	payloadSizesTCP   = []int{2 << 5, 2 << 8, 2 << 10, 2 << 12, 2 << 14, 2 << 15}
 	payloadSizesUDP   = []int{2 << 5, 2 << 8, 2 << 12, 2 << 14}
 )
@@ -219,7 +219,8 @@ func TestGetStats(t *testing.T) {
 
 func TestTCPSendAndReceive(t *testing.T) {
 	// Enable BPF-based system probe
-	tr, err := NewTracer(testConfig())
+	cfg := testConfig()
+	tr, err := NewTracer(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,10 +266,15 @@ func TestTCPSendAndReceive(t *testing.T) {
 	err = wg.Wait()
 	require.NoError(t, err)
 
+	//syscall.Kill(0, syscall.SIGSTOP)
+
 	initTracerState(t, tr)
 
 	// Iterate through active connections until we find connection created above, and confirm send + recv counts
 	connections := getConnections(t, tr)
+	for _, c := range connections.Conns {
+		t.Log(c)
+	}
 
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	require.True(t, ok)

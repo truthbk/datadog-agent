@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -36,6 +37,17 @@ func (c ConnectionType) String() string {
 	return "UDP"
 }
 
+func ConnectionTypeFromSyscall(v uint8) ConnectionType {
+	switch v {
+	case syscall.IPPROTO_TCP:
+		return TCP
+	case syscall.IPPROTO_UDP:
+		return UDP
+	default:
+		return TCP
+	}
+}
+
 const (
 	// AFINET represents v4 connections
 	AFINET ConnectionFamily = 0
@@ -52,6 +64,17 @@ func (c ConnectionFamily) String() string {
 		return "v4"
 	}
 	return "v6"
+}
+
+func FamilyFromSyscall(v uint8) ConnectionFamily {
+	switch v {
+	case syscall.AF_INET:
+		return AFINET
+	case syscall.AF_INET6:
+		return AFINET6
+	default:
+		return AFINET
+	}
 }
 
 // ConnectionDirection indicates if the connection is incoming to the host or outbound

@@ -59,6 +59,9 @@ type Config struct {
 
 	// AllowPrecompiledFallback indicates whether we are allowed to fallback to the prebuilt probes if runtime compilation fails.
 	AllowPrecompiledFallback bool
+
+	// IsFargateInstance indicates whether we are running on Fargate or not
+	IsFargateInstance bool
 }
 
 func key(pieces ...string) string {
@@ -70,7 +73,7 @@ func NewConfig() *Config {
 	cfg := aconfig.Datadog
 	aconfig.InitSystemProbeConfig(cfg)
 
-	return &Config{
+	syscfg := &Config{
 		BPFDebug:                 cfg.GetBool(key(spNS, "bpf_debug")),
 		BPFDir:                   cfg.GetString(key(spNS, "bpf_dir")),
 		ExcludedBPFLinuxVersions: cfg.GetStringSlice(key(spNS, "excluded_linux_versions")),
@@ -86,5 +89,9 @@ func NewConfig() *Config {
 		YumReposDir:                cfg.GetString(key(spNS, "yum_repos_dir")),
 		ZypperReposDir:             cfg.GetString(key(spNS, "zypper_repos_dir")),
 		AllowPrecompiledFallback:   cfg.GetBool(key(spNS, "allow_precompiled_fallback")),
+
+		IsFargateInstance: cfg.GetBool(key(spNS, "is_fargate_instance")),
 	}
+	//syscfg.IsFargateInstance = fargate.IsFargateInstance(context.Background())
+	return syscfg
 }

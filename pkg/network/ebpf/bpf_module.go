@@ -14,62 +14,36 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode"
 )
 
-// ReadBPFModule from the asset file
-func ReadBPFModule(bpfDir string, debug bool) (bytecode.AssetReader, error) {
-	file := "tracer.o"
-	if debug {
-		file = "tracer-debug.o"
-	}
-
-	ebpfReader, err := bytecode.GetReader(bpfDir, file)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't find asset: %s", err)
-	}
-
-	return ebpfReader, nil
+// ReadTracerBPFModule from the asset file
+func ReadTracerBPFModule(bpfDir string, debug bool) (bytecode.AssetReader, error) {
+	return ReadBPFModule(bpfDir, "tracer", debug)
 }
 
 // ReadHTTPModule from the asset file
 func ReadHTTPModule(bpfDir string, debug bool) (bytecode.AssetReader, error) {
-	file := "http.o"
-	if debug {
-		file = "http-debug.o"
-	}
-
-	ebpfReader, err := bytecode.GetReader(bpfDir, file)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't find asset: %s", err)
-	}
-
-	return ebpfReader, nil
+	return ReadBPFModule(bpfDir, "http", debug)
 }
 
 // ReadDNSModule from the asset file
 func ReadDNSModule(bpfDir string, debug bool) (bytecode.AssetReader, error) {
-	file := "dns.o"
-	if debug {
-		file = "dns-debug.o"
-	}
-
-	ebpfReader, err := bytecode.GetReader(bpfDir, file)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't find asset: %s", err)
-	}
-
-	return ebpfReader, nil
+	return ReadBPFModule(bpfDir, "dns", debug)
 }
 
 // ReadOffsetBPFModule from the asset file
 func ReadOffsetBPFModule(bpfDir string, debug bool) (bytecode.AssetReader, error) {
-	file := "offset-guess.o"
+	return ReadBPFModule(bpfDir, "offset-guess", debug)
+}
+
+// ReadBPFModule reads the named asset file
+func ReadBPFModule(dir string, base string, debug bool) (bytecode.AssetReader, error) {
+	file := fmt.Sprintf("%s.o", base)
 	if debug {
-		file = "offset-guess-debug.o"
+		file = fmt.Sprintf("%s-debug.o", base)
 	}
 
-	ebpfReader, err := bytecode.GetReader(bpfDir, file)
+	ebpfReader, err := bytecode.GetReader(dir, file)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't find asset: %s", err)
 	}
-
 	return ebpfReader, nil
 }

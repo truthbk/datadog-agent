@@ -132,7 +132,6 @@ func TestTCPRetransmit(t *testing.T) {
 		r := bufio.NewReader(c)
 		r.ReadBytes(byte('\n'))
 		c.Write(genPayload(serverMessageSize))
-		c.Close()
 	})
 	doneChan := make(chan struct{})
 	err = server.Run(doneChan)
@@ -141,15 +140,12 @@ func TestTCPRetransmit(t *testing.T) {
 
 	// Connect to server
 	c, err := net.DialTimeout("tcp", server.address, time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer c.Close()
 
 	// Write clientMessageSize to server, and read response
-	if _, err = c.Write(genPayload(clientMessageSize)); err != nil {
-		t.Fatal(err)
-	}
+	_, err = c.Write(genPayload(clientMessageSize))
+	require.NoError(t, err)
 	r := bufio.NewReader(c)
 	r.ReadBytes(byte('\n'))
 
@@ -163,12 +159,15 @@ func TestTCPRetransmit(t *testing.T) {
 
 	// Iterate through active connections until we find connection created above, and confirm send + recv counts and there was at least 1 retransmission
 	connections := getConnections(t, tr)
+	for _, c := range connections.Conns {
+		t.Log(c)
+	}
 
 	conn, ok := findConnection(c.LocalAddr(), c.RemoteAddr(), connections)
 	require.True(t, ok)
 	m := conn.MonotonicSum()
 	assert.Equal(t, 100*clientMessageSize, int(m.SentBytes))
-	assert.True(t, int(m.Retransmits) > 0)
+	assert.Greater(t, int(m.Retransmits), 0)
 	assert.Equal(t, os.Getpid(), int(conn.Pid))
 	assert.Equal(t, addrPort(server.address), int(conn.DPort))
 }
@@ -1361,25 +1360,19 @@ func TestDNSStatsWithNAT(t *testing.T) {
 
 func iptablesWrapper(t *testing.T, f func()) {
 	iptables, err := exec.LookPath("iptables")
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	// Init iptables rule to simulate packet loss
 	rule := "INPUT --source 127.0.0.1 -j DROP"
 	create := strings.Fields(fmt.Sprintf("-I %s", rule))
 	remove := strings.Fields(fmt.Sprintf("-D %s", rule))
 
-	createCmd := exec.Command(iptables, create...)
-	err = createCmd.Start()
-	assert.Nil(t, err)
-	err = createCmd.Wait()
+	err = exec.Command(iptables, create...).Run()
 	assert.Nil(t, err)
 
 	defer func() {
 		// Remove the iptable rule
-		removeCmd := exec.Command(iptables, remove...)
-		err = removeCmd.Start()
-		assert.Nil(t, err)
-		err = removeCmd.Wait()
+		err := exec.Command(iptables, remove...).Run()
 		assert.Nil(t, err)
 	}()
 

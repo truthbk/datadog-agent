@@ -322,6 +322,20 @@ func New() *Config {
 		}
 	}
 
+	if c.IsFargateInstance {
+		// no access to root netns
+		c.EnableRootNetNs = false
+		cfg.Set(join(netNS, "enable_root_netns"), false)
+
+		// disable USM for now
+		c.ServiceMonitoringEnabled = false
+		cfg.Set(join(smNS, "enabled"), false)
+		c.EnableHTTPMonitoring = false
+		cfg.Set(join(netNS, "enable_http_monitoring"), false)
+		c.EnableHTTPSMonitoring = false
+		cfg.Set(join(netNS, "enable_https_monitoring"), false)
+	}
+
 	if !c.EnableRootNetNs {
 		c.EnableConntrackAllNamespaces = false
 	}

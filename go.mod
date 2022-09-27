@@ -55,7 +55,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/util/log v0.40.0-rc.1
 	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.40.0-rc.1
 	github.com/DataDog/datadog-go/v5 v5.1.1
-	github.com/DataDog/datadog-operator v0.7.1-0.20220602134901-4f6af09bf54f
+	github.com/DataDog/datadog-operator v0.7.0
 	github.com/DataDog/ebpf-manager v0.0.0-20220916102325-8091ed929797
 	github.com/DataDog/gohai v0.0.0-20220823152657-b201b8a4ebec
 	github.com/DataDog/gopsutil v1.2.1
@@ -83,7 +83,7 @@ require (
 	github.com/blabber/go-freebsd-sysctl v0.0.0-20201130114544-503969f39d8f
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cihub/seelog v0.0.0-20170130134532-f561c5e57575
-	github.com/cilium/ebpf v0.9.1
+	github.com/cilium/ebpf v0.9.2
 	github.com/clbanning/mxj v1.8.4
 	github.com/cloudfoundry-community/go-cfclient v0.0.0-20210621174645-7773f7e22665
 	github.com/containerd/cgroups v1.0.4

@@ -67,6 +67,7 @@ def ninja_define_windows_resources(ctx, nw, major_version):
 def ninja_define_ebpf_compiler(nw, strip_object_files=False, kernel_release=None):
     nw.variable("target", "-emit-llvm")
     nw.variable("ebpfflags", get_ebpf_build_flags())
+    nw.variable("coreflags", get_ebpf_core_build_flags())
     nw.variable("kheaders", get_kernel_headers_flags(kernel_release))
 
     nw.rule(
@@ -78,6 +79,11 @@ def ninja_define_ebpf_compiler(nw, strip_object_files=False, kernel_release=None
     nw.rule(
         name="llc",
         command=f"llc -march=bpf -filetype=obj -o $out $in {strip}",
+    )
+    nw.rule(
+        name="ebpfclangcore",
+        command="clang -MD -MF $out.d -target bpf $coreflags $flags -c $in -o $out",
+        depfile="$out.d",
     )
 
 
@@ -103,6 +109,18 @@ def ninja_ebpf_program(nw, infile, outfile, variables=None):
         inputs=[f"{out_base}.bc"],
         outputs=[f"{out_base}.o"],
         rule="llc",
+    )
+
+
+def ninja_ebpf_core_program(nw, infile, outfile, variables=None):
+    outdir, basefile = os.path.split(outfile)
+    basename = os.path.basename(os.path.splitext(basefile)[0])
+    out_base = f"{outdir}/{basename}"
+    nw.build(
+        inputs=[infile],
+        outputs=[f"{out_base}.o"],
+        rule="ebpfclangcore",
+        variables=variables,
     )
 
 
@@ -169,6 +187,12 @@ def ninja_network_ebpf_program(nw, infile, outfile, flags):
     ninja_ebpf_program(nw, infile, f"{root}-debug{ext}", {"flags": flags + " -DDEBUG=1"})
 
 
+def ninja_network_ebpf_core_program(nw, infile, outfile, flags):
+    ninja_ebpf_core_program(nw, infile, outfile, {"flags": flags})
+    root, ext = os.path.splitext(outfile)
+    ninja_ebpf_core_program(nw, infile, f"{root}-debug{ext}", {"flags": flags + " -DDEBUG=1"})
+
+
 def ninja_network_ebpf_programs(nw, build_dir):
     network_bpf_dir = os.path.join("pkg", "network", "ebpf")
     network_c_dir = os.path.join(network_bpf_dir, "c")
@@ -180,6 +204,19 @@ def ninja_network_ebpf_programs(nw, build_dir):
         infile = os.path.join(network_prebuilt_dir, f"{prog}.c")
         outfile = os.path.join(build_dir, f"{prog}.o")
         ninja_network_ebpf_program(nw, infile, outfile, network_flags)
+
+
+def ninja_network_core_programs(nw, build_dir):
+    network_bpf_dir = os.path.join("pkg", "network", "ebpf")
+    network_c_dir = os.path.join(network_bpf_dir, "c")
+    network_core_dir = os.path.join(network_c_dir, "co-re")
+
+    network_flags = "-g"
+    network_programs = ["fargate-tracer"]
+    for prog in network_programs:
+        infile = os.path.join(network_core_dir, f"{prog}.c")
+        outfile = os.path.join(build_dir, f"{prog}.o")
+        ninja_network_ebpf_core_program(nw, infile, outfile, network_flags)
 
 
 def ninja_runtime_compilation_files(nw):
@@ -243,6 +280,10 @@ def ninja_cgo_type_files(nw, windows):
                 "pkg/network/ebpf/c/tracer.h",
                 "pkg/network/ebpf/c/http-types.h",
             ],
+            "pkg/network/tracer/connection/fargate/tracer_types.go": [
+                "pkg/network/ebpf/c/co-re/fargate-types.h",
+                "pkg/network/ebpf/c/co-re/vmlinux.h",
+            ]
         }
         nw.rule(
             name="godefs",
@@ -299,6 +340,7 @@ def ninja_generate(
         else:
             ninja_define_ebpf_compiler(nw, strip_object_files, kernel_release)
             ninja_network_ebpf_programs(nw, build_dir)
+            ninja_network_core_programs(nw, build_dir)
             ninja_security_ebpf_programs(nw, build_dir, debug, kernel_release)
             ninja_runtime_compilation_files(nw)
 
@@ -696,6 +738,7 @@ def run_tidy(ctx, files, build_flags, fix=False, fail_on_issue=False, checks=Non
 
 def get_ebpf_targets():
     files = glob.glob("pkg/ebpf/c/*.[c,h]")
+    files.remove("pkg/ebpf/c/bpf_helpers_new.h")
     files.extend(glob.glob("pkg/network/ebpf/c/**/*.[c,h]", recursive=True))
     files.extend(glob.glob("pkg/security/ebpf/c/**/*.[c,h]", recursive=True))
     return files
@@ -809,6 +852,45 @@ def get_ebpf_build_flags():
             '-fno-asynchronous-unwind-tables',
             '-fno-jump-tables',
             '-fmerge-all-constants',
+        ]
+    )
+    flags.extend(["-Ipkg/ebpf/c"])
+    return flags
+
+
+def get_ebpf_core_build_flags():
+    flags = []
+    # flags.extend(
+    #     [
+    #         '-D__KERNEL__',
+    #         '-DCONFIG_64BIT',
+    #         '-D__BPF_TRACING__',
+    #         '-DKBUILD_MODNAME=\\"ddsysprobe\\"',
+    #     ]
+    # )
+    flags.extend(
+        [
+            '-D__TARGET_ARCH_arm64',
+            '-Wno-unused-value',
+            '-Wno-pointer-sign',
+            '-Wno-compare-distinct-pointer-types',
+            '-Wunused',
+            '-Wall',
+            '-Werror',
+        ]
+    )
+    # flags.extend(["-include pkg/ebpf/c/asm_goto_workaround.h"])
+    flags.extend(["-O2"])
+    flags.extend(
+        [
+            # Some linux distributions enable stack protector by default which is not available on eBPF
+            '-fno-stack-protector',
+            '-fno-color-diagnostics',
+            '-fno-unwind-tables',
+            '-fno-asynchronous-unwind-tables',
+            '-fno-jump-tables',
+            '-fmerge-all-constants',
+            '-nostdinc',
         ]
     )
     flags.extend(["-Ipkg/ebpf/c"])

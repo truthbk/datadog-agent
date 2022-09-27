@@ -109,7 +109,7 @@ func New(config *config.Config, constants []manager.ConstantEditor) (connection.
 	}
 
 	if buf == nil {
-		buf, err = netebpf.ReadBPFModule(config.BPFDir, config.BPFDebug)
+		buf, err = netebpf.ReadTracerBPFModule(config.BPFDir, config.BPFDebug)
 		if err != nil {
 			return nil, fmt.Errorf("could not read bpf module: %s", err)
 		}
