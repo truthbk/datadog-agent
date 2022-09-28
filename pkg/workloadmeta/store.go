@@ -465,10 +465,21 @@ func (s *store) handleEvents(evs []CollectorEvent) {
 				})
 			} else {
 				entity = entity.DeepCopy()
+
+				if entity.GetID().Kind == KindKubernetesPod {
+					log.Infof("subscriber: %+v", sub)
+					log.Infof("entity: %+v", entity)
+					log.Infof("event entity: %+v", ev.Entity)
+				}
+
 				err := entity.Merge(ev.Entity)
 				if err != nil {
 					log.Errorf("cannot merge %+v into %+v: %s", entity, ev.Entity, err)
 					continue
+				}
+
+				if entity.GetID().Kind == KindKubernetesPod {
+					log.Infof("merged entity: %+v", entity)
 				}
 
 				filteredEvents[sub] = append(filteredEvents[sub], Event{
@@ -546,6 +557,12 @@ func notifyChannel(name string, ch chan EventBundle, events []Event, wait bool) 
 	bundle := EventBundle{
 		Ch:     make(chan struct{}),
 		Events: events,
+	}
+
+	if name == "ad-kubecontainerprovider" {
+		for _, ev := range events {
+			log.Infof("EVENT: %+v", ev)
+		}
 	}
 
 	ch <- bundle

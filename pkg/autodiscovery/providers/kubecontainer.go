@@ -13,11 +13,13 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/common/utils"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/providers/names"
 	"github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/containers"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
@@ -66,6 +68,30 @@ func (k *KubeContainerConfigProvider) Stream(ctx context.Context) <-chan integra
 		workloadmeta.EventTypeAll,
 	))
 
+	configCache := telemetry.NewGaugeWithOpts(
+		"autodiscovery",
+		"kube_config_cache",
+		[]string{},
+		"Number of configs scheduled in Autodiscovery by provider and type.",
+		telemetry.Options{NoDoubleUnderscoreSep: true},
+	)
+
+	configCacheAll := telemetry.NewGaugeWithOpts(
+		"autodiscovery",
+		"kube_config_cache_all",
+		[]string{},
+		"Number of configs scheduled in Autodiscovery by provider and type.",
+		telemetry.Options{NoDoubleUnderscoreSep: true},
+	)
+
+	configErrors := telemetry.NewGaugeWithOpts(
+		"autodiscovery",
+		"kube_config_errors",
+		[]string{},
+		"Number of configs scheduled in Autodiscovery by provider and type.",
+		telemetry.Options{NoDoubleUnderscoreSep: true},
+	)
+
 	go func() {
 		for {
 			select {
@@ -87,6 +113,22 @@ func (k *KubeContainerConfigProvider) Stream(ctx context.Context) <-chan integra
 		}
 	}()
 
+	go func() {
+		ticker := time.NewTicker(500 * time.Millisecond)
+		for {
+			<-ticker.C
+			configCache.Set(float64(len(k.configCache)))
+			configErrors.Set(float64(len(k.configErrors)))
+
+			var cacheAll int
+			for _, x := range k.configCache {
+				cacheAll += len(x)
+			}
+
+			configCacheAll.Set(float64(cacheAll))
+		}
+	}()
+
 	return outCh
 }
 
@@ -101,6 +143,8 @@ func (k *KubeContainerConfigProvider) processEvents(evBundle workloadmeta.EventB
 
 		switch event.Type {
 		case workloadmeta.EventTypeSet:
+			log.Infof("SET %+v", event.Entity)
+
 			configs, err := k.generateConfig(event.Entity)
 
 			if err != nil {
@@ -136,14 +180,16 @@ func (k *KubeContainerConfigProvider) processEvents(evBundle workloadmeta.EventB
 			}
 
 		case workloadmeta.EventTypeUnset:
-			oldConfigs, found := k.configCache[entityName]
-			if !found {
-				log.Debugf("entity %q removed from workloadmeta store but not found in cache. skipping", entityName)
-				continue
-			}
+			log.Infof("UNSET %+v", event.Entity)
 
-			for _, oldConfig := range oldConfigs {
-				changes.Unschedule = append(changes.Unschedule, oldConfig)
+			oldConfigs, found := k.configCache[entityName]
+			if found {
+				for _, oldConfig := range oldConfigs {
+					changes.Unschedule = append(changes.Unschedule, oldConfig)
+				}
+			} else {
+				log.Info("entity %q removed from workloadmeta store but not found in cache. skipping", entityName)
+				continue
 			}
 
 			delete(k.configCache, entityName)
