@@ -147,6 +147,9 @@ func NewTracer(config *config.Config) (*Tracer, error) {
 	var bpfTelemetry *errtelemetry.EBPFTelemetry
 	if usmSupported {
 		bpfTelemetry = errtelemetry.NewEBPFTelemetry()
+		if bpfTelemetry == nil {
+			log.Debugf("Failed to initialize bpfTelemetry\n")
+		}
 	}
 	ebpfTracer, err := kprobe.New(config, constantEditors, bpfTelemetry)
 	if err != nil {
@@ -601,6 +604,7 @@ const (
 	tracerStats
 	bpfMapStats
 	bpfHelperStats
+	bpfStats
 )
 
 var allStats = []statsComp{
@@ -614,6 +618,7 @@ var allStats = []statsComp{
 	tracerStats,
 	bpfHelperStats,
 	bpfMapStats,
+	bpfStats,
 }
 
 func (t *Tracer) getStats(comps ...statsComp) (map[string]interface{}, error) {
@@ -650,7 +655,10 @@ func (t *Tracer) getStats(comps ...statsComp) (map[string]interface{}, error) {
 			ret["map_ops"] = t.bpfTelemetry.GetMapsTelemetry()
 		case bpfHelperStats:
 			ret["ebpf_helpers"] = t.bpfTelemetry.GetHelperTelemetry()
+		case bpfStats:
+			ret["ebpf_stats"] = t.bpfTelemetry.GetEBPFStats()
 		}
+
 	}
 
 	return ret, nil

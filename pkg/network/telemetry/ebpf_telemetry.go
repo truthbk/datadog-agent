@@ -11,6 +11,7 @@ package telemetry
 import (
 	"fmt"
 	"hash/fnv"
+	"os"
 	"syscall"
 	"unsafe"
 
@@ -40,14 +41,37 @@ type EBPFTelemetry struct {
 	HelperErrMap *ebpf.Map
 	mapKeys      map[string]uint64
 	probeKeys    map[string]uint64
+	progs        map[string]*ebpf.Program
 }
 
 // NewEBPFTelemetry initializes a new EBPFTelemetry object
 func NewEBPFTelemetry() *EBPFTelemetry {
+	err := enableBpfStats()
+	if err != nil {
+		log.Debugf("Failed to enable bpf_stats %v\n", err)
+		return nil
+	}
 	return &EBPFTelemetry{
 		mapKeys:   make(map[string]uint64),
 		probeKeys: make(map[string]uint64),
+		progs:     make(map[string]*ebpf.Program),
 	}
+}
+
+func enableBpfStats() error {
+	statsFileName := "/proc/sys/kernel/bpf_stats_enabled"
+	f, err := os.OpenFile(statsFileName, os.O_APPEND|os.O_WRONLY, 0666)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	enable := "1"
+	if _, err := f.WriteString(enable); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // RegisterEBPFTelemetry initializes the maps for holding telemetry info
@@ -63,7 +87,39 @@ func (b *EBPFTelemetry) RegisterEBPFTelemetry(m *manager.Manager) error {
 		return err
 	}
 
+	b.initializePrograms(m.Probes)
+
 	return nil
+}
+
+// GetEBPFStats retuns runtime per probe
+func (b *EBPFTelemetry) GetEBPFStats() map[string]int64 {
+	statsTelemetry := make(map[string]int64)
+	for name, prog := range b.progs {
+		if prog == nil {
+			continue
+		}
+		info, err := prog.Info()
+		if err != nil {
+			continue
+		}
+		runtime, enabled := info.Runtime()
+		if !enabled {
+			continue
+		}
+		runcount, enabled := info.RunCount()
+		if !enabled {
+			continue
+		}
+
+		if runcount != 0 {
+			statsTelemetry[name] = int64(int64(runtime) / int64(runcount))
+		} else {
+			statsTelemetry[name] = 0
+		}
+	}
+
+	return statsTelemetry
 }
 
 // GetMapsTelemetry returns a map of error telemetry for each ebpf map
@@ -196,6 +252,13 @@ func buildHelperErrTelemetryKeys(mgr *manager.Manager) []manager.ConstantEditor 
 	}
 
 	return keys
+}
+
+func (b *EBPFTelemetry) initializePrograms(probes []*manager.Probe) {
+	for _, p := range probes {
+		prog := p.Program()
+		b.progs[p.EBPFFuncName] = prog
+	}
 }
 
 func (b *EBPFTelemetry) initializeMapErrTelemetryMap(maps []*manager.Map) error {
