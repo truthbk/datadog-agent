@@ -11,7 +11,6 @@ package telemetry
 import (
 	"io"
 
-	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
 	manager "github.com/DataDog/ebpf-manager"
 	"github.com/cilium/ebpf"
 )
@@ -55,11 +54,4 @@ func initializeMaps(bpfTelemetry *EBPFTelemetry, opts *manager.Options) {
 			opts.MapEditors = make(map[string]*ebpf.Map)
 		}
 	}
-	if bpfTelemetry.MapErrMap != nil {
-		opts.MapEditors[string(probes.MapErrTelemetryMap)] = bpfTelemetry.MapErrMap
-	}
-	if bpfTelemetry.HelperErrMap != nil {
-		opts.MapEditors[string(probes.HelperErrTelemetryMap)] = bpfTelemetry.HelperErrMap
-	}
-
 }

@@ -433,13 +433,6 @@ func getManager(buf io.ReaderAt, maxStateSize int, mapErrTelemetryMap, helperErr
 		opts.MapEditors = make(map[string]*ebpf.Map)
 	}
 
-	if mapErrTelemetryMap != nil {
-		opts.MapEditors[string(probes.MapErrTelemetryMap)] = mapErrTelemetryMap
-	}
-	if helperErrTelemetryMap != nil {
-		opts.MapEditors[string(probes.HelperErrTelemetryMap)] = helperErrTelemetryMap
-	}
-
 	err = mgr.InitWithOptions(buf, opts)
 	if err != nil {
 		return nil, err
