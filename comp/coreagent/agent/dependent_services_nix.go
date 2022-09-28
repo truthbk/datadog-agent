@@ -5,7 +5,7 @@
 //go:build !windows
 // +build !windows
 
-package run
+package agent
 
 // Servicedef defines a service
 type Servicedef struct {

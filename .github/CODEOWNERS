@@ -176,6 +176,8 @@
 # components
 /comp                                   @DataDog/agent-shared-components
 /comp/core/                             @DataDog/agent-shared-components
+/comp/coreagent/                        @DataDog/agent-shared-components
+/comp/jmx/                              @DataDog/agent-metrics-logs
 
 # pkg
 /pkg/                                   @DataDog/agent-shared-components
