@@ -46,7 +46,7 @@ type EBPFTelemetry struct {
 
 // NewEBPFTelemetry initializes a new EBPFTelemetry object
 func NewEBPFTelemetry() *EBPFTelemetry {
-	err := enableBpfStats()
+	err := ToggleBpfStats("1")
 	if err != nil {
 		log.Debugf("Failed to enable bpf_stats %v\n", err)
 		return nil
@@ -58,7 +58,7 @@ func NewEBPFTelemetry() *EBPFTelemetry {
 	}
 }
 
-func enableBpfStats() error {
+func ToggleBpfStats(toggle string) error {
 	statsFileName := "/proc/sys/kernel/bpf_stats_enabled"
 	f, err := os.OpenFile(statsFileName, os.O_APPEND|os.O_WRONLY, 0666)
 	if err != nil {
@@ -66,8 +66,7 @@ func enableBpfStats() error {
 	}
 	defer f.Close()
 
-	enable := "1"
-	if _, err := f.WriteString(enable); err != nil {
+	if _, err := f.WriteString(toggle); err != nil {
 		return err
 	}
 

@@ -30,9 +30,12 @@
 BPF_HASH_MAP(map_err_telemetry_map, unsigned long, map_err_telemetry_t, 128)
 BPF_HASH_MAP(helper_err_telemetry_map, unsigned long, helper_err_telemetry_t, 256)
 
+#ifdef TURN_ON
 #define PATCH_TARGET_TELEMETRY -1
 static void *(*bpf_telemetry_update_patch)(unsigned long, ...) = (void *)PATCH_TARGET_TELEMETRY;
+#endif
 
+#ifdef TURN_ON
 #define map_update_with_telemetry(fn, map, args...)                                 \
     do {                                                                            \
         long errno_ret, errno_slot;                                                  \
@@ -59,6 +62,10 @@ static void *(*bpf_telemetry_update_patch)(unsigned long, ...) = (void *)PATCH_T
             }                                                                       \
         }                                                                           \
     } while (0)
+#else
+#define map_update_with_telemetry(fn, map, args...)                                 \
+    fn(&map, args);
+#endif
 
 #define MK_FN_INDX(fn) FN_INDX_##fn
 
@@ -70,6 +77,7 @@ static void *(*bpf_telemetry_update_patch)(unsigned long, ...) = (void *)PATCH_T
 #define FN_INDX_bpf_probe_read_user read_user_indx
 #define FN_INDX_bpf_probe_read_user_str read_user_indx
 
+#ifdef TURN_ON
 #define helper_with_telemetry(fn, dst, sz, src)                                                 \
     ({                                                                                          \
         int helper_indx = -1;                                                                   \
@@ -105,6 +113,10 @@ static void *(*bpf_telemetry_update_patch)(unsigned long, ...) = (void *)PATCH_T
         }                                                                                       \
         errno_ret;                                                                              \
     })
+#else
+#define helper_with_telemetry(fn, dst, sz, src)                                                 \
+    ({ long errno_ret = fn(dst,sz,src); errno_ret; })
+#endif
 
 #define bpf_map_update_with_telemetry(map, key, val, flags) \
     map_update_with_telemetry(bpf_map_update_elem, map, key, val, flags)
