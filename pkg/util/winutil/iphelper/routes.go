@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	modiphelper = windows.NewLazyDLL("Iphlpapi.dll")
+	modiphelper = windows.NewLazySystemDLL("Iphlpapi.dll")
 
 	procGetExtendedTcpTable = modiphelper.NewProc("GetExtendedTcpTable")
 	procGetIpForwardTable   = modiphelper.NewProc("GetIpForwardTable")

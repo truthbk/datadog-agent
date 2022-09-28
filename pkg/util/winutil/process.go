@@ -19,8 +19,8 @@ import (
 )
 
 var (
-	modntdll                       = windows.NewLazyDLL("ntdll.dll")
-	modkernel                      = windows.NewLazyDLL("kernel32.dll")
+	modntdll                       = windows.NewLazySystemDLL("ntdll.dll")
+	modkernel                      = windows.NewLazySystemDLL("kernel32.dll")
 	procNtQueryInformationProcess  = modntdll.NewProc("NtQueryInformationProcess")
 	procReadProcessMemory          = modkernel.NewProc("ReadProcessMemory")
 	procIsWow64Process             = modkernel.NewProc("IsWow64Process")

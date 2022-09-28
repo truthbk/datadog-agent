@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	advapi32 = syscall.NewLazyDLL("advapi32.dll")
+	advapi32 = syscall.NewLazySystemDLL("advapi32.dll")
 
 	procGetAclInformation    = advapi32.NewProc("GetAclInformation")
 	procGetNamedSecurityInfo = advapi32.NewProc("GetNamedSecurityInfoW")

@@ -54,7 +54,7 @@ func Commands(globalArgs *command.GlobalArgs) []*cobra.Command {
 }
 
 var (
-	modadvapi32 = windows.NewLazyDLL("advapi32.dll")
+	modadvapi32 = windows.NewLazySystemDLL("advapi32.dll")
 
 	procEnumDependentServices = modadvapi32.NewProc("EnumDependentServicesW")
 )

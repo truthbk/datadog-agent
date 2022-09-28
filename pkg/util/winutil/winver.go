@@ -16,8 +16,8 @@ import (
 )
 
 var (
-	k32        = windows.NewLazyDLL("kernel32.dll")
-	versiondll = windows.NewLazyDLL("version.dll")
+	k32        = windows.NewLazySystemDLL("kernel32.dll")
+	versiondll = windows.NewLazySystemDLL("version.dll")
 
 	procGetModuleHandle          = k32.NewProc("GetModuleHandleW")
 	procGetModuleFileName        = k32.NewProc("GetModuleFileNameW")

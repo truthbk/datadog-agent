@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	modkernel32 = windows.NewLazyDLL("kernel32.dll")
+	modkernel32 = windows.NewLazySystemDLL("kernel32.dll")
 
 	procGetSystemTimes = modkernel32.NewProc("GetSystemTimes")
 )
@@ -87,7 +87,7 @@ func (c *Check) Run() error {
 	if c.userCounter == nil {
 		c.userCounter, err = getProcessorPDHCounter("% User Time", "_Total")
 	}
-	if c.userCounter != nil{
+	if c.userCounter != nil {
 		val, err = c.userCounter.GetValue()
 	}
 	if err != nil {

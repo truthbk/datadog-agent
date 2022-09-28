@@ -10,19 +10,19 @@ package pdhutil
 import (
 	"fmt"
 	"strconv"
-	"unsafe"
-	"time"
 	"sync"
+	"time"
+	"unsafe"
 
-	"golang.org/x/sys/windows"
 	"go.uber.org/atomic"
+	"golang.org/x/sys/windows"
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil"
 )
 
 var (
-	modPdhDll = windows.NewLazyDLL("pdh.dll")
+	modPdhDll = windows.NewLazySystemDLL("pdh.dll")
 
 	procPdhLookupPerfNameByIndex    = modPdhDll.NewProc("PdhLookupPerfNameByIndexW")
 	procPdhEnumObjects              = modPdhDll.NewProc("PdhEnumObjectsW")
@@ -80,13 +80,16 @@ func pdhLookupPerfNameByIndex(ndx int) (string, error) {
 const (
 	PDH_REFRESH_INTERVAL = 60 // in seconds
 )
+
 // Lock enforces no more than once forceRefresh=false
 // is running concurrently
 var lock_lastPdhRefreshTime sync.Mutex
+
 // tracks last time a refresh was successful
 // initialize with process init time as that is when
 // the PDH object cache is implicitly created/refreshed.
 var lastPdhRefreshTime = atomic.NewTime(time.Now())
+
 func refreshPdhObjectCache(forceRefresh bool) (didrefresh bool, err error) {
 	// Refresh the Windows internal PDH Object cache
 	//
@@ -122,9 +125,9 @@ func refreshPdhObjectCache(forceRefresh bool) (didrefresh bool, err error) {
 
 	log.Infof("Refreshing performance counters")
 	r, _, _ := procPdhEnumObjects.Call(
-		uintptr(0), // NULL data source, use computer in szMachineName parameter
-		uintptr(0), // NULL use local computer
-		uintptr(0), // NULL don't return output
+		uintptr(0),                    // NULL data source, use computer in szMachineName parameter
+		uintptr(0),                    // NULL use local computer
+		uintptr(0),                    // NULL don't return output
 		uintptr(unsafe.Pointer(&len)), // output size
 		uintptr(PERF_DETAIL_WIZARD),
 		uintptr(1)) // do refresh

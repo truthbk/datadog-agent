@@ -100,7 +100,7 @@ func goNotificationCallback(handle C.ULONGLONG, ctx C.PVOID) {
 }
 
 var (
-	modWinEvtAPI = windows.NewLazyDLL("wevtapi.dll")
+	modWinEvtAPI = windows.NewLazySystemDLL("wevtapi.dll")
 
 	procEvtRender = modWinEvtAPI.NewProc("EvtRender")
 )
