@@ -92,7 +92,7 @@ func (b *EBPFTelemetry) RegisterEBPFTelemetry(m *manager.Manager) error {
 	return nil
 }
 
-// GetEBPFStats retuns runtime per probe
+// GetEBPFStats returns runtime per probe
 func (b *EBPFTelemetry) GetEBPFStats() map[string]int64 {
 	statsTelemetry := make(map[string]int64)
 	for name, prog := range b.progs {
