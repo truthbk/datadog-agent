@@ -337,7 +337,7 @@ func (t *Tracer) storeClosedConnections(connections []network.ConnectionStats) {
 
 // Stop stops the tracer
 func (t *Tracer) Stop() {
-	errtelemetry.ToggleBpfStats("0")
+	_ = errtelemetry.ToggleBpfStats("0")
 	t.reverseDNS.Close()
 	t.ebpfTracer.Stop()
 	t.httpMonitor.Stop()
