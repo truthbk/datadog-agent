@@ -26,7 +26,7 @@ var (
 
 type EvalContext = eval.Context[Event]
 
-func (m *Model) GetIterator(field eval.Field) (eval.Iterator, error) {
+func (m *Model) GetIterator(field eval.Field) (eval.Iterator[Event], error) {
 	switch field {
 	{{range $Name, $Field := .Iterators}}
 	case "{{$Name}}":
@@ -47,11 +47,11 @@ func (m *Model) GetEventTypes() []eval.EventType {
 	}
 }
 
-func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Evaluator, error) {
+func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Evaluator[Event], error) {
 	switch field {
 	{{range $Name, $Field := .Fields}}
 	case "{{$Name}}":
-		return &{{$Field.GetEvaluatorType}}{
+		return &{{$Field.GetEvaluatorType}}[Event]{
 			{{- if $Field.OpOverrides}}
 			OpOverrides: {{$Mock | Override $Field.OpOverrides}},
 			{{- end}}
@@ -185,7 +185,7 @@ func (e *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 		{{if $Field.Iterator}}
 			var values []{{$Field.ReturnType}}
 
-			ctx := eval.NewContext(unsafe.Pointer(e))
+			ctx := eval.NewContext(e)
 
 			iterator := &{{$Field.Iterator.ReturnType}}{}
 			ptr := iterator.Front(ctx)
