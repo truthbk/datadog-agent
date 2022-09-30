@@ -577,7 +577,7 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 				ts.TracesDropped.DecodingError.Add(tracen)
 			}
 		}
-		log.Errorf("Cannot decode %s traces payload: %v (%#v)", v, err)
+		log.Errorf("Cannot decode %s traces payload: %v (%#v)", v, err, err)
 		return
 	}
 	if !ranHook {
