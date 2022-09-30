@@ -545,15 +545,45 @@ func (r *HTTPReceiver) handleStats(w http.ResponseWriter, req *http.Request) {
 type tracker struct {
 	ipbytes  map[string]uint64
 	lim      *rate.Limiter
+	rate     float64
 	timeouts uint32
 	conns    int32
 	l        sync.RWMutex
 }
 
+	wi := watchdog.Info{
+		Mem: watchdog.Mem(),
+		CPU: watchdog.CPU(now),
+	}
+	rateMem := 1.0
+	if r.conf.MaxMemory > 0 {
+		if current, allowed := float64(wi.Mem.Alloc), r.conf.MaxMemory*1.5; current > allowed {
+			// This is a safety mechanism: if the agent is using more than 1.5x max. memory, there
+			// is likely a leak somewhere; we'll kill the process to avoid polluting host memory.
+			metrics.Count("datadog.trace_agent.receiver.oom_kill", 1, nil, 1)
+			metrics.Flush()
+			log.Criticalf("Killing process. Memory threshold exceeded: %.2fM / %.2fM", current/1024/1024, allowed/1024/1024)
+			killProcess("OOM")
+		}
+		rateMem = computeRateLimitingRate(r.conf.MaxMemory, float64(wi.Mem.Alloc), r.RateLimiter.RealRate())
+		if rateMem < 1 {
+			log.Warnf("Memory threshold exceeded (apm_config.max_memory: %.0f bytes): %d", r.conf.MaxMemory, wi.Mem.Alloc)
+		}
+	}
+
 func (t *tracker) worker() {
 	tick := time.NewTicker(100 * time.Millisecond)
 	for {
 		<-tick.C
+
+	m := watchdog.Mem()
+	if m > r.conf.MaxMemory * 0.8 {
+		log.Infof("\n\n##########Lowering rate to %v/s\n##########\n\n", t.rate)
+		t.rate = t.rate/2
+		t.lim.SetRate(t.rate)
+	}
+
+
 		to := stdatomic.SwapUint32(&t.timeouts, 0)
 		log.Infof("Tracker Worker Tick Open: %d, Timeout: %d\n", stdatomic.LoadInt32(&t.conns), to)
 		// 		if to > 0 {
