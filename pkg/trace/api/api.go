@@ -561,6 +561,7 @@ func (t *tracker) worker() {
 			log.Infof("Decreasing sem.\n")
 		} else if stdatomic.LoadInt32(&t.waiting) > 0 {
 			t.putSem()
+			log.Infof("Increasing sem.\n")
 		}
 	}
 }
