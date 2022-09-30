@@ -24,6 +24,8 @@ var (
 	_ *unsafe.Pointer
 )
 
+type EvalContext = eval.Context[Event]
+
 func (m *Model) GetIterator(field eval.Field) (eval.Iterator, error) {
 	switch field {
 	{{range $Name, $Field := .Iterators}}
@@ -54,7 +56,7 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			OpOverrides: {{$Mock | Override $Field.OpOverrides}},
 			{{- end}}
 			{{- if $Field.Iterator}}
-				EvalFnc: func(ctx *eval.Context) []{{$Field.ReturnType}} {
+				EvalFnc: func(ctx *EvalContext) []{{$Field.ReturnType}} {
 					{{- if not $Mock }}
 					if ptr := ctx.Cache[field]; ptr != nil {
 						if result := (*[]{{$Field.ReturnType}})(ptr); result != nil {
@@ -112,7 +114,7 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 				},
 			{{- else}}
 				{{- $ReturnType := $Field.ReturnType}}
-				EvalFnc: func(ctx *eval.Context) {{$Field.GetArrayPrefix}}{{$ReturnType}} {
+				EvalFnc: func(ctx *EvalContext) {{$Field.GetArrayPrefix}}{{$ReturnType}} {
 					{{$Return := $Field.Name | printf "(*Event)(ctx.Object).%s"}}
 					{{- if and (ne $Field.Handler "") (not $Mock)}}
 						{{$Ptr := "&"}}
