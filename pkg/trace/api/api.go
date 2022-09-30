@@ -555,7 +555,7 @@ func (t *tracker) worker() {
 	tick := time.NewTicker(1000 * time.Millisecond)
 	for {
 		<-tick.C
-		log.Infof("Tracker Worker Tick\n")
+		log.Infof("Tracker Worker Tick Open: %d\n", stdatomic.LoadInt32(&t.conns))
 		to := stdatomic.SwapUint32(&t.timeouts, 0)
 		if to > 0 {
 			log.Infof("Decreasing sem.\n")
@@ -586,7 +586,6 @@ func (t *tracker) decSem() {
 }
 
 func (t *tracker) getSem() {
-	log.Infof("Taking Semaphore!\n")
 	stdatomic.AddInt32(&t.waiting, 1)
 	defer stdatomic.AddInt32(&t.waiting, -1)
 	<-t.sem
