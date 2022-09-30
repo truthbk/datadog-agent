@@ -582,10 +582,11 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 			}
 		}
 		log.Errorf("Cannot decode %s traces payload: %v (%#v)", v, err, err)
-		if toe, ok := err.(interface{ Timeout() bool }); ok {
-			if toe.Timeout() {
-				fmt.Printf("Timeout from %v\n", req.RemoteAddr)
+		if oe, ok := err.(*net.OpError); ok {
+			if oe.Timeout() {
+				log.Errorf("Timeout from %v\n", req.RemoteAddr)
 			}
+			log.Errorf("Internal error: %#v\n", oe.Unwrap())
 		}
 		return
 	}
