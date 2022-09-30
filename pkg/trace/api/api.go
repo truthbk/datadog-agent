@@ -585,6 +585,7 @@ func (t *tracker) decSem() {
 }
 
 func (t *tracker) getSem() {
+	log.Infof("Taking Semaphore!\n")
 	stdatomic.AddInt32(&t.waiting, 1)
 	defer stdatomic.AddInt32(&t.waiting, -1)
 	<-t.sem
