@@ -12,8 +12,8 @@ import (
 )
 
 // Context describes the context used during a rule evaluation
-type Context struct {
-	Object unsafe.Pointer
+type Context[T any] struct {
+	Object *T
 
 	Registers Registers
 
@@ -24,7 +24,7 @@ type Context struct {
 }
 
 // Now return and cache the `now` timestamp
-func (c *Context) Now() time.Time {
+func (c *Context[T]) Now() time.Time {
 	if c.now.IsZero() {
 		c.now = time.Now()
 	}
@@ -32,12 +32,12 @@ func (c *Context) Now() time.Time {
 }
 
 // SetObject set the given object to the context
-func (c *Context) SetObject(obj unsafe.Pointer) {
+func (c *Context[T]) SetObject(obj *T) {
 	c.Object = obj
 }
 
 // Reset the context
-func (c *Context) Reset() {
+func (c *Context[T]) Reset() {
 	c.Object = nil
 	c.Registers = nil
 	c.now = time.Time{}
@@ -49,36 +49,36 @@ func (c *Context) Reset() {
 }
 
 // NewContext return a new Context
-func NewContext(obj unsafe.Pointer) *Context {
-	return &Context{
+func NewContext[T any](obj *T) *Context[T] {
+	return &Context[T]{
 		Object: obj,
 		Cache:  make(map[string]unsafe.Pointer),
 	}
 }
 
 // ContextPool defines a pool of context
-type ContextPool struct {
+type ContextPool[T any] struct {
 	pool sync.Pool
 }
 
 // Get returns a context with the given object
-func (c *ContextPool) Get(obj unsafe.Pointer) *Context {
-	ctx := c.pool.Get().(*Context)
+func (c *ContextPool[T]) Get(obj *T) *Context[T] {
+	ctx := c.pool.Get().(*Context[T])
 	ctx.SetObject(obj)
 	return ctx
 }
 
 // Put returns the context to the pool
-func (c *ContextPool) Put(ctx *Context) {
+func (c *ContextPool[T]) Put(ctx *Context[T]) {
 	ctx.Reset()
 	c.pool.Put(ctx)
 }
 
 // NewContextPool returns a new context pool
-func NewContextPool() *ContextPool {
-	return &ContextPool{
+func NewContextPool[T any]() *ContextPool[T] {
+	return &ContextPool[T]{
 		pool: sync.Pool{
-			New: func() interface{} { return NewContext(nil) },
+			New: func() interface{} { return NewContext[T](nil) },
 		},
 	}
 }
