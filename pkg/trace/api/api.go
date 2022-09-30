@@ -30,6 +30,7 @@ import (
 
 	"github.com/tinylib/msgp/msgp"
 	"go.uber.org/atomic"
+	"golang.org/x/time/rate"
 
 	"github.com/DataDog/datadog-agent/pkg/trace/api/apiutil"
 	"github.com/DataDog/datadog-agent/pkg/trace/appsec"
@@ -543,28 +544,25 @@ func (r *HTTPReceiver) handleStats(w http.ResponseWriter, req *http.Request) {
 
 type tracker struct {
 	ipbytes  map[string]uint64
-	conns    int32
+	lim      *rate.Limiter
 	timeouts uint32
-	sem      chan struct{}
-	semi     int32
-	waiting  int32
-	max      int
+	conns    int32
 	l        sync.RWMutex
 }
 
 func (t *tracker) worker() {
-	tick := time.NewTicker(1000 * time.Millisecond)
+	tick := time.NewTicker(100 * time.Millisecond)
 	for {
 		<-tick.C
-		log.Infof("Tracker Worker Tick Open: %d\n", stdatomic.LoadInt32(&t.conns))
 		to := stdatomic.SwapUint32(&t.timeouts, 0)
-		if to > 0 {
-			log.Infof("Decreasing sem.\n")
-			t.decSem()
-		} else if stdatomic.LoadInt32(&t.waiting) > 0 {
-			log.Infof("Increasing sem.\n")
-			t.putSem()
-		}
+		log.Infof("Tracker Worker Tick Open: %d, Timeout: %d\n", stdatomic.LoadInt32(&t.conns), to)
+		// 		if to > 0 {
+		// 			log.Infof("Decreasing sem.\n")
+		// 			t.decSem()
+		// 		} else if stdatomic.LoadInt32(&t.waiting) > 0 {
+		// 			log.Infof("Increasing sem.\n")
+		// 			t.putSem()
+		// 		}
 		t.resetTracking()
 	}
 }
@@ -587,52 +585,23 @@ func (t *tracker) Timeout() {
 	stdatomic.AddUint32(&t.timeouts, 1)
 }
 
-// takeSem() decreases the value of the semaphore without blocking, allowing
-// the semaphore to become negative
-func (t *tracker) decSem() {
-	select {
-	case <-t.sem:
-	default:
-	}
-	stdatomic.AddInt32(&t.semi, -1)
-}
-
-func (t *tracker) getSem() {
-	stdatomic.AddInt32(&t.waiting, 1)
-	defer stdatomic.AddInt32(&t.waiting, -1)
-	<-t.sem
-	stdatomic.AddInt32(&t.semi, -1)
-}
-
-func (t *tracker) putSem() {
-	i := stdatomic.AddInt32(&t.semi, 1)
-	if i > 0 {
-		t.sem <- struct{}{}
-	}
-}
-
-func (t *tracker) getBytes(addr string) uint64 {
-	t.l.RLock()
-	defer t.l.RUnlock()
-	return t.ipbytes[addr]
-}
-
 func (t *tracker) Open(addr string) bool {
-	if t.getBytes(addr) > 1024*1024*100 {
-		// More than 100MiB/s
-		return false
-	}
-	t.getSem()
 	stdatomic.AddInt32(&t.conns, 1)
-	return true
+	return t.lim.Allow()
+	// 	if t.getBytes(addr) > 1024*1024*100 {
+	// 		// More than 100MiB/s
+	// 		return false
+	// 	}
+	// 	t.getSem()
+	// 	return true
 }
 
 func (t *tracker) Close() {
-	t.putSem()
+	//	t.putSem()
 	stdatomic.AddInt32(&t.conns, -1)
 }
 
-var track = tracker{ipbytes: make(map[string]uint64), sem: make(chan struct{}, 1000), max: 30}
+var track = tracker{ipbytes: make(map[string]uint64), lim: rate.NewLimiter(100, 100)}
 
 // handleTraces knows how to handle a bunch of traces
 func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.Request) {
