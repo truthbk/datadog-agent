@@ -6,13 +6,13 @@
 package eval
 
 // Model - interface that a model has to implement for the rule compilation
-type Model interface {
+type Model[T any] interface {
 	// GetEvaluator returns an evaluator for the given field
-	GetEvaluator(field Field, regID RegisterID) (Evaluator, error)
+	GetEvaluator(field Field, regID RegisterID) (Evaluator[T], error)
 	// ValidateField returns whether the value use against the field is valid, ex: for constant
 	ValidateField(field Field, value FieldValue) error
 	// GetIterator return an iterator
-	GetIterator(field Field) (Iterator, error)
+	GetIterator(field Field) (Iterator[T], error)
 	// NewEvent returns a new event instance
-	NewEvent() Event
+	NewEvent() T
 }

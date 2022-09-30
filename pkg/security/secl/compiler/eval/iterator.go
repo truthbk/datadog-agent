@@ -8,7 +8,7 @@ package eval
 import "unsafe"
 
 // Iterator interface of a field iterator
-type Iterator interface {
-	Front(ctx *Context) unsafe.Pointer
+type Iterator[T any] interface {
+	Front(ctx *Context[T]) unsafe.Pointer
 	Next() unsafe.Pointer
 }
