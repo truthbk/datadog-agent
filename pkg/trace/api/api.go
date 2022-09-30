@@ -548,10 +548,11 @@ type tracker struct {
 	sem      chan struct{}
 	semi     int32
 	waiting  int32
+	max      int
 }
 
 func (t *tracker) worker() {
-	tick := time.NewTicker(100 * time.Millisecond)
+	tick := time.NewTicker(1000 * time.Millisecond)
 	for {
 		<-tick.C
 		log.Infof("Tracker Worker Tick\n")
@@ -609,7 +610,7 @@ func (t *tracker) Close() {
 	stdatomic.AddInt32(&t.conns, -1)
 }
 
-var track = tracker{ipbytes: make(map[string]uint64), sem: make(chan struct{}, 1000)}
+var track = tracker{ipbytes: make(map[string]uint64), sem: make(chan struct{}, 1000), max: 30}
 
 // handleTraces knows how to handle a bunch of traces
 func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.Request) {
