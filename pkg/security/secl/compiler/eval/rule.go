@@ -16,28 +16,28 @@ import (
 type RuleID = string
 
 // Rule - Rule object identified by an `ID` containing a SECL `Expression`
-type Rule struct {
+type Rule[T any] struct {
 	ID             RuleID
 	Expression     string
 	Tags           []string
 	ReplacementCtx ReplacementContext
 	Model          Model
 
-	evaluator *RuleEvaluator
+	evaluator *RuleEvaluator[T]
 	ast       *ast.Rule
 }
 
 // RuleEvaluator - Evaluation part of a Rule
-type RuleEvaluator struct {
-	Eval        BoolEvalFnc
+type RuleEvaluator[T any] struct {
+	Eval        BoolEvalFnc[T]
 	EventTypes  []EventType
 	FieldValues map[Field][]FieldValue
 
-	partialEvals map[Field]BoolEvalFnc
+	partialEvals map[Field]BoolEvalFnc[T]
 }
 
 // PartialEval partially evaluation of the Rule with the given Field.
-func (r *RuleEvaluator) PartialEval(ctx *Context, field Field) (bool, error) {
+func (r *RuleEvaluator[T]) PartialEval(ctx *Context[T], field Field) (bool, error) {
 	eval, ok := r.partialEvals[field]
 	if !ok {
 		return false, &ErrFieldNotFound{Field: field}
@@ -46,15 +46,15 @@ func (r *RuleEvaluator) PartialEval(ctx *Context, field Field) (bool, error) {
 	return eval(ctx), nil
 }
 
-func (r *RuleEvaluator) setPartial(field string, partialEval BoolEvalFnc) {
+func (r *RuleEvaluator[T]) setPartial(field string, partialEval BoolEvalFnc[T]) {
 	if r.partialEvals == nil {
-		r.partialEvals = make(map[string]BoolEvalFnc)
+		r.partialEvals = make(map[string]BoolEvalFnc[T])
 	}
 	r.partialEvals[field] = partialEval
 }
 
 // GetFields - Returns all the Field that the RuleEvaluator handles
-func (r *RuleEvaluator) GetFields() []Field {
+func (r *RuleEvaluator[T]) GetFields() []Field {
 	fields := make([]Field, len(r.FieldValues))
 	i := 0
 	for key := range r.FieldValues {
@@ -65,27 +65,27 @@ func (r *RuleEvaluator) GetFields() []Field {
 }
 
 // Eval - Evaluates
-func (r *Rule) Eval(ctx *Context) bool {
+func (r *Rule[T]) Eval(ctx *Context[T]) bool {
 	return r.evaluator.Eval(ctx)
 }
 
 // GetFieldValues returns the values of the given field
-func (r *Rule) GetFieldValues(field Field) []FieldValue {
+func (r *Rule[T]) GetFieldValues(field Field) []FieldValue {
 	return r.evaluator.FieldValues[field]
 }
 
 // PartialEval - Partial evaluation with the given Field
-func (r *Rule) PartialEval(ctx *Context, field Field) (bool, error) {
+func (r *Rule[T]) PartialEval(ctx *Context[T], field Field) (bool, error) {
 	return r.evaluator.PartialEval(ctx, field)
 }
 
 // GetPartialEval - Returns the Partial RuleEvaluator for the given Field
-func (r *Rule) GetPartialEval(field Field) BoolEvalFnc {
+func (r *Rule[T]) GetPartialEval(field Field) BoolEvalFnc[T] {
 	return r.evaluator.partialEvals[field]
 }
 
 // GetFields - Returns all the Field of the Rule including field of the Macro used
-func (r *Rule) GetFields() []Field {
+func (r *Rule[T]) GetFields() []Field {
 	fields := r.evaluator.GetFields()
 
 	for _, macro := range r.ReplacementCtx.Macros {
@@ -96,12 +96,12 @@ func (r *Rule) GetFields() []Field {
 }
 
 // GetEvaluator - Returns the RuleEvaluator of the Rule corresponding to the SECL `Expression`
-func (r *Rule) GetEvaluator() *RuleEvaluator {
+func (r *Rule[T]) GetEvaluator() *RuleEvaluator[T] {
 	return r.evaluator
 }
 
 // GetEventTypes - Returns a list of all the event that the `Expression` handles
-func (r *Rule) GetEventTypes() ([]EventType, error) {
+func (r *Rule[T]) GetEventTypes() ([]EventType, error) {
 	if r.evaluator == nil {
 		return nil, &ErrRuleNotCompiled{RuleID: r.ID}
 	}
@@ -116,12 +116,12 @@ func (r *Rule) GetEventTypes() ([]EventType, error) {
 }
 
 // GetAst - Returns the representation of the SECL `Expression`
-func (r *Rule) GetAst() *ast.Rule {
+func (r *Rule[T]) GetAst() *ast.Rule {
 	return r.ast
 }
 
 // Parse - Transforms the SECL `Expression` into its AST representation
-func (r *Rule) Parse() error {
+func (r *Rule[T]) Parse() error {
 	astRule, err := ast.ParseRule(r.Expression)
 	if err != nil {
 		return err
@@ -130,7 +130,7 @@ func (r *Rule) Parse() error {
 	return nil
 }
 
-func ruleToEvaluator(rule *ast.Rule, model Model, replCtx ReplacementContext) (*RuleEvaluator, error) {
+func ruleToEvaluator[T any](rule *ast.Rule, model Model, replCtx ReplacementContext) (*RuleEvaluator[T], error) {
 	macros := make(map[MacroID]*MacroEvaluator)
 	for id, macro := range replCtx.Macros {
 		macros[id] = macro.evaluator
@@ -142,7 +142,7 @@ func ruleToEvaluator(rule *ast.Rule, model Model, replCtx ReplacementContext) (*
 		return nil, err
 	}
 
-	evalBool, ok := eval.(*BoolEvaluator)
+	evalBool, ok := eval.(*BoolEvaluator[T])
 	if !ok {
 		return nil, NewTypeError(rule.Pos, reflect.Bool)
 	}
@@ -154,12 +154,12 @@ func ruleToEvaluator(rule *ast.Rule, model Model, replCtx ReplacementContext) (*
 
 	// direct value, no bool evaluator, wrap value
 	if evalBool.EvalFnc == nil {
-		evalBool.EvalFnc = func(ctx *Context) bool {
+		evalBool.EvalFnc = func(ctx *Context[T]) bool {
 			return evalBool.Value
 		}
 	}
 
-	return &RuleEvaluator{
+	return &RuleEvaluator[T]{
 		Eval:        evalBool.EvalFnc,
 		EventTypes:  events,
 		FieldValues: state.fieldValues,
@@ -167,7 +167,7 @@ func ruleToEvaluator(rule *ast.Rule, model Model, replCtx ReplacementContext) (*
 }
 
 // GenEvaluator - Compile and generates the RuleEvaluator
-func (r *Rule) GenEvaluator(model Model, replCtx ReplacementContext) error {
+func (r *Rule[T]) GenEvaluator(model Model, replCtx ReplacementContext) error {
 	r.Model = model
 	r.ReplacementCtx = replCtx
 
@@ -177,7 +177,7 @@ func (r *Rule) GenEvaluator(model Model, replCtx ReplacementContext) error {
 		}
 	}
 
-	evaluator, err := ruleToEvaluator(r.ast, model, replCtx)
+	evaluator, err := ruleToEvaluator[T](r.ast, model, replCtx)
 	if err != nil {
 		if err, ok := err.(*ErrAstToEval); ok {
 			return fmt.Errorf("rule syntax error: %s: %w", err, &ErrRuleParse{pos: err.Pos, expr: r.Expression})
@@ -189,7 +189,7 @@ func (r *Rule) GenEvaluator(model Model, replCtx ReplacementContext) error {
 	return nil
 }
 
-func (r *Rule) genMacroPartials() (map[Field]map[MacroID]*MacroEvaluator, error) {
+func (r *Rule[T]) genMacroPartials() (map[Field]map[MacroID]*MacroEvaluator, error) {
 	partials := make(map[Field]map[MacroID]*MacroEvaluator)
 	for _, field := range r.GetFields() {
 		for id, macro := range r.ReplacementCtx.Macros {
@@ -222,7 +222,7 @@ func (r *Rule) genMacroPartials() (map[Field]map[MacroID]*MacroEvaluator, error)
 }
 
 // GenPartials - Compiles and generates partial Evaluators
-func (r *Rule) GenPartials() error {
+func (r *Rule[T]) GenPartials() error {
 	macroPartials, err := r.genMacroPartials()
 	if err != nil {
 		return err
@@ -235,13 +235,13 @@ func (r *Rule) GenPartials() error {
 			return fmt.Errorf("couldn't generate partial for field %s and rule %s: %w", field, r.ID, err)
 		}
 
-		pEvalBool, ok := pEval.(*BoolEvaluator)
+		pEvalBool, ok := pEval.(*BoolEvaluator[T])
 		if !ok {
 			return NewTypeError(r.ast.Pos, reflect.Bool)
 		}
 
 		if pEvalBool.EvalFnc == nil {
-			pEvalBool.EvalFnc = func(ctx *Context) bool {
+			pEvalBool.EvalFnc = func(ctx *Context[T]) bool {
 				return pEvalBool.Value
 			}
 		}

@@ -12,16 +12,16 @@ import (
 )
 
 // Evaluator is the interface of an evaluator
-type Evaluator interface {
-	Eval(ctx *Context) interface{}
+type Evaluator[T any] interface {
+	Eval(ctx *Context[T]) interface{}
 	IsDeterministicFor(field Field) bool
 	GetField() string
 	IsStatic() bool
 }
 
 // BoolEvaluator returns a bool as result of the evaluation
-type BoolEvaluator struct {
-	EvalFnc     BoolEvalFnc
+type BoolEvaluator[T any] struct {
+	EvalFnc     BoolEvalFnc[T]
 	Field       Field
 	Value       bool
 	Weight      int
@@ -32,28 +32,28 @@ type BoolEvaluator struct {
 }
 
 // Eval returns the result of the evaluation
-func (b *BoolEvaluator) Eval(ctx *Context) interface{} {
+func (b *BoolEvaluator[T]) Eval(ctx *Context[T]) interface{} {
 	return b.EvalFnc(ctx)
 }
 
 // IsDeterministicFor returns whether the evaluator is partial
-func (b *BoolEvaluator) IsDeterministicFor(field Field) bool {
+func (b *BoolEvaluator[T]) IsDeterministicFor(field Field) bool {
 	return b.isDeterministic || (b.Field != "" && b.Field == field)
 }
 
 // GetField returns field name used by this evaluator
-func (b *BoolEvaluator) GetField() string {
+func (b *BoolEvaluator[T]) GetField() string {
 	return b.Field
 }
 
 // IsStatic returns whether the evaluator is a scalar
-func (b *BoolEvaluator) IsStatic() bool {
+func (b *BoolEvaluator[T]) IsStatic() bool {
 	return b.EvalFnc == nil
 }
 
 // IntEvaluator returns an int as result of the evaluation
-type IntEvaluator struct {
-	EvalFnc     func(ctx *Context) int
+type IntEvaluator[T any] struct {
+	EvalFnc     func(ctx *Context[T]) int
 	Field       Field
 	Value       int
 	Weight      int
@@ -65,28 +65,28 @@ type IntEvaluator struct {
 }
 
 // Eval returns the result of the evaluation
-func (i *IntEvaluator) Eval(ctx *Context) interface{} {
+func (i *IntEvaluator[T]) Eval(ctx *Context[T]) interface{} {
 	return i.EvalFnc(ctx)
 }
 
 // IsDeterministicFor returns whether the evaluator is partial
-func (i *IntEvaluator) IsDeterministicFor(field Field) bool {
+func (i *IntEvaluator[T]) IsDeterministicFor(field Field) bool {
 	return i.isDeterministic || (i.Field != "" && i.Field == field)
 }
 
 // GetField returns field name used by this evaluator
-func (i *IntEvaluator) GetField() string {
+func (i *IntEvaluator[T]) GetField() string {
 	return i.Field
 }
 
 // IsStatic returns whether the evaluator is a scalar
-func (i *IntEvaluator) IsStatic() bool {
+func (i *IntEvaluator[T]) IsStatic() bool {
 	return i.EvalFnc == nil
 }
 
 // StringEvaluator returns a string as result of the evaluation
-type StringEvaluator struct {
-	EvalFnc       func(ctx *Context) string
+type StringEvaluator[T any] struct {
+	EvalFnc       func(ctx *Context[T]) string
 	Field         Field
 	Value         string
 	Weight        int
@@ -99,27 +99,27 @@ type StringEvaluator struct {
 }
 
 // Eval returns the result of the evaluation
-func (s *StringEvaluator) Eval(ctx *Context) interface{} {
+func (s *StringEvaluator[T]) Eval(ctx *Context[T]) interface{} {
 	return s.EvalFnc(ctx)
 }
 
 // IsDeterministicFor returns whether the evaluator is partial
-func (s *StringEvaluator) IsDeterministicFor(field Field) bool {
+func (s *StringEvaluator[T]) IsDeterministicFor(field Field) bool {
 	return s.isDeterministic || (s.Field != "" && s.Field == field)
 }
 
 // GetField returns field name used by this evaluator
-func (s *StringEvaluator) GetField() string {
+func (s *StringEvaluator[T]) GetField() string {
 	return s.Field
 }
 
 // IsStatic returns whether the evaluator is a scalar
-func (s *StringEvaluator) IsStatic() bool {
+func (s *StringEvaluator[T]) IsStatic() bool {
 	return s.EvalFnc == nil
 }
 
 // GetValue returns the evaluator value
-func (s *StringEvaluator) GetValue(ctx *Context) string {
+func (s *StringEvaluator[T]) GetValue(ctx *Context[T]) string {
 	if s.EvalFnc == nil {
 		return s.Value
 	}
@@ -127,7 +127,7 @@ func (s *StringEvaluator) GetValue(ctx *Context) string {
 }
 
 // ToStringMatcher returns a StringMatcher of the evaluator
-func (s *StringEvaluator) ToStringMatcher(opts StringCmpOpts) (StringMatcher, error) {
+func (s *StringEvaluator[T]) ToStringMatcher(opts StringCmpOpts) (StringMatcher, error) {
 	if s.IsStatic() {
 		matcher, err := NewStringMatcher(s.ValueType, s.Value, opts)
 		if err != nil {
@@ -140,8 +140,8 @@ func (s *StringEvaluator) ToStringMatcher(opts StringCmpOpts) (StringMatcher, er
 }
 
 // StringArrayEvaluator returns an array of strings
-type StringArrayEvaluator struct {
-	EvalFnc       func(ctx *Context) []string
+type StringArrayEvaluator[T any] struct {
+	EvalFnc       func(ctx *Context[T]) []string
 	Values        []string
 	Field         Field
 	Weight        int
@@ -153,33 +153,33 @@ type StringArrayEvaluator struct {
 }
 
 // Eval returns the result of the evaluation
-func (s *StringArrayEvaluator) Eval(ctx *Context) interface{} {
+func (s *StringArrayEvaluator[T]) Eval(ctx *Context[T]) interface{} {
 	return s.EvalFnc(ctx)
 }
 
 // IsDeterministicFor returns whether the evaluator is partial
-func (s *StringArrayEvaluator) IsDeterministicFor(field Field) bool {
+func (s *StringArrayEvaluator[T]) IsDeterministicFor(field Field) bool {
 	return s.isDeterministic || (s.Field != "" && s.Field == field)
 }
 
 // GetField returns field name used by this evaluator
-func (s *StringArrayEvaluator) GetField() string {
+func (s *StringArrayEvaluator[T]) GetField() string {
 	return s.Field
 }
 
 // IsStatic returns whether the evaluator is a scalar
-func (s *StringArrayEvaluator) IsStatic() bool {
+func (s *StringArrayEvaluator[T]) IsStatic() bool {
 	return s.EvalFnc == nil
 }
 
 // AppendValue append the given value
-func (s *StringArrayEvaluator) AppendValue(value string) {
+func (s *StringArrayEvaluator[T]) AppendValue(value string) {
 	s.Values = append(s.Values, value)
 }
 
 // StringValuesEvaluator returns an array of strings
-type StringValuesEvaluator struct {
-	EvalFnc func(ctx *Context) *StringValues
+type StringValuesEvaluator[T any] struct {
+	EvalFnc func(ctx *Context[T]) *StringValues
 	Values  StringValues
 	Weight  int
 
@@ -188,44 +188,44 @@ type StringValuesEvaluator struct {
 }
 
 // Eval returns the result of the evaluation
-func (s *StringValuesEvaluator) Eval(ctx *Context) interface{} {
+func (s *StringValuesEvaluator[T]) Eval(ctx *Context[T]) interface{} {
 	return s.EvalFnc(ctx)
 }
 
 // IsDeterministicFor returns whether the evaluator is partial
-func (s *StringValuesEvaluator) IsDeterministicFor(field Field) bool {
+func (s *StringValuesEvaluator[T]) IsDeterministicFor(field Field) bool {
 	return s.isDeterministic
 }
 
 // GetField returns field name used by this evaluator
-func (s *StringValuesEvaluator) GetField() string {
+func (s *StringValuesEvaluator[T]) GetField() string {
 	return ""
 }
 
 // IsStatic returns whether the evaluator is a scalar
-func (s *StringValuesEvaluator) IsStatic() bool {
+func (s *StringValuesEvaluator[T]) IsStatic() bool {
 	return s.EvalFnc == nil
 }
 
 // AppendFieldValues append field values
-func (s *StringValuesEvaluator) AppendFieldValues(values ...FieldValue) {
+func (s *StringValuesEvaluator[T]) AppendFieldValues(values ...FieldValue) {
 	for _, value := range values {
 		s.Values.AppendFieldValue(value)
 	}
 }
 
 // Compile the underlying StringValues
-func (s *StringValuesEvaluator) Compile(opts StringCmpOpts) error {
+func (s *StringValuesEvaluator[T]) Compile(opts StringCmpOpts) error {
 	return s.Values.Compile(opts)
 }
 
 // SetFieldValues apply field values
-func (s *StringValuesEvaluator) SetFieldValues(values ...FieldValue) error {
+func (s *StringValuesEvaluator[T]) SetFieldValues(values ...FieldValue) error {
 	return s.Values.SetFieldValues(values...)
 }
 
 // AppendMembers add members to the evaluator
-func (s *StringValuesEvaluator) AppendMembers(members ...ast.StringMember) {
+func (s *StringValuesEvaluator[T]) AppendMembers(members ...ast.StringMember) {
 	values := make([]FieldValue, 0, len(members))
 	var value FieldValue
 
@@ -253,8 +253,8 @@ func (s *StringValuesEvaluator) AppendMembers(members ...ast.StringMember) {
 }
 
 // IntArrayEvaluator returns an array of int
-type IntArrayEvaluator struct {
-	EvalFnc     func(ctx *Context) []int
+type IntArrayEvaluator[T any] struct {
+	EvalFnc     func(ctx *Context[T]) []int
 	Field       Field
 	Values      []int
 	Weight      int
@@ -265,33 +265,33 @@ type IntArrayEvaluator struct {
 }
 
 // Eval returns the result of the evaluation
-func (i *IntArrayEvaluator) Eval(ctx *Context) interface{} {
+func (i *IntArrayEvaluator[T]) Eval(ctx *Context[T]) interface{} {
 	return i.EvalFnc(ctx)
 }
 
 // IsDeterministicFor returns whether the evaluator is partial
-func (i *IntArrayEvaluator) IsDeterministicFor(field Field) bool {
+func (i *IntArrayEvaluator[T]) IsDeterministicFor(field Field) bool {
 	return i.isDeterministic || (i.Field != "" && i.Field == field)
 }
 
 // GetField returns field name used by this evaluator
-func (i *IntArrayEvaluator) GetField() string {
+func (i *IntArrayEvaluator[T]) GetField() string {
 	return i.Field
 }
 
 // IsStatic returns whether the evaluator is a scalar
-func (i *IntArrayEvaluator) IsStatic() bool {
+func (i *IntArrayEvaluator[T]) IsStatic() bool {
 	return i.EvalFnc == nil
 }
 
 // AppendValues to the array evaluator
-func (i *IntArrayEvaluator) AppendValues(values ...int) {
+func (i *IntArrayEvaluator[T]) AppendValues(values ...int) {
 	i.Values = append(i.Values, values...)
 }
 
 // BoolArrayEvaluator returns an array of bool
-type BoolArrayEvaluator struct {
-	EvalFnc     func(ctx *Context) []bool
+type BoolArrayEvaluator[T any] struct {
+	EvalFnc     func(ctx *Context[T]) []bool
 	Field       Field
 	Values      []bool
 	Weight      int
@@ -302,28 +302,28 @@ type BoolArrayEvaluator struct {
 }
 
 // Eval returns the result of the evaluation
-func (b *BoolArrayEvaluator) Eval(ctx *Context) interface{} {
+func (b *BoolArrayEvaluator[T]) Eval(ctx *Context[T]) interface{} {
 	return b.EvalFnc(ctx)
 }
 
 // IsDeterministicFor returns whether the evaluator is partial
-func (b *BoolArrayEvaluator) IsDeterministicFor(field Field) bool {
+func (b *BoolArrayEvaluator[T]) IsDeterministicFor(field Field) bool {
 	return b.isDeterministic || (b.Field != "" && b.Field == field)
 }
 
 // GetField returns field name used by this evaluator
-func (b *BoolArrayEvaluator) GetField() string {
+func (b *BoolArrayEvaluator[T]) GetField() string {
 	return b.Field
 }
 
 // IsStatic returns whether the evaluator is a scalar
-func (b *BoolArrayEvaluator) IsStatic() bool {
+func (b *BoolArrayEvaluator[T]) IsStatic() bool {
 	return b.EvalFnc == nil
 }
 
 // CIDREvaluator returns a net.IP
-type CIDREvaluator struct {
-	EvalFnc     func(ctx *Context) net.IPNet
+type CIDREvaluator[T any] struct {
+	EvalFnc     func(ctx *Context[T]) net.IPNet
 	Field       Field
 	Value       net.IPNet
 	Weight      int
@@ -335,28 +335,28 @@ type CIDREvaluator struct {
 }
 
 // Eval returns the result of the evaluation
-func (s *CIDREvaluator) Eval(ctx *Context) interface{} {
+func (s *CIDREvaluator[T]) Eval(ctx *Context[T]) interface{} {
 	return s.EvalFnc(ctx)
 }
 
 // IsDeterministicFor returns whether the evaluator is partial
-func (s *CIDREvaluator) IsDeterministicFor(field Field) bool {
+func (s *CIDREvaluator[T]) IsDeterministicFor(field Field) bool {
 	return s.isDeterministic || (s.Field != "" && s.Field == field)
 }
 
 // GetField returns field name used by this evaluator
-func (s *CIDREvaluator) GetField() string {
+func (s *CIDREvaluator[T]) GetField() string {
 	return s.Field
 }
 
 // IsStatic returns whether the evaluator is a scalar
-func (s *CIDREvaluator) IsStatic() bool {
+func (s *CIDREvaluator[T]) IsStatic() bool {
 	return s.EvalFnc == nil
 }
 
 // CIDRValuesEvaluator returns a net.IP
-type CIDRValuesEvaluator struct {
-	EvalFnc   func(ctx *Context) *CIDRValues
+type CIDRValuesEvaluator[T any] struct {
+	EvalFnc   func(ctx *Context[T]) *CIDRValues
 	Value     CIDRValues
 	Weight    int
 	ValueType FieldValueType
@@ -366,28 +366,28 @@ type CIDRValuesEvaluator struct {
 }
 
 // Eval returns the result of the evaluation
-func (s *CIDRValuesEvaluator) Eval(ctx *Context) interface{} {
+func (s *CIDRValuesEvaluator[T]) Eval(ctx *Context[T]) interface{} {
 	return s.EvalFnc(ctx)
 }
 
 // IsDeterministicFor returns whether the evaluator is partial
-func (s *CIDRValuesEvaluator) IsDeterministicFor(field Field) bool {
+func (s *CIDRValuesEvaluator[T]) IsDeterministicFor(field Field) bool {
 	return s.isDeterministic
 }
 
 // GetField returns field name used by this evaluator
-func (s *CIDRValuesEvaluator) GetField() string {
+func (s *CIDRValuesEvaluator[T]) GetField() string {
 	return ""
 }
 
 // IsStatic returns whether the evaluator is a scalar
-func (s *CIDRValuesEvaluator) IsStatic() bool {
+func (s *CIDRValuesEvaluator[T]) IsStatic() bool {
 	return s.EvalFnc == nil
 }
 
 // CIDRArrayEvaluator returns an array of net.IPNet
-type CIDRArrayEvaluator struct {
-	EvalFnc     func(ctx *Context) []net.IPNet
+type CIDRArrayEvaluator[T any] struct {
+	EvalFnc     func(ctx *Context[T]) []net.IPNet
 	Field       Field
 	Value       []net.IPNet
 	Weight      int
@@ -399,21 +399,21 @@ type CIDRArrayEvaluator struct {
 }
 
 // Eval returns the result of the evaluation
-func (s *CIDRArrayEvaluator) Eval(ctx *Context) interface{} {
+func (s *CIDRArrayEvaluator[T]) Eval(ctx *Context[T]) interface{} {
 	return s.EvalFnc(ctx)
 }
 
 // IsDeterministicFor returns whether the evaluator is partial
-func (s *CIDRArrayEvaluator) IsDeterministicFor(field Field) bool {
+func (s *CIDRArrayEvaluator[T]) IsDeterministicFor(field Field) bool {
 	return s.isDeterministic || (s.Field != "" && s.Field == field)
 }
 
 // GetField returns field name used by this evaluator
-func (s *CIDRArrayEvaluator) GetField() string {
+func (s *CIDRArrayEvaluator[T]) GetField() string {
 	return s.Field
 }
 
 // IsStatic returns whether the evaluator is a scalar
-func (s *CIDRArrayEvaluator) IsStatic() bool {
+func (s *CIDRArrayEvaluator[T]) IsStatic() bool {
 	return s.EvalFnc == nil
 }

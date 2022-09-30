@@ -31,7 +31,7 @@ const (
 )
 
 // BoolEvalFnc describe a eval function return a boolean
-type BoolEvalFnc = func(ctx *Context) bool
+type BoolEvalFnc[T any] func(ctx *Context[T]) bool
 
 func extractField(field string, state *State) (Field, Field, RegisterID, error) {
 	if state.regexpCache.arraySubscriptFindRE == nil {
