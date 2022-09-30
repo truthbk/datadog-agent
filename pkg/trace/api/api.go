@@ -541,6 +541,10 @@ func (r *HTTPReceiver) handleStats(w http.ResponseWriter, req *http.Request) {
 	r.statsProcessor.ProcessStats(in, req.Header.Get(headerLang), req.Header.Get(headerTracerVersion))
 }
 
+type tracker struct {
+	ipbytes map[string]uint64
+}
+
 // handleTraces knows how to handle a bunch of traces
 func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.Request) {
 	ts := r.tagStats(v, req.Header)
@@ -578,6 +582,11 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 			}
 		}
 		log.Errorf("Cannot decode %s traces payload: %v (%#v)", v, err, err)
+		if toe, ok := err.(interface{ Timeout() bool }); ok {
+			if toe.Timeout() {
+				fmt.Printf("Timeout from %v\n", req.RemoteAddr)
+			}
+		}
 		return
 	}
 	if !ranHook {
