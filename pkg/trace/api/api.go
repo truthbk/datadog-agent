@@ -617,13 +617,14 @@ func (t *tracker) getBytes(addr string) uint64 {
 	return t.ipbytes[addr]
 }
 
-func (t *tracker) Open(addr string) {
+func (t *tracker) Open(addr string) bool {
 	if t.getBytes(addr) > 1024*1024*100 {
 		// More than 100MiB/s
-		time.Sleep(1 * time.Second)
+		return false
 	}
 	t.getSem()
 	stdatomic.AddInt32(&t.conns, 1)
+	return true
 }
 
 func (t *tracker) Close() {
@@ -635,11 +636,10 @@ var track = tracker{ipbytes: make(map[string]uint64), sem: make(chan struct{}, 1
 
 // handleTraces knows how to handle a bunch of traces
 func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.Request) {
-	track.Open(req.RemoteAddr)
-	defer track.Close()
 	ts := r.tagStats(v, req.Header)
 	tracen, err := traceCount(req)
-	if err == nil && r.rateLimited(tracen) {
+	if err == nil && r.rateLimited(tracen) || !track.Open(req.RemoteAddr) {
+		log.Infof("Rate Limiting!\n")
 		// this payload can not be accepted
 		//io.Copy(ioutil.Discard, req.Body) //nolint:errcheck
 		req.Body.Close()
@@ -651,6 +651,7 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 	if err == errInvalidHeaderTraceCountValue {
 		log.Errorf("Failed to count traces: %s", err)
 	}
+	defer track.Close()
 
 	start := time.Now()
 	log.Infof("Decoding.\n")
@@ -902,12 +903,10 @@ func (r *HTTPReceiver) Languages() string {
 func decodeRequest(req *http.Request, dest *pb.Traces) (ranHook bool, err error) {
 	switch mediaType := getMediaType(req); mediaType {
 	case "application/msgpack":
-		ips := strings.SplitN(req.RemoteAddr, ":", 2)
-		ip := ips[0]
 		buf := getBuffer()
 		defer putBuffer(buf)
 		n, err := io.Copy(buf, req.Body)
-		track.Track(ip, n)
+		track.Track(req.RemoteAddr, n)
 		if err != nil {
 			return false, err
 		}
