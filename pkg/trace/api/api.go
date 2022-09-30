@@ -56,16 +56,28 @@ var bufferPool = sync.Pool{
 }
 
 var outstanding int64
+var bytesOutstanding int64
 
 func getBuffer() *bytes.Buffer {
 	stdatomic.AddInt64(&outstanding, 1)
 	buffer := bufferPool.Get().(*bytes.Buffer)
 	buffer.Reset()
+	stdatomic.AddInt64(&bytesOutstanding, int64(buffer.Cap()))
 	return buffer
 }
 
 func putBuffer(buffer *bytes.Buffer) {
 	stdatomic.AddInt64(&outstanding, -1)
+	for {
+		ov := stdatomic.LoadInt64(&bytesOutstanding)
+		v := ov - int64(buffer.Cap())
+		if v < 0 {
+			v = 0
+		}
+		if stdatomic.CompareAndSwapInt64(&bytesOutstanding, ov, v) {
+			break
+		}
+	}
 	bufferPool.Put(buffer)
 }
 
@@ -421,7 +433,8 @@ func (r *HTTPReceiver) tagStats(v Version, header http.Header) *info.TagStats {
 // - ranHook reports whether the decoder was able to run the pb.MetaHook
 // - err is the first error encountered
 func decodeTracerPayload(v Version, req *http.Request, ts *info.TagStats, cIDProvider IDProvider) (tp *pb.TracerPayload, ranHook bool, err error) {
-	log.Infof("buffers: %d\n", stdatomic.LoadInt64(&outstanding))
+	log.Infof("buffers: %d, bytes: %d\n", stdatomic.LoadInt64(&outstanding), stdatomic.LoadInt64(&bytesOutstanding))
+
 	switch v {
 	case v01:
 		var spans []pb.Span
