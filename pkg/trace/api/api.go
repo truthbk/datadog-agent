@@ -549,6 +549,7 @@ type tracker struct {
 	semi     int32
 	waiting  int32
 	max      int
+	l        sync.RWMutex
 }
 
 func (t *tracker) worker() {
@@ -564,11 +565,22 @@ func (t *tracker) worker() {
 			log.Infof("Increasing sem.\n")
 			t.putSem()
 		}
+		t.resetTracking()
 	}
 }
 
-func (t *tracker) Track(addr string, size int64) {
+func (t *tracker) resetTracking() {
+	t.l.Lock()
+	defer t.l.Unlock()
+	t.ipbytes = make(map[string]uint64)
+}
 
+func (t *tracker) Track(addr string, size int64) {
+	t.l.Lock()
+	defer t.l.Unlock()
+	v := t.ipbytes[addr]
+	v += uint64(size)
+	t.ipbytes[addr] = v
 }
 
 func (t *tracker) Timeout() {
@@ -599,7 +611,17 @@ func (t *tracker) putSem() {
 	}
 }
 
-func (t *tracker) Open() {
+func (t *tracker) getBytes(addr string) uint64 {
+	t.l.RLock()
+	defer t.l.RUnlock()
+	return t.ipbytes[addr]
+}
+
+func (t *tracker) Open(addr string) {
+	if t.getBytes(addr) > 1024*1024*100 {
+		// More than 100MiB/s
+		time.Sleep(1 * time.Second)
+	}
 	t.getSem()
 	stdatomic.AddInt32(&t.conns, 1)
 }
@@ -613,7 +635,7 @@ var track = tracker{ipbytes: make(map[string]uint64), sem: make(chan struct{}, 1
 
 // handleTraces knows how to handle a bunch of traces
 func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.Request) {
-	track.Open()
+	track.Open(req.RemoteAddr)
 	defer track.Close()
 	ts := r.tagStats(v, req.Header)
 	tracen, err := traceCount(req)
@@ -631,6 +653,7 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 	}
 
 	start := time.Now()
+	log.Infof("Decoding.\n")
 	tp, ranHook, err := decodeTracerPayload(v, req, ts, r.containerIDProvider)
 	defer func(err error) {
 		tags := append(ts.AsTags(), fmt.Sprintf("success:%v", err == nil))
@@ -659,6 +682,7 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 		}
 		return
 	}
+	log.Infof("Done Decoding.\n")
 	if !ranHook {
 		// The decoder of this request did not run the pb.MetaHook. The user is either using
 		// a deprecated endpoint or Content-Type, or, a new decoder was implemented and the
