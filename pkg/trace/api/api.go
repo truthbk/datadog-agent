@@ -557,11 +557,11 @@ func (t *tracker) worker() {
 		log.Infof("Tracker Worker Tick\n")
 		to := stdatomic.SwapUint32(&t.timeouts, 0)
 		if to > 0 {
-			t.decSem()
 			log.Infof("Decreasing sem.\n")
+			t.decSem()
 		} else if stdatomic.LoadInt32(&t.waiting) > 0 {
-			t.putSem()
 			log.Infof("Increasing sem.\n")
+			t.putSem()
 		}
 	}
 }
