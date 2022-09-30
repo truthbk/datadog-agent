@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	stdatomic "sync/atomic"
 	"time"
 
 	"github.com/tinylib/msgp/msgp"
@@ -54,13 +55,17 @@ var bufferPool = sync.Pool{
 	},
 }
 
+var outstanding int64
+
 func getBuffer() *bytes.Buffer {
+	stdatomic.AddInt64(&outstanding, 1)
 	buffer := bufferPool.Get().(*bytes.Buffer)
 	buffer.Reset()
 	return buffer
 }
 
 func putBuffer(buffer *bytes.Buffer) {
+	stdatomic.AddInt64(&outstanding, -1)
 	bufferPool.Put(buffer)
 }
 
@@ -416,6 +421,7 @@ func (r *HTTPReceiver) tagStats(v Version, header http.Header) *info.TagStats {
 // - ranHook reports whether the decoder was able to run the pb.MetaHook
 // - err is the first error encountered
 func decodeTracerPayload(v Version, req *http.Request, ts *info.TagStats, cIDProvider IDProvider) (tp *pb.TracerPayload, ranHook bool, err error) {
+	log.Infof("buffers: %d\n", stdatomic.LoadInt64(&outstanding))
 	switch v {
 	case v01:
 		var spans []pb.Span
