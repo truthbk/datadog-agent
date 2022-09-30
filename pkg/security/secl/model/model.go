@@ -657,8 +657,8 @@ type ProcessAncestorsIterator struct {
 }
 
 // Front returns the first element
-func (it *ProcessAncestorsIterator) Front(ctx *eval.Context) unsafe.Pointer {
-	if front := (*Event)(ctx.Object).ProcessContext.Ancestor; front != nil {
+func (it *ProcessAncestorsIterator) Front(ctx *eval.Context[Event]) unsafe.Pointer {
+	if front := ctx.Object.ProcessContext.Ancestor; front != nil {
 		it.prev = front
 		return unsafe.Pointer(front)
 	}

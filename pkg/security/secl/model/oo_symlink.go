@@ -10,46 +10,46 @@ import (
 )
 
 var (
-	symlinkPathnameEvaluators = [MaxSymlinks]func(field eval.Field) *eval.StringEvaluator{
-		func(field eval.Field) *eval.StringEvaluator {
-			return &eval.StringEvaluator{
+	symlinkPathnameEvaluators = [MaxSymlinks]func(field eval.Field) *eval.StringEvaluator[Event]{
+		func(field eval.Field) *eval.StringEvaluator[Event] {
+			return &eval.StringEvaluator[Event]{
 				Field: field,
-				EvalFnc: func(ctx *eval.Context) string {
-					if path := (*Event)(ctx.Object).ProcessContext.SymlinkPathnameStr[0]; path != "" {
+				EvalFnc: func(ctx *eval.Context[Event]) string {
+					if path := ctx.Object.ProcessContext.SymlinkPathnameStr[0]; path != "" {
 						return path
 					}
-					return (*Event)(ctx.Object).ProcessContext.FileEvent.PathnameStr
+					return ctx.Object.ProcessContext.FileEvent.PathnameStr
 				},
 			}
 		},
-		func(field eval.Field) *eval.StringEvaluator {
-			return &eval.StringEvaluator{
+		func(field eval.Field) *eval.StringEvaluator[Event] {
+			return &eval.StringEvaluator[Event]{
 				Field: field,
-				EvalFnc: func(ctx *eval.Context) string {
-					if path := (*Event)(ctx.Object).ProcessContext.SymlinkPathnameStr[1]; path != "" {
+				EvalFnc: func(ctx *eval.Context[Event]) string {
+					if path := ctx.Object.ProcessContext.SymlinkPathnameStr[1]; path != "" {
 						return path
 					}
-					return (*Event)(ctx.Object).ProcessContext.FileEvent.PathnameStr
+					return ctx.Object.ProcessContext.FileEvent.PathnameStr
 				},
 			}
 		},
 	}
 
-	symlinkBasenameEvaluator = func(field eval.Field) *eval.StringEvaluator {
-		return &eval.StringEvaluator{
+	symlinkBasenameEvaluator = func(field eval.Field) *eval.StringEvaluator[Event] {
+		return &eval.StringEvaluator[Event]{
 			Field: field,
-			EvalFnc: func(ctx *eval.Context) string {
-				if name := (*Event)(ctx.Object).ProcessContext.SymlinkBasenameStr; name != "" {
+			EvalFnc: func(ctx *eval.Context[Event]) string {
+				if name := ctx.Object.ProcessContext.SymlinkBasenameStr; name != "" {
 					return name
 				}
-				return (*Event)(ctx.Object).ProcessContext.FileEvent.BasenameStr
+				return ctx.Object.ProcessContext.FileEvent.BasenameStr
 			},
 		}
 	}
 
 	// ProcessSymlinkPathname handles symlink for process enrtries
 	ProcessSymlinkPathname = &eval.OpOverrides{
-		StringEquals: func(a *eval.StringEvaluator, b *eval.StringEvaluator, state *eval.State) (*eval.BoolEvaluator, error) {
+		StringEquals: func(a *eval.StringEvaluator[Event], b *eval.StringEvaluator[Event], state *eval.State) (*eval.BoolEvaluator[Event], error) {
 			path, err := eval.GlobCmp.StringEquals(a, b, state)
 			if err != nil {
 				return nil, err
@@ -94,7 +94,7 @@ var (
 
 			return path, nil
 		},
-		StringValuesContains: func(a *eval.StringEvaluator, b *eval.StringValuesEvaluator, state *eval.State) (*eval.BoolEvaluator, error) {
+		StringValuesContains: func(a *eval.StringEvaluator[Event], b *eval.StringValuesEvaluator[Event], state *eval.State) (*eval.BoolEvaluator[Event], error) {
 			path, err := eval.GlobCmp.StringValuesContains(a, b, state)
 			if err != nil {
 				return nil, err
@@ -120,7 +120,7 @@ var (
 
 			return path, nil
 		},
-		StringArrayContains: func(a *eval.StringEvaluator, b *eval.StringArrayEvaluator, state *eval.State) (*eval.BoolEvaluator, error) {
+		StringArrayContains: func(a *eval.StringEvaluator[Event], b *eval.StringArrayEvaluator[Event], state *eval.State) (*eval.BoolEvaluator[Event], error) {
 			path, err := eval.GlobCmp.StringArrayContains(a, b, state)
 			if err != nil {
 				return nil, err
@@ -146,14 +146,14 @@ var (
 
 			return path, nil
 		},
-		StringArrayMatches: func(a *eval.StringArrayEvaluator, b *eval.StringValuesEvaluator, state *eval.State) (*eval.BoolEvaluator, error) {
+		StringArrayMatches: func(a *eval.StringArrayEvaluator[Event], b *eval.StringValuesEvaluator[Event], state *eval.State) (*eval.BoolEvaluator[Event], error) {
 			return eval.GlobCmp.StringArrayMatches(a, b, state)
 		},
 	}
 
 	// ProcessSymlinkBasename handles symlink for process enrtries
 	ProcessSymlinkBasename = &eval.OpOverrides{
-		StringEquals: func(a *eval.StringEvaluator, b *eval.StringEvaluator, state *eval.State) (*eval.BoolEvaluator, error) {
+		StringEquals: func(a *eval.StringEvaluator[Event], b *eval.StringEvaluator[Event], state *eval.State) (*eval.BoolEvaluator[Event], error) {
 			path, err := eval.StringEquals(a, b, state)
 			if err != nil {
 				return nil, err
@@ -176,7 +176,7 @@ var (
 
 			return path, nil
 		},
-		StringValuesContains: func(a *eval.StringEvaluator, b *eval.StringValuesEvaluator, state *eval.State) (*eval.BoolEvaluator, error) {
+		StringValuesContains: func(a *eval.StringEvaluator[Event], b *eval.StringValuesEvaluator[Event], state *eval.State) (*eval.BoolEvaluator[Event], error) {
 			path, err := eval.StringValuesContains(a, b, state)
 			if err != nil {
 				return nil, err
@@ -193,7 +193,7 @@ var (
 
 			return path, nil
 		},
-		StringArrayContains: func(a *eval.StringEvaluator, b *eval.StringArrayEvaluator, state *eval.State) (*eval.BoolEvaluator, error) {
+		StringArrayContains: func(a *eval.StringEvaluator[Event], b *eval.StringArrayEvaluator[Event], state *eval.State) (*eval.BoolEvaluator[Event], error) {
 			path, err := eval.StringArrayContains(a, b, state)
 			if err != nil {
 				return nil, err
@@ -210,7 +210,7 @@ var (
 
 			return path, nil
 		},
-		StringArrayMatches: func(a *eval.StringArrayEvaluator, b *eval.StringValuesEvaluator, state *eval.State) (*eval.BoolEvaluator, error) {
+		StringArrayMatches: func(a *eval.StringArrayEvaluator[Event], b *eval.StringValuesEvaluator[Event], state *eval.State) (*eval.BoolEvaluator[Event], error) {
 			return eval.StringArrayMatches(a, b, state)
 		},
 	}
