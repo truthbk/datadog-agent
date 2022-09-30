@@ -11,15 +11,15 @@ import (
 )
 
 // OpOverrides defines operator override functions
-type OpOverrides struct {
-	StringEquals         func(a *StringEvaluator, b *StringEvaluator, state *State) (*BoolEvaluator, error)
-	StringValuesContains func(a *StringEvaluator, b *StringValuesEvaluator, state *State) (*BoolEvaluator, error)
-	StringArrayContains  func(a *StringEvaluator, b *StringArrayEvaluator, state *State) (*BoolEvaluator, error)
-	StringArrayMatches   func(a *StringArrayEvaluator, b *StringValuesEvaluator, state *State) (*BoolEvaluator, error)
+type OpOverrides[T any] struct {
+	StringEquals         func(a *StringEvaluator[T], b *StringEvaluator[T], state *State) (*BoolEvaluator[T], error)
+	StringValuesContains func(a *StringEvaluator[T], b *StringValuesEvaluator[T], state *State) (*BoolEvaluator[T], error)
+	StringArrayContains  func(a *StringEvaluator[T], b *StringArrayEvaluator[T], state *State) (*BoolEvaluator[T], error)
+	StringArrayMatches   func(a *StringArrayEvaluator[T], b *StringValuesEvaluator[T], state *State) (*BoolEvaluator[T], error)
 }
 
 // return whether a arithmetic operation is deterministic
-func isArithmDeterministic(a Evaluator, b Evaluator, state *State) bool {
+func isArithmDeterministic[T any](a Evaluator[T], b Evaluator[T], state *State) bool {
 	isDc := a.IsDeterministicFor(state.field) || b.IsDeterministicFor(state.field)
 
 	if aField := a.GetField(); aField != "" && state.field != "" && aField != state.field {
@@ -33,7 +33,7 @@ func isArithmDeterministic(a Evaluator, b Evaluator, state *State) bool {
 }
 
 // Or operator
-func Or(a *BoolEvaluator, b *BoolEvaluator, state *State) (*BoolEvaluator, error) {
+func Or[T any](a *BoolEvaluator[T], b *BoolEvaluator[T], state *State) (*BoolEvaluator[T], error) {
 
 	isDc := a.IsDeterministicFor(state.field) || b.IsDeterministicFor(state.field)
 
@@ -42,12 +42,12 @@ func Or(a *BoolEvaluator, b *BoolEvaluator, state *State) (*BoolEvaluator, error
 
 		if state.field != "" {
 			if !a.IsDeterministicFor(state.field) && !a.IsStatic() {
-				ea = func(ctx *Context) bool {
+				ea = func(ctx *Context[T]) bool {
 					return true
 				}
 			}
 			if !b.IsDeterministicFor(state.field) && !b.IsStatic() {
-				eb = func(ctx *Context) bool {
+				eb = func(ctx *Context[T]) bool {
 					return true
 				}
 			}
@@ -59,11 +59,11 @@ func Or(a *BoolEvaluator, b *BoolEvaluator, state *State) (*BoolEvaluator, error
 			eb = tmp
 		}
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			return ea(ctx) || eb(ctx)
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + b.Weight,
 			isDeterministic: isDc,
@@ -73,10 +73,10 @@ func Or(a *BoolEvaluator, b *BoolEvaluator, state *State) (*BoolEvaluator, error
 	if a.EvalFnc == nil && b.EvalFnc == nil {
 		ea, eb := a.Value, b.Value
 
-		ctx := NewContext(nil)
+		ctx := NewContext[T](nil)
 		_ = ctx
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			Value:           ea || eb,
 			isDeterministic: isDc,
 		}, nil
@@ -93,7 +93,7 @@ func Or(a *BoolEvaluator, b *BoolEvaluator, state *State) (*BoolEvaluator, error
 
 		if state.field != "" {
 			if !a.IsDeterministicFor(state.field) && !a.IsStatic() {
-				ea = func(ctx *Context) bool {
+				ea = func(ctx *Context[T]) bool {
 					return true
 				}
 			}
@@ -102,11 +102,11 @@ func Or(a *BoolEvaluator, b *BoolEvaluator, state *State) (*BoolEvaluator, error
 			}
 		}
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			return ea(ctx) || eb
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Field:           a.Field,
 			Weight:          a.Weight,
@@ -127,17 +127,17 @@ func Or(a *BoolEvaluator, b *BoolEvaluator, state *State) (*BoolEvaluator, error
 			ea = true
 		}
 		if !b.IsDeterministicFor(state.field) && !b.IsStatic() {
-			eb = func(ctx *Context) bool {
+			eb = func(ctx *Context[T]) bool {
 				return true
 			}
 		}
 	}
 
-	evalFnc := func(ctx *Context) bool {
+	evalFnc := func(ctx *Context[T]) bool {
 		return ea || eb(ctx)
 	}
 
-	return &BoolEvaluator{
+	return &BoolEvaluator[T]{
 		EvalFnc:         evalFnc,
 		Field:           b.Field,
 		Weight:          b.Weight,
@@ -146,7 +146,7 @@ func Or(a *BoolEvaluator, b *BoolEvaluator, state *State) (*BoolEvaluator, error
 }
 
 // And operator
-func And(a *BoolEvaluator, b *BoolEvaluator, state *State) (*BoolEvaluator, error) {
+func And[T any](a *BoolEvaluator[T], b *BoolEvaluator[T], state *State) (*BoolEvaluator[T], error) {
 
 	isDc := a.IsDeterministicFor(state.field) || b.IsDeterministicFor(state.field)
 
@@ -155,12 +155,12 @@ func And(a *BoolEvaluator, b *BoolEvaluator, state *State) (*BoolEvaluator, erro
 
 		if state.field != "" {
 			if !a.IsDeterministicFor(state.field) && !a.IsStatic() {
-				ea = func(ctx *Context) bool {
+				ea = func(ctx *Context[T]) bool {
 					return true
 				}
 			}
 			if !b.IsDeterministicFor(state.field) && !b.IsStatic() {
-				eb = func(ctx *Context) bool {
+				eb = func(ctx *Context[T]) bool {
 					return true
 				}
 			}
@@ -172,11 +172,11 @@ func And(a *BoolEvaluator, b *BoolEvaluator, state *State) (*BoolEvaluator, erro
 			eb = tmp
 		}
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			return ea(ctx) && eb(ctx)
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + b.Weight,
 			isDeterministic: isDc,
@@ -186,10 +186,10 @@ func And(a *BoolEvaluator, b *BoolEvaluator, state *State) (*BoolEvaluator, erro
 	if a.EvalFnc == nil && b.EvalFnc == nil {
 		ea, eb := a.Value, b.Value
 
-		ctx := NewContext(nil)
+		ctx := NewContext[T](nil)
 		_ = ctx
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			Value:           ea && eb,
 			isDeterministic: isDc,
 		}, nil
@@ -206,7 +206,7 @@ func And(a *BoolEvaluator, b *BoolEvaluator, state *State) (*BoolEvaluator, erro
 
 		if state.field != "" {
 			if !a.IsDeterministicFor(state.field) && !a.IsStatic() {
-				ea = func(ctx *Context) bool {
+				ea = func(ctx *Context[T]) bool {
 					return true
 				}
 			}
@@ -215,11 +215,11 @@ func And(a *BoolEvaluator, b *BoolEvaluator, state *State) (*BoolEvaluator, erro
 			}
 		}
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			return ea(ctx) && eb
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Field:           a.Field,
 			Weight:          a.Weight,
@@ -240,17 +240,17 @@ func And(a *BoolEvaluator, b *BoolEvaluator, state *State) (*BoolEvaluator, erro
 			ea = true
 		}
 		if !b.IsDeterministicFor(state.field) && !b.IsStatic() {
-			eb = func(ctx *Context) bool {
+			eb = func(ctx *Context[T]) bool {
 				return true
 			}
 		}
 	}
 
-	evalFnc := func(ctx *Context) bool {
+	evalFnc := func(ctx *Context[T]) bool {
 		return ea && eb(ctx)
 	}
 
-	return &BoolEvaluator{
+	return &BoolEvaluator[T]{
 		EvalFnc:         evalFnc,
 		Field:           b.Field,
 		Weight:          b.Weight,
@@ -259,24 +259,24 @@ func And(a *BoolEvaluator, b *BoolEvaluator, state *State) (*BoolEvaluator, erro
 }
 
 // IntNot ^int operator
-func IntNot(a *IntEvaluator, state *State) *IntEvaluator {
+func IntNot[T any](a *IntEvaluator[T], state *State) *IntEvaluator[T] {
 	isDc := a.IsDeterministicFor(state.field)
 
 	if a.EvalFnc != nil {
 		ea := a.EvalFnc
 
-		evalFnc := func(ctx *Context) int {
+		evalFnc := func(ctx *Context[T]) int {
 			return ^ea(ctx)
 		}
 
-		return &IntEvaluator{
+		return &IntEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight,
 			isDeterministic: isDc,
 		}
 	}
 
-	return &IntEvaluator{
+	return &IntEvaluator[T]{
 		Value:           ^a.Value,
 		Weight:          a.Weight,
 		isDeterministic: isDc,
@@ -284,8 +284,8 @@ func IntNot(a *IntEvaluator, state *State) *IntEvaluator {
 }
 
 // StringEquals evaluates string
-func StringEquals(a *StringEvaluator, b *StringEvaluator, state *State) (*BoolEvaluator, error) {
-	isDc := isArithmDeterministic(a, b, state)
+func StringEquals[T any](a *StringEvaluator[T], b *StringEvaluator[T], state *State) (*BoolEvaluator[T], error) {
+	isDc := isArithmDeterministic[T](a, b, state)
 
 	if a.Field != "" {
 		if err := state.UpdateFieldValues(a.Field, FieldValue{Value: b.Value, Type: b.ValueType}); err != nil {
@@ -335,11 +335,11 @@ func StringEquals(a *StringEvaluator, b *StringEvaluator, state *State) (*BoolEv
 	if a.EvalFnc != nil && b.EvalFnc != nil {
 		ea, eb := a.EvalFnc, b.EvalFnc
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			return op(ea(ctx), eb(ctx))
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + b.Weight,
 			isDeterministic: isDc,
@@ -349,7 +349,7 @@ func StringEquals(a *StringEvaluator, b *StringEvaluator, state *State) (*BoolEv
 	if a.EvalFnc == nil && b.EvalFnc == nil {
 		ea, eb := a.Value, b.Value
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			Value:           op(ea, eb),
 			Weight:          a.Weight + InArrayWeight*len(eb),
 			isDeterministic: isDc,
@@ -359,11 +359,11 @@ func StringEquals(a *StringEvaluator, b *StringEvaluator, state *State) (*BoolEv
 	if a.EvalFnc != nil {
 		ea, eb := a.EvalFnc, b.Value
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			return op(ea(ctx), eb)
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + InArrayWeight*len(eb),
 			isDeterministic: isDc,
@@ -372,11 +372,11 @@ func StringEquals(a *StringEvaluator, b *StringEvaluator, state *State) (*BoolEv
 
 	ea, eb := a.Value, b.EvalFnc
 
-	evalFnc := func(ctx *Context) bool {
+	evalFnc := func(ctx *Context[T]) bool {
 		return op(ea, eb(ctx))
 	}
 
-	return &BoolEvaluator{
+	return &BoolEvaluator[T]{
 		EvalFnc:         evalFnc,
 		Weight:          b.Weight,
 		isDeterministic: isDc,
@@ -384,28 +384,28 @@ func StringEquals(a *StringEvaluator, b *StringEvaluator, state *State) (*BoolEv
 }
 
 // Not !true operator
-func Not(a *BoolEvaluator, state *State) *BoolEvaluator {
+func Not[T any](a *BoolEvaluator[T], state *State) *BoolEvaluator[T] {
 	isDc := a.IsDeterministicFor(state.field)
 
 	if a.EvalFnc != nil {
-		ea := func(ctx *Context) bool {
+		ea := func(ctx *Context[T]) bool {
 			return !a.EvalFnc(ctx)
 		}
 
 		if state.field != "" && !a.IsDeterministicFor(state.field) {
-			ea = func(ctx *Context) bool {
+			ea = func(ctx *Context[T]) bool {
 				return true
 			}
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         ea,
 			Weight:          a.Weight,
 			isDeterministic: isDc,
 		}
 	}
 
-	return &BoolEvaluator{
+	return &BoolEvaluator[T]{
 		Value:           !a.Value,
 		Weight:          a.Weight,
 		isDeterministic: isDc,
@@ -413,24 +413,24 @@ func Not(a *BoolEvaluator, state *State) *BoolEvaluator {
 }
 
 // Minus -int operator
-func Minus(a *IntEvaluator, state *State) *IntEvaluator {
+func Minus[T any](a *IntEvaluator[T], state *State) *IntEvaluator[T] {
 	isDc := a.IsDeterministicFor(state.field)
 
 	if a.EvalFnc != nil {
 		ea := a.EvalFnc
 
-		evalFnc := func(ctx *Context) int {
+		evalFnc := func(ctx *Context[T]) int {
 			return -ea(ctx)
 		}
 
-		return &IntEvaluator{
+		return &IntEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight,
 			isDeterministic: isDc,
 		}
 	}
 
-	return &IntEvaluator{
+	return &IntEvaluator[T]{
 		Value:           -a.Value,
 		Weight:          a.Weight,
 		isDeterministic: isDc,
@@ -438,8 +438,8 @@ func Minus(a *IntEvaluator, state *State) *IntEvaluator {
 }
 
 // StringArrayContains evaluates array of strings against a value
-func StringArrayContains(a *StringEvaluator, b *StringArrayEvaluator, state *State) (*BoolEvaluator, error) {
-	isDc := isArithmDeterministic(a, b, state)
+func StringArrayContains[T any](a *StringEvaluator[T], b *StringArrayEvaluator[T], state *State) (*BoolEvaluator[T], error) {
+	isDc := isArithmDeterministic[T](a, b, state)
 
 	if a.Field != "" {
 		for _, value := range b.Values {
@@ -490,11 +490,11 @@ func StringArrayContains(a *StringEvaluator, b *StringArrayEvaluator, state *Sta
 	if a.EvalFnc != nil && b.EvalFnc != nil {
 		ea, eb := a.EvalFnc, b.EvalFnc
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			return op(ea(ctx), eb(ctx), cmp)
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + b.Weight,
 			isDeterministic: isDc,
@@ -504,7 +504,7 @@ func StringArrayContains(a *StringEvaluator, b *StringArrayEvaluator, state *Sta
 	if a.EvalFnc == nil && b.EvalFnc == nil {
 		ea, eb := a.Value, b.Values
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			Value:           op(ea, eb, cmp),
 			Weight:          a.Weight + InArrayWeight*len(eb),
 			isDeterministic: isDc,
@@ -514,11 +514,11 @@ func StringArrayContains(a *StringEvaluator, b *StringArrayEvaluator, state *Sta
 	if a.EvalFnc != nil {
 		ea, eb := a.EvalFnc, b.Values
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			return op(ea(ctx), eb, cmp)
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + InArrayWeight*len(eb),
 			isDeterministic: isDc,
@@ -527,11 +527,11 @@ func StringArrayContains(a *StringEvaluator, b *StringArrayEvaluator, state *Sta
 
 	ea, eb := a.Value, b.EvalFnc
 
-	evalFnc := func(ctx *Context) bool {
+	evalFnc := func(ctx *Context[T]) bool {
 		return op(ea, eb(ctx), cmp)
 	}
 
-	return &BoolEvaluator{
+	return &BoolEvaluator[T]{
 		EvalFnc:         evalFnc,
 		Weight:          b.Weight,
 		isDeterministic: isDc,
@@ -539,8 +539,8 @@ func StringArrayContains(a *StringEvaluator, b *StringArrayEvaluator, state *Sta
 }
 
 // StringValuesContains evaluates a string against values
-func StringValuesContains(a *StringEvaluator, b *StringValuesEvaluator, state *State) (*BoolEvaluator, error) {
-	isDc := isArithmDeterministic(a, b, state)
+func StringValuesContains[T any](a *StringEvaluator[T], b *StringValuesEvaluator[T], state *State) (*BoolEvaluator[T], error) {
+	isDc := isArithmDeterministic[T](a, b, state)
 
 	if a.Field != "" {
 		for _, value := range b.Values.fieldValues {
@@ -557,12 +557,12 @@ func StringValuesContains(a *StringEvaluator, b *StringValuesEvaluator, state *S
 	if a.EvalFnc != nil && b.EvalFnc != nil {
 		ea, eb := a.EvalFnc, b.EvalFnc
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			values := eb(ctx)
 			return values.Matches(ea(ctx))
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + b.Weight,
 			isDeterministic: isDc,
@@ -572,7 +572,7 @@ func StringValuesContains(a *StringEvaluator, b *StringValuesEvaluator, state *S
 	if a.EvalFnc == nil && b.EvalFnc == nil {
 		ea, eb := a.Value, b.Values
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			Value:           eb.Matches(ea),
 			Weight:          a.Weight + InArrayWeight*len(eb.fieldValues),
 			isDeterministic: isDc,
@@ -582,11 +582,11 @@ func StringValuesContains(a *StringEvaluator, b *StringValuesEvaluator, state *S
 	if a.EvalFnc != nil {
 		ea, eb := a.EvalFnc, b.Values
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			return eb.Matches(ea(ctx))
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + InArrayWeight*len(eb.fieldValues),
 			isDeterministic: isDc,
@@ -595,12 +595,12 @@ func StringValuesContains(a *StringEvaluator, b *StringValuesEvaluator, state *S
 
 	ea, eb := a.Value, b.EvalFnc
 
-	evalFnc := func(ctx *Context) bool {
+	evalFnc := func(ctx *Context[T]) bool {
 		values := eb(ctx)
 		return values.Matches(ea)
 	}
 
-	return &BoolEvaluator{
+	return &BoolEvaluator[T]{
 		EvalFnc:         evalFnc,
 		Weight:          b.Weight,
 		isDeterministic: isDc,
@@ -608,8 +608,8 @@ func StringValuesContains(a *StringEvaluator, b *StringValuesEvaluator, state *S
 }
 
 // StringArrayMatches weak comparison, a least one element of a should be in b. a can't contain regexp
-func StringArrayMatches(a *StringArrayEvaluator, b *StringValuesEvaluator, state *State) (*BoolEvaluator, error) {
-	isDc := isArithmDeterministic(a, b, state)
+func StringArrayMatches[T any](a *StringArrayEvaluator[T], b *StringValuesEvaluator[T], state *State) (*BoolEvaluator[T], error) {
+	isDc := isArithmDeterministic[T](a, b, state)
 
 	if a.Field != "" {
 		for _, value := range b.Values.fieldValues {
@@ -635,11 +635,11 @@ func StringArrayMatches(a *StringArrayEvaluator, b *StringValuesEvaluator, state
 	if a.EvalFnc != nil && b.EvalFnc != nil {
 		ea, eb := a.EvalFnc, b.EvalFnc
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			return arrayOp(ea(ctx), eb(ctx))
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + b.Weight,
 			isDeterministic: isDc,
@@ -649,7 +649,7 @@ func StringArrayMatches(a *StringArrayEvaluator, b *StringValuesEvaluator, state
 	if a.EvalFnc == nil && b.EvalFnc == nil {
 		ea, eb := a.Values, b.Values
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			Value:           arrayOp(ea, &eb),
 			Weight:          a.Weight + InArrayWeight*len(eb.fieldValues),
 			isDeterministic: isDc,
@@ -659,11 +659,11 @@ func StringArrayMatches(a *StringArrayEvaluator, b *StringValuesEvaluator, state
 	if a.EvalFnc != nil {
 		ea, eb := a.EvalFnc, b.Values
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			return arrayOp(ea(ctx), &eb)
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + InArrayWeight*len(eb.fieldValues),
 			isDeterministic: isDc,
@@ -672,11 +672,11 @@ func StringArrayMatches(a *StringArrayEvaluator, b *StringValuesEvaluator, state
 
 	ea, eb := a.Values, b.EvalFnc
 
-	evalFnc := func(ctx *Context) bool {
+	evalFnc := func(ctx *Context[T]) bool {
 		return arrayOp(ea, eb(ctx))
 	}
 
-	return &BoolEvaluator{
+	return &BoolEvaluator[T]{
 		EvalFnc:         evalFnc,
 		Weight:          b.Weight,
 		isDeterministic: isDc,
@@ -684,8 +684,8 @@ func StringArrayMatches(a *StringArrayEvaluator, b *StringValuesEvaluator, state
 }
 
 // IntArrayMatches weak comparison, a least one element of a should be in b
-func IntArrayMatches(a *IntArrayEvaluator, b *IntArrayEvaluator, state *State) (*BoolEvaluator, error) {
-	isDc := isArithmDeterministic(a, b, state)
+func IntArrayMatches[T any](a *IntArrayEvaluator[T], b *IntArrayEvaluator[T], state *State) (*BoolEvaluator[T], error) {
+	isDc := isArithmDeterministic[T](a, b, state)
 
 	if a.Field != "" {
 		for _, value := range b.Values {
@@ -709,11 +709,11 @@ func IntArrayMatches(a *IntArrayEvaluator, b *IntArrayEvaluator, state *State) (
 	if a.EvalFnc != nil && b.EvalFnc != nil {
 		ea, eb := a.EvalFnc, b.EvalFnc
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			return arrayOp(ea(ctx), eb(ctx))
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + b.Weight,
 			isDeterministic: isDc,
@@ -723,7 +723,7 @@ func IntArrayMatches(a *IntArrayEvaluator, b *IntArrayEvaluator, state *State) (
 	if a.EvalFnc == nil && b.EvalFnc == nil {
 		ea, eb := a.Values, b.Values
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			Value:           arrayOp(ea, eb),
 			Weight:          a.Weight + InArrayWeight*len(eb),
 			isDeterministic: isDc,
@@ -733,11 +733,11 @@ func IntArrayMatches(a *IntArrayEvaluator, b *IntArrayEvaluator, state *State) (
 	if a.EvalFnc != nil {
 		ea, eb := a.EvalFnc, b.Values
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			return arrayOp(ea(ctx), eb)
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + InArrayWeight*len(eb),
 			isDeterministic: isDc,
@@ -746,11 +746,11 @@ func IntArrayMatches(a *IntArrayEvaluator, b *IntArrayEvaluator, state *State) (
 
 	ea, eb := a.Values, b.EvalFnc
 
-	evalFnc := func(ctx *Context) bool {
+	evalFnc := func(ctx *Context[T]) bool {
 		return arrayOp(ea, eb(ctx))
 	}
 
-	return &BoolEvaluator{
+	return &BoolEvaluator[T]{
 		EvalFnc:         evalFnc,
 		Weight:          b.Weight,
 		isDeterministic: isDc,
@@ -758,8 +758,8 @@ func IntArrayMatches(a *IntArrayEvaluator, b *IntArrayEvaluator, state *State) (
 }
 
 // ArrayBoolContains evaluates array of bool against a value
-func ArrayBoolContains(a *BoolEvaluator, b *BoolArrayEvaluator, state *State) (*BoolEvaluator, error) {
-	isDc := isArithmDeterministic(a, b, state)
+func ArrayBoolContains[T any](a *BoolEvaluator[T], b *BoolArrayEvaluator[T], state *State) (*BoolEvaluator[T], error) {
+	isDc := isArithmDeterministic[T](a, b, state)
 
 	if a.Field != "" {
 		for _, value := range b.Values {
@@ -786,11 +786,11 @@ func ArrayBoolContains(a *BoolEvaluator, b *BoolArrayEvaluator, state *State) (*
 	if a.EvalFnc != nil && b.EvalFnc != nil {
 		ea, eb := a.EvalFnc, b.EvalFnc
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			return arrayOp(ea(ctx), eb(ctx))
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + b.Weight,
 			isDeterministic: isDc,
@@ -800,7 +800,7 @@ func ArrayBoolContains(a *BoolEvaluator, b *BoolArrayEvaluator, state *State) (*
 	if a.EvalFnc == nil && b.EvalFnc == nil {
 		ea, eb := a.Value, b.Values
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			Value:           arrayOp(ea, eb),
 			Weight:          a.Weight + InArrayWeight*len(eb),
 			isDeterministic: isDc,
@@ -810,11 +810,11 @@ func ArrayBoolContains(a *BoolEvaluator, b *BoolArrayEvaluator, state *State) (*
 	if a.EvalFnc != nil {
 		ea, eb := a.EvalFnc, b.Values
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			return arrayOp(ea(ctx), eb)
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + InArrayWeight*len(eb),
 			isDeterministic: isDc,
@@ -823,11 +823,11 @@ func ArrayBoolContains(a *BoolEvaluator, b *BoolArrayEvaluator, state *State) (*
 
 	ea, eb := a.Value, b.EvalFnc
 
-	evalFnc := func(ctx *Context) bool {
+	evalFnc := func(ctx *Context[T]) bool {
 		return arrayOp(ea, eb(ctx))
 	}
 
-	return &BoolEvaluator{
+	return &BoolEvaluator[T]{
 		EvalFnc:         evalFnc,
 		Weight:          b.Weight,
 		isDeterministic: isDc,
@@ -835,8 +835,8 @@ func ArrayBoolContains(a *BoolEvaluator, b *BoolArrayEvaluator, state *State) (*
 }
 
 // CIDREquals evaluates CIDR ranges
-func CIDREquals(a *CIDREvaluator, b *CIDREvaluator, state *State) (*BoolEvaluator, error) {
-	isDc := isArithmDeterministic(a, b, state)
+func CIDREquals[T any](a *CIDREvaluator[T], b *CIDREvaluator[T], state *State) (*BoolEvaluator[T], error) {
+	isDc := isArithmDeterministic[T](a, b, state)
 
 	if a.Field != "" {
 		if err := state.UpdateFieldValues(a.Field, FieldValue{Value: b.Value, Type: b.ValueType}); err != nil {
@@ -853,12 +853,12 @@ func CIDREquals(a *CIDREvaluator, b *CIDREvaluator, state *State) (*BoolEvaluato
 	if a.EvalFnc != nil && b.EvalFnc != nil {
 		ea, eb := a.EvalFnc, b.EvalFnc
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			a, b := ea(ctx), eb(ctx)
 			return IPNetsMatch(&a, &b)
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + b.Weight,
 			isDeterministic: isDc,
@@ -868,7 +868,7 @@ func CIDREquals(a *CIDREvaluator, b *CIDREvaluator, state *State) (*BoolEvaluato
 	if a.EvalFnc == nil && b.EvalFnc == nil {
 		ea, eb := a.Value, b.Value
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			Value:           IPNetsMatch(&ea, &eb),
 			Weight:          a.Weight + b.Weight,
 			isDeterministic: isDc,
@@ -878,12 +878,12 @@ func CIDREquals(a *CIDREvaluator, b *CIDREvaluator, state *State) (*BoolEvaluato
 	if a.EvalFnc != nil {
 		ea, eb := a.EvalFnc, b.Value
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			a := ea(ctx)
 			return IPNetsMatch(&a, &eb)
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + b.Weight,
 			isDeterministic: isDc,
@@ -892,12 +892,12 @@ func CIDREquals(a *CIDREvaluator, b *CIDREvaluator, state *State) (*BoolEvaluato
 
 	ea, eb := a.Value, b.EvalFnc
 
-	evalFnc := func(ctx *Context) bool {
+	evalFnc := func(ctx *Context[T]) bool {
 		b := eb(ctx)
 		return IPNetsMatch(&ea, &b)
 	}
 
-	return &BoolEvaluator{
+	return &BoolEvaluator[T]{
 		EvalFnc:         evalFnc,
 		Weight:          b.Weight,
 		isDeterministic: isDc,
@@ -905,8 +905,8 @@ func CIDREquals(a *CIDREvaluator, b *CIDREvaluator, state *State) (*BoolEvaluato
 }
 
 // CIDRValuesContains evaluates a CIDR against a list of CIDRs
-func CIDRValuesContains(a *CIDREvaluator, b *CIDRValuesEvaluator, state *State) (*BoolEvaluator, error) {
-	isDc := isArithmDeterministic(a, b, state)
+func CIDRValuesContains[T any](a *CIDREvaluator[T], b *CIDRValuesEvaluator[T], state *State) (*BoolEvaluator[T], error) {
+	isDc := isArithmDeterministic[T](a, b, state)
 
 	if a.Field != "" {
 		for _, value := range b.Value.fieldValues {
@@ -919,12 +919,12 @@ func CIDRValuesContains(a *CIDREvaluator, b *CIDRValuesEvaluator, state *State) 
 	if a.EvalFnc != nil && b.EvalFnc != nil {
 		ea, eb := a.EvalFnc, b.EvalFnc
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			a := ea(ctx)
 			return eb(ctx).Contains(&a)
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + b.Weight,
 			isDeterministic: isDc,
@@ -934,7 +934,7 @@ func CIDRValuesContains(a *CIDREvaluator, b *CIDRValuesEvaluator, state *State) 
 	if a.EvalFnc == nil && b.EvalFnc == nil {
 		ea, eb := a.Value, b.Value
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			Value:           eb.Contains(&ea),
 			Weight:          a.Weight + InArrayWeight*len(eb.ipnets),
 			isDeterministic: isDc,
@@ -944,12 +944,12 @@ func CIDRValuesContains(a *CIDREvaluator, b *CIDRValuesEvaluator, state *State) 
 	if a.EvalFnc != nil {
 		ea, eb := a.EvalFnc, b.Value
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			ipnet := ea(ctx)
 			return eb.Contains(&ipnet)
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + InArrayWeight*len(eb.fieldValues),
 			isDeterministic: isDc,
@@ -958,19 +958,19 @@ func CIDRValuesContains(a *CIDREvaluator, b *CIDRValuesEvaluator, state *State) 
 
 	ea, eb := a.Value, b.EvalFnc
 
-	evalFnc := func(ctx *Context) bool {
+	evalFnc := func(ctx *Context[T]) bool {
 		return eb(ctx).Contains(&ea)
 	}
 
-	return &BoolEvaluator{
+	return &BoolEvaluator[T]{
 		EvalFnc:         evalFnc,
 		Weight:          b.Weight,
 		isDeterministic: isDc,
 	}, nil
 }
 
-func cidrArrayMatches(a *CIDRArrayEvaluator, b *CIDRValuesEvaluator, state *State, arrayOp func(a *CIDRValues, b []net.IPNet) bool) (*BoolEvaluator, error) {
-	isDc := isArithmDeterministic(a, b, state)
+func cidrArrayMatches[T any](a *CIDRArrayEvaluator[T], b *CIDRValuesEvaluator[T], state *State, arrayOp func(a *CIDRValues, b []net.IPNet) bool) (*BoolEvaluator[T], error) {
+	isDc := isArithmDeterministic[T](a, b, state)
 
 	if a.Field != "" {
 		for _, value := range b.Value.fieldValues {
@@ -983,11 +983,11 @@ func cidrArrayMatches(a *CIDRArrayEvaluator, b *CIDRValuesEvaluator, state *Stat
 	if a.EvalFnc != nil && b.EvalFnc != nil {
 		ea, eb := a.EvalFnc, b.EvalFnc
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			return arrayOp(eb(ctx), ea(ctx))
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + b.Weight,
 			isDeterministic: isDc,
@@ -997,7 +997,7 @@ func cidrArrayMatches(a *CIDRArrayEvaluator, b *CIDRValuesEvaluator, state *Stat
 	if a.EvalFnc == nil && b.EvalFnc == nil {
 		ea, eb := a.Value, b.Value
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			Value:           arrayOp(&eb, ea),
 			Weight:          a.Weight + InArrayWeight*len(eb.fieldValues),
 			isDeterministic: isDc,
@@ -1007,11 +1007,11 @@ func cidrArrayMatches(a *CIDRArrayEvaluator, b *CIDRValuesEvaluator, state *Stat
 	if a.EvalFnc != nil {
 		ea, eb := a.EvalFnc, b.Value
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			return arrayOp(&eb, ea(ctx))
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + InArrayWeight*len(eb.fieldValues),
 			isDeterministic: isDc,
@@ -1020,11 +1020,11 @@ func cidrArrayMatches(a *CIDRArrayEvaluator, b *CIDRValuesEvaluator, state *Stat
 
 	ea, eb := a.Value, b.EvalFnc
 
-	evalFnc := func(ctx *Context) bool {
+	evalFnc := func(ctx *Context[T]) bool {
 		return arrayOp(eb(ctx), ea)
 	}
 
-	return &BoolEvaluator{
+	return &BoolEvaluator[T]{
 		EvalFnc:         evalFnc,
 		Weight:          b.Weight,
 		isDeterministic: isDc,
@@ -1032,7 +1032,7 @@ func cidrArrayMatches(a *CIDRArrayEvaluator, b *CIDRValuesEvaluator, state *Stat
 }
 
 // CIDRArrayMatches weak comparison, at least one element of a should be in b.
-func CIDRArrayMatches(a *CIDRArrayEvaluator, b *CIDRValuesEvaluator, state *State) (*BoolEvaluator, error) {
+func CIDRArrayMatches[T any](a *CIDRArrayEvaluator[T], b *CIDRValuesEvaluator[T], state *State) (*BoolEvaluator[T], error) {
 	op := func(values *CIDRValues, ipnets []net.IPNet) bool {
 		return values.Match(ipnets)
 	}
@@ -1040,7 +1040,7 @@ func CIDRArrayMatches(a *CIDRArrayEvaluator, b *CIDRValuesEvaluator, state *Stat
 }
 
 // CIDRArrayMatchesAll ensures that all values from a and b match.
-func CIDRArrayMatchesAll(a *CIDRArrayEvaluator, b *CIDRValuesEvaluator, state *State) (*BoolEvaluator, error) {
+func CIDRArrayMatchesAll[T any](a *CIDRArrayEvaluator[T], b *CIDRValuesEvaluator[T], state *State) (*BoolEvaluator[T], error) {
 	op := func(values *CIDRValues, ipnets []net.IPNet) bool {
 		return values.MatchAll(ipnets)
 	}
@@ -1048,8 +1048,8 @@ func CIDRArrayMatchesAll(a *CIDRArrayEvaluator, b *CIDRValuesEvaluator, state *S
 }
 
 // CIDRArrayContains evaluates a CIDR against a list of CIDRs
-func CIDRArrayContains(a *CIDREvaluator, b *CIDRArrayEvaluator, state *State) (*BoolEvaluator, error) {
-	isDc := isArithmDeterministic(a, b, state)
+func CIDRArrayContains[T any](a *CIDREvaluator[T], b *CIDRArrayEvaluator[T], state *State) (*BoolEvaluator[T], error) {
+	isDc := isArithmDeterministic[T](a, b, state)
 
 	if a.Field != "" {
 		for _, value := range b.Value {
@@ -1071,12 +1071,12 @@ func CIDRArrayContains(a *CIDREvaluator, b *CIDRArrayEvaluator, state *State) (*
 	if a.EvalFnc != nil && b.EvalFnc != nil {
 		ea, eb := a.EvalFnc, b.EvalFnc
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			a := ea(ctx)
 			return arrayOp(&a, eb(ctx))
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + b.Weight,
 			isDeterministic: isDc,
@@ -1086,7 +1086,7 @@ func CIDRArrayContains(a *CIDREvaluator, b *CIDRArrayEvaluator, state *State) (*
 	if a.EvalFnc == nil && b.EvalFnc == nil {
 		ea, eb := a.Value, b.Value
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			Value:           arrayOp(&ea, eb),
 			Weight:          a.Weight + InArrayWeight*len(eb),
 			isDeterministic: isDc,
@@ -1096,12 +1096,12 @@ func CIDRArrayContains(a *CIDREvaluator, b *CIDRArrayEvaluator, state *State) (*
 	if a.EvalFnc != nil {
 		ea, eb := a.EvalFnc, b.Value
 
-		evalFnc := func(ctx *Context) bool {
+		evalFnc := func(ctx *Context[T]) bool {
 			ipnet := ea(ctx)
 			return arrayOp(&ipnet, eb)
 		}
 
-		return &BoolEvaluator{
+		return &BoolEvaluator[T]{
 			EvalFnc:         evalFnc,
 			Weight:          a.Weight + InArrayWeight*len(eb),
 			isDeterministic: isDc,
@@ -1110,11 +1110,11 @@ func CIDRArrayContains(a *CIDREvaluator, b *CIDRArrayEvaluator, state *State) (*
 
 	ea, eb := a.Value, b.EvalFnc
 
-	evalFnc := func(ctx *Context) bool {
+	evalFnc := func(ctx *Context[T]) bool {
 		return arrayOp(&ea, eb(ctx))
 	}
 
-	return &BoolEvaluator{
+	return &BoolEvaluator[T]{
 		EvalFnc:         evalFnc,
 		Weight:          b.Weight,
 		isDeterministic: isDc,
