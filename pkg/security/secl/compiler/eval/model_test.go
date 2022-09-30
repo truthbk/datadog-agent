@@ -397,7 +397,7 @@ func (m *testModel) GetEvaluator(field Field, regID RegisterID) (Evaluator[testE
 				return ctx.Object.process.orName
 			},
 			Field: field,
-			OpOverrides: &OpOverrides{
+			OpOverrides: &OpOverrides[testEvent]{
 				StringValuesContains: func(a *StringEvaluator[testEvent], b *StringValuesEvaluator[testEvent], state *State) (*BoolEvaluator[testEvent], error) {
 					evaluator := StringValuesEvaluator[testEvent]{
 						EvalFnc: func(ctx *testEvalContext) *StringValues {
@@ -432,7 +432,7 @@ func (m *testModel) GetEvaluator(field Field, regID RegisterID) (Evaluator[testE
 				return values
 			},
 			Field: field,
-			OpOverrides: &OpOverrides{
+			OpOverrides: &OpOverrides[testEvent]{
 				StringArrayContains: func(a *StringEvaluator[testEvent], b *StringArrayEvaluator[testEvent], state *State) (*BoolEvaluator[testEvent], error) {
 					evaluator := StringValuesEvaluator[testEvent]{
 						EvalFnc: func(ctx *testEvalContext) *StringValues {
