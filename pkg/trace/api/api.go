@@ -593,11 +593,9 @@ func (t *tracker) getSem() {
 }
 
 func (t *tracker) putSem() {
-	for {
-		i := stdatomic.AddInt32(&t.semi, 1)
-		if i > 0 {
-			t.sem <- struct{}{}
-		}
+	i := stdatomic.AddInt32(&t.semi, 1)
+	if i > 0 {
+		t.sem <- struct{}{}
 	}
 }
 
@@ -607,6 +605,7 @@ func (t *tracker) Open() {
 }
 
 func (t *tracker) Close() {
+	t.putSem()
 	stdatomic.AddInt32(&t.conns, -1)
 }
 
