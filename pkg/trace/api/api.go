@@ -12,7 +12,6 @@ import (
 	"expvar"
 	"fmt"
 	"io"
-	"io/ioutil"
 	stdlog "log"
 	"math"
 	"mime"
@@ -163,6 +162,7 @@ func replyWithVersion(hash string, version string, h http.Handler) http.Handler 
 
 // Start starts doing the HTTP server and is ready to receive traces
 func (r *HTTPReceiver) Start() {
+	go track.worker()
 	if r.conf.ReceiverPort == 0 {
 		log.Debug("HTTP receiver disabled by config (apm_config.receiver_port: 0).")
 		return
@@ -542,16 +542,82 @@ func (r *HTTPReceiver) handleStats(w http.ResponseWriter, req *http.Request) {
 }
 
 type tracker struct {
-	ipbytes map[string]uint64
+	ipbytes  map[string]uint64
+	conns    int32
+	timeouts uint32
+	sem      chan struct{}
+	semi     int32
+	waiting  int32
 }
+
+func (t *tracker) worker() {
+	tick := time.NewTicker(100 * time.Millisecond)
+	for {
+		<-tick.C
+		to := stdatomic.SwapUint32(&t.timeouts, 0)
+		if to > 0 {
+			t.decSem()
+			log.Infof("Decreasing sem.\n")
+		} else if stdatomic.LoadInt32(&t.waiting) > 0 {
+			t.putSem()
+		}
+	}
+}
+
+func (t *tracker) Track(addr string, size int64) {
+
+}
+
+func (t *tracker) Timeout() {
+	stdatomic.AddUint32(&t.timeouts, 1)
+}
+
+// takeSem() decreases the value of the semaphore without blocking, allowing
+// the semaphore to become negative
+func (t *tracker) decSem() {
+	select {
+	case <-t.sem:
+	default:
+	}
+	stdatomic.AddInt32(&t.semi, -1)
+}
+
+func (t *tracker) getSem() {
+	stdatomic.AddInt32(&t.waiting, 1)
+	defer stdatomic.AddInt32(&t.waiting, -1)
+	<-t.sem
+	stdatomic.AddInt32(&t.semi, -1)
+}
+
+func (t *tracker) putSem() {
+	for {
+		i := stdatomic.AddInt32(&t.semi, 1)
+		if i > 0 {
+			t.sem <- struct{}{}
+		}
+	}
+}
+
+func (t *tracker) Open() {
+	stdatomic.AddInt32(&t.conns, 1)
+}
+
+func (t *tracker) Close() {
+	stdatomic.AddInt32(&t.conns, -1)
+}
+
+var track = tracker{ipbytes: make(map[string]uint64)}
 
 // handleTraces knows how to handle a bunch of traces
 func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.Request) {
+	track.Open()
+	defer track.Close()
 	ts := r.tagStats(v, req.Header)
 	tracen, err := traceCount(req)
 	if err == nil && r.rateLimited(tracen) {
 		// this payload can not be accepted
-		io.Copy(ioutil.Discard, req.Body) //nolint:errcheck
+		//io.Copy(ioutil.Discard, req.Body) //nolint:errcheck
+		req.Body.Close()
 		w.WriteHeader(r.rateLimiterResponse)
 		r.replyOK(req, v, w)
 		ts.PayloadRefused.Inc()
@@ -585,8 +651,8 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 		if oe, ok := err.(*net.OpError); ok {
 			if oe.Timeout() {
 				log.Errorf("Timeout from %v\n", req.RemoteAddr)
+				track.Timeout()
 			}
-			log.Errorf("Internal error: %#v\n", oe.Unwrap())
 		}
 		return
 	}
@@ -809,9 +875,12 @@ func (r *HTTPReceiver) Languages() string {
 func decodeRequest(req *http.Request, dest *pb.Traces) (ranHook bool, err error) {
 	switch mediaType := getMediaType(req); mediaType {
 	case "application/msgpack":
+		ips := strings.SplitN(req.RemoteAddr, ":", 2)
+		ip := ips[0]
 		buf := getBuffer()
 		defer putBuffer(buf)
-		_, err = io.Copy(buf, req.Body)
+		n, err := io.Copy(buf, req.Body)
+		track.Track(ip, n)
 		if err != nil {
 			return false, err
 		}
