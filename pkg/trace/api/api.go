@@ -78,7 +78,7 @@ func putBuffer(buffer *bytes.Buffer) {
 			break
 		}
 	}
-	bufferPool.Put(buffer)
+	//bufferPool.Put(buffer)
 }
 
 // HTTPReceiver is a collector that uses HTTP protocol and just holds
