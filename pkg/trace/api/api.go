@@ -600,6 +600,7 @@ func (t *tracker) putSem() {
 }
 
 func (t *tracker) Open() {
+	t.getSem()
 	stdatomic.AddInt32(&t.conns, 1)
 }
 
