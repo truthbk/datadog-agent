@@ -554,6 +554,7 @@ func (t *tracker) worker() {
 	tick := time.NewTicker(100 * time.Millisecond)
 	for {
 		<-tick.C
+		log.Infof("Tracker Worker Tick\n")
 		to := stdatomic.SwapUint32(&t.timeouts, 0)
 		if to > 0 {
 			t.decSem()
