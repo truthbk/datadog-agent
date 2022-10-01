@@ -12,7 +12,6 @@ import (
 	"expvar"
 	"fmt"
 	"io"
-	"io/ioutil"
 	stdlog "log"
 	"math"
 	"mime"
@@ -341,7 +340,7 @@ func (r *HTTPReceiver) handleWithVersion(v Version, f func(Version, http.Respons
 		}
 
 		// TODO(x): replace with http.MaxBytesReader?
-		req.Body = apiutil.NewLimitedReader(req.Body, r.conf.MaxRequestBytes)
+		//req.Body = apiutil.NewLimitedReader(req.Body, r.conf.MaxRequestBytes)
 
 		f(v, w, req)
 	}
@@ -646,10 +645,10 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 	if err == nil && r.rateLimited(tracen) || !track.Open(req.RemoteAddr) {
 		//log.Infof("Rate Limiting!\n")
 		// this payload can not be accepted
-		io.Copy(ioutil.Discard, req.Body) //nolint:errcheck
+		//io.Copy(ioutil.Discard, req.Body) //nolint:errcheck
 		req.Body.Close()
-		http.Error(w, "503 please back off.", http.StatusServiceUnavailable)
 		w.WriteHeader(r.rateLimiterResponse)
+		http.Error(w, "503 please back off.", http.StatusServiceUnavailable)
 		//r.replyOK(req, v, w)
 
 		ts.PayloadRefused.Inc()
