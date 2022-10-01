@@ -437,7 +437,7 @@ func (r *HTTPReceiver) tagStats(v Version, header http.Header) *info.TagStats {
 // - ranHook reports whether the decoder was able to run the pb.MetaHook
 // - err is the first error encountered
 func decodeTracerPayload(v Version, req *http.Request, ts *info.TagStats, cIDProvider IDProvider) (tp *pb.TracerPayload, ranHook bool, err error) {
-	log.Infof("buffers: %d, bytes: %d\n", stdatomic.LoadInt64(&outstanding), stdatomic.LoadInt64(&bytesOutstanding))
+	//log.Infof("buffers: %d, bytes: %d\n", stdatomic.LoadInt64(&outstanding), stdatomic.LoadInt64(&bytesOutstanding))
 
 	switch v {
 	case v01:
@@ -550,6 +550,7 @@ type tracker struct {
 	timeouts uint32
 	conns    int32
 	denied   int32
+	accepted int32
 	l        sync.RWMutex
 	hardno   bool
 }
@@ -557,17 +558,17 @@ type tracker struct {
 func (t *tracker) worker(r *HTTPReceiver) {
 	tick := time.NewTicker(100 * time.Millisecond)
 	for {
-		log.Infof("begin")
 		<-tick.C
 
 		denied := stdatomic.SwapInt32(&t.denied, 0)
+		accepted := stdatomic.SwapInt32(&t.accepted, 0)
 		m := watchdog.Mem()
 		if float64(m.Alloc) > float64(r.conf.MaxMemory)*0.8 {
-			log.Infof("\n\n##########Lowering rate to %v/s\n##########\n\n", t.rate)
+			log.Infof("##########Lowering rate to %v/s", t.rate)
 			t.rate = t.rate / 2
 			t.lim.SetLimit(rate.Limit(t.rate))
 		} else if denied > 0 {
-			log.Infof("\n\n##########Raising rate to %v/s\n##########\n\n", t.rate)
+			log.Infof("##########Raising rate to %v/s", t.rate)
 			t.rate += 1
 			t.lim.SetLimit(rate.Limit(t.rate))
 		}
@@ -578,8 +579,8 @@ func (t *tracker) worker(r *HTTPReceiver) {
 		}
 
 		to := stdatomic.SwapUint32(&t.timeouts, 0)
-		log.Infof("Tracker Worker Tick Open: %d, Timeout: %d, Limit: %f, Denied: %d, %.2fM / %.2fM",
-			stdatomic.LoadInt32(&t.conns), to, t.rate, denied, float64(m.Alloc)/1024/1024, r.conf.MaxMemory/1024/1024)
+		log.Infof("Tracker Worker Tick Open: %d, Timeout: %d, Limit: %f, Denied: %d, accepted: %d, %.2fM / %.2fM",
+			stdatomic.LoadInt32(&t.conns), to, t.rate, denied, accepted, float64(m.Alloc)/1024/1024, r.conf.MaxMemory/1024/1024)
 		// 		if to > 0 {
 		// 			log.Infof("Decreasing sem.\n")
 		// 			t.decSem()
@@ -588,7 +589,6 @@ func (t *tracker) worker(r *HTTPReceiver) {
 		// 			t.putSem()
 		// 		}
 		t.resetTracking()
-		log.Infof("end")
 	}
 }
 
@@ -657,7 +657,6 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 	defer track.Close()
 
 	start := time.Now()
-	log.Infof("Decoding.\n")
 	tp, ranHook, err := decodeTracerPayload(v, req, ts, r.containerIDProvider)
 	defer func(err error) {
 		tags := append(ts.AsTags(), fmt.Sprintf("success:%v", err == nil))
@@ -686,7 +685,6 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 		}
 		return
 	}
-	log.Infof("Done Decoding.\n")
 	if !ranHook {
 		// The decoder of this request did not run the pb.MetaHook. The user is either using
 		// a deprecated endpoint or Content-Type, or, a new decoder was implemented and the
