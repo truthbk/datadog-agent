@@ -155,8 +155,8 @@ func (r *HTTPReceiver) buildMux() *http.ServeMux {
 // HTTP headers containing version and state information.
 func replyWithVersion(hash string, version string, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Datadog-Agent-Version", version)
-		w.Header().Set("Datadog-Agent-State", hash)
+		//w.Header().Set("Datadog-Agent-Version", version)
+		//w.Header().Set("Datadog-Agent-State", hash)
 		h.ServeHTTP(w, r)
 	})
 }
@@ -647,7 +647,7 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 		// this payload can not be accepted
 		//io.Copy(ioutil.Discard, req.Body) //nolint:errcheck
 		req.Body.Close()
-		w.WriteHeader(r.rateLimiterResponse)
+		//w.WriteHeader(r.rateLimiterResponse)
 		http.Error(w, "503 please back off.", http.StatusServiceUnavailable)
 		//r.replyOK(req, v, w)
 
