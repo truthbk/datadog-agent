@@ -636,7 +636,7 @@ func (t *tracker) Close() {
 	stdatomic.AddInt32(&t.conns, -1)
 }
 
-var track = tracker{ipbytes: make(map[string]uint64), lim: rate.NewLimiter(10, 100), rate: 10}
+var track = tracker{ipbytes: make(map[string]uint64), lim: rate.NewLimiter(10, 10), rate: 10}
 
 // handleTraces knows how to handle a bunch of traces
 func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.Request) {
