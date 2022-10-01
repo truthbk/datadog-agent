@@ -106,7 +106,7 @@ type HTTPReceiver struct {
 
 // NewHTTPReceiver returns a pointer to a new HTTPReceiver
 func NewHTTPReceiver(conf *config.AgentConfig, dynConf *sampler.DynamicConfig, out chan *Payload, statsProcessor StatsProcessor) *HTTPReceiver {
-	//debug.SetMemoryLimit(500000000)
+	debug.SetMemoryLimit(int64(r.conf.MaxMemory*0.8)
 	rateLimiterResponse := http.StatusOK
 	if features.Has("429") {
 		rateLimiterResponse = http.StatusTooManyRequests
