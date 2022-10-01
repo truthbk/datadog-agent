@@ -12,6 +12,7 @@ import (
 	"expvar"
 	"fmt"
 	"io"
+	"io/ioutil"
 	stdlog "log"
 	"math"
 	"mime"
@@ -642,8 +643,8 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 	if err == nil && r.rateLimited(tracen) || !track.Open(req.RemoteAddr) {
 		log.Infof("Rate Limiting!\n")
 		// this payload can not be accepted
-		//io.Copy(ioutil.Discard, req.Body) //nolint:errcheck
-		req.Body.Close()
+		io.Copy(ioutil.Discard, req.Body) //nolint:errcheck
+		//req.Body.Close()
 		w.WriteHeader(r.rateLimiterResponse)
 		r.replyOK(req, v, w)
 		ts.PayloadRefused.Inc()
