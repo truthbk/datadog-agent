@@ -578,7 +578,7 @@ func (t *tracker) worker(r *HTTPReceiver) {
 
 		to := stdatomic.SwapUint32(&t.timeouts, 0)
 		log.Infof("Tracker Worker Tick Open: %d, Timeout: %d, Limit: %f, Denied: %d, %.2fM / %.2fM",
-			stdatomic.LoadInt32(&t.conns), to, t.rate, denied, m.Alloc/1024/1024, r.conf.MaxMemory/1024/1024)
+			stdatomic.LoadInt32(&t.conns), to, t.rate, denied, float64(m.Alloc)/1024/1024, r.conf.MaxMemory/1024/1024)
 		// 		if to > 0 {
 		// 			log.Infof("Decreasing sem.\n")
 		// 			t.decSem()
