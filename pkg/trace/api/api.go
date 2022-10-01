@@ -647,10 +647,11 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 		//log.Infof("Rate Limiting!\n")
 		// this payload can not be accepted
 		io.Copy(ioutil.Discard, req.Body) //nolint:errcheck
-		//req.Body.Close()
+		req.Body.Close()
+		http.Error(w, "503 please back off.", http.StatusServiceUnavailable)
 		w.WriteHeader(r.rateLimiterResponse)
 		//r.replyOK(req, v, w)
-		http.Error(w, "503 please back off.", http.StatusServiceUnavailable)
+
 		ts.PayloadRefused.Inc()
 		return
 	}
