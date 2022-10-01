@@ -705,7 +705,7 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 	}
 
 	ts.TracesReceived.Add(int64(len(tp.Chunks)))
-	ts.TracesBytes.Add(req.Body.(*apiutil.LimitedReader).Count)
+	//ts.TracesBytes.Add(req.Body.(*apiutil.LimitedReader).Count)
 	ts.PayloadAccepted.Inc()
 
 	if ctags := getContainerTags(r.conf.ContainerTags, tp.ContainerID); ctags != "" {
