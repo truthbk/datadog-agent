@@ -549,6 +549,7 @@ type tracker struct {
 	timeouts uint32
 	conns    int32
 	l        sync.RWMutex
+	hardno   bool
 }
 
 func (t *tracker) worker(r *HTTPReceiver) {
@@ -561,6 +562,11 @@ func (t *tracker) worker(r *HTTPReceiver) {
 			log.Infof("\n\n##########Lowering rate to %v/s\n##########\n\n", t.rate)
 			t.rate = t.rate / 2
 			t.lim.SetLimit(rate.Limit(t.rate))
+		}
+		if float64(m.Alloc) > float64(r.conf.MaxMemory) {
+			t.hardno = true
+		} else {
+			t.hardno = false
 		}
 
 		to := stdatomic.SwapUint32(&t.timeouts, 0)
@@ -595,6 +601,9 @@ func (t *tracker) Timeout() {
 }
 
 func (t *tracker) Open(addr string) bool {
+	if t.hardno {
+		return false
+	}
 	stdatomic.AddInt32(&t.conns, 1)
 	return t.lim.Allow()
 	// 	if t.getBytes(addr) > 1024*1024*100 {
