@@ -641,7 +641,7 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 	ts := r.tagStats(v, req.Header)
 	tracen, err := traceCount(req)
 	if err == nil && r.rateLimited(tracen) || !track.Open(req.RemoteAddr) {
-		log.Infof("Rate Limiting!\n")
+		//log.Infof("Rate Limiting!\n")
 		// this payload can not be accepted
 		io.Copy(ioutil.Discard, req.Body) //nolint:errcheck
 		//req.Body.Close()
@@ -653,7 +653,7 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 	if err == errInvalidHeaderTraceCountValue {
 		log.Errorf("Failed to count traces: %s", err)
 	}
-	log.Infof("Not Rate Limiting!\n")
+	//log.Infof("Not Rate Limiting!\n")
 	defer track.Close()
 
 	start := time.Now()
