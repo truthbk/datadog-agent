@@ -649,7 +649,8 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 		io.Copy(ioutil.Discard, req.Body) //nolint:errcheck
 		//req.Body.Close()
 		w.WriteHeader(r.rateLimiterResponse)
-		r.replyOK(req, v, w)
+		//r.replyOK(req, v, w)
+		http.Error(w, "503 please back off.", http.StatusServiceUnavailable)
 		ts.PayloadRefused.Inc()
 		return
 	}
