@@ -548,6 +548,7 @@ type tracker struct {
 	rate     float64
 	timeouts uint32
 	conns    int32
+	denied   int32
 	l        sync.RWMutex
 	hardno   bool
 }
@@ -557,10 +558,15 @@ func (t *tracker) worker(r *HTTPReceiver) {
 	for {
 		<-tick.C
 
+		denied := stdatomic.SwapInt32(&t.denied, 0)
 		m := watchdog.Mem()
 		if float64(m.Alloc) > float64(r.conf.MaxMemory)*0.8 {
 			log.Infof("\n\n##########Lowering rate to %v/s\n##########\n\n", t.rate)
 			t.rate = t.rate / 2
+			t.lim.SetLimit(rate.Limit(t.rate))
+		} else if denied > 0 {
+			log.Infof("\n\n##########Raising rate to %v/s\n##########\n\n", t.rate)
+			t.rate += 1
 			t.lim.SetLimit(rate.Limit(t.rate))
 		}
 		if float64(m.Alloc) > float64(r.conf.MaxMemory) {
@@ -602,10 +608,15 @@ func (t *tracker) Timeout() {
 
 func (t *tracker) Open(addr string) bool {
 	if t.hardno {
+		stdatomic.AddInt32(&t.denied, 1)
 		return false
 	}
 	stdatomic.AddInt32(&t.conns, 1)
-	return t.lim.Allow()
+	r := t.lim.Allow()
+	if !r {
+		stdatomic.AddInt32(&t.denied, 1)
+	}
+	return r
 	// 	if t.getBytes(addr) > 1024*1024*100 {
 	// 		// More than 100MiB/s
 	// 		return false
@@ -619,7 +630,7 @@ func (t *tracker) Close() {
 	stdatomic.AddInt32(&t.conns, -1)
 }
 
-var track = tracker{ipbytes: make(map[string]uint64), lim: rate.NewLimiter(10, 100)}
+var track = tracker{ipbytes: make(map[string]uint64), lim: rate.NewLimiter(10, 100), rate: 10}
 
 // handleTraces knows how to handle a bunch of traces
 func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.Request) {
@@ -638,6 +649,7 @@ func (r *HTTPReceiver) handleTraces(v Version, w http.ResponseWriter, req *http.
 	if err == errInvalidHeaderTraceCountValue {
 		log.Errorf("Failed to count traces: %s", err)
 	}
+	log.Infof("Not Rate Limiting!\n")
 	defer track.Close()
 
 	start := time.Now()
