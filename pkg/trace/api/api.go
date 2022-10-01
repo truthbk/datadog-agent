@@ -615,11 +615,12 @@ func (t *tracker) Open(addr string) bool {
 		stdatomic.AddInt32(&t.denied, 1)
 		return false
 	}
-	stdatomic.AddInt32(&t.conns, 1)
+
 	r := t.lim.Allow()
 	if !r {
 		stdatomic.AddInt32(&t.denied, 1)
 	} else {
+		stdatomic.AddInt32(&t.conns, 1)
 		stdatomic.AddInt32(&t.accepted, 1)
 	}
 	return r
