@@ -564,6 +564,9 @@ func (t *tracker) worker(r *HTTPReceiver) {
 		if float64(m.Alloc) > float64(r.conf.MaxMemory)*0.8 {
 			log.Infof("Lowering rate to %v/s", t.rate)
 			t.rate = t.rate / 2
+			if t.rate < 0.1 {
+				t.rate = 0.1
+			}
 			t.lim.SetLimit(rate.Limit(t.rate))
 		} else if float64(m.Alloc) < float64(r.conf.MaxMemory)*0.5 && denied > 0 {
 			log.Infof("Raising rate to %v/s", t.rate)
