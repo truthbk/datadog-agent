@@ -43,7 +43,7 @@ require (
 	code.cloudfoundry.org/bbs v0.0.0-20200403215808-d7bc971db0db
 	code.cloudfoundry.org/garden v0.0.0-20210208153517-580cadd489d2
 	code.cloudfoundry.org/lager v2.0.0+incompatible
-	github.com/DataDog/agent-payload/v5 v5.0.30-0.20220926152227-b1a8140c5aff
+	github.com/DataDog/agent-payload/v5 v5.0.30-0.20221003090312-372985f6ebb1
 	github.com/DataDog/datadog-agent/pkg/obfuscate v0.40.0-rc.2
 	github.com/DataDog/datadog-agent/pkg/otlp/model v0.40.0-rc.2
 	github.com/DataDog/datadog-agent/pkg/quantile v0.40.0-rc.2
@@ -54,7 +54,7 @@ require (
 	github.com/DataDog/datadog-agent/pkg/util/log v0.40.0-rc.2
 	github.com/DataDog/datadog-agent/pkg/util/scrubber v0.40.0-rc.2
 	github.com/DataDog/datadog-go/v5 v5.1.1
-	github.com/DataDog/datadog-operator v0.7.1-0.20220602134901-4f6af09bf54f
+	github.com/DataDog/datadog-operator v0.7.0
 	github.com/DataDog/ebpf-manager v0.0.0-20220916102325-8091ed929797
 	github.com/DataDog/gohai v0.0.0-20220823152657-b201b8a4ebec
 	github.com/DataDog/gopsutil v1.2.1

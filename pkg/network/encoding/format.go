@@ -17,6 +17,8 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/network"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
+
+	"golang.org/x/sys/unix"
 )
 
 const maxRoutes = math.MaxInt32
@@ -108,7 +110,7 @@ func FormatFailedConnection(failedConn network.FailedConnStats, ipc ipCache) *mo
 	fc.Family = formatFamily(failedConn.Family)
 	fc.Direction = formatDirection(failedConn.Direction)
 	fc.FailureCount = failedConn.FailureCount
-	fc.LastErrno = failedConn.LastErrno
+	fc.LastError = formatError(failedConn.LastErrno)
 
 	return fc
 }
@@ -275,6 +277,15 @@ func formatTags(tagsSet *network.TagsSet, c network.ConnectionStats, connDynamic
 	}
 
 	return
+}
+
+func formatError(errno int32) model.FailedConnectionReason {
+	errnoMap := map[int32]model.FailedConnectionReason{
+		int32(unix.ETIMEDOUT):    model.FailedConnectionReason_timedOut,
+		int32(unix.ECONNREFUSED): model.FailedConnectionReason_connectionRefused,
+	}
+
+	return errnoMap[errno]
 }
 
 func unsafeStringSlice(key string) []byte {
