@@ -44,3 +44,8 @@ func (m *HistogramBucket) GetTags(taggerBuffer, metricBuffer tagset.TagsAccumula
 func (m *HistogramBucket) GetMetricType() MetricType {
 	return HistogramType
 }
+
+// IsHidden returns whether the metric must be hidden or not.
+func (m *HistogramBucket) IsHidden() bool {
+	return false
+}

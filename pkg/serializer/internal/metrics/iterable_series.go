@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/richardartoul/molecule"
@@ -113,10 +114,13 @@ func (series IterableSeries) MarshalSplitCompress(bufferContext *marshaler.Buffe
 	const seriesType = 5
 	const seriesSourceTypeName = 7
 	const seriesInterval = 8
+	const serieMetadata = 9
 	const resourceType = 1
 	const resourceName = 2
 	const pointValue = 1
 	const pointTimestamp = 2
+	const serieMetadataOrigin = 1
+	const serieMetadataOriginMetricType = 3
 
 	// Prepare to write the next payload
 	startPayload := func() error {
@@ -260,6 +264,13 @@ func (series IterableSeries) MarshalSplitCompress(bufferContext *marshaler.Buffe
 				}
 			}
 
+			if serie.Hidden {
+				return ps.Embedded(serieMetadata, func(ps *molecule.ProtoStream) error {
+					return ps.Embedded(serieMetadataOrigin, func(ps *molecule.ProtoStream) error {
+						return ps.Int32(serieMetadataOriginMetricType, 9) // 9: Origin_metric_type_agent_hidden
+					})
+				})
+			}
 			return nil
 		})
 		if err != nil {

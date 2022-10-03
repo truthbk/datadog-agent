@@ -21,6 +21,11 @@ func (m *MockSender) Count(metric string, value float64, hostname string, tags [
 	m.Called(metric, value, hostname, tags)
 }
 
+// CountHidden adds a count type to the mock calls that is hidden in the backend.
+func (m *MockSender) CountHidden(metric string, value float64, hostname string, tags []string) {
+	m.Called(metric, value, hostname, tags)
+}
+
 //MonotonicCount adds a monotonic count type to the mock calls.
 func (m *MockSender) MonotonicCount(metric string, value float64, hostname string, tags []string) {
 	m.Called(metric, value, hostname, tags)

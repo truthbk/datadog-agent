@@ -10,6 +10,7 @@ import "sync"
 // StatsTelemetrySender contains methods needed for sending stats metrics
 type StatsTelemetrySender interface {
 	Count(metric string, value float64, hostname string, tags []string)
+	CountHidden(metric string, value float64, hostname string, tags []string)
 	Gauge(metric string, value float64, hostname string, tags []string)
 }
 
@@ -37,22 +38,25 @@ func GetStatsTelemetryProvider() *StatsTelemetryProvider {
 
 // Count reports a count metric to the sender
 func (s *StatsTelemetryProvider) Count(metric string, value float64, tags []string) {
-	s.m.RLock()
-	defer s.m.RUnlock()
-	if s.sender == nil {
-		return
-	}
+	s.send(func(sender StatsTelemetrySender) { sender.Count(metric, value, "", tags) })
+}
 
-	s.sender.Count(metric, value, "", tags)
+// Count reports a hidden count metric to the sender
+func (s *StatsTelemetryProvider) CountHidden(metric string, value float64, tags []string) {
+	s.send(func(sender StatsTelemetrySender) { sender.CountHidden(metric, value, "", tags) })
 }
 
 // Gauge reports a gauge metric to the sender
 func (s *StatsTelemetryProvider) Gauge(metric string, value float64, tags []string) {
+	s.send(func(sender StatsTelemetrySender) { sender.Gauge(metric, value, "", tags) })
+}
+
+func (s *StatsTelemetryProvider) send(senderFct func(sender StatsTelemetrySender)) {
 	s.m.RLock()
 	defer s.m.RUnlock()
 	if s.sender == nil {
 		return
 	}
 
-	s.sender.Gauge(metric, value, "", tags)
+	senderFct(s.sender)
 }
