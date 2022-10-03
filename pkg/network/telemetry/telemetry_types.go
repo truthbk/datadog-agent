@@ -3,16 +3,15 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build !android
-// +build !android
+//go:build ignore
+// +build ignore
 
-package providers
+package telemetry
 
-import (
-	"io/ioutil"
-)
+/*
+#include "../../ebpf/c/telemetry_types.h"
+*/
+import "C"
 
-var (
-	readDirPtr  = ioutil.ReadDir
-	readFilePtr = ioutil.ReadFile
-)
+type MapErrTelemetry C.map_err_telemetry_t
+type HelperErrTelemetry C.helper_err_telemetry_t
