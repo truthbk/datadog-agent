@@ -41,7 +41,7 @@ type Serie struct {
 	SourceTypeName string               `json:"source_type_name,omitempty"`
 	ContextKey     ckey.ContextKey      `json:"-"`
 	NameSuffix     string               `json:"-"`
-	Hidden         bool                 // This is only used by api V2
+	Hidden         bool                 `json:"-"` // This is only used by api V2
 }
 
 // SeriesAPIV2Enum returns the enumeration value for MetricPayload.MetricType in

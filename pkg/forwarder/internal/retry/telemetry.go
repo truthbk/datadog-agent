@@ -312,3 +312,19 @@ func toCamelCase(s string) string {
 	}
 	return camelCase
 }
+
+// TelemetrySender send teletry using telemetry.StatsTelemetryProvider
+type TelemetrySender struct {
+	tags     []string
+	provider *telemetry.StatsTelemetryProvider
+}
+
+// NewTelemetrySender creates a new instance of TelemetrySender.
+func NewTelemetrySender(domain string, provider *telemetry.StatsTelemetryProvider) *TelemetrySender {
+	return &TelemetrySender{tags: []string{"domain:" + domain}, provider: provider}
+}
+
+// IncreaseDroppedPointCount increases the telemetry that count the number of points droppped
+func (t *TelemetrySender) AddDroppedPointCount(count int) {
+	t.provider.Count("datadog.agent.point.dropped", float64(count), t.tags)
+}
