@@ -53,9 +53,9 @@ func (c *cgroupV2) parseCPUController(stats *CPUStats) {
 func (c *cgroupV2) parseCPUSetController(stats *CPUStats) {
 	// Normally there's only one line, but as the parser works line by line anyway, we do support multiple lines
 	var cpuCount uint64
-	err := parseFile(c.fr, c.pathFor("cpuset.cpus.effective"), func(line string) error {
+	err := parseFile(c.fr, c.pathFor("cpuset.cpus.effective"), func(line string) (error, bool) {
 		cpuCount += ParseCPUSetFormat(line)
-		return nil
+		return nil, false
 	})
 
 	if err != nil {
@@ -65,13 +65,13 @@ func (c *cgroupV2) parseCPUSetController(stats *CPUStats) {
 	}
 }
 
-func parseV2CPUStat(stats *CPUStats) func(key, value string) error {
-	return func(key, value string) error {
+func parseV2CPUStat(stats *CPUStats) func(key, value string) (error, bool) {
+	return func(key, value string) (error, bool) {
 		// Do not stop parsing the file if we cannot parse a single value
 		intVal, err := strconv.ParseUint(value, 10, 64)
 		if err != nil {
 			reportError(newValueError(value, err))
-			return nil
+			return nil, false
 		}
 
 		switch key {
@@ -93,17 +93,17 @@ func parseV2CPUStat(stats *CPUStats) func(key, value string) error {
 			stats.ThrottledTime = &intVal
 		}
 
-		return nil
+		return nil, false
 	}
 }
 
-func parseV2CPUMax(stats *CPUStats) func(key, value string) error {
-	return func(limit, period string) error {
+func parseV2CPUMax(stats *CPUStats) func(key, value string) (error, bool) {
+	return func(limit, period string) (error, bool) {
 		periodVal, err := strconv.ParseUint(period, 10, 64)
 		if err == nil {
 			stats.SchedulerPeriod = uint64Ptr(periodVal * uint64(time.Microsecond))
 		} else {
-			return newValueError(period, err)
+			return newValueError(period, err), false
 		}
 
 		if limit != "max" {
@@ -111,10 +111,10 @@ func parseV2CPUMax(stats *CPUStats) func(key, value string) error {
 			if err == nil {
 				stats.SchedulerQuota = uint64Ptr(limitVal * uint64(time.Microsecond))
 			} else {
-				return newValueError(limit, err)
+				return newValueError(limit, err), false
 			}
 		}
 
-		return nil
+		return nil, false
 	}
 }

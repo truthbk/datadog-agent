@@ -49,14 +49,14 @@ func (c *cgroupV1) GetIOStats(stats *IOStats) error {
 }
 
 func (c *cgroupV1) parseV1blkio(path string, perDevice map[string]DeviceIOStats, Writer func(*DeviceIOStats, string, uint64) bool) error {
-	return parseColumnStats(c.fr, path, func(fields []string) error {
+	return parseColumnStats(c.fr, path, func(fields []string) (error, bool) {
 		if len(fields) < 3 {
-			return nil
+			return nil, false
 		}
 
 		value, err := strconv.ParseUint(fields[2], 10, 64)
 		if err != nil {
-			return err
+			return err, false
 		}
 
 		device := perDevice[fields[0]]
@@ -64,7 +64,7 @@ func (c *cgroupV1) parseV1blkio(path string, perDevice map[string]DeviceIOStats,
 			perDevice[fields[0]] = device
 		}
 
-		return nil
+		return nil, false
 	})
 }
 

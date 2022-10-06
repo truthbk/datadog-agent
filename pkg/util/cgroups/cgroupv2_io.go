@@ -55,8 +55,8 @@ func (c *cgroupV2) GetIOStats(stats *IOStats) error {
 
 // format for io.stat "259:0 rbytes=278528 wbytes=9700089856 rios=6 wios=2289428 dbytes=0 dios=0"
 // format for io.max "8:16 rbps=2097152 wbps=max riops=max wiops=120"
-func parseV2IOFn(stats *IOStats) func([]string) error {
-	return func(fields []string) error {
+func parseV2IOFn(stats *IOStats) func([]string) (error, bool) {
+	return func(fields []string) (error, bool) {
 		if len(fields) < 2 {
 			reportError(newValueError("", fmt.Errorf("malformed line fields: '%v'", fields)))
 		}
@@ -118,6 +118,6 @@ func parseV2IOFn(stats *IOStats) func([]string) error {
 			stats.Devices[fields[0]] = device
 		}
 
-		return nil
+		return nil, false
 	}
 }

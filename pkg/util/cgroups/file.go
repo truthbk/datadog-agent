@@ -16,6 +16,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 const (
@@ -48,7 +50,7 @@ func (e *stopParsingError) Error() string {
 
 // returning an error will stop parsing and return the error
 // with the exception of stopParsingError that will return without error
-type parser func(string) error
+type parser func(string) (error, bool)
 
 func parseFile(fr fileReader, path string, p parser) error {
 	f, err := fr.open(path)
@@ -60,7 +62,7 @@ func parseFile(fr fileReader, path string, p parser) error {
 	s := bufio.NewScanner(f)
 	for s.Scan() {
 		line := s.Text()
-		err := p(line)
+		err, shouldDump := p(line)
 		if err != nil {
 			if errors.Is(err, &stopParsingError{}) {
 				return nil
@@ -68,45 +70,49 @@ func parseFile(fr fileReader, path string, p parser) error {
 
 			return err
 		}
+
+		if shouldDump {
+			log.Infof("XXXXXXXXX Read from %s : %s", path, line)
+		}
 	}
 
 	return nil
 }
 
 func parseSingleSignedStat(fr fileReader, path string, val **int64) error {
-	return parseFile(fr, path, func(line string) error {
+	return parseFile(fr, path, func(line string) (error, bool) {
 		// handle cgroupv2 max value, we usually consider max == no value (limit)
 		if line == "max" {
-			return &stopParsingError{}
+			return &stopParsingError{}, false
 		}
 
 		value, err := strconv.ParseInt(line, 10, 64)
 		if err != nil {
-			return newValueError(line, err)
+			return newValueError(line, err), false
 		}
 		*val = &value
-		return &stopParsingError{}
+		return &stopParsingError{}, false
 	})
 }
 
 func parseSingleUnsignedStat(fr fileReader, path string, val **uint64) error {
-	return parseFile(fr, path, func(line string) error {
+	return parseFile(fr, path, func(line string) (error, bool) {
 		// handle cgroupv2 max value, we usually consider max == no value (limit)
 		if line == "max" {
-			return &stopParsingError{}
+			return &stopParsingError{}, false
 		}
 
 		value, err := strconv.ParseUint(line, 10, 64)
 		if err != nil {
-			return newValueError(line, err)
+			return newValueError(line, err), false
 		}
 		*val = &value
-		return &stopParsingError{}
+		return &stopParsingError{}, false
 	})
 }
 
-func parseColumnStats(fr fileReader, path string, valueParser func([]string) error) error {
-	err := parseFile(fr, path, func(line string) error {
+func parseColumnStats(fr fileReader, path string, valueParser func([]string) (error, bool)) error {
+	err := parseFile(fr, path, func(line string) (error, bool) {
 		splits := strings.Fields(line)
 		return valueParser(splits)
 	})
@@ -115,16 +121,16 @@ func parseColumnStats(fr fileReader, path string, valueParser func([]string) err
 }
 
 // columns are 0-indexed, we skip malformed lines
-func parse2ColumnStats(fr fileReader, path string, keyColumn, valueColumn int, valueParser func(string, string) error) error {
+func parse2ColumnStats(fr fileReader, path string, keyColumn, valueColumn int, valueParser func(string, string) (error, bool)) error {
 	lastIdx := valueColumn
 	if keyColumn > lastIdx {
 		lastIdx = keyColumn
 	}
 
-	err := parseFile(fr, path, func(line string) error {
+	err := parseFile(fr, path, func(line string) (error, bool) {
 		splits := strings.SplitN(line, spaceSeparator, lastIdx+1)
 		if len(splits) <= lastIdx {
-			return nil
+			return nil, false
 		}
 
 		return valueParser(splits[keyColumn], splits[valueColumn])
@@ -135,10 +141,10 @@ func parse2ColumnStats(fr fileReader, path string, keyColumn, valueColumn int, v
 
 // format is "some avg10=0.00 avg60=0.00 avg300=0.00 total=0"
 func parsePSI(fr fileReader, path string, somePsi, fullPsi *PSIStats) error {
-	return parseColumnStats(fr, path, func(fields []string) error {
+	return parseColumnStats(fr, path, func(fields []string) (error, bool) {
 		if len(fields) != 5 {
 			reportError(newValueError("", fmt.Errorf("unexpected format for psi file at: %s, line content: %v", path, fields)))
-			return nil
+			return nil, false
 		}
 
 		var psiStats *PSIStats
@@ -154,7 +160,7 @@ func parsePSI(fr fileReader, path string, somePsi, fullPsi *PSIStats) error {
 
 		// User did not provide stat for this type or unknown PSI type
 		if psiStats == nil {
-			return nil
+			return nil, false
 		}
 
 		for i := 1; i < 5; i++ {
@@ -187,6 +193,6 @@ func parsePSI(fr fileReader, path string, somePsi, fullPsi *PSIStats) error {
 			}
 		}
 
-		return nil
+		return nil, false
 	})
 }

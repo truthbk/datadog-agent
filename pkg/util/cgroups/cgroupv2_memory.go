@@ -21,12 +21,12 @@ func (c *cgroupV2) GetMemoryStats(stats *MemoryStats) error {
 
 	var kernelStack, slab *uint64
 
-	if err := parse2ColumnStats(c.fr, c.pathFor("memory.stat"), 0, 1, func(key, value string) error {
+	if err := parse2ColumnStats(c.fr, c.pathFor("memory.stat"), 0, 1, func(key, value string) (error, bool) {
 		intVal, err := strconv.ParseUint(value, 10, 64)
 		if err != nil {
 			reportError(newValueError(value, err))
 			// Dont't stop parsing on a single faulty value
-			return nil
+			return nil, false
 		}
 
 		switch key {
@@ -58,7 +58,7 @@ func (c *cgroupV2) GetMemoryStats(stats *MemoryStats) error {
 			slab = &intVal
 		}
 
-		return nil
+		return nil, false
 	}); err != nil {
 		reportError(err)
 	}
@@ -105,12 +105,12 @@ func (c *cgroupV2) GetMemoryStats(stats *MemoryStats) error {
 	}
 	nilIfZero(&stats.SwapLimit)
 
-	if err := parse2ColumnStats(c.fr, c.pathFor("memory.events"), 0, 1, func(key, value string) error {
+	if err := parse2ColumnStats(c.fr, c.pathFor("memory.events"), 0, 1, func(key, value string) (error, bool) {
 		intVal, err := strconv.ParseUint(value, 10, 64)
 		if err != nil {
 			reportError(newValueError(value, err))
 			// Dont't stop parsing on a single faulty value
-			return nil
+			return nil, false
 		}
 
 		switch key {
@@ -120,7 +120,7 @@ func (c *cgroupV2) GetMemoryStats(stats *MemoryStats) error {
 			stats.OOMKiilEvents = &intVal
 		}
 
-		return nil
+		return nil, false
 	}); err != nil {
 		reportError(err)
 	}

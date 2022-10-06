@@ -23,27 +23,27 @@ import (
 func IdentiferFromCgroupReferences(procPath, pid, baseCgroupController string, filter ReaderFilter) (string, error) {
 	var identifier string
 
-	err := parseFile(defaultFileReader, filepath.Join(procPath, pid, procCgroupFile), func(s string) error {
+	err := parseFile(defaultFileReader, filepath.Join(procPath, pid, procCgroupFile), func(s string) (error, bool) {
 		var err error
 
 		parts := strings.Split(s, ":")
 		// Skip potentially malformed lines
 		if len(parts) != 3 {
-			return nil
+			return nil, false
 		}
 
 		if parts[1] != baseCgroupController {
-			return nil
+			return nil, false
 		}
 
 		// We need to remove first / as the path produced in Readers may not include it
 		relativeCgroupPath := strings.TrimLeft(parts[2], "/")
 		identifier, err = filter(relativeCgroupPath, filepath.Base(relativeCgroupPath))
 		if err != nil {
-			return err
+			return err, false
 		}
 
-		return &stopParsingError{}
+		return &stopParsingError{}, false
 	})
 	if err != nil {
 		return "", err
@@ -63,12 +63,12 @@ func getPidMapper(procPath, cgroupRoot, baseController string, filter ReaderFilt
 	// In cgroupv2, the file contains 0 values, filtering for that
 	cgroupProcsTestFilePath := filepath.Join(cgroupRoot, cgroupProcsFile)
 	cgroupProcsUsable := false
-	err := parseFile(defaultFileReader, cgroupProcsTestFilePath, func(s string) error {
+	err := parseFile(defaultFileReader, cgroupProcsTestFilePath, func(s string) (error, bool) {
 		if s != "" && s != "0" {
 			cgroupProcsUsable = true
 		}
 
-		return nil
+		return nil, false
 	})
 
 	if cgroupProcsUsable {
@@ -115,16 +115,16 @@ type cgroupProcsPidMapper struct {
 func (pm *cgroupProcsPidMapper) getPIDsForCgroup(identifier, relativeCgroupPath string, cacheValidity time.Duration) []int {
 	var pids []int
 
-	if err := parseFile(pm.fr, pm.cgroupProcsFilePathBuilder(relativeCgroupPath), func(s string) error {
+	if err := parseFile(pm.fr, pm.cgroupProcsFilePathBuilder(relativeCgroupPath), func(s string) (error, bool) {
 		pid, err := strconv.Atoi(s)
 		if err != nil {
 			reportError(newValueError(s, err))
-			return nil
+			return nil, false
 		}
 
 		pids = append(pids, pid)
 
-		return nil
+		return nil, false
 	}); err != nil {
 		reportError(err)
 	}

@@ -27,13 +27,15 @@ func (c *cgroupV1) GetMemoryStats(stats *MemoryStats) error {
 		return &ControllerNotFoundError{Controller: "memory"}
 	}
 
-	if err := parse2ColumnStats(c.fr, c.pathFor("memory", "memory.stat"), 0, 1, func(key, value string) error {
+	if err := parse2ColumnStats(c.fr, c.pathFor("memory", "memory.stat"), 0, 1, func(key, value string) (error, bool) {
 		intVal, err := strconv.ParseUint(value, 10, 64)
 		if err != nil {
 			reportError(newValueError(value, err))
 			// Dont't stop parsing on a single faulty value
-			return nil
+			return nil, false
 		}
+
+		shouldDump := false
 
 		switch key {
 		case "total_cache":
@@ -42,6 +44,9 @@ func (c *cgroupV1) GetMemoryStats(stats *MemoryStats) error {
 			stats.Swap = &intVal
 		case "total_rss":
 			stats.RSS = &intVal
+			if *stats.RSS > 9223372036854775808 {
+				shouldDump = true
+			}
 		case "total_rss_huge":
 			stats.RSSHuge = &intVal
 		case "total_mapped_file":
@@ -70,7 +75,7 @@ func (c *cgroupV1) GetMemoryStats(stats *MemoryStats) error {
 			stats.SwapLimit = &intVal
 		}
 
-		return nil
+		return nil, shouldDump
 	}); err != nil {
 		reportError(err)
 	}
