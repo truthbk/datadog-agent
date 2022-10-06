@@ -1,0 +1,6 @@
+github.com/DataDog/datadog-agent/pkg/util/log v0.36.1 h1:ZeE3xmPNrGbChozNCnnFOMx4q09WLnwzE0AujxVwm/o=
+github.com/DataDog/datadog-agent/pkg/util/log v0.36.1/go.mod h1:tk7e/vE8FWe4mN7ZjFBE0SRoEFjmsVtyOLOy8aB0B5E=
+github.com/DataDog/datadog-agent/pkg/util/scrubber v0.36.1 h1:WSe5C4MewgVzKLqcF8r9Ai94Fl0w1X1tD70ynUQHiUY=
+github.com/DataDog/datadog-agent/pkg/util/scrubber v0.36.1/go.mod h1:tNM5dDxDAHATiazmsa+hQZpS7uUb1PMHOBA3W5S1ZDM=
+github.com/cihub/seelog v0.0.0-20170130134532-f561c5e57575 h1:kHaBemcxl8o/pQ5VM1c8PVE1PubbNx3mjUr09OqWGCs=
+github.com/cihub/seelog v0.0.0-20170130134532-f561c5e57575/go.mod h1:9d6lWj8KzO/fd/NrVaLscBKmPigpZpn5YawRPw+e3Yo=
