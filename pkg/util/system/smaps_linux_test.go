@@ -87,6 +87,29 @@ SwapPss:               0 kB
 Locked:                0 kB
 THPeligible:    0
 VmFlags: rd wr mr mw me gd ac
+05092000-05093000 r--p 04c82000 fc:01 1338908                            /home/lima.linux/dev/datadog-agent/bin/agent/agent
+Size:                  4 kB
+KernelPageSize:        4 kB
+MMUPageSize:           4 kB
+Rss:                   4 kB
+Pss:                   4 kB
+Shared_Clean:          0 kB
+Shared_Dirty:          0 kB
+Private_Clean:         0 kB
+Private_Dirty:         4 kB
+Referenced:            4 kB
+Anonymous:             4 kB
+LazyFree:              0 kB
+AnonHugePages:         0 kB
+ShmemPmdMapped:        0 kB
+FilePmdMapped:         0 kB
+Shared_Hugetlb:        0 kB
+Private_Hugetlb:       0 kB
+Swap:                  0 kB
+SwapPss:               0 kB
+Locked:                0 kB
+THPeligible:    0
+VmFlags: rd mr mw me ac
 ffffbcb74000-ffffbcb75000 r--p 00004000 fc:01 1569687                    /home/lima.linux/dev/datadog-agent/dev/lib/libdatadog-agent-rtloader.so.0.1.0
 Size:                  4 kB
 KernelPageSize:        4 kB
@@ -112,14 +135,50 @@ THPeligible:    0
             `),
 			smap_parsed: SelfMemStats{
 				"/home/lima.linux/dev/datadog-agent/dev/lib/libdatadog-agent-rtloader.so.0.1.0": {
-					Rss:          4096,
-					Pss:          4096,
+					Rss:          4 * 1024,
+					Pss:          4 * 1024,
 					SharedClean:  0,
 					SharedDirty:  0,
 					PrivateClean: 0,
-					PrivateDirty: 4096,
-					Referenced:   4096,
-					Anonymous:    4096,
+					PrivateDirty: 4 * 1024,
+					Referenced:   4 * 1024,
+					Anonymous:    4 * 1024,
+					Swap:         0,
+					SwapPss:      0,
+				},
+				"/home/lima.linux/dev/datadog-agent/bin/agent/agent": {
+					Rss:          13100*1024 + 4*1024,
+					Pss:          13100*1024 + 4*1024,
+					SharedClean:  0,
+					SharedDirty:  0,
+					PrivateClean: 13100 * 1024,
+					PrivateDirty: 0 + 4*1024,
+					Referenced:   11280*1024 + 4*1024,
+					Anonymous:    0 + 4*1024,
+					Swap:         0,
+					SwapPss:      0,
+				},
+				"/usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1": {
+					Rss:          8 * 1024,
+					Pss:          8 * 1024,
+					SharedClean:  0,
+					SharedDirty:  0,
+					PrivateClean: 0 * 1024,
+					PrivateDirty: 8 * 1024,
+					Referenced:   8 * 1024,
+					Anonymous:    8 * 1024,
+					Swap:         0,
+					SwapPss:      0,
+				},
+				"[stack]": {
+					Rss:          12 * 1024,
+					Pss:          12 * 1024,
+					SharedClean:  0,
+					SharedDirty:  0,
+					PrivateClean: 0 * 1024,
+					PrivateDirty: 12 * 1024,
+					Referenced:   12 * 1024,
+					Anonymous:    12 * 1024,
 					Swap:         0,
 					SwapPss:      0,
 				},
