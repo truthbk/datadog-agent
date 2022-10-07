@@ -80,11 +80,31 @@ NOTE: Changes made to this template should be reflected on the following templat
     error: {{.hostnameStats.errors.all}}
   {{- end }}
 
+  {{- if .AgentMemoryStats }}
+  MemoryStats (beta)
+  ========
+  The following is a parsed summation of /proc/self/smaps.
+  {{- range $key, $value := .AgentMemoryStats }}
+      {{ $key }}:
+          Rss: {{ $value.Rss }} bytes
+          Pss: {{ $value.Pss }} bytes
+          SharedClean: {{ $value.SharedClean }} bytes
+          SharedDirty: {{ $value.SharedDirty }} bytes
+          PrivateClean: {{ $value.PrivateClean }} bytes
+          PrivateDirty: {{ $value.PrivateDirty }} bytes
+          Referenced: {{ $value.Referenced }} bytes
+          Anonymous: {{ $value.Anonymous }} bytes
+          Swap: {{ $value.Swap }} bytes
+          SwapPss: {{ $value.SwapPss }} bytes
+  {{- end }}
+  {{- end }}
+
   Metadata
   ========
   {{- range $key, $value := .agent_metadata }}
     {{ $key }}: {{ $value }}
   {{- end }}
+
 
 {{- if .TransportWarnings }}
 

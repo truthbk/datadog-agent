@@ -31,6 +31,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/hostname"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/apiserver"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/util/system"
 	"github.com/DataDog/datadog-agent/pkg/version"
 
 	httputils "github.com/DataDog/datadog-agent/pkg/util/http"
@@ -55,6 +56,11 @@ func GetStatus() (map[string]interface{}, error) {
 	pythonVersion := host.GetPythonVersion()
 	stats["python_version"] = strings.Split(pythonVersion, " ")[0]
 	stats["hostinfo"] = host.GetStatusInformation()
+
+	smapStats, err := system.GetSelfSmapStats("/proc")
+	if err == nil {
+		stats["AgentMemoryStats"] = smapStats
+	}
 
 	stats["JMXStatus"] = GetJMXStatus()
 	stats["JMXStartupError"] = GetJMXStartupError()
