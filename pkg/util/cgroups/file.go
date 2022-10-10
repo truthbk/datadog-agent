@@ -59,10 +59,14 @@ func parseFile(fr fileReader, path string, p parser) error {
 	}
 	defer f.Close()
 
+	var all strings.Builder
+	shouldDumpAll := false
+
 	s := bufio.NewScanner(f)
 	for s.Scan() {
 		line := s.Text()
 		err, shouldDump := p(line)
+		shouldDumpAll = shouldDumpAll || shouldDump
 		if err != nil {
 			if errors.Is(err, &stopParsingError{}) {
 				return nil
@@ -71,9 +75,12 @@ func parseFile(fr fileReader, path string, p parser) error {
 			return err
 		}
 
-		if shouldDump {
-			log.Infof("XXXXXXXXX Read from %s : %s", path, line)
-		}
+		all.WriteString(line)
+		all.WriteRune('\n')
+	}
+
+	if shouldDumpAll {
+		log.Infof("XXXXXXXXX Read from %s\n%s", path, all.String())
 	}
 
 	return nil
