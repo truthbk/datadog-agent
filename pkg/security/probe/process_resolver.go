@@ -408,6 +408,11 @@ func (p *ProcessResolver) enrichEventFromProc(entry *model.ProcessCacheEntry, pr
 	entry.Process.ContainerID = string(containerID)
 	// resolve container path with the MountResolver
 	entry.FileEvent.Filesystem = p.resolvers.MountResolver.GetFilesystem(entry.Process.FileEvent.MountID)
+	if entry.Process.FileEvent.MountID == 0 {
+		seclog.Warnf("enriching event from proc with missing mount_id")
+	} else if entry.FileEvent.Filesystem == "" {
+		seclog.Warnf("enriching event from proc resolved empty filesystem")
+	}
 
 	entry.ExecTime = time.Unix(0, filledProc.CreateTime*int64(time.Millisecond))
 	entry.ForkTime = entry.ExecTime

@@ -491,8 +491,6 @@ func TestProcessContext(t *testing.T) {
 			}
 			fmt.Printf("ARGS500: filesystem %s\n", filesystem.(string))
 
-			fmt.Printf("ARGS500\n%s\n", event.String())
-
 		}))
 	})
 
