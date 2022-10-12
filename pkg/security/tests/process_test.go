@@ -472,6 +472,25 @@ func TestProcessContext(t *testing.T) {
 			if !truncated.(bool) {
 				t.Errorf("arg not truncated: %s", execArgs.(string))
 			}
+
+			mountID, err := event.GetFieldValue("exec.file.mount_id")
+			if err != nil {
+				t.Errorf("ARGS500: not able to get exec.file.mount_id")
+			}
+			fmt.Printf("ARGS500: mount_id %d\n", mountID.(int))
+
+			inode, err := event.GetFieldValue("exec.file.inode")
+			if err != nil {
+				t.Errorf("ARGS500: not able to get exec.file.inode")
+			}
+			fmt.Printf("ARGS500: inode %d\n", inode.(int))
+
+			filesystem, err := event.GetFieldValue("exec.file.filesystem")
+			if err != nil {
+				t.Errorf("ARGS500: not able to get exec.file.filesystem")
+			}
+			fmt.Printf("ARGS500: filesystem %s\n", filesystem.(string))
+
 		}))
 	})
 
