@@ -179,7 +179,7 @@ func (k *KubeContainerConfigProvider) generateConfig(e workloadmeta.Entity) ([]i
 			configs = utils.AddContainerCollectAllConfigs(configs, containerEntityName)
 
 			for idx := range configs {
-				configs[idx].Source = names.Container + ":" + containerEntityName
+				configs[idx].Source = names.KubeContainer + ":" + containerEntityName
 			}
 		}
 
@@ -236,7 +236,7 @@ func (k *KubeContainerConfigProvider) generateConfig(e workloadmeta.Entity) ([]i
 			containerNames[podContainer.Name] = struct{}{}
 
 			for idx := range c {
-				c[idx].Source = names.Container + ":" + containerEntity
+				c[idx].Source = names.KubeContainer + ":" + containerEntity
 			}
 
 			configs = append(configs, c...)

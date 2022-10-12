@@ -7,15 +7,15 @@ package names
 
 // User-facing names for the config providers
 const (
-	Consul             = "consul"
-	Container          = "container"
-	CloudFoundryBBS    = "cloudfoundry-bbs"
-	ClusterChecks      = "cluster-checks"
-	EndpointsChecks    = "endpoints-checks"
-	Etcd               = "etcd"
-	File               = "file"
-	KubeContainer      = "kubernetes-container-allinone"
-	Kubernetes         = "kubernetes"
+	Consul          = "consul"
+	CloudFoundryBBS = "cloudfoundry-bbs"
+	ClusterChecks   = "cluster-checks"
+	EndpointsChecks = "endpoints-checks"
+	Etcd            = "etcd"
+	File            = "file"
+	// TODO: rename constant
+	// Container       = "container"
+	KubeContainer      = "container"
 	KubeServices       = "kubernetes-services"
 	KubeServicesFile   = "kubernetes-services-file"
 	KubeEndpoints      = "kubernetes-endpoints"
@@ -35,8 +35,6 @@ const (
 	ClusterChecksRegisterName      = "clusterchecks"
 	EndpointsChecksRegisterName    = "endpointschecks"
 	EtcdRegisterName               = "etcd"
-	KubeletRegisterName            = "kubelet"
-	KubeContainerRegisterName      = "kubernetes-container-allinone"
 	KubeServicesRegisterName       = "kube_services"
 	KubeServicesFileRegisterName   = "kube_services_file"
 	KubeEndpointsRegisterName      = "kube_endpoints"

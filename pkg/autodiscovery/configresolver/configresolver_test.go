@@ -667,7 +667,7 @@ func TestResolve(t *testing.T) {
 				ADIdentifiers: []string{"redis"},
 				Instances:     []integration.Data{integration.Data("host: %%host%%\n")},
 				LogsConfig:    integration.Data(`[{"service":"any_service","source":"any_source","tags":["a","b:d"]}]`),
-				Provider:      names.Container,
+				Provider:      names.KubeContainer,
 			},
 			out: integration.Config{
 				Name:          "cpu",
@@ -675,7 +675,7 @@ func TestResolve(t *testing.T) {
 				Instances:     []integration.Data{integration.Data("host: 127.0.0.1\ntags:\n- foo:bar\n")},
 				LogsConfig:    integration.Data(`[{"service":"any_service","source":"any_source","tags":["a","b:d"]}]`),
 				ServiceID:     "a5901276aed1",
-				Provider:      names.Container,
+				Provider:      names.KubeContainer,
 			},
 		},
 		{
@@ -690,7 +690,7 @@ func TestResolve(t *testing.T) {
 				ADIdentifiers: []string{"redis"},
 				Instances:     []integration.Data{integration.Data("host: %%host%%\n")},
 				LogsConfig:    integration.Data(`[{"service":"any_service","source":"any_source","tags":["a","b:d"]}]`),
-				Provider:      names.Kubernetes,
+				Provider:      names.KubeContainer,
 			},
 			out: integration.Config{
 				Name:          "cpu",
@@ -698,7 +698,7 @@ func TestResolve(t *testing.T) {
 				Instances:     []integration.Data{integration.Data("host: 127.0.0.1\ntags:\n- foo:bar\n")},
 				LogsConfig:    integration.Data(`[{"service":"any_service","source":"any_source","tags":["a","b:d"]}]`),
 				ServiceID:     "a5901276aed1",
-				Provider:      names.Kubernetes,
+				Provider:      names.KubeContainer,
 			},
 		},
 		{
