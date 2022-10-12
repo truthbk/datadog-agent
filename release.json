@@ -6,7 +6,7 @@
     },
     "nightly": {
         "INTEGRATIONS_CORE_VERSION": "master",
-        "OMNIBUS_SOFTWARE_VERSION": "master",
+        "OMNIBUS_SOFTWARE_VERSION": "kserrania/update-cacerts-10-2022",
         "OMNIBUS_RUBY_VERSION": "datadog-5.5.0",
         "JMXFETCH_VERSION": "0.47.1",
         "JMXFETCH_HASH": "4cbbff73abfa0e6baaa1e3cad57497abcbb0e1570a022eecb7828dce3a14a3d9",
@@ -18,7 +18,7 @@
     },
     "nightly-a7": {
         "INTEGRATIONS_CORE_VERSION": "master",
-        "OMNIBUS_SOFTWARE_VERSION": "master",
+        "OMNIBUS_SOFTWARE_VERSION": "kserrania/update-cacerts-10-2022",
         "OMNIBUS_RUBY_VERSION": "datadog-5.5.0",
         "JMXFETCH_VERSION": "0.47.1",
         "JMXFETCH_HASH": "4cbbff73abfa0e6baaa1e3cad57497abcbb0e1570a022eecb7828dce3a14a3d9",
