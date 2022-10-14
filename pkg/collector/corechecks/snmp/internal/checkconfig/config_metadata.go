@@ -98,13 +98,13 @@ var LegacyMetadataConfig = MetadataConfig{
 					Name: "lldpRemChassisId",
 				},
 			},
-			"port_id_type": {
+			"interface_id_type": {
 				Symbol: SymbolConfig{
 					OID:  "1.0.8802.1.1.2.1.4.1.1.6",
 					Name: "lldpRemPortIdSubtype",
 				},
 			},
-			"port_id": {
+			"interface_id": {
 				Symbol: SymbolConfig{
 					OID:  "1.0.8802.1.1.2.1.4.1.1.7",
 					Name: "lldpRemPortId",
@@ -141,13 +141,13 @@ var LegacyMetadataConfig = MetadataConfig{
 	},
 	"lldp_local": {
 		Fields: map[string]MetadataField{
-			"port_id_type": {
+			"interface_id_type": {
 				Symbol: SymbolConfig{
 					OID:  "1.0.8802.1.1.2.1.3.7.1.2",
 					Name: "lldpLocPortIdSubtype",
 				},
 			},
-			"port_id": {
+			"interface_id": {
 				Symbol: SymbolConfig{
 					OID:  "1.0.8802.1.1.2.1.3.7.1.3",
 					Name: "lldpLocPortID",

@@ -67,13 +67,13 @@ type InterfaceMetadata struct {
 
 // TopologyLinkMetadata contains topology remote metadata
 type TopologyLinkMetadata struct {
-	PortIDType      string `json:"port_id_type"`
-	PortID          string `json:"port_id"`
-	PortDesc        string `json:"port_desc"`
-	DeviceName      string `json:"device_name"`
-	DeviceDesc      string `json:"device_desc"`
-	LocalPortIDType string `json:"local_port_id_type"`
-	LocalPortID     string `json:"local_port_id"`
-	ChassisID       string `json:"chassis_id"`
-	ChassisIDType   string `json:"chassis_id_type"`
+	InterfaceIDType      string `json:"interface_id_type"`
+	InterfaceID          string `json:"interface_id"`
+	InterfaceDesc        string `json:"port_desc"`
+	DeviceName           string `json:"device_name"`
+	DeviceDesc           string `json:"device_desc"`
+	LocalInterfaceIDType string `json:"local_interface_id_type"`
+	LocalInterfaceID     string `json:"local_interface_id"`
+	ChassisID            string `json:"chassis_id"`
+	ChassisIDType        string `json:"chassis_id_type"`
 }

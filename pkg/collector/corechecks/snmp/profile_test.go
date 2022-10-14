@@ -500,24 +500,24 @@ profiles:
   ],
   "links": [
     {
-      "port_id_type":"3",
-      "port_id":"aa:aa:aa:aa:aa:aa",
+      "interface_id_type":"3",
+      "interface_id":"aa:aa:aa:aa:aa:aa",
       "port_desc":"RemoteDev1-Port1-Desc",
       "device_name":"RemoteDev1-Name",
       "device_desc":"RemoteDev1-Desc",
-      "local_port_id_type":"3",
-      "local_port_id":"LocalDev-PortID1",
+      "local_interface_id_type":"3",
+      "local_interface_id":"LocalDev-PortID1",
       "chassis_id":"aa:aa:aa:aa:aa:a2",
       "chassis_id_type":"4"
     },
     {
-      "port_id_type":"3",
-      "port_id":"bb:bb:bb:bb:bb:bb",
+      "interface_id_type":"3",
+      "interface_id":"bb:bb:bb:bb:bb:bb",
       "port_desc":"RemoteDev2-Port1-Desc",
       "device_name":"RemoteDev2-Name",
       "device_desc":"RemoteDev2-Desc",
-      "local_port_id_type":"3",
-      "local_port_id":"LocalDev-PortID2",
+      "local_interface_id_type":"3",
+      "local_interface_id":"LocalDev-PortID2",
       "chassis_id":"bb:bb:bb:bb:bb:b2",
       "chassis_id_type":"4"
     }

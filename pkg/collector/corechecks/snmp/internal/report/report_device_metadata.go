@@ -197,7 +197,7 @@ func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []meta
 		// in that case, we just return a nil slice.
 		return nil
 	}
-	indexes := store.GetColumnIndexes("lldp_remote.port_id")
+	indexes := store.GetColumnIndexes("lldp_remote.interface_id")
 	if len(indexes) == 0 {
 		log.Debugf("Unable to build interfaces metadata: no lldp_remote indexes found")
 		return nil
@@ -215,15 +215,15 @@ func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []meta
 
 		// TODO: need to decompose index to link with other tables
 		networkInterface := metadata.TopologyLinkMetadata{
-			PortID:          store.GetColumnAsString("lldp_remote.port_id", strIndex),
-			PortIDType:      store.GetColumnAsString("lldp_remote.port_id_type", strIndex),
-			PortDesc:        store.GetColumnAsString("lldp_remote.port_desc", strIndex),
-			DeviceName:      store.GetColumnAsString("lldp_remote.device_name", strIndex),
-			DeviceDesc:      store.GetColumnAsString("lldp_remote.device_desc", strIndex),
-			ChassisID:       store.GetColumnAsString("lldp_remote.chassis_id", strIndex),
-			ChassisIDType:   store.GetColumnAsString("lldp_remote.chassis_id_type", strIndex),
-			LocalPortID:     store.GetColumnAsString("lldp_local.port_id", localPortNum),
-			LocalPortIDType: store.GetColumnAsString("lldp_local.port_id_type", localPortNum),
+			InterfaceID:          store.GetColumnAsString("lldp_remote.interface_id", strIndex),
+			InterfaceIDType:      store.GetColumnAsString("lldp_remote.interface_id_type", strIndex),
+			InterfaceDesc:        store.GetColumnAsString("lldp_remote.port_desc", strIndex),
+			DeviceName:           store.GetColumnAsString("lldp_remote.device_name", strIndex),
+			DeviceDesc:           store.GetColumnAsString("lldp_remote.device_desc", strIndex),
+			ChassisID:            store.GetColumnAsString("lldp_remote.chassis_id", strIndex),
+			ChassisIDType:        store.GetColumnAsString("lldp_remote.chassis_id_type", strIndex),
+			LocalInterfaceID:     store.GetColumnAsString("lldp_local.interface_id", localPortNum),
+			LocalInterfaceIDType: store.GetColumnAsString("lldp_local.interface_id_type", localPortNum),
 		}
 		interfaces = append(interfaces, networkInterface)
 	}
