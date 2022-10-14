@@ -508,10 +508,10 @@ profiles:
             },
             "remote": {
                 "device": {
-                    "device_name": "RemoteDev1-Name",
-                    "device_desc": "RemoteDev1-Description",
-                    "chassis_id": "aa:aa:aa:aa:aa:a2",
-                    "chassis_id_type": "4"
+                    "id": "aa:aa:aa:aa:aa:a2",
+                    "id_type": "4",
+                    "name": "RemoteDev1-Name",
+                    "description": "RemoteDev1-Description"
                 },
                 "interface": {
                     "id": "aa:aa:aa:aa:aa:aa",
@@ -529,10 +529,10 @@ profiles:
             },
             "remote": {
                 "device": {
-                    "device_name": "RemoteDev2-Name",
-                    "device_desc": "RemoteDev2-Description",
-                    "chassis_id": "bb:bb:bb:bb:bb:b2",
-                    "chassis_id_type": "4"
+                    "id": "bb:bb:bb:bb:bb:b2",
+                    "id_type": "4",
+                    "name": "RemoteDev2-Name",
+                    "description": "RemoteDev2-Description"
                 },
                 "interface": {
                     "id": "bb:bb:bb:bb:bb:bb",

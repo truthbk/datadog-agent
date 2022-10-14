@@ -217,10 +217,10 @@ func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []meta
 		networkInterface := metadata.TopologyLinkMetadata{
 			Remote: &metadata.TopologyLinkSide{
 				Device: &metadata.TopologyLinkDevice{
-					DeviceName:    store.GetColumnAsString("lldp_remote.device_name", strIndex),
-					DeviceDesc:    store.GetColumnAsString("lldp_remote.device_desc", strIndex),
-					ChassisID:     store.GetColumnAsString("lldp_remote.chassis_id", strIndex),
-					ChassisIDType: store.GetColumnAsString("lldp_remote.chassis_id_type", strIndex),
+					Name:        store.GetColumnAsString("lldp_remote.device_name", strIndex),
+					Description: store.GetColumnAsString("lldp_remote.device_desc", strIndex),
+					ID:          store.GetColumnAsString("lldp_remote.chassis_id", strIndex),
+					IDType:      store.GetColumnAsString("lldp_remote.chassis_id_type", strIndex),
 				},
 				Interface: &metadata.TopologyLinkInterface{
 					ID:          store.GetColumnAsString("lldp_remote.interface_id", strIndex),

@@ -66,10 +66,10 @@ type InterfaceMetadata struct {
 }
 
 type TopologyLinkDevice struct {
-	DeviceName    string `json:"device_name,omitempty"`
-	DeviceDesc    string `json:"device_desc,omitempty"`
-	ChassisID     string `json:"chassis_id,omitempty"`
-	ChassisIDType string `json:"chassis_id_type,omitempty"`
+	ID          string `json:"id,omitempty"`
+	IDType      string `json:"id_type,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
 }
 type TopologyLinkInterface struct {
 	ID          string `json:"id"`
