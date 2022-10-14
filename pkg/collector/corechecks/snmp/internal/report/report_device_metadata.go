@@ -198,7 +198,7 @@ func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []meta
 	}
 	indexes := store.GetColumnIndexes("lldp_remote.port_id")
 	if len(indexes) == 0 {
-		log.Debugf("Unable to build interfaces metadata: no interface indexes found")
+		log.Debugf("Unable to build interfaces metadata: no lldp_remote indexes found")
 		return nil
 	}
 	sort.Strings(indexes)
