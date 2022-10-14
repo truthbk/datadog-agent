@@ -110,7 +110,7 @@ var LegacyMetadataConfig = MetadataConfig{
 					Name: "lldpRemPortId",
 				},
 			},
-			"port_desc": {
+			"interface_desc": {
 				Symbol: SymbolConfig{
 					OID:  "1.0.8802.1.1.2.1.4.1.1.8",
 					Name: "lldpRemPortDesc",

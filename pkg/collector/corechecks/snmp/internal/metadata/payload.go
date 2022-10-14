@@ -65,15 +65,25 @@ type InterfaceMetadata struct {
 	OperStatus  int32    `json:"oper_status,omitempty"`  // IF-MIB ifOperStatus type is INTEGER
 }
 
+type TopologyLinkDevice struct {
+	DeviceName    string `json:"device_name,omitempty"`
+	DeviceDesc    string `json:"device_desc,omitempty"`
+	ChassisID     string `json:"chassis_id,omitempty"`
+	ChassisIDType string `json:"chassis_id_type,omitempty"`
+}
+type TopologyLinkInterface struct {
+	ID          string `json:"id"`
+	IDType      string `json:"id_type,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+type TopologyLinkSide struct {
+	Device    TopologyLinkDevice    `json:"device,omitempty"`
+	Interface TopologyLinkInterface `json:"interface,omitempty"`
+}
+
 // TopologyLinkMetadata contains topology remote metadata
 type TopologyLinkMetadata struct {
-	InterfaceIDType      string `json:"interface_id_type"`
-	InterfaceID          string `json:"interface_id"`
-	InterfaceDesc        string `json:"port_desc"`
-	DeviceName           string `json:"device_name"`
-	DeviceDesc           string `json:"device_desc"`
-	LocalInterfaceIDType string `json:"local_interface_id_type"`
-	LocalInterfaceID     string `json:"local_interface_id"`
-	ChassisID            string `json:"chassis_id"`
-	ChassisIDType        string `json:"chassis_id_type"`
+	Local  TopologyLinkSide `json:"local,omitempty"`
+	Remote TopologyLinkSide `json:"remote,omitempty"`
 }

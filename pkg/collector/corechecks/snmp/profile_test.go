@@ -148,7 +148,7 @@ profiles:
 			{
 				Name:  "1.0.8802.1.1.2.1.4.1.1.10.0.101.1",
 				Type:  gosnmp.OctetString,
-				Value: []byte("RemoteDev1-Desc"),
+				Value: []byte("RemoteDev1-Description"),
 			},
 			{
 				Name:  "1.0.8802.1.1.2.1.4.1.1.4.0.101.1",
@@ -173,7 +173,7 @@ profiles:
 			{
 				Name:  "1.0.8802.1.1.2.1.4.1.1.8.0.101.1",
 				Type:  gosnmp.OctetString,
-				Value: []byte("RemoteDev1-Port1-Desc"),
+				Value: []byte("RemoteDev1-Port1-Description"),
 			},
 			{
 				Name:  "1.0.8802.1.1.2.1.4.1.1.9.0.101.1",
@@ -233,7 +233,7 @@ profiles:
 			{
 				Name:  "1.0.8802.1.1.2.1.4.1.1.10.0.102.2",
 				Type:  gosnmp.OctetString,
-				Value: []byte("RemoteDev2-Desc"),
+				Value: []byte("RemoteDev2-Description"),
 			},
 			{
 				Name:  "1.0.8802.1.1.2.1.4.1.1.4.0.102.2",
@@ -258,7 +258,7 @@ profiles:
 			{
 				Name:  "1.0.8802.1.1.2.1.4.1.1.8.0.102.2",
 				Type:  gosnmp.OctetString,
-				Value: []byte("RemoteDev2-Port1-Desc"),
+				Value: []byte("RemoteDev2-Port1-Description"),
 			},
 			{
 				Name:  "1.0.8802.1.1.2.1.4.1.1.9.0.102.2",
@@ -499,28 +499,50 @@ profiles:
     }
   ],
   "links": [
-    {
-      "interface_id_type":"3",
-      "interface_id":"aa:aa:aa:aa:aa:aa",
-      "port_desc":"RemoteDev1-Port1-Desc",
-      "device_name":"RemoteDev1-Name",
-      "device_desc":"RemoteDev1-Desc",
-      "local_interface_id_type":"3",
-      "local_interface_id":"LocalDev-PortID1",
-      "chassis_id":"aa:aa:aa:aa:aa:a2",
-      "chassis_id_type":"4"
-    },
-    {
-      "interface_id_type":"3",
-      "interface_id":"bb:bb:bb:bb:bb:bb",
-      "port_desc":"RemoteDev2-Port1-Desc",
-      "device_name":"RemoteDev2-Name",
-      "device_desc":"RemoteDev2-Desc",
-      "local_interface_id_type":"3",
-      "local_interface_id":"LocalDev-PortID2",
-      "chassis_id":"bb:bb:bb:bb:bb:b2",
-      "chassis_id_type":"4"
-    }
+        {
+            "local": {
+                "device": {},
+                "interface": {
+                    "id": "LocalDev-PortID1",
+                    "id_type": "3"
+                }
+            },
+            "remote": {
+                "device": {
+                    "device_name": "RemoteDev1-Name",
+                    "device_desc": "RemoteDev1-Description",
+                    "chassis_id": "aa:aa:aa:aa:aa:a2",
+                    "chassis_id_type": "4"
+                },
+                "interface": {
+                    "id": "aa:aa:aa:aa:aa:aa",
+                    "id_type": "3",
+                    "description": "RemoteDev1-Port1-Description"
+                }
+            }
+        },
+        {
+            "local": {
+                "device": {},
+                "interface": {
+                    "id": "LocalDev-PortID2",
+                    "id_type": "3"
+                }
+            },
+            "remote": {
+                "device": {
+                    "device_name": "RemoteDev2-Name",
+                    "device_desc": "RemoteDev2-Description",
+                    "chassis_id": "bb:bb:bb:bb:bb:b2",
+                    "chassis_id_type": "4"
+                },
+                "interface": {
+                    "id": "bb:bb:bb:bb:bb:bb",
+                    "id_type": "3",
+                    "description": "RemoteDev2-Port1-Description"
+                }
+            }
+        }
   ],
   "collect_timestamp":946684800
 }
