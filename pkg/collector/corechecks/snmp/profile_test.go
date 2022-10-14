@@ -501,7 +501,6 @@ profiles:
   "links": [
         {
             "local": {
-                "device": {},
                 "interface": {
                     "id": "LocalDev-PortID1",
                     "id_type": "3"
@@ -523,7 +522,6 @@ profiles:
         },
         {
             "local": {
-                "device": {},
                 "interface": {
                     "id": "LocalDev-PortID2",
                     "id_type": "3"

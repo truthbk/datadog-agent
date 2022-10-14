@@ -78,12 +78,12 @@ type TopologyLinkInterface struct {
 }
 
 type TopologyLinkSide struct {
-	Device    TopologyLinkDevice    `json:"device,omitempty"`
-	Interface TopologyLinkInterface `json:"interface,omitempty"`
+	Device    *TopologyLinkDevice    `json:"device,omitempty"`
+	Interface *TopologyLinkInterface `json:"interface,omitempty"`
 }
 
 // TopologyLinkMetadata contains topology remote metadata
 type TopologyLinkMetadata struct {
-	Local  TopologyLinkSide `json:"local,omitempty"`
-	Remote TopologyLinkSide `json:"remote,omitempty"`
+	Local  *TopologyLinkSide `json:"local,omitempty"`
+	Remote *TopologyLinkSide `json:"remote,omitempty"`
 }

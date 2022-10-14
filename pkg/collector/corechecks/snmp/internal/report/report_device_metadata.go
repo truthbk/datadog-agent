@@ -215,21 +215,21 @@ func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []meta
 
 		// TODO: need to decompose index to link with other tables
 		networkInterface := metadata.TopologyLinkMetadata{
-			Remote: metadata.TopologyLinkSide{
-				Device: metadata.TopologyLinkDevice{
+			Remote: &metadata.TopologyLinkSide{
+				Device: &metadata.TopologyLinkDevice{
 					DeviceName:    store.GetColumnAsString("lldp_remote.device_name", strIndex),
 					DeviceDesc:    store.GetColumnAsString("lldp_remote.device_desc", strIndex),
 					ChassisID:     store.GetColumnAsString("lldp_remote.chassis_id", strIndex),
 					ChassisIDType: store.GetColumnAsString("lldp_remote.chassis_id_type", strIndex),
 				},
-				Interface: metadata.TopologyLinkInterface{
+				Interface: &metadata.TopologyLinkInterface{
 					ID:          store.GetColumnAsString("lldp_remote.interface_id", strIndex),
 					IDType:      store.GetColumnAsString("lldp_remote.interface_id_type", strIndex),
 					Description: store.GetColumnAsString("lldp_remote.interface_desc", strIndex),
 				},
 			},
-			Local: metadata.TopologyLinkSide{
-				Interface: metadata.TopologyLinkInterface{
+			Local: &metadata.TopologyLinkSide{
+				Interface: &metadata.TopologyLinkInterface{
 					ID:     store.GetColumnAsString("lldp_local.interface_id", localPortNum),
 					IDType: store.GetColumnAsString("lldp_local.interface_id_type", localPortNum),
 				},
