@@ -503,19 +503,19 @@ profiles:
             "local": {
                 "interface": {
                     "id": "LocalDev-PortID1",
-                    "id_type": "3"
+                    "id_type": "mac_address"
                 }
             },
             "remote": {
                 "device": {
                     "id": "aa:aa:aa:aa:aa:a2",
-                    "id_type": "4",
+                    "id_type": "mac_address",
                     "name": "RemoteDev1-Name",
                     "description": "RemoteDev1-Description"
                 },
                 "interface": {
                     "id": "aa:aa:aa:aa:aa:aa",
-                    "id_type": "3",
+                    "id_type": "mac_address",
                     "description": "RemoteDev1-Port1-Description"
                 }
             }
@@ -524,19 +524,19 @@ profiles:
             "local": {
                 "interface": {
                     "id": "LocalDev-PortID2",
-                    "id_type": "3"
+                    "id_type": "mac_address"
                 }
             },
             "remote": {
                 "device": {
                     "id": "bb:bb:bb:bb:bb:b2",
-                    "id_type": "4",
+                    "id_type": "mac_address",
                     "name": "RemoteDev2-Name",
                     "description": "RemoteDev2-Description"
                 },
                 "interface": {
                     "id": "bb:bb:bb:bb:bb:bb",
-                    "id_type": "3",
+                    "id_type": "mac_address",
                     "description": "RemoteDev2-Port1-Description"
                 }
             }
