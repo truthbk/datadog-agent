@@ -9,6 +9,7 @@ import (
 	json "encoding/json"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/epforwarder"
@@ -204,13 +205,23 @@ func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []meta
 	sort.Strings(indexes)
 	var interfaces []metadata.TopologyLinkMetadata
 	for _, strIndex := range indexes {
+		indexElems := strings.Split(strIndex, ".")
+		if len(indexElems) != 3 {
+			log.Debugf("Expected 3 index elements, but got %d, index=`%s`", 3, len(indexElems), strIndex)
+			continue
+		}
+		// TODO: Handle TimeMark? see https://www.rfc-editor.org/rfc/rfc2021
+		localPortNum := indexElems[1]
+
 		// TODO: need to decompose index to link with other tables
 		networkInterface := metadata.TopologyLinkMetadata{
-			PortID:     store.GetColumnAsString("lldp_remote.port_id", strIndex),
-			PortIDType: store.GetColumnAsString("lldp_remote.port_id_type", strIndex),
-			PortDesc:   store.GetColumnAsString("lldp_remote.port_desc", strIndex),
-			DeviceName: store.GetColumnAsString("lldp_remote.device_name", strIndex),
-			DeviceDesc: store.GetColumnAsString("lldp_remote.device_desc", strIndex),
+			PortID:          store.GetColumnAsString("lldp_remote.port_id", strIndex),
+			PortIDType:      store.GetColumnAsString("lldp_remote.port_id_type", strIndex),
+			PortDesc:        store.GetColumnAsString("lldp_remote.port_desc", strIndex),
+			DeviceName:      store.GetColumnAsString("lldp_remote.device_name", strIndex),
+			DeviceDesc:      store.GetColumnAsString("lldp_remote.device_desc", strIndex),
+			LocalPortID:     store.GetColumnAsString("lldp_local.port_id", localPortNum),
+			LocalPortIDType: store.GetColumnAsString("lldp_local.port_id_type", localPortNum),
 		}
 		interfaces = append(interfaces, networkInterface)
 	}

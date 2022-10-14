@@ -127,6 +127,25 @@ var LegacyMetadataConfig = MetadataConfig{
 			//"1.0.8802.1.1.2.1.4.1.1.12", // lldpRemSysCapEnabled         TODO LATER
 		},
 	},
+	"lldp_local": {
+		Fields: map[string]MetadataField{
+			"port_id_type": {
+				Symbol: SymbolConfig{
+					OID:  "1.0.8802.1.1.2.1.3.7.1.2",
+					Name: "lldpLocPortIdSubtype",
+				},
+			},
+			"port_id": {
+				Symbol: SymbolConfig{
+					OID:  "1.0.8802.1.1.2.1.3.7.1.3",
+					Name: "lldpLocPortID",
+				},
+			},
+			//"1.0.8802.1.1.2.1.3.7.1.2", // lldpLocPortIdSubtype
+			//"1.0.8802.1.1.2.1.3.7.1.3", // lldpLocPortID
+			//"1.0.8802.1.1.2.1.4.2.1.4", // lldpLocPortDesc // TODO: not needed? since already collected by NDM Metadata
+		},
+	},
 }
 
 // MetadataConfig holds configs per resource type

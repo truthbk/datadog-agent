@@ -135,34 +135,38 @@ profiles:
 
 	bulkPacket := gosnmp.SnmpPacket{
 		Variables: []gosnmp.SnmpPDU{
-
-			//"1.0.8802.1.1.2.1.4.1.1.10",
-			//"1.0.8802.1.1.2.1.4.1.1.6",
-			//"1.0.8802.1.1.2.1.4.1.1.7",
-			//"1.0.8802.1.1.2.1.4.1.1.8",
-			//"1.0.8802.1.1.2.1.4.1.1.9",
 			{
-				Name:  "1.0.8802.1.1.2.1.4.1.1.10.0.1.1",
-				Type:  gosnmp.OctetString,
-				Value: []byte("RemoteDev1-Desc"),
-			},
-			{
-				Name:  "1.0.8802.1.1.2.1.4.1.1.6.0.1.1",
+				Name:  "1.0.8802.1.1.2.1.3.7.1.2.101",
 				Type:  gosnmp.Integer,
 				Value: 3, // 3->macAddress
 			},
 			{
-				Name:  "1.0.8802.1.1.2.1.4.1.1.7.0.1.1",
+				Name:  "1.0.8802.1.1.2.1.3.7.1.3.101",
+				Type:  gosnmp.OctetString,
+				Value: []byte("LocalDev-PortID1"),
+			},
+			{
+				Name:  "1.0.8802.1.1.2.1.4.1.1.10.0.101.1",
+				Type:  gosnmp.OctetString,
+				Value: []byte("RemoteDev1-Desc"),
+			},
+			{
+				Name:  "1.0.8802.1.1.2.1.4.1.1.6.0.101.1",
+				Type:  gosnmp.Integer,
+				Value: 3, // 3->macAddress
+			},
+			{
+				Name:  "1.0.8802.1.1.2.1.4.1.1.7.0.101.1",
 				Type:  gosnmp.OctetString,
 				Value: []byte("aa:aa:aa:aa:aa:aa"),
 			},
 			{
-				Name:  "1.0.8802.1.1.2.1.4.1.1.8.0.1.1",
+				Name:  "1.0.8802.1.1.2.1.4.1.1.8.0.101.1",
 				Type:  gosnmp.OctetString,
 				Value: []byte("RemoteDev1-Port1-Desc"),
 			},
 			{
-				Name:  "1.0.8802.1.1.2.1.4.1.1.9.0.1.1",
+				Name:  "1.0.8802.1.1.2.1.4.1.1.9.0.101.1",
 				Type:  gosnmp.OctetString,
 				Value: []byte("RemoteDev1-Name"),
 			},
@@ -207,29 +211,39 @@ profiles:
 				Value: []byte("descRow1"),
 			},
 			{
-				Name:  "1.0.8802.1.1.2.1.4.1.1.10.0.2.2",
-				Type:  gosnmp.OctetString,
-				Value: []byte("RemoteDev1-Desc"),
-			},
-			{
-				Name:  "1.0.8802.1.1.2.1.4.1.1.6.0.2.2",
+				Name:  "1.0.8802.1.1.2.1.3.7.1.2.102",
 				Type:  gosnmp.Integer,
 				Value: 3, // 3->macAddress
 			},
 			{
-				Name:  "1.0.8802.1.1.2.1.4.1.1.7.0.2.2",
+				Name:  "1.0.8802.1.1.2.1.3.7.1.3.102",
+				Type:  gosnmp.OctetString,
+				Value: []byte("LocalDev-PortID2"),
+			},
+			{
+				Name:  "1.0.8802.1.1.2.1.4.1.1.10.0.102.2",
+				Type:  gosnmp.OctetString,
+				Value: []byte("RemoteDev2-Desc"),
+			},
+			{
+				Name:  "1.0.8802.1.1.2.1.4.1.1.6.0.102.2",
+				Type:  gosnmp.Integer,
+				Value: 3, // 3->macAddress
+			},
+			{
+				Name:  "1.0.8802.1.1.2.1.4.1.1.7.0.102.2",
 				Type:  gosnmp.OctetString,
 				Value: []byte("bb:bb:bb:bb:bb:bb"),
 			},
 			{
-				Name:  "1.0.8802.1.1.2.1.4.1.1.8.0.2.2",
+				Name:  "1.0.8802.1.1.2.1.4.1.1.8.0.102.2",
 				Type:  gosnmp.OctetString,
-				Value: []byte("RemoteDev1-Port1-Desc"),
+				Value: []byte("RemoteDev2-Port1-Desc"),
 			},
 			{
-				Name:  "1.0.8802.1.1.2.1.4.1.1.9.0.2.2",
+				Name:  "1.0.8802.1.1.2.1.4.1.1.9.0.102.2",
 				Type:  gosnmp.OctetString,
-				Value: []byte("RemoteDev1-Name"),
+				Value: []byte("RemoteDev2-Name"),
 			},
 			{
 				Name:  "1.3.6.1.2.1.2.2.1.13.2",
@@ -341,6 +355,16 @@ profiles:
 				Type:  gosnmp.Integer,
 				Value: 999,
 			},
+			{
+				Name:  "9", // exit table
+				Type:  gosnmp.Integer,
+				Value: 999,
+			},
+			{
+				Name:  "9", // exit table
+				Type:  gosnmp.Integer,
+				Value: 999,
+			},
 		},
 	}
 
@@ -361,6 +385,8 @@ profiles:
 		"1.3.6.1.4.1.3375.2.1.6.4.0",
 	}).Return(&packet, nil)
 	sess.On("GetBulk", []string{
+		"1.0.8802.1.1.2.1.3.7.1.2",
+		"1.0.8802.1.1.2.1.3.7.1.3",
 		"1.0.8802.1.1.2.1.4.1.1.10",
 		"1.0.8802.1.1.2.1.4.1.1.6",
 		"1.0.8802.1.1.2.1.4.1.1.7",
@@ -446,14 +472,18 @@ profiles:
       "port_id":"aa:aa:aa:aa:aa:aa",
       "port_desc":"RemoteDev1-Port1-Desc",
       "device_name":"RemoteDev1-Name",
-      "device_desc":"RemoteDev1-Desc"
+      "device_desc":"RemoteDev1-Desc",
+      "local_port_id_type":"3",
+      "local_port_id":"LocalDev-PortID1"
     },
     {
       "port_id_type":"3",
       "port_id":"bb:bb:bb:bb:bb:bb",
-      "port_desc":"RemoteDev1-Port1-Desc",
-      "device_name":"RemoteDev1-Name",
-      "device_desc":"RemoteDev1-Desc"
+      "port_desc":"RemoteDev2-Port1-Desc",
+      "device_name":"RemoteDev2-Name",
+      "device_desc":"RemoteDev2-Desc",
+      "local_port_id_type":"3",
+      "local_port_id":"LocalDev-PortID2"
     }
   ],
   "collect_timestamp":946684800
