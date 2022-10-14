@@ -220,6 +220,8 @@ func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []meta
 			PortDesc:        store.GetColumnAsString("lldp_remote.port_desc", strIndex),
 			DeviceName:      store.GetColumnAsString("lldp_remote.device_name", strIndex),
 			DeviceDesc:      store.GetColumnAsString("lldp_remote.device_desc", strIndex),
+			ChassisID:       store.GetColumnAsString("lldp_remote.chassis_id", strIndex),
+			ChassisIDType:   store.GetColumnAsString("lldp_remote.chassis_id_type", strIndex),
 			LocalPortID:     store.GetColumnAsString("lldp_local.port_id", localPortNum),
 			LocalPortIDType: store.GetColumnAsString("lldp_local.port_id_type", localPortNum),
 		}

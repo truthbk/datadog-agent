@@ -151,6 +151,16 @@ profiles:
 				Value: []byte("RemoteDev1-Desc"),
 			},
 			{
+				Name:  "1.0.8802.1.1.2.1.4.1.1.4.0.101.1",
+				Type:  gosnmp.Integer,
+				Value: 4, // 4->macAddress
+			},
+			{
+				Name:  "1.0.8802.1.1.2.1.4.1.1.5.0.101.1",
+				Type:  gosnmp.OctetString,
+				Value: []byte("aa:aa:aa:aa:aa:a2"),
+			},
+			{
 				Name:  "1.0.8802.1.1.2.1.4.1.1.6.0.101.1",
 				Type:  gosnmp.Integer,
 				Value: 3, // 3->macAddress
@@ -224,6 +234,16 @@ profiles:
 				Name:  "1.0.8802.1.1.2.1.4.1.1.10.0.102.2",
 				Type:  gosnmp.OctetString,
 				Value: []byte("RemoteDev2-Desc"),
+			},
+			{
+				Name:  "1.0.8802.1.1.2.1.4.1.1.4.0.102.2",
+				Type:  gosnmp.Integer,
+				Value: 4, // 4->macAddress
+			},
+			{
+				Name:  "1.0.8802.1.1.2.1.4.1.1.5.0.102.2",
+				Type:  gosnmp.OctetString,
+				Value: []byte("bb:bb:bb:bb:bb:b2"),
 			},
 			{
 				Name:  "1.0.8802.1.1.2.1.4.1.1.6.0.102.2",
@@ -365,6 +385,16 @@ profiles:
 				Type:  gosnmp.Integer,
 				Value: 999,
 			},
+			{
+				Name:  "9", // exit table
+				Type:  gosnmp.Integer,
+				Value: 999,
+			},
+			{
+				Name:  "9", // exit table
+				Type:  gosnmp.Integer,
+				Value: 999,
+			},
 		},
 	}
 
@@ -388,6 +418,8 @@ profiles:
 		"1.0.8802.1.1.2.1.3.7.1.2",
 		"1.0.8802.1.1.2.1.3.7.1.3",
 		"1.0.8802.1.1.2.1.4.1.1.10",
+		"1.0.8802.1.1.2.1.4.1.1.4",
+		"1.0.8802.1.1.2.1.4.1.1.5",
 		"1.0.8802.1.1.2.1.4.1.1.6",
 		"1.0.8802.1.1.2.1.4.1.1.7",
 		"1.0.8802.1.1.2.1.4.1.1.8",
@@ -474,7 +506,9 @@ profiles:
       "device_name":"RemoteDev1-Name",
       "device_desc":"RemoteDev1-Desc",
       "local_port_id_type":"3",
-      "local_port_id":"LocalDev-PortID1"
+      "local_port_id":"LocalDev-PortID1",
+      "chassis_id":"aa:aa:aa:aa:aa:a2",
+      "chassis_id_type":"4"
     },
     {
       "port_id_type":"3",
@@ -483,7 +517,9 @@ profiles:
       "device_name":"RemoteDev2-Name",
       "device_desc":"RemoteDev2-Desc",
       "local_port_id_type":"3",
-      "local_port_id":"LocalDev-PortID2"
+      "local_port_id":"LocalDev-PortID2",
+      "chassis_id":"bb:bb:bb:bb:bb:b2",
+      "chassis_id_type":"4"
     }
   ],
   "collect_timestamp":946684800

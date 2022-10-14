@@ -74,4 +74,6 @@ type TopologyLinkMetadata struct {
 	DeviceDesc      string `json:"device_desc"`
 	LocalPortIDType string `json:"local_port_id_type"`
 	LocalPortID     string `json:"local_port_id"`
+	ChassisID       string `json:"chassis_id"`
+	ChassisIDType   string `json:"chassis_id_type"`
 }

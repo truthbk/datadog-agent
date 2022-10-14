@@ -86,6 +86,18 @@ var LegacyMetadataConfig = MetadataConfig{
 	},
 	"lldp_remote": {
 		Fields: map[string]MetadataField{
+			"chassis_id_type": {
+				Symbol: SymbolConfig{
+					OID:  "1.0.8802.1.1.2.1.4.1.1.4",
+					Name: "lldpRemChassisIdSubtype",
+				},
+			},
+			"chassis_id": {
+				Symbol: SymbolConfig{
+					OID:  "1.0.8802.1.1.2.1.4.1.1.5",
+					Name: "lldpRemChassisId",
+				},
+			},
 			"port_id_type": {
 				Symbol: SymbolConfig{
 					OID:  "1.0.8802.1.1.2.1.4.1.1.6",
