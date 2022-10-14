@@ -501,6 +501,10 @@ profiles:
   "links": [
         {
             "local": {
+                "device": {
+                    "id": "profile-metadata:1.2.3.4",
+                    "id_type": "ndm"
+                },
                 "interface": {
                     "id": "01:00:00:00:01:03",
                     "id_type": "mac_address"
@@ -522,6 +526,10 @@ profiles:
         },
         {
             "local": {
+                "device": {
+                    "id": "profile-metadata:1.2.3.4",
+                    "id_type": "ndm"
+                },
                 "interface": {
                     "id": "01:00:00:00:02:03",
                     "id_type": "mac_address"

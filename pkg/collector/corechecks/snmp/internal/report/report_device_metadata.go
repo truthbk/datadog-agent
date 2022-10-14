@@ -242,6 +242,10 @@ func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []meta
 					IDType: localInterfaceIDType,
 					// TODO: Resolve locally to ifIndex if possible
 				},
+				Device: &metadata.TopologyLinkDevice{
+					ID:     deviceID,
+					IDType: "ndm",
+				},
 			},
 		}
 		links = append(links, newLink)
