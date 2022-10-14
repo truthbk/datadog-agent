@@ -215,30 +215,47 @@ func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []meta
 		localPortNum := indexElems[1]
 
 		// TODO: need to decompose index to link with other tables
+		remoteDeviceIDType := lldp.ChassisIDSubtypeMap[store.GetColumnAsString("lldp_remote.chassis_id_type", strIndex)]
+		remoteDeviceID := formatID(remoteDeviceIDType, store, "lldp_remote.chassis_id", strIndex)
+		remoteInterfaceIDType := lldp.PortIDSubTypeMap[store.GetColumnAsString("lldp_remote.interface_id_type", strIndex)]
+		remoteInterfaceID := formatID(remoteInterfaceIDType, store, "lldp_remote.interface_id", strIndex)
+		localInterfaceIDType := lldp.PortIDSubTypeMap[store.GetColumnAsString("lldp_local.interface_id_type", localPortNum)]
+		localInterfaceID := formatID(localInterfaceIDType, store, "lldp_local.interface_id", localPortNum)
+
 		networkInterface := metadata.TopologyLinkMetadata{
 			Remote: &metadata.TopologyLinkSide{
 				Device: &metadata.TopologyLinkDevice{
 					Name:        store.GetColumnAsString("lldp_remote.device_name", strIndex),
 					Description: store.GetColumnAsString("lldp_remote.device_desc", strIndex),
-					ID:          store.GetColumnAsString("lldp_remote.chassis_id", strIndex),
-					IDType:      lldp.ChassisIDSubtypeMap[store.GetColumnAsString("lldp_remote.chassis_id_type", strIndex)],
+					ID:          remoteDeviceID,
+					IDType:      remoteDeviceIDType,
 				},
 				Interface: &metadata.TopologyLinkInterface{
-					ID:          store.GetColumnAsString("lldp_remote.interface_id", strIndex),
-					IDType:      lldp.PortIDSubTypeMap[store.GetColumnAsString("lldp_remote.interface_id_type", strIndex)],
+					ID:          remoteInterfaceID,
+					IDType:      remoteInterfaceIDType,
 					Description: store.GetColumnAsString("lldp_remote.interface_desc", strIndex),
 				},
 			},
 			Local: &metadata.TopologyLinkSide{
 				Interface: &metadata.TopologyLinkInterface{
-					ID:     store.GetColumnAsString("lldp_local.interface_id", localPortNum),
-					IDType: lldp.PortIDSubTypeMap[store.GetColumnAsString("lldp_local.interface_id_type", localPortNum)],
+					ID:     localInterfaceID,
+					IDType: localInterfaceIDType,
 				},
 			},
 		}
 		interfaces = append(interfaces, networkInterface)
 	}
 	return interfaces
+}
+
+func formatID(idType string, store *metadata.Store, field string, strIndex string) string {
+	var remoteDeviceID string
+	if idType == "mac_address" {
+		remoteDeviceID = formatColonSepBytes(store.GetColumnAsByteArray(field, strIndex))
+	} else {
+		remoteDeviceID = store.GetColumnAsString(field, strIndex)
+	}
+	return remoteDeviceID
 }
 
 func batchPayloads(namespace string, subnet string, collectTime time.Time, batchSize int, device metadata.DeviceMetadata, interfaces []metadata.InterfaceMetadata, topologyLinks []metadata.TopologyLinkMetadata) []metadata.NetworkDevicesMetadata {

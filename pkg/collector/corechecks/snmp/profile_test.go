@@ -143,7 +143,7 @@ profiles:
 			{
 				Name:  "1.0.8802.1.1.2.1.3.7.1.3.101",
 				Type:  gosnmp.OctetString,
-				Value: []byte("LocalDev-PortID1"),
+				Value: []byte{0x01, 0x00, 0x00, 0x00, 0x01, 0x03},
 			},
 			{
 				Name:  "1.0.8802.1.1.2.1.4.1.1.10.0.101.1",
@@ -151,14 +151,14 @@ profiles:
 				Value: []byte("RemoteDev1-Description"),
 			},
 			{
-				Name:  "1.0.8802.1.1.2.1.4.1.1.4.0.101.1",
+				Name:  "1.0.8802.1.1.2.1.4.1.1.4.0.101.1", // chassis id type
 				Type:  gosnmp.Integer,
 				Value: 4, // 4->macAddress
 			},
 			{
-				Name:  "1.0.8802.1.1.2.1.4.1.1.5.0.101.1",
+				Name:  "1.0.8802.1.1.2.1.4.1.1.5.0.101.1", // chassis id
 				Type:  gosnmp.OctetString,
-				Value: []byte("aa:aa:aa:aa:aa:a2"),
+				Value: []byte{0x01, 0x00, 0x00, 0x00, 0x01, 0x02},
 			},
 			{
 				Name:  "1.0.8802.1.1.2.1.4.1.1.6.0.101.1",
@@ -168,7 +168,7 @@ profiles:
 			{
 				Name:  "1.0.8802.1.1.2.1.4.1.1.7.0.101.1",
 				Type:  gosnmp.OctetString,
-				Value: []byte("aa:aa:aa:aa:aa:aa"),
+				Value: []byte{0x01, 0x00, 0x00, 0x00, 0x01, 0x01},
 			},
 			{
 				Name:  "1.0.8802.1.1.2.1.4.1.1.8.0.101.1",
@@ -228,7 +228,7 @@ profiles:
 			{
 				Name:  "1.0.8802.1.1.2.1.3.7.1.3.102",
 				Type:  gosnmp.OctetString,
-				Value: []byte("LocalDev-PortID2"),
+				Value: []byte{0x01, 0x00, 0x00, 0x00, 0x02, 0x03},
 			},
 			{
 				Name:  "1.0.8802.1.1.2.1.4.1.1.10.0.102.2",
@@ -243,7 +243,7 @@ profiles:
 			{
 				Name:  "1.0.8802.1.1.2.1.4.1.1.5.0.102.2",
 				Type:  gosnmp.OctetString,
-				Value: []byte("bb:bb:bb:bb:bb:b2"),
+				Value: []byte{0x01, 0x00, 0x00, 0x00, 0x02, 0x02},
 			},
 			{
 				Name:  "1.0.8802.1.1.2.1.4.1.1.6.0.102.2",
@@ -253,7 +253,7 @@ profiles:
 			{
 				Name:  "1.0.8802.1.1.2.1.4.1.1.7.0.102.2",
 				Type:  gosnmp.OctetString,
-				Value: []byte("bb:bb:bb:bb:bb:bb"),
+				Value: []byte{0x01, 0x00, 0x00, 0x00, 0x02, 0x01},
 			},
 			{
 				Name:  "1.0.8802.1.1.2.1.4.1.1.8.0.102.2",
@@ -502,19 +502,19 @@ profiles:
         {
             "local": {
                 "interface": {
-                    "id": "LocalDev-PortID1",
+                    "id": "01:00:00:00:01:03",
                     "id_type": "mac_address"
                 }
             },
             "remote": {
                 "device": {
-                    "id": "aa:aa:aa:aa:aa:a2",
+                    "id": "01:00:00:00:01:02",
                     "id_type": "mac_address",
                     "name": "RemoteDev1-Name",
                     "description": "RemoteDev1-Description"
                 },
                 "interface": {
-                    "id": "aa:aa:aa:aa:aa:aa",
+                    "id": "01:00:00:00:01:01",
                     "id_type": "mac_address",
                     "description": "RemoteDev1-Port1-Description"
                 }
@@ -523,19 +523,19 @@ profiles:
         {
             "local": {
                 "interface": {
-                    "id": "LocalDev-PortID2",
+                    "id": "01:00:00:00:02:03",
                     "id_type": "mac_address"
                 }
             },
             "remote": {
                 "device": {
-                    "id": "bb:bb:bb:bb:bb:b2",
+                    "id": "01:00:00:00:02:02",
                     "id_type": "mac_address",
                     "name": "RemoteDev2-Name",
                     "description": "RemoteDev2-Description"
                 },
                 "interface": {
-                    "id": "bb:bb:bb:bb:bb:bb",
+                    "id": "01:00:00:00:02:01",
                     "id_type": "mac_address",
                     "description": "RemoteDev2-Port1-Description"
                 }
