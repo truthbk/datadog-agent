@@ -200,11 +200,11 @@ func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []meta
 	}
 	indexes := store.GetColumnIndexes("lldp_remote.interface_id")
 	if len(indexes) == 0 {
-		log.Debugf("Unable to build interfaces metadata: no lldp_remote indexes found")
+		log.Debugf("Unable to build links metadata: no lldp_remote indexes found")
 		return nil
 	}
 	sort.Strings(indexes)
-	var interfaces []metadata.TopologyLinkMetadata
+	var links []metadata.TopologyLinkMetadata
 	for _, strIndex := range indexes {
 		indexElems := strings.Split(strIndex, ".")
 		if len(indexElems) != 3 {
@@ -222,7 +222,7 @@ func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []meta
 		localInterfaceIDType := lldp.PortIDSubTypeMap[store.GetColumnAsString("lldp_local.interface_id_type", localPortNum)]
 		localInterfaceID := formatID(localInterfaceIDType, store, "lldp_local.interface_id", localPortNum)
 
-		networkInterface := metadata.TopologyLinkMetadata{
+		newLink := metadata.TopologyLinkMetadata{
 			Remote: &metadata.TopologyLinkSide{
 				Device: &metadata.TopologyLinkDevice{
 					Name:        store.GetColumnAsString("lldp_remote.device_name", strIndex),
@@ -244,9 +244,9 @@ func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []meta
 				},
 			},
 		}
-		interfaces = append(interfaces, networkInterface)
+		links = append(links, newLink)
 	}
-	return interfaces
+	return links
 }
 
 func formatID(idType string, store *metadata.Store, field string, strIndex string) string {
