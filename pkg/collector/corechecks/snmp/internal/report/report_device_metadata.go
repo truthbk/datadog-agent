@@ -31,8 +31,10 @@ func (ms *MetricSender) ReportNetworkDeviceMetadata(config *checkconfig.CheckCon
 	device := buildNetworkDeviceMetadata(config.DeviceID, config.DeviceIDTags, config, metadataStore, tags, deviceStatus)
 
 	interfaces := buildNetworkInterfacesMetadata(config.DeviceID, metadataStore)
+	topologyLinks := buildNetworkTopologyMetadata(config.DeviceID, metadataStore)
+	log.Infof("topologyLinks: %+v", topologyLinks)
 
-	metadataPayloads := batchPayloads(config.Namespace, config.ResolvedSubnetName, collectTime, metadata.PayloadMetadataBatchSize, device, interfaces)
+	metadataPayloads := batchPayloads(config.Namespace, config.ResolvedSubnetName, collectTime, metadata.PayloadMetadataBatchSize, device, interfaces, topologyLinks)
 
 	for _, payload := range metadataPayloads {
 		payloadBytes, err := json.Marshal(payload)
@@ -188,7 +190,46 @@ func buildNetworkInterfacesMetadata(deviceID string, store *metadata.Store) []me
 	return interfaces
 }
 
-func batchPayloads(namespace string, subnet string, collectTime time.Time, batchSize int, device metadata.DeviceMetadata, interfaces []metadata.InterfaceMetadata) []metadata.NetworkDevicesMetadata {
+func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []metadata.TopologyLinkMetadata {
+	if store == nil {
+		// it's expected that the value store is nil if we can't reach the device
+		// in that case, we just return a nil slice.
+		return nil
+	}
+	indexes := store.GetColumnIndexes("lldp_remote.port_id")
+	if len(indexes) == 0 {
+		log.Debugf("Unable to build interfaces metadata: no interface indexes found")
+		return nil
+	}
+	sort.Strings(indexes)
+	var interfaces []metadata.TopologyLinkMetadata
+	for _, strIndex := range indexes {
+		//index, err := strconv.ParseInt(strIndex, 10, 32)
+		//if err != nil {
+		//	log.Warnf("interface metadata: invalid index: %d", index)
+		//	continue
+		//}
+
+		//ifIDTags := store.GetIDTags("interface", strIndex)
+
+		portID := store.GetColumnAsString("lldp_remote.port_id", strIndex)
+		networkInterface := metadata.TopologyLinkMetadata{
+			PortID: portID,
+			//Index:       int32(index),
+			//Name:        name,
+			//Alias:       store.GetColumnAsString("interface.alias", strIndex),
+			//Description: store.GetColumnAsString("interface.description", strIndex),
+			//MacAddress:  store.GetColumnAsString("interface.mac_address", strIndex),
+			//AdminStatus: int32(store.GetColumnAsFloat("interface.admin_status", strIndex)),
+			//OperStatus:  int32(store.GetColumnAsFloat("interface.oper_status", strIndex)),
+			//IDTags:      ifIDTags,
+		}
+		interfaces = append(interfaces, networkInterface)
+	}
+	return interfaces
+}
+
+func batchPayloads(namespace string, subnet string, collectTime time.Time, batchSize int, device metadata.DeviceMetadata, interfaces []metadata.InterfaceMetadata, topologyLinks []metadata.TopologyLinkMetadata) []metadata.NetworkDevicesMetadata {
 	var payloads []metadata.NetworkDevicesMetadata
 	var resourceCount int
 	payload := metadata.NetworkDevicesMetadata{
@@ -213,6 +254,20 @@ func batchPayloads(namespace string, subnet string, collectTime time.Time, batch
 		}
 		resourceCount++
 		payload.Interfaces = append(payload.Interfaces, interfaceMetadata)
+	}
+
+	for _, linkMetadata := range topologyLinks {
+		if resourceCount == batchSize {
+			payloads = append(payloads, payload)
+			payload = metadata.NetworkDevicesMetadata{ // TODO: Avoid duplication
+				Subnet:           subnet,
+				Namespace:        namespace,
+				CollectTimestamp: collectTime.Unix(),
+			}
+			resourceCount = 0
+		}
+		resourceCount++
+		payload.Links = append(payload.Links, linkMetadata)
 	}
 
 	payloads = append(payloads, payload)

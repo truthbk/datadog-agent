@@ -21,11 +21,12 @@ const (
 
 // NetworkDevicesMetadata contains network devices metadata
 type NetworkDevicesMetadata struct {
-	Subnet           string              `json:"subnet"`
-	Namespace        string              `json:"namespace"`
-	Devices          []DeviceMetadata    `json:"devices,omitempty"`
-	Interfaces       []InterfaceMetadata `json:"interfaces,omitempty"`
-	CollectTimestamp int64               `json:"collect_timestamp"`
+	Subnet           string                 `json:"subnet"`
+	Namespace        string                 `json:"namespace"`
+	Devices          []DeviceMetadata       `json:"devices,omitempty"`
+	Interfaces       []InterfaceMetadata    `json:"interfaces,omitempty"`
+	Links            []TopologyLinkMetadata `json:"links,omitempty"`
+	CollectTimestamp int64                  `json:"collect_timestamp"`
 }
 
 // DeviceMetadata contains device metadata
@@ -62,4 +63,9 @@ type InterfaceMetadata struct {
 	MacAddress  string   `json:"mac_address,omitempty"`
 	AdminStatus int32    `json:"admin_status,omitempty"` // IF-MIB ifAdminStatus type is INTEGER
 	OperStatus  int32    `json:"oper_status,omitempty"`  // IF-MIB ifOperStatus type is INTEGER
+}
+
+// TopologyLinkMetadata contains topology remote metadata
+type TopologyLinkMetadata struct {
+	PortID string `json:"port_id"`
 }

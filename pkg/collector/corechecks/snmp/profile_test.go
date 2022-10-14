@@ -136,6 +136,11 @@ profiles:
 	bulkPacket := gosnmp.SnmpPacket{
 		Variables: []gosnmp.SnmpPDU{
 			{
+				Name:  "1.0.8802.1.1.2.1.4.1.1.7.0.1.1",
+				Type:  gosnmp.OctetString,
+				Value: []byte("aa:aa:aa:aa:aa:aa"),
+			},
+			{
 				Name:  "1.3.6.1.2.1.2.2.1.13.1",
 				Type:  gosnmp.Integer,
 				Value: 131,
@@ -174,6 +179,11 @@ profiles:
 				Name:  "1.3.6.1.2.1.31.1.1.1.18.1",
 				Type:  gosnmp.OctetString,
 				Value: []byte("descRow1"),
+			},
+			{
+				Name:  "1.0.8802.1.1.2.1.4.1.1.7.0.2.2",
+				Type:  gosnmp.OctetString,
+				Value: []byte("bb:bb:bb:bb:bb:bb"),
 			},
 			{
 				Name:  "1.3.6.1.2.1.2.2.1.13.2",
@@ -260,6 +270,11 @@ profiles:
 				Type:  gosnmp.Integer,
 				Value: 999,
 			},
+			{
+				Name:  "9", // exit table
+				Type:  gosnmp.Integer,
+				Value: 999,
+			},
 		},
 	}
 
@@ -280,6 +295,7 @@ profiles:
 		"1.3.6.1.4.1.3375.2.1.6.4.0",
 	}).Return(&packet, nil)
 	sess.On("GetBulk", []string{
+		"1.0.8802.1.1.2.1.4.1.1.7",
 		"1.3.6.1.2.1.2.2.1.13",
 		"1.3.6.1.2.1.2.2.1.14",
 		"1.3.6.1.2.1.2.2.1.2",
@@ -352,6 +368,14 @@ profiles:
       "mac_address": "82:a5:6e:a5:c9:02",
       "admin_status": 1,
       "oper_status": 1
+    }
+  ],
+  "links": [
+    {
+      "port_id": "aa:aa:aa:aa:aa:aa"
+    },
+    {
+      "port_id": "bb:bb:bb:bb:bb:bb"
     }
   ],
   "collect_timestamp":946684800
