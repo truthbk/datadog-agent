@@ -86,21 +86,45 @@ var LegacyMetadataConfig = MetadataConfig{
 	},
 	"lldp_remote": {
 		Fields: map[string]MetadataField{
+			"port_id_type": {
+				Symbol: SymbolConfig{
+					OID:  "1.0.8802.1.1.2.1.4.1.1.6",
+					Name: "lldpRemPortIdSubtype",
+				},
+			},
 			"port_id": {
 				Symbol: SymbolConfig{
 					OID:  "1.0.8802.1.1.2.1.4.1.1.7",
 					Name: "lldpRemPortId",
 				},
 			},
-			//"1.0.8802.1.1.2.1.4.1.1.4",  // lldpRemChassisIdSubtype
-			//"1.0.8802.1.1.2.1.4.1.1.5",  // lldpRemChassisId
+			"port_desc": {
+				Symbol: SymbolConfig{
+					OID:  "1.0.8802.1.1.2.1.4.1.1.8",
+					Name: "lldpRemPortDesc",
+				},
+			},
+			"device_name": {
+				Symbol: SymbolConfig{
+					OID:  "1.0.8802.1.1.2.1.4.1.1.9",
+					Name: "lldpRemSysName",
+				},
+			},
+			"device_desc": {
+				Symbol: SymbolConfig{
+					OID:  "1.0.8802.1.1.2.1.4.1.1.10",
+					Name: "lldpRemSysDesc",
+				},
+			},
+			//"1.0.8802.1.1.2.1.4.1.1.4",  // lldpRemChassisIdSubtype       Needed?
+			//"1.0.8802.1.1.2.1.4.1.1.5",  // lldpRemChassisId              Needed?
 			//"1.0.8802.1.1.2.1.4.1.1.6",  // lldpRemPortIdSubtype
 			//"1.0.8802.1.1.2.1.4.1.1.7",  // lldpRemPortId
 			//"1.0.8802.1.1.2.1.4.1.1.8",  // lldpRemPortDesc
 			//"1.0.8802.1.1.2.1.4.1.1.9",  // lldpRemSysName
 			//"1.0.8802.1.1.2.1.4.1.1.10", // lldpRemSysDesc
-			//"1.0.8802.1.1.2.1.4.1.1.11", // lldpRemSysCapSupported
-			//"1.0.8802.1.1.2.1.4.1.1.12", // lldpRemSysCapEnabled
+			//"1.0.8802.1.1.2.1.4.1.1.11", // lldpRemSysCapSupported       TODO LATER
+			//"1.0.8802.1.1.2.1.4.1.1.12", // lldpRemSysCapEnabled         TODO LATER
 		},
 	},
 }

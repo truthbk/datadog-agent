@@ -67,5 +67,9 @@ type InterfaceMetadata struct {
 
 // TopologyLinkMetadata contains topology remote metadata
 type TopologyLinkMetadata struct {
-	PortID string `json:"port_id"`
+	PortIDType string `json:"port_id_type"`
+	PortID     string `json:"port_id"`
+	PortDesc   string `json:"port_desc"`
+	DeviceName string `json:"device_name"`
+	DeviceDesc string `json:"device_desc"`
 }
