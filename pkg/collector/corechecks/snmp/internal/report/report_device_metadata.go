@@ -240,6 +240,7 @@ func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []meta
 				Interface: &metadata.TopologyLinkInterface{
 					ID:     localInterfaceID,
 					IDType: localInterfaceIDType,
+					// TODO: Resolve locally if possible
 				},
 			},
 		}
