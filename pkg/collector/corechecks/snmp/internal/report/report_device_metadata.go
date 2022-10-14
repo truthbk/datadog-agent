@@ -204,28 +204,13 @@ func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []meta
 	sort.Strings(indexes)
 	var interfaces []metadata.TopologyLinkMetadata
 	for _, strIndex := range indexes {
-		//index, err := strconv.ParseInt(strIndex, 10, 32)
-		//if err != nil {
-		//	log.Warnf("interface metadata: invalid index: %d", index)
-		//	continue
-		//}
-
-		//ifIDTags := store.GetIDTags("interface", strIndex)
-
+		// TODO: need to decompose index to link with other tables
 		networkInterface := metadata.TopologyLinkMetadata{
 			PortID:     store.GetColumnAsString("lldp_remote.port_id", strIndex),
 			PortIDType: store.GetColumnAsString("lldp_remote.port_id_type", strIndex),
 			PortDesc:   store.GetColumnAsString("lldp_remote.port_desc", strIndex),
 			DeviceName: store.GetColumnAsString("lldp_remote.device_name", strIndex),
 			DeviceDesc: store.GetColumnAsString("lldp_remote.device_desc", strIndex),
-			//Index:       int32(index),
-			//Name:        name,
-			//Alias:       store.GetColumnAsString("interface.alias", strIndex),
-			//Description: store.GetColumnAsString("interface.description", strIndex),
-			//MacAddress:  store.GetColumnAsString("interface.mac_address", strIndex),
-			//AdminStatus: int32(store.GetColumnAsFloat("interface.admin_status", strIndex)),
-			//OperStatus:  int32(store.GetColumnAsFloat("interface.oper_status", strIndex)),
-			//IDTags:      ifIDTags,
 		}
 		interfaces = append(interfaces, networkInterface)
 	}
