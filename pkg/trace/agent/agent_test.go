@@ -810,7 +810,7 @@ func TestSampling(t *testing.T) {
 	}
 	// configureAgent creates a new agent using the provided configuration.
 	configureAgent := func(ac agentConfig) *Agent {
-		cfg := &config.AgentConfig{RareSamplerEnabled: !ac.rareSamplerDisabled, RareSamplerCardinality: 200}
+		cfg := &config.AgentConfig{RareSamplerEnabled: !ac.rareSamplerDisabled, RareSamplerCardinality: 200, RareSamplerTPS: 5}
 		sampledCfg := &config.AgentConfig{ExtraSampleRate: 1, TargetTPS: 5, ErrorTPS: 10, RareSamplerEnabled: !ac.rareSamplerDisabled}
 
 		a := &Agent{
@@ -1016,7 +1016,7 @@ func TestPartialSamplingFree(t *testing.T) {
 		ErrorsSampler:     sampler.NewErrorsSampler(cfg),
 		PrioritySampler:   sampler.NewPrioritySampler(cfg, &sampler.DynamicConfig{}),
 		EventProcessor:    newEventProcessor(cfg),
-		RareSampler:       sampler.NewRareSampler(cfg),
+		RareSampler:       sampler.NewRareSampler(config.New()),
 		TraceWriter:       &writer.TraceWriter{In: writerChan},
 		conf:              cfg,
 	}
@@ -1631,10 +1631,10 @@ func TestSampleWithPriorityNone(t *testing.T) {
 //     sampler still runs. The resulting trace chunk, if any, contains only
 //     the spans that were tagged for span sampling, and the sampling priority
 //     of the resulting chunk overall is PriorityUserKeep.
-//  2a. Same as (2), except that only the local root span specifically is tagged
-//       for span sampling. Verify that only the local root span is kept.
-//  2b. Same as (2), except that only a non-local-root span specifically is
-//      tagged for span sampling. Verify that only one span is kept.
+//     2a. Same as (2), except that only the local root span specifically is tagged
+//     for span sampling. Verify that only the local root span is kept.
+//     2b. Same as (2), except that only a non-local-root span specifically is
+//     tagged for span sampling. Verify that only one span is kept.
 //  3. When the chunk is dropped due to an agent-provided sample rate, i.e. with
 //     PriorityAutoDrop priority. In this case, other samplers will run. Only if the
 //     resulting decision is to drop the chunk, expect that the span sampler
