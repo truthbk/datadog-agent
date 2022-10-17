@@ -698,6 +698,11 @@ func InitConfig(config Config) {
 	config.BindEnvAndSetDefault("cluster_agent.client_reconnect_period_seconds", 1200)
 	config.BindEnvAndSetDefault("metrics_port", "5000")
 
+	// TODO(juliogreff): remove before merging
+	config.BindEnvAndSetDefault("cluster_agent.use_k8s_reflector", true)
+	config.BindEnvAndSetDefault("cluster_agent.use_k8s_informer", false)
+	config.BindEnvAndSetDefault("cluster_agent.enable_tagger", true)
+
 	// Metadata endpoints
 
 	// Defines the maximum size of hostame gathered from EC2, GCE, Azure, Alibaba, Oracle and Tencent cloud metadata

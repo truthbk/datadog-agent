@@ -43,32 +43,45 @@ func (c *collector) Start(ctx context.Context, wlmetaStore workloadmeta.Store) e
 		return errors.NewDisabled(componentName, "Agent is not running on Kubernetes")
 	}
 
-	apiserverClient, err := apiserver.GetAPIClient()
-	if err != nil {
-		return err
+	// TODO(juliogreff): remove before merging
+	if config.Datadog.GetBool("cluster_agent.use_k8s_reflector") {
+		apiserverClient, err := apiserver.GetAPIClient()
+		if err != nil {
+			return err
+		}
+
+		client := apiserverClient.Cl
+		namespace := metav1.NamespaceAll
+
+		listerWatcher := &cache.ListWatch{
+			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+				return client.CoreV1().Pods(namespace).List(ctx, options)
+			},
+			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+				return client.CoreV1().Pods(namespace).Watch(ctx, options)
+			},
+		}
+
+		reflector := cache.NewNamedReflector(
+			componentName,
+			listerWatcher,
+			&corev1.Pod{},
+			newReflectorStore(wlmetaStore),
+			noResync,
+		)
+
+		go reflector.Run(ctx.Done())
+	} else if config.Datadog.GetBool("cluster_agent.use_k8s_informer") {
+		apiserverClient, err := apiserver.GetAPIClient()
+		if err != nil {
+			return err
+		}
+
+		podsInformer := apiserverClient.InformerFactory.Core().V1().Pods()
+		podsInformer.Informer()
+	} else {
+		return errors.NewDisabled(componentName, "API Server reflector is disabled")
 	}
-
-	client := apiserverClient.Cl
-	namespace := metav1.NamespaceAll
-
-	listerWatcher := &cache.ListWatch{
-		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-			return client.CoreV1().Pods(namespace).List(ctx, options)
-		},
-		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-			return client.CoreV1().Pods(namespace).Watch(ctx, options)
-		},
-	}
-
-	reflector := cache.NewNamedReflector(
-		componentName,
-		listerWatcher,
-		&corev1.Pod{},
-		newReflectorStore(wlmetaStore),
-		noResync,
-	)
-
-	go reflector.Run(ctx.Done())
 
 	return nil
 }

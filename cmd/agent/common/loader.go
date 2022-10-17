@@ -46,7 +46,12 @@ func LoadComponents(ctx context.Context, confdPath string) {
 			t = remote.NewTagger(options)
 		}
 	} else {
-		t = local.NewTagger(store)
+		// TODO(juliogreff): remove before merging
+		if flavor.GetFlavor() == flavor.ClusterAgent && !config.Datadog.GetBool("cluster_agent.enable_tagger") {
+			t = local.NewFakeTagger()
+		} else {
+			t = local.NewTagger(store)
+		}
 	}
 
 	tagger.SetDefaultTagger(t)
