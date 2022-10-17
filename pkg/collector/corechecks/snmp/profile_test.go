@@ -46,6 +46,7 @@ community_string: public
 profile: f5-big-ip
 oid_batch_size: 20
 namespace: profile-metadata
+collect_topology: true
 `)
 	// language=yaml
 	rawInitConfig := []byte(`

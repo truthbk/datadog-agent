@@ -84,6 +84,9 @@ var LegacyMetadataConfig = MetadataConfig{
 			},
 		},
 	},
+}
+
+var TopologyMetadataConfig = MetadataConfig{
 	"lldp_remote": {
 		Fields: map[string]MetadataField{
 			"chassis_id_type": {
@@ -189,13 +192,20 @@ func IsMetadataResourceWithScalarOids(resource string) bool {
 
 // updateMetadataDefinitionWithLegacyFallback will add metadata config for resources
 // that does not have metadata definitions
-func updateMetadataDefinitionWithLegacyFallback(config MetadataConfig) MetadataConfig {
+func updateMetadataDefinitionWithLegacyFallback(config MetadataConfig, collectTopology bool) MetadataConfig {
 	if config == nil {
 		config = MetadataConfig{}
 	}
 	for resourceName, resourceConfig := range LegacyMetadataConfig {
 		if _, ok := config[resourceName]; !ok {
 			config[resourceName] = resourceConfig
+		}
+	}
+	if collectTopology {
+		for resourceName, resourceConfig := range TopologyMetadataConfig {
+			if _, ok := config[resourceName]; !ok {
+				config[resourceName] = resourceConfig
+			}
 		}
 	}
 	return config
