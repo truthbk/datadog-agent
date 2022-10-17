@@ -208,7 +208,7 @@ func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []meta
 	for _, strIndex := range indexes {
 		indexElems := strings.Split(strIndex, ".")
 		if len(indexElems) != 3 {
-			log.Debugf("Expected 3 index elements, but got %d, index=`%s`", 3, len(indexElems), strIndex)
+			log.Debugf("Expected 3 index elements, but got %d, index=`%s`", len(indexElems), strIndex)
 			continue
 		}
 		// TODO: Handle TimeMark? see https://www.rfc-editor.org/rfc/rfc2021
