@@ -202,6 +202,7 @@ func updateMetadataDefinitionWithLegacyFallback(config MetadataConfig, collectTo
 		}
 	}
 	if collectTopology {
+		// TODO: avoid code duplication (LegacyMetadataConfig + TopologyMetadataConfig)
 		for resourceName, resourceConfig := range TopologyMetadataConfig {
 			if _, ok := config[resourceName]; !ok {
 				config[resourceName] = resourceConfig
