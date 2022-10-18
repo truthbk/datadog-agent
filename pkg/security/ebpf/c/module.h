@@ -119,6 +119,36 @@ int __attribute__((always_inline)) trace_init_module_ret(void *ctx, int retval) 
     return 0;
 }
 
+struct tracepoint_module_module_load_t {
+    unsigned short common_type;
+    unsigned char common_flags;
+    unsigned char common_preempt_count;
+    int common_pid;
+
+    unsigned int taints;
+    int data_loc_name;
+};
+
+SEC("tracepoint/module/module_load")
+int module_load(struct tracepoint_module_module_load_t *args) {
+    u64 tracepoint_module_load_sends_event;
+    LOAD_CONSTANT("tracepoint_module_load_sends_event", tracepoint_module_load_sends_event);
+    if (tracepoint_module_load_sends_event) {
+        struct syscall_cache_t *syscall = peek_syscall(EVENT_INIT_MODULE);
+        if (!syscall) {
+            return 0;
+        }
+
+        unsigned short __offset = args->data_loc_name & 0xFFFF;
+        char *name = (char *)args + __offset;
+        bpf_probe_read_str(&syscall->init_module.name, sizeof(syscall->init_module.name), name);
+
+        return trace_init_module_ret(args, 0);
+    }
+
+    return 0;
+}
+
 SYSCALL_KRETPROBE(init_module) {
     return trace_init_module_ret(ctx, (int)PT_REGS_RC(ctx));
 }

@@ -1542,6 +1542,12 @@ func NewProbe(config *config.Config, statsdClient statsd.ClientInterface) (*Prob
 				Value: utils.BoolTouint64(true),
 			},
 		)
+		p.managerOptions.ConstantEditors = append(p.managerOptions.ConstantEditors,
+			manager.ConstantEditor{
+				Name:  "tracepoint_module_load_sends_event",
+				Value: utils.BoolTouint64(true),
+			},
+		)
 	}
 
 	if useRingBuffers {
