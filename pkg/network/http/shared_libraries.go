@@ -19,6 +19,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/DataDog/gopsutil/process"
 	psfilepath "github.com/DataDog/gopsutil/process/filepath"
 	"github.com/DataDog/gopsutil/process/so"
 
@@ -78,8 +79,9 @@ func newSOWatcher(procRoot string, perfHandler *ddebpf.PerfHandler, rules ...soR
 		rules:      rules,
 		loadEvents: perfHandler,
 		registry: &soRegistry{
-			byPath:  make(map[string]*soRegistration),
-			byInode: make(map[uint64]*soRegistration),
+			procRoot: procRoot,
+			byPath:   make(map[string]*soRegistration),
+			byInode:  make(map[uint64]*soRegistration),
 		},
 	}
 }
@@ -179,14 +181,13 @@ func (w *soWatcher) sync() {
 			if r.re.MatchString(path) {
 				// new library detected
 				// register it
-				for _, pidPath := range lib.PidsPath {
-					if pidPathArray := strings.Split(pidPath, string(os.PathSeparator)); len(pidPathArray) > 0 {
-						pidStr := pidPathArray[len(pidPathArray)-1]
-						if pid, err := strconv.Atoi(pidStr); err != nil {
-							w.registry.register(path, pid, r)
-						}
-					}
+				pid, err := extractPID(lib.PidsPath)
+				if err != nil {
+					log.Errorf("error extracting first PID from list of PID paths: %s", err)
+					break
 				}
+
+				w.registry.register(path, pid, r)
 				break
 			}
 		}
@@ -200,26 +201,25 @@ func (w *soWatcher) sync() {
 func (w *soWatcher) checkProcessDone() (updated bool) {
 	updated = false
 	for libpath, registration := range w.registry.byPath {
-		for pid := range registration.pids {
-			/* check if the process is alive */
-			var err error
-			var fi os.FileInfo
-			procPidPath := util.GetProcRoot() + string(os.PathSeparator) + strconv.Itoa(pid)
-			if fi, err = os.Stat(procPidPath); err == nil && fi.IsDir() {
-				continue
-			}
-
-			if _, ok := err.(*os.PathError); ok {
-				log.Debugf("process %s doesn't exist anymore, unregister %s", procPidPath, libpath)
-			} else {
-				log.Errorf("stat process %s error %w", procPidPath, err)
-			}
-
-			w.registry.unregister(libpath)
-			delete(registration.pids, pid)
-			updated = true
+		if registration.heartbeatPID == "" {
+			continue
 		}
-		w.registry.byPath[libpath] = registration
+
+		// check if the process is alive
+		var err error
+		var fi os.FileInfo
+		if fi, err = os.Stat(registration.heartbeatPID); err == nil && fi.IsDir() {
+			continue
+		}
+
+		if _, ok := err.(*os.PathError); ok {
+			log.Debugf("process %s doesn't exist anymore, unregister %s", registration.heartbeatPID, libpath)
+		} else {
+			log.Errorf("stat process %s error %s", registration.heartbeatPID, err)
+		}
+
+		w.registry.unregister(libpath)
+		updated = true
 	}
 	return updated
 }
@@ -233,15 +233,21 @@ func (w *soWatcher) canonicalizePath(path string) string {
 }
 
 type soRegistration struct {
-	pids         map[int]struct{}
+	// heartbeatPID points to the init pid path (the root of the process tree)
+	// for a given namespace PID. This is peridically checked to detect if a
+	// container was terminated so can we unregister all associated shared
+	// libraries.
+	heartbeatPID string
+
 	inode        uint64
 	refcount     int
 	unregisterCB func(string) error
 }
 
 type soRegistry struct {
-	byPath  map[string]*soRegistration
-	byInode map[uint64]*soRegistration
+	procRoot string
+	byPath   map[string]*soRegistration
+	byInode  map[uint64]*soRegistration
 }
 
 func (r *soRegistry) register(libPath string, pid int, rule soRule) {
@@ -256,9 +262,8 @@ func (r *soRegistry) register(libPath string, pid int, rule soRule) {
 
 	if registration, ok := r.byInode[inode]; ok {
 		registration.refcount++
-		registration.pids[pid] = struct{}{}
 		r.byPath[libPath] = registration
-		log.Debugf("registering library=%s", libPath)
+		log.Debugf("registering library=%s heartbeatPID=%q", libPath, registration.heartbeatPID)
 		return
 	}
 
@@ -271,14 +276,23 @@ func (r *soRegistry) register(libPath string, pid int, rule soRule) {
 
 		// save sentinel value so we don't attempt to re-register shared
 		// libraries that are problematic for some reason
-		registration := newRegistration(pid, inode, nil)
+		registration := newRegistration("", inode, nil)
 		r.byPath[libPath] = registration
 		r.byInode[inode] = registration
 		return
 	}
 
-	log.Debugf("registering library=%s", libPath)
-	registration := newRegistration(pid, inode, rule.unregisterCB)
+	heartbeatPID, err := getNSInitPID(r.procRoot, pid)
+	if err != nil {
+		// this doesn't necessarily mean that something went wrong. a common case
+		// for not being able to retrieve the heartbeatPID happens when a
+		// short-lived process terminates before we even get a chance to examine
+		// it
+		return
+	}
+
+	log.Debugf("registering library=%s, heartbeatPID=%q", libPath, heartbeatPID)
+	registration := newRegistration(heartbeatPID, inode, rule.unregisterCB)
 	r.byPath[libPath] = registration
 	r.byInode[inode] = registration
 }
@@ -305,15 +319,13 @@ func (r *soRegistry) unregister(libPath string) {
 	}
 }
 
-func newRegistration(pid int, inode uint64, unregisterCB func(string) error) *soRegistration {
-	r := &soRegistration{
-		pids:         make(map[int]struct{}),
+func newRegistration(heartbeatPID string, inode uint64, unregisterCB func(string) error) *soRegistration {
+	return &soRegistration{
 		inode:        inode,
 		unregisterCB: unregisterCB,
 		refcount:     1,
+		heartbeatPID: heartbeatPID,
 	}
-	r.pids[pid] = struct{}{}
-	return r
 }
 
 func followSymlink(path string) string {
@@ -336,4 +348,67 @@ func getInode(path string) (uint64, error) {
 	}
 
 	return stat.Ino, nil
+}
+
+// getNSInitPID traverses a *namespaced* process tree until the init process is found
+// and returns the *path* string of that process (eg "/host/proc/2300")
+// For non-namespaced PIDs an empty string is returned.
+// TODO: consider replacing `gopsutil` by our own code in the future
+func getNSInitPID(procRoot string, pid int) (string, error) {
+	// this assumes that the environment variable HOST_PROC is configured
+	p, err := process.NewProcess(int32(pid))
+	if err != nil {
+		return "", err
+	}
+
+	// we call `p.Status()` for its side-effect, which
+	// scrapes the /proc/<PID>/status file and populates `NsPid`
+	_, err = p.Status()
+	if err != nil {
+		return "", err
+	}
+
+	if p.NsPid == p.Pid {
+		// process is not namespaced, so we don't need to perform liveness checks
+		return "", nil
+	}
+
+	// while namespaced PID isn't 1, ascend in the process tree
+	for p.NsPid != 1 {
+		parent, err := p.Parent()
+		if err != nil {
+			return "", err
+		}
+
+		_, err = parent.Status()
+		if err != nil {
+			return "", err
+		}
+
+		p = parent
+	}
+
+	return fmt.Sprintf("%s/%d", procRoot, p.Pid), nil
+}
+
+// extractPID takes the first entry of the slice of PID paths
+// and extracts the numerical (PID) part from it
+func extractPID(pids []string) (int, error) {
+	if len(pids) == 0 {
+		return 0, fmt.Errorf("empty list of PIDs")
+	}
+
+	pidPath := pids[0]
+	pidPathArray := strings.Split(pidPath, string(os.PathSeparator))
+	if len(pidPathArray) == 0 {
+		return 0, fmt.Errorf("invalid PID path: %s", pidPath)
+	}
+
+	pidStr := pidPathArray[len(pidPathArray)-1]
+	pid, err := strconv.Atoi(pidStr)
+	if err != nil {
+		return 0, fmt.Errorf("invalid PID path: %s", pidPath)
+	}
+
+	return pid, nil
 }
