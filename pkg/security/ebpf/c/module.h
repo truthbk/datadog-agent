@@ -134,6 +134,13 @@ int module_load(struct tracepoint_module_module_load_t *args) {
     u64 tracepoint_module_load_sends_event;
     LOAD_CONSTANT("tracepoint_module_load_sends_event", tracepoint_module_load_sends_event);
     if (tracepoint_module_load_sends_event) {
+        // check if the tracepoint is hit by a kworker
+        u32 pid = bpf_get_current_pid_tgid();
+        u32 *is_ignored = bpf_map_lookup_elem(&pid_ignored, &pid);
+        if (!is_ignored) {
+            return 0;
+        }
+
         struct syscall_cache_t *syscall = peek_syscall(EVENT_INIT_MODULE);
         if (!syscall) {
             return 0;
