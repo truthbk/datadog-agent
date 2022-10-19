@@ -28,7 +28,9 @@ from .modules import DEFAULT_MODULES, GoModule
 from .trace_agent import integration_tests as trace_integration_tests
 from .utils import DEFAULT_BRANCH, get_build_flags
 
+TMP_PROFILE_COV_PREFIX = "coverage.out.rerun"
 PROFILE_COV = "profile.cov"
+GO_TEST_FILE = "go_unit_tests.sh"
 GO_TEST_RESULT_TMP_JSON = 'tmp.json'
 
 
@@ -85,6 +87,7 @@ TOOL_LIST = [
     'github.com/stormcat24/protodep',
     'gotest.tools/gotestsum',
     'github.com/vektra/mockery/v2',
+    'github.com/wadey/gocovmerge',
 ]
 
 TOOL_LIST_PROTO = [
@@ -150,9 +153,11 @@ def test_flavor(
     flavor: AgentFlavor,
     build_tags: List[str],
     modules: List[GoModule],
+    coverage: bool,
     cmd: str,
     env: Dict[str, str],
-    args: Dict[str, str],
+    go_test_options: str,
+    gotestsum_args: Dict[str, str],
     junit_tar: str,
     save_result_json: str,
     test_profiler: TestProfiler,
@@ -165,13 +170,11 @@ def test_flavor(
     failed_modules = []
     junit_files = []
 
-    args["go_build_tags"] = " ".join(build_tags + ["test"])
-
     junit_file_flag = ""
     junit_file = f"junit-out-{flavor.name}.xml"
     if junit_tar:
         junit_file_flag = "--junitfile " + junit_file
-    args["junit_file_flag"] = junit_file_flag
+    gotestsum_args["junit_file_flag"] = junit_file_flag
 
     for module in modules:
         print(f"----- Module '{module.full_path()}'")
@@ -180,14 +183,38 @@ def test_flavor(
             continue
 
         with ctx.cd(module.full_path()):
+            tags = ' '.join(build_tags + ["test"])
+            packages = ' '.join(f"{t}/..." if not t.endswith("/...") else t for t in module.targets)
+            test_script = f"""#!/usr/bin/env bash
+set -eu
+
+if [ $# -eq 0 ]; then
+  go test -json -tags "{tags}" {go_test_options} {packages}
+else
+  go test -json -tags "{tags}" {go_test_options} "$@"
+fi
+"""
+
+            with open(os.path.join(module.full_path(), GO_TEST_FILE), 'w') as f:
+                f.write(test_script)
+
+            os.chmod(os.path.join(module.full_path(), GO_TEST_FILE), 0o755)
+
             res = ctx.run(
                 cmd.format(
-                    packages=' '.join(f"{t}/..." if not t.endswith("/...") else t for t in module.targets), **args
+                    packages=' '.join(f"{t}/..." if not t.endswith("/...") else t for t in module.targets),
+                    **gotestsum_args,
                 ),
                 env=env,
                 out_stream=test_profiler,
                 warn=True,
             )
+
+            ctx.run(f"rm -f {GO_TEST_FILE}")
+
+            if coverage:
+                ctx.run(f"gocovmerge {TMP_PROFILE_COV_PREFIX}.* > {PROFILE_COV}")
+                ctx.run(f"rm -f {TMP_PROFILE_COV_PREFIX}.*")
 
         if res.exited is None or res.exited > 0:
             failed_modules.append(module.full_path())
@@ -391,7 +418,7 @@ def test(
 
     coverprofile = ""
     if coverage:
-        coverprofile = f"-coverprofile={PROFILE_COV}"
+        coverprofile = f"-coverprofile=$(mktemp {TMP_PROFILE_COV_PREFIX}.XXXXXXXXXX)"
 
     nocache = '-count=1' if not cache else ''
 
@@ -401,22 +428,15 @@ def test(
         print(f"Removing existing '{save_result_json}' file")
         os.remove(save_result_json)
 
-    cmd = 'gotestsum {junit_file_flag} {json_flag} --format pkgname {rerun_fails} --packages="{packages}" -- {verbose} -mod={go_mod} -vet=off -timeout {timeout}s -tags "{go_build_tags}" -gcflags="{gcflags}" '
-    cmd += '-ldflags="{ldflags}" {build_cpus} {race_opt} -short {covermode_opt} {coverprofile} {nocache}'
-    args = {
-        "go_mod": go_mod,
-        "gcflags": gcflags,
-        "ldflags": ldflags,
-        "race_opt": race_opt,
-        "build_cpus": build_cpus_opt,
-        "covermode_opt": covermode_opt,
-        "coverprofile": coverprofile,
-        "timeout": timeout,
-        "verbose": '-v' if verbose else '',
-        "nocache": nocache,
+    cmd = 'gotestsum {junit_file_flag} {json_flag} --format pkgname --packages="{packages}" {rerun_fails} --raw-command -- ./{go_test_file}'
+
+    gotestsum_args = {
         "json_flag": f'--jsonfile "{GO_TEST_RESULT_TMP_JSON}" ' if save_result_json else "",
         "rerun_fails": f"--rerun-fails={rerun_fails}" if rerun_fails else "",
+        "go_test_file": GO_TEST_FILE,
     }
+
+    go_test_options = f"""{'-v' if verbose else ''} -mod={go_mod} -vet=off -timeout {timeout}s -gcflags="{gcflags}" -ldflags="{ldflags}" {build_cpus_opt} {race_opt} -short {covermode_opt} {coverprofile} {nocache}"""
 
     # Test
 
@@ -428,9 +448,11 @@ def test(
             flavor=flavor,
             build_tags=build_tags,
             modules=modules,
+            coverage=coverage,
+            go_test_options=go_test_options,
             cmd=cmd,
             env=env,
-            args=args,
+            gotestsum_args=gotestsum_args,
             junit_tar=junit_tar,
             save_result_json=save_result_json,
             test_profiler=test_profiler,
