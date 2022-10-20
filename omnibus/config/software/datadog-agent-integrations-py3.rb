@@ -11,8 +11,6 @@ name 'datadog-agent-integrations-py3'
 dependency 'datadog-agent'
 dependency 'pip3'
 
-dependency 'snowflake-connector-python-py3'
-
 if arm?
   # psycopg2 doesn't come with pre-built wheel on the arm architecture.
   # to compile from source, it requires the `pg_config` executable present on the $PATH
@@ -63,9 +61,6 @@ blacklist_folders = [
 
 # package names of dependencies that won't be added to the Agent Python environment
 blacklist_packages = Array.new
-
-# We build these manually
-blacklist_packages.push(/^snowflake-connector-python==/)
 
 if suse?
   # Temporarily blacklist Aerospike until builder supports new dependency
@@ -141,6 +136,7 @@ build do
     command "#{pip} download --dest #{build_deps_dir} setuptools==40.9.0" # Version from ./setuptools3.rb
     command "#{pip} install wheel==0.34.1"
     command "#{pip} install pip-tools==6.4.0"
+
     uninstall_buildtime_deps = ['rtloader', 'click', 'first', 'pip-tools']
     nix_build_env = {
       "PIP_FIND_LINKS" => "#{build_deps_dir}",
@@ -222,8 +218,14 @@ build do
       end
     end
 
+    # HACK: Pin pyopenssl==21.0.0 to prevent snowflake-connector-python from conflicting with itself
+    # https://github.com/snowflakedb/snowflake-connector-python/issues/1259
+    if linux?
+      requirements.push("pyopenssl==21.0.0\n")
+    end
+
     # Adding pympler for memory debug purposes
-    requirements.push("pympler==0.7")
+    requirements.push("pympler==0.7\n")
 
     # Render the filtered requirements file
     erb source: "static_requirements.txt.erb",
