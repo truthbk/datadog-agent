@@ -85,7 +85,7 @@ type Handlers interface {
 // Processor is a generic resource processing component. It relies on a set of
 // handlers to enrich its processing logic and make it a processor for resources
 // of a specific type.
-type Processor struct {
+type Processor[T any] struct {
 	h Handlers
 }
 
@@ -99,25 +99,24 @@ type ProcessResult struct {
 }
 
 // NewProcessor creates a new processor for a resource type.
-func NewProcessor(h Handlers) *Processor {
-	return &Processor{
+func NewProcessor[T any](h Handlers, _ T) *Processor[T] {
+	return &Processor[T]{
 		h: h,
 	}
 }
 
 // Process is used to process a list of resources of a certain type.
-func (p *Processor) Process(ctx *ProcessorContext, list interface{}) (processResult ProcessResult, processed int) {
+func (p *Processor[T]) Process(ctx *ProcessorContext, list []T) (processResult ProcessResult, processed int) {
 	// This default allows detection of panic recoveries.
 	processed = -1
 
 	// Make sure to recover if a panic occurs.
 	defer RecoverOnPanic()
 
-	resourceList := p.h.ResourceList(ctx, list)
-	resourceMetadataModels := make([]interface{}, 0, len(resourceList))
-	resourceManifestModels := make([]interface{}, 0, len(resourceList))
+	resourceMetadataModels := make([]interface{}, 0, len(list))
+	resourceManifestModels := make([]interface{}, 0, len(list))
 
-	for _, resource := range resourceList {
+	for _, resource := range list {
 		// Scrub before extraction.
 		p.h.ScrubBeforeExtraction(ctx, resource)
 

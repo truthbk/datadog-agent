@@ -13,7 +13,6 @@ import (
 	"fmt"
 
 	model "github.com/DataDog/agent-payload/v5/process"
-
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/orchestrator/processors"
 	"github.com/DataDog/datadog-agent/pkg/orchestrator"
 
@@ -30,21 +29,21 @@ import (
 // data from the Kubernetes Node resource and pulling API Server information.
 // This is why that processor is custom and not following the generic logic like
 // other resources.
-type ClusterProcessor struct {
-	processors.Processor
+type ClusterProcessor[T any] struct {
+	processors.Processor[T]
 	nodeHandlers processors.Handlers
 }
 
 // NewClusterProcessor creates a new processor for the Kubernetes cluster
 // resource.
-func NewClusterProcessor() *ClusterProcessor {
-	return &ClusterProcessor{
+func NewClusterProcessor() *ClusterProcessor[[]corev1.Node] {
+	return &ClusterProcessor[[]corev1.Node]{
 		nodeHandlers: new(NodeHandlers),
 	}
 }
 
 // Process is used to process a list of node resources forming a cluster.
-func (p *ClusterProcessor) Process(ctx *processors.ProcessorContext, list interface{}) (processResult processors.ProcessResult, processed int, err error) {
+func (p *ClusterProcessor[T]) Process(ctx *processors.ProcessorContext, list []T) (processResult processors.ProcessResult, processed int, err error) {
 	processed = -1
 
 	defer processors.RecoverOnPanic()
@@ -60,11 +59,11 @@ func (p *ClusterProcessor) Process(ctx *processors.ProcessorContext, list interf
 		podCapacity       uint32
 	)
 
-	resourceList := p.nodeHandlers.ResourceList(ctx, list)
+	resourceList := list
 	nodeCount := int32(len(resourceList))
 
 	for _, resource := range resourceList {
-		r := resource.(*corev1.Node)
+		r := resource
 
 		// Kubelet versions.
 		kubeletVersions[r.Status.NodeInfo.KubeletVersion]++

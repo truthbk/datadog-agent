@@ -13,6 +13,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/orchestrator/processors"
 	k8sProcessors "github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/orchestrator/processors/k8s"
 	"github.com/DataDog/datadog-agent/pkg/orchestrator"
+	corev1 "k8s.io/api/core/v1"
 
 	"k8s.io/apimachinery/pkg/labels"
 	corev1Informers "k8s.io/client-go/informers/core/v1"
@@ -32,7 +33,7 @@ type ClusterCollector struct {
 	informer  corev1Informers.NodeInformer
 	lister    corev1Listers.NodeLister
 	metadata  *collectors.CollectorMetadata
-	processor *k8sProcessors.ClusterProcessor
+	processor *k8sProcessors.ClusterProcessor[[]corev1.Node]
 }
 
 // NewClusterCollector creates a new collector for the Kubernetes Cluster
@@ -83,12 +84,17 @@ func (c *ClusterCollector) Run(rcfg *collectors.CollectorRunConfig) (*collectors
 		NodeType:   c.metadata.NodeType,
 	}
 
-	processResult, processed, err := c.processor.Process(ctx, list)
+	var l []corev1.Node
+	for _, node := range list {
+		l = append(l, *node)
+	}
+
+	processResult, processed, err := c.processor.Process(ctx, l)
 
 	// This would happen when recovering from a processor panic. In the nominal
 	// case we would have a positive integer set at the very end of processing.
 	// If this is not the case then it means code execution stopped sooner.
-	// Panic recovery will log more information about the error so we can figure
+	// Panic recovery will log more information about the error, so we can figure
 	// out the root cause.
 	if processed == -1 {
 		return nil, collectors.ErrProcessingPanic
