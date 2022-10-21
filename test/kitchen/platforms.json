@@ -4,15 +4,12 @@
             "x86_64": {
                 "centos-610": "urn,OpenLogic:CentOS:6.10:6.10.2020042900",
                 "centos-76": "urn,OpenLogic:CentOS:7.6:7.6.201909120",
-                "centos-77": "urn,OpenLogic:CentOS:7.7:7.7.201912090",
-                "rhel-81": "urn,RedHat:RHEL:8.1:8.1.2021040910",
-                "rhel-85": "urn,RedHat:RHEL:8_5:8.5.2021121501"
+                "centos-77": "urn,OpenLogic:CentOS:7.7:7.7.201912090"
             }
         },
         "ec2": {
             "arm64": {
-                "centos-78": "ami-0271a6516c34c6be9",
-                "rhel-83": "ami-0698b90665a2ddcf1"
+                "centos-78": "ami-0271a6516c34c6be9"
             }
         },
         "vagrant": {
@@ -20,6 +17,19 @@
                 "centos-76": "bento/centos-7.6",
                 "centos7": "roboxes/centos7",
                 "centos8": "roboxes/centos8"
+            }
+        }
+    },
+    "rhel": {
+        "azure": {
+            "x86_64": {
+                "rhel-81": "urn,RedHat:RHEL:8.1:8.1.2021040910",
+                "rhel-85": "urn,RedHat:RHEL:8_5:8.5.2021121501"
+            }
+        },
+        "ec2": {
+            "arm64": {
+                "rhel-83": "ami-0698b90665a2ddcf1"
             }
         }
     },
