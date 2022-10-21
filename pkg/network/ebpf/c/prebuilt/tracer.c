@@ -7,7 +7,6 @@
 #include "tracer-maps.h"
 #include "tracer-stats.h"
 #include "tracer-telemetry.h"
-#include "sockfd.h"
 
 #include "bpf_endian.h"
 #include "ip.h"
@@ -132,8 +131,6 @@ int kprobe__tcp_close(struct pt_regs *ctx) {
 
     // Should actually delete something only if the connection never got established
     bpf_map_delete_elem(&tcp_ongoing_connect_pid, &sk);
-
-    clear_sockfd_maps(sk);
 
     // Get network namespace id
     log_debug("kprobe/tcp_close: tgid: %u, pid: %u\n", pid_tgid >> 32, pid_tgid & 0xFFFFFFFF);
@@ -709,117 +706,6 @@ int kretprobe__inet6_bind(struct pt_regs *ctx) {
     __s64 ret = PT_REGS_RC(ctx);
     log_debug("kretprobe/inet6_bind: ret=%d\n", ret);
     return sys_exit_bind(ret);
-}
-
-SEC("kprobe/sockfd_lookup_light")
-int kprobe__sockfd_lookup_light(struct pt_regs *ctx) {
-    int sockfd = (int)PT_REGS_PARM1(ctx);
-    u64 pid_tgid = bpf_get_current_pid_tgid();
-
-    // Check if have already a map entry for this pid_fd_t
-    // TODO: This lookup eliminates *4* map operations for existing entries
-    // but can reduce the accuracy of programs relying on socket FDs for
-    // processes with a lot of FD churn
-    pid_fd_t key = {
-        .pid = pid_tgid >> 32,
-        .fd = sockfd,
-    };
-    struct sock **sock = bpf_map_lookup_elem(&sock_by_pid_fd, &key);
-    if (sock != NULL) {
-        return 0;
-    }
-
-    bpf_map_update_with_telemetry(sockfd_lookup_args, &pid_tgid, &sockfd, BPF_ANY);
-    return 0;
-}
-
-// this kretprobe is essentially creating:
-// * an index of pid_fd_t to a struct sock*;
-// * an index of struct sock* to pid_fd_t;
-SEC("kretprobe/sockfd_lookup_light")
-int kretprobe__sockfd_lookup_light(struct pt_regs *ctx) {
-    u64 pid_tgid = bpf_get_current_pid_tgid();
-    int *sockfd = bpf_map_lookup_elem(&sockfd_lookup_args, &pid_tgid);
-    if (sockfd == NULL) {
-        return 0;
-    }
-
-    // For now let's only store information for TCP sockets
-    struct socket *socket = (struct socket *)PT_REGS_RC(ctx);
-    enum sock_type sock_type = 0;
-    bpf_probe_read_kernel_with_telemetry(&sock_type, sizeof(short), &socket->type);
-
-    // (struct socket).ops is always directly after (struct socket).sk,
-    // which is a pointer.
-    u64 ops_offset = offset_socket_sk() + sizeof(void *);
-    struct proto_ops *proto_ops = NULL;
-    bpf_probe_read_kernel_with_telemetry(&proto_ops, sizeof(proto_ops), (void *)(socket) + ops_offset);
-    if (!proto_ops) {
-        goto cleanup;
-    }
-
-    int family = 0;
-    bpf_probe_read_kernel_with_telemetry(&family, sizeof(family), &proto_ops->family);
-    if (sock_type != SOCK_STREAM || !(family == AF_INET || family == AF_INET6)) {
-        goto cleanup;
-    }
-
-    // Retrieve struct sock* pointer from struct socket*
-    struct sock *sock = NULL;
-    bpf_probe_read_kernel_with_telemetry(&sock, sizeof(sock), (char *)socket + offset_socket_sk());
-
-    pid_fd_t pid_fd = {
-        .pid = pid_tgid >> 32,
-        .fd = (*sockfd),
-    };
-
-    // These entries are cleaned up by tcp_close
-    bpf_map_update_with_telemetry(pid_fd_by_sock, &sock, &pid_fd, BPF_ANY);
-    bpf_map_update_with_telemetry(sock_by_pid_fd, &pid_fd, &sock, BPF_ANY);
-cleanup:
-    bpf_map_delete_elem(&sockfd_lookup_args, &pid_tgid);
-    return 0;
-}
-
-SEC("kprobe/do_sendfile")
-int kprobe__do_sendfile(struct pt_regs *ctx) {
-    u32 fd_out = (int)PT_REGS_PARM1(ctx);
-    u64 pid_tgid = bpf_get_current_pid_tgid();
-    pid_fd_t key = {
-        .pid = pid_tgid >> 32,
-        .fd = fd_out,
-    };
-    struct sock **sock = bpf_map_lookup_elem(&sock_by_pid_fd, &key);
-    if (sock == NULL) {
-        return 0;
-    }
-
-    // bring map value to eBPF stack to satisfy Kernel 4.4 verifier
-    struct sock *skp = *sock;
-    bpf_map_update_with_telemetry(do_sendfile_args, &pid_tgid, &skp, BPF_ANY);
-    return 0;
-}
-
-SEC("kretprobe/do_sendfile")
-int kretprobe__do_sendfile(struct pt_regs *ctx) {
-    u64 pid_tgid = bpf_get_current_pid_tgid();
-    struct sock **sock = bpf_map_lookup_elem(&do_sendfile_args, &pid_tgid);
-    if (sock == NULL) {
-        return 0;
-    }
-
-    conn_tuple_t t = {};
-    if (!read_conn_tuple(&t, *sock, pid_tgid, CONN_TYPE_TCP)) {
-        goto cleanup;
-    }
-
-    ssize_t sent = (ssize_t)PT_REGS_RC(ctx);
-    if (sent > 0) {
-        handle_message(&t, sent, 0, CONN_DIRECTION_UNKNOWN, 0, 0, PACKET_COUNT_NONE, *sock);
-    }
-cleanup:
-    bpf_map_delete_elem(&do_sendfile_args, &pid_tgid);
-    return 0;
 }
 
 //endregion

@@ -181,6 +181,12 @@ type Config struct {
 	// for things like creating netlink sockets for conntrack updates, etc.
 	EnableRootNetNs bool
 
+	// HTTP Debug Options (not exposed via the standard datadog configuration)
+	HTTPFilterSport int
+	HTTPFilterDport int
+	HTTPFilterSaddr string
+	HTTPFilterDaddr string
+
 	// HTTPMapCleanerInterval is the interval to run the cleaner function.
 	HTTPMapCleanerInterval time.Duration
 

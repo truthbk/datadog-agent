@@ -133,7 +133,7 @@ func NewTracer(config *config.Config) (*Tracer, error) {
 	var constantEditors []manager.ConstantEditor
 	if needsOffsets {
 		for i := 0; i < 5; i++ {
-			constantEditors, err = runOffsetGuessing(config, offsetBuf)
+			constantEditors, err = RunOffsetGuessing(config, offsetBuf)
 			if err == nil {
 				break
 			}
@@ -257,7 +257,7 @@ func newReverseDNS(c *config.Config) dns.ReverseDNS {
 	return rdns
 }
 
-func runOffsetGuessing(config *config.Config, buf bytecode.AssetReader) ([]manager.ConstantEditor, error) {
+func RunOffsetGuessing(config *config.Config, buf bytecode.AssetReader) ([]manager.ConstantEditor, error) {
 	// Enable kernel probes used for offset guessing.
 	offsetMgr := newOffsetManager()
 	offsetOptions := manager.Options{

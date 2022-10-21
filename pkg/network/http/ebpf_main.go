@@ -13,6 +13,9 @@ import (
 	"math"
 	"os"
 
+	"sync/atomic"
+	"time"
+
 	manager "github.com/DataDog/ebpf-manager"
 	"github.com/cilium/ebpf"
 	"github.com/iovisor/gobpf/pkg/cpupossible"
@@ -24,6 +27,7 @@ import (
 	netebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
 	errtelemetry "github.com/DataDog/datadog-agent/pkg/network/telemetry"
+	"github.com/DataDog/datadog-agent/pkg/process/util"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
@@ -178,6 +182,10 @@ func (e *ebpfProgram) Init() error {
 		s.ConfigureManager(e.Manager)
 	}
 
+	var constantEditors []manager.ConstantEditor
+	constantEditors = append(constantEditors, e.offsets...)
+	constantEditors = append(constantEditors, httpDebugFilters(e.cfg)...)
+
 	onlineCPUs, err := cpupossible.Get()
 	if err != nil {
 		return fmt.Errorf("couldn't determine number of CPUs: %w", err)
@@ -229,7 +237,7 @@ func (e *ebpfProgram) Init() error {
 				},
 			},
 		},
-		ConstantEditors:           e.offsets,
+		ConstantEditors:           constantEditors,
 		DefaultKprobeAttachMethod: kprobeAttachMethod,
 	}
 
@@ -278,6 +286,20 @@ func (e *ebpfProgram) setupMapCleaner() {
 		return
 	}
 
+	var incompleteRequests int64
+	var incompleteResponses int64
+	withTelemetry := func(tx *ebpfHttpTx, shouldDelete bool) bool {
+		if shouldDelete {
+			if tx.RequestStarted() > 0 && tx.StatusCode() == 0 {
+				atomic.AddInt64(&incompleteRequests, 1)
+			} else if tx.RequestStarted() == 0 && tx.StatusCode() > 0 {
+				atomic.AddInt64(&incompleteResponses, 1)
+			}
+		}
+
+		return shouldDelete
+	}
+
 	ttl := e.cfg.HTTPIdleConnectionTTL.Nanoseconds()
 	httpMapCleaner.Clean(e.cfg.HTTPMapCleanerInterval, func(now int64, key, val interface{}) bool {
 		httpTxn, ok := val.(*ebpfHttpTx)
@@ -286,14 +308,51 @@ func (e *ebpfProgram) setupMapCleaner() {
 		}
 
 		if updated := int64(httpTxn.ResponseLastSeen()); updated > 0 {
-			return (now - updated) > ttl
+			return withTelemetry(httpTxn, (now-updated) > ttl)
 		}
 
 		started := int64(httpTxn.RequestStarted())
-		return started > 0 && (now-started) > ttl
+		return withTelemetry(httpTxn, started > 0 && (now-started) > ttl)
 	})
 
+	go func() {
+		t := time.NewTicker(30 * time.Second)
+		for range t.C {
+			requests := atomic.SwapInt64(&incompleteRequests, 0)
+			responses := atomic.SwapInt64(&incompleteResponses, 0)
+			log.Debugf("stale HTTP data stuck in eBPF: requests=%d responses=%d", requests, responses)
+		}
+	}()
+
 	e.mapCleaner = httpMapCleaner
+}
+
+func httpDebugFilters(c *config.Config) []manager.ConstantEditor {
+	var (
+		saddrl uint64
+		saddrh uint64
+		daddrl uint64
+		daddrh uint64
+	)
+
+	if c.HTTPFilterSaddr != "" {
+		saddr := util.AddressFromString(c.HTTPFilterSaddr)
+		saddrl, saddrh = util.ToLowHigh(saddr)
+	}
+
+	if c.HTTPFilterDaddr != "" {
+		daddr := util.AddressFromString(c.HTTPFilterDaddr)
+		daddrl, daddrh = util.ToLowHigh(daddr)
+	}
+
+	return []manager.ConstantEditor{
+		{Name: "filter_sport", Value: uint64(c.HTTPFilterSport)},
+		{Name: "filter_dport", Value: uint64(c.HTTPFilterDport)},
+		{Name: "filter_saddr_l", Value: saddrl},
+		{Name: "filter_saddr_h", Value: saddrh},
+		{Name: "filter_daddr_l", Value: daddrl},
+		{Name: "filter_daddr_h", Value: daddrh},
+	}
 }
 
 func getBytecode(c *config.Config) (bc bytecode.AssetReader, err error) {

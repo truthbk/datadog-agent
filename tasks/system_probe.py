@@ -919,6 +919,11 @@ def build_object_files(
         strip_object_files=strip_object_files,
     )
 
+    # copy http-debug.o
+    src=os.path.join(build_dir, "http-debug.o")
+    dst=os.path.join(".", "pkg", "network", "http", "debugging", "cmd", "http-debug.o")
+    shutil.copyfile(src, dst)
+
     if not windows:
         sudo = "" if is_root() else "sudo"
         ctx.run(f"{sudo} mkdir -p {EMBEDDED_SHARE_DIR}")
