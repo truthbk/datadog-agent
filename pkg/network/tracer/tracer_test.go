@@ -131,7 +131,6 @@ func TestGetStats(t *testing.T) {
       "ebpf": {
         "closed_conn_polling_lost": 0,
         "closed_conn_polling_received": 0,
-        "conn_stats_max_entries_hit": 0,
         "missed_tcp_close": 0,
         "missed_udp_close": 0,
         "pid_collisions": 0,
@@ -143,16 +142,18 @@ func TestGetStats(t *testing.T) {
         "udp_sends_missed": 0,
         "udp_sends_processed": 162
       },
-      "http": {
-        "aggregations": 0,
-        "dropped": 0,
-        "hits1_xx": 0,
-        "hits2_xx": 0,
-        "hits3_xx": 0,
-        "hits4_xx": 0,
-        "hits5_xx": 0,
-        "misses": 0,
-        "rejected": 0
+      "usm": {
+        "http": {
+          "aggregations": 0,
+          "dropped": 0,
+          "hits1xx": 0,
+          "hits2xx": 0,
+          "hits3xx": 0,
+          "hits4xx": 0,
+          "hits5xx": 0,
+          "misses": 0,
+          "rejected": 0
+        }
       },
       "kprobes": {},
       "state": {
@@ -199,7 +200,7 @@ func TestGetStats(t *testing.T) {
 	actual, _ := tr.GetStats()
 
 	for section, entries := range expected {
-		if section == "http" && !httpSupported {
+		if section == "usm" && !httpSupported {
 			// HTTP stats not supported on some systems
 			continue
 		}
@@ -1719,7 +1720,7 @@ func TestHTTPSViaLibraryIntegration(t *testing.T) {
 		t.Skip("HTTPS feature not available on pre 4.14.0 kernels")
 	}
 	if !httpsSupported(t) {
-		t.Skip("HTTPS feature not available on ARM pre 5.5.0 kernels")
+		t.Skip("HTTPS feature not available supported for this setup")
 	}
 
 	tlsLibs := []*regexp.Regexp{
@@ -1880,4 +1881,108 @@ func skipIfWindows(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("test unavailable on windows")
 	}
+}
+
+const (
+	numberOfRequests = 100
+)
+
+// TestOpenSSLVersions setups a HTTPs python server, and makes sure we are able to capture all traffic.
+func TestOpenSSLVersions(t *testing.T) {
+	if !httpSupported(t) {
+		t.Skip("HTTPS feature not available on pre 4.14.0 kernels")
+	}
+
+	if !httpsSupported(t) {
+		t.Skip("HTTPS feature not available supported for this setup")
+	}
+
+	cfg := testConfig()
+	cfg.EnableHTTPSMonitoring = true
+	cfg.EnableHTTPMonitoring = true
+	tr, err := NewTracer(cfg)
+	require.NoError(t, err)
+	initTracerState(t, tr)
+	defer tr.Stop()
+
+	addressOfHTTPPythonServer := "127.0.0.1:8001"
+	closer, err := testutil.HTTPPythonServer(t, addressOfHTTPPythonServer, testutil.Options{
+		EnableTLS: true,
+	})
+	require.NoError(t, err)
+	defer closer()
+
+	// Giving the tracer time to install the hooks
+	time.Sleep(time.Second)
+	client, requestFn := simpleGetRequestsGenerator(t, addressOfHTTPPythonServer)
+	var requests []*nethttp.Request
+	for i := 0; i < numberOfRequests; i++ {
+		requests = append(requests, requestFn())
+	}
+
+	client.CloseIdleConnections()
+	requestsExist := make([]bool, len(requests))
+
+	require.Eventually(t, func() bool {
+		conns := getConnections(t, tr)
+
+		if len(conns.HTTP) == 0 {
+			return false
+		}
+
+		for reqIndex, req := range requests {
+			if !requestsExist[reqIndex] {
+				requestsExist[reqIndex] = isRequestIncluded(conns.HTTP, req)
+			}
+		}
+
+		// Slight optimization here, if one is missing, then go into another cycle of checking the new connections.
+		// otherwise, if all present, abort.
+		for reqIndex, exists := range requestsExist {
+			if !exists {
+				// reqIndex is 0 based, while the number is requests[reqIndex] is 1 based.
+				t.Logf("request %d was not found (req %v)", reqIndex+1, requests[reqIndex])
+				return false
+			}
+		}
+
+		return true
+	}, 3*time.Second, time.Second, "connection not found")
+}
+
+var (
+	statusCodes = []int{nethttp.StatusOK, nethttp.StatusMultipleChoices, nethttp.StatusBadRequest, nethttp.StatusInternalServerError}
+)
+
+func simpleGetRequestsGenerator(t *testing.T, targetAddr string) (*nethttp.Client, func() *nethttp.Request) {
+	var (
+		random = rand.New(rand.NewSource(time.Now().Unix()))
+		idx    = 0
+		client = &nethttp.Client{}
+	)
+
+	return client, func() *nethttp.Request {
+		idx++
+		status := statusCodes[random.Intn(len(statusCodes))]
+		req, err := nethttp.NewRequest(nethttp.MethodGet, fmt.Sprintf("https://%s/%d/request-%d", targetAddr, status, idx), nil)
+		require.NoError(t, err)
+
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+		require.Equal(t, status, resp.StatusCode)
+		io.ReadAll(resp.Body)
+		resp.Body.Close()
+		return req
+	}
+}
+
+func isRequestIncluded(allStats map[http.Key]*http.RequestStats, req *nethttp.Request) bool {
+	expectedStatus := testutil.StatusFromPath(req.URL.Path)
+	for key, stats := range allStats {
+		if key.Path.Content == req.URL.Path && stats.HasStats(expectedStatus) {
+			return true
+		}
+	}
+
+	return false
 }

@@ -70,7 +70,6 @@ func newIncompleteBuffer(c *config.Config, telemetry *telemetry) *incompleteBuff
 }
 
 func (b *incompleteBuffer) Add(tx httpTX) {
-	b.telemetry.incomplete.Inc()
 	key := KeyTuple{
 		SrcIPHigh: uint64(tx.SrcIPHigh()),
 		SrcIPLow:  uint64(tx.SrcIPLow()),
@@ -80,7 +79,7 @@ func (b *incompleteBuffer) Add(tx httpTX) {
 	parts, ok := b.data[key]
 	if !ok {
 		if len(b.data) >= b.maxEntries {
-			b.telemetry.dropped.Inc()
+			b.telemetry.dropped.Add(1)
 			return
 		}
 

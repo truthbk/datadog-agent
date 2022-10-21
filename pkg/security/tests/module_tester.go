@@ -89,9 +89,11 @@ runtime_security_config:
     enabled: true
 {{if .EnableActivityDump}}
   activity_dump:
-    syscall_monitor:
-      enabled: true
     enabled: true
+    rate_limiter: {{ .ActivityDumpRateLimiter }}
+    traced_event_types:   {{range .ActivityDumpTracedEventTypes}}
+    - {{.}}
+    {{end}}
 {{end}}
   load_controller:
     events_count_threshold: {{ .EventsCountThreshold }}
@@ -154,7 +156,6 @@ rules:
 
 var (
 	testEnvironment  string
-	useReload        bool
 	logLevelStr      string
 	logPatterns      stringSlice
 	logTags          stringSlice
@@ -170,16 +171,19 @@ const (
 )
 
 type testOpts struct {
-	testDir                     string
-	disableFilters              bool
-	disableApprovers            bool
-	enableActivityDump          bool
-	disableDiscarders           bool
-	eventsCountThreshold        int
-	reuseProbeHandler           bool
-	disableERPCDentryResolution bool
-	disableMapDentryResolution  bool
-	envsWithValue               []string
+	testDir                      string
+	disableFilters               bool
+	disableApprovers             bool
+	enableActivityDump           bool
+	activityDumpRateLimiter      int
+	activityDumpTracedEventTypes []string
+	disableDiscarders            bool
+	eventsCountThreshold         int
+	reuseProbeHandler            bool
+	disableERPCDentryResolution  bool
+	disableMapDentryResolution   bool
+	envsWithValue                []string
+	disableAbnormalPathCheck     bool
 }
 
 func (s *stringSlice) String() string {
@@ -195,6 +199,8 @@ func (to testOpts) Equal(opts testOpts) bool {
 	return to.testDir == opts.testDir &&
 		to.disableApprovers == opts.disableApprovers &&
 		to.enableActivityDump == opts.enableActivityDump &&
+		to.activityDumpRateLimiter == opts.activityDumpRateLimiter &&
+		reflect.DeepEqual(to.activityDumpTracedEventTypes, opts.activityDumpTracedEventTypes) &&
 		to.disableDiscarders == opts.disableDiscarders &&
 		to.disableFilters == opts.disableFilters &&
 		to.eventsCountThreshold == opts.eventsCountThreshold &&
@@ -559,7 +565,7 @@ func validateExecEvent(tb *testing.T, kind wrapperType, validate func(event *spr
 }
 
 func setTestPolicy(dir string, macros []*rules.MacroDefinition, rules []*rules.RuleDefinition) (string, error) {
-	testPolicyFile, err := os.CreateTemp(dir, "secagent-policy.*.policy")
+	testPolicyFile, err := os.Create(path.Join(dir, "secagent-policy.policy"))
 	if err != nil {
 		return "", err
 	}
@@ -604,6 +610,14 @@ func genTestConfig(dir string, opts testOpts) (*config.Config, error) {
 		opts.eventsCountThreshold = 100000000
 	}
 
+	if opts.activityDumpRateLimiter == 0 {
+		opts.activityDumpRateLimiter = 100
+	}
+
+	if len(opts.activityDumpTracedEventTypes) == 0 {
+		opts.activityDumpTracedEventTypes = []string{"exec", "open", "bind", "dns", "syscalls"}
+	}
+
 	erpcDentryResolutionEnabled := true
 	if opts.disableERPCDentryResolution {
 		erpcDentryResolutionEnabled = false
@@ -616,15 +630,17 @@ func genTestConfig(dir string, opts testOpts) (*config.Config, error) {
 
 	buffer := new(bytes.Buffer)
 	if err := tmpl.Execute(buffer, map[string]interface{}{
-		"TestPoliciesDir":             dir,
-		"DisableApprovers":            opts.disableApprovers,
-		"EnableActivityDump":          opts.enableActivityDump,
-		"EventsCountThreshold":        opts.eventsCountThreshold,
-		"ErpcDentryResolutionEnabled": erpcDentryResolutionEnabled,
-		"MapDentryResolutionEnabled":  mapDentryResolutionEnabled,
-		"LogPatterns":                 logPatterns,
-		"LogTags":                     logTags,
-		"EnvsWithValue":               opts.envsWithValue,
+		"TestPoliciesDir":              dir,
+		"DisableApprovers":             opts.disableApprovers,
+		"EnableActivityDump":           opts.enableActivityDump,
+		"ActivityDumpRateLimiter":      opts.activityDumpRateLimiter,
+		"ActivityDumpTracedEventTypes": opts.activityDumpTracedEventTypes,
+		"EventsCountThreshold":         opts.eventsCountThreshold,
+		"ErpcDentryResolutionEnabled":  erpcDentryResolutionEnabled,
+		"MapDentryResolutionEnabled":   mapDentryResolutionEnabled,
+		"LogPatterns":                  logPatterns,
+		"LogTags":                      logTags,
+		"EnvsWithValue":                opts.envsWithValue,
 	}); err != nil {
 		return nil, err
 	}
@@ -689,11 +705,9 @@ func newTestModule(t testing.TB, macroDefs []*rules.MacroDefinition, ruleDefs []
 		return nil, err
 	}
 
-	cfgFilename, err := setTestPolicy(st.root, macroDefs, ruleDefs)
-	if err != nil {
+	if _, err = setTestPolicy(st.root, macroDefs, ruleDefs); err != nil {
 		return nil, err
 	}
-	defer os.Remove(cfgFilename)
 
 	var cmdWrapper cmdWrapper
 	if testEnvironment == DockerEnvironment {
@@ -708,24 +722,23 @@ func newTestModule(t testing.TB, macroDefs []*rules.MacroDefinition, ruleDefs []
 		}
 	}
 
-	if useReload && testMod != nil {
-		if opts.Equal(testMod.opts) {
-			testMod.st = st
-			testMod.cmdWrapper = cmdWrapper
-			testMod.t = t
+	if testMod != nil && opts.Equal(testMod.opts) {
+		testMod.st = st
+		testMod.cmdWrapper = cmdWrapper
+		testMod.t = t
 
-			testMod.probeHandler.reloading.Lock()
-			defer testMod.probeHandler.reloading.Unlock()
+		testMod.probeHandler.reloading.Lock()
+		defer testMod.probeHandler.reloading.Unlock()
 
-			if err = testMod.reloadConfiguration(); err != nil {
-				return testMod, err
-			}
-
-			if ruleDefs != nil && logStatusMetrics {
-				t.Logf("%s entry stats: %s\n", t.Name(), GetStatusMetrics(testMod.probe))
-			}
-			return testMod, nil
+		if err = testMod.reloadConfiguration(); err != nil {
+			return testMod, err
 		}
+
+		if ruleDefs != nil && logStatusMetrics {
+			t.Logf("%s entry stats: %s\n", t.Name(), GetStatusMetrics(testMod.probe))
+		}
+		return testMod, nil
+	} else if testMod != nil {
 		testMod.probeHandler.SetModule(nil)
 		testMod.cleanup()
 	}
@@ -1256,22 +1269,21 @@ func (tm *testModule) cleanup() {
 	tm.module.Close()
 }
 
+func (tm *testModule) validateAbnormalPaths() {
+	assert.Zero(tm.t, tm.statsdClient.Get("datadog.runtime_security.rules.rate_limiter.allow:rule_id:abnormal_path"))
+}
+
 func (tm *testModule) Close() {
+	tm.module.SendStats()
+
+	if !tm.opts.disableAbnormalPathCheck {
+		tm.validateAbnormalPaths()
+	}
+
+	tm.statsdClient.Flush()
+
 	if logStatusMetrics {
 		tm.t.Logf("%s exit stats: %s\n", tm.t.Name(), GetStatusMetrics(tm.probe))
-	}
-
-	if withProfile {
-		pprof.StopCPUProfile()
-		tm.proFile.Close()
-	}
-
-	if useReload {
-		if _, err := newTestModule(tm.t, nil, nil, tm.opts); err != nil {
-			tm.t.Errorf("couldn't reload module with an empty policy: %v", err)
-		}
-	} else {
-		tm.cleanup()
 	}
 }
 
@@ -1441,7 +1453,7 @@ func waitForOpenProbeEvent(test *testModule, action func() error, filename strin
 func TestMain(m *testing.M) {
 	flag.Parse()
 	retCode := m.Run()
-	if useReload && testMod != nil {
+	if testMod != nil {
 		testMod.cleanup()
 	}
 	os.Exit(retCode)
@@ -1450,7 +1462,6 @@ func TestMain(m *testing.M) {
 func init() {
 	os.Setenv("RUNTIME_SECURITY_TESTSUITE", "true")
 	flag.StringVar(&testEnvironment, "env", HostEnvironment, "environment used to run the test suite: ex: host, docker")
-	flag.BoolVar(&useReload, "reload", true, "reload rules instead of stopping/starting the agent for every test")
 	flag.StringVar(&logLevelStr, "loglevel", seelog.WarnStr, "log level")
 	flag.Var(&logPatterns, "logpattern", "List of log pattern")
 	flag.Var(&logTags, "logtag", "List of log tag")

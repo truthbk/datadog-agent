@@ -136,6 +136,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/network/driver"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil"
 )
 
 /*
@@ -160,7 +161,8 @@ type Http struct {
 	// if such tracking is desired
 	//
 	// Url           string
-	// SiteID        uint32
+	SiteID   uint32
+	SiteName string
 	// HeaderLength  uint32
 	// ContentLength uint32
 }
@@ -174,6 +176,10 @@ type Conn struct {
 type ConnOpen struct {
 	// conntuple
 	conn Conn
+
+	// SSL (tracked only when HttpServiceLogVerbosity == HttpServiceLogVeryVerbose)
+	// by default Go object will have it false which works for us
+	ssl bool
 
 	// http link
 	httpPendingBackLinks map[C.DDGUID]struct{}
@@ -226,6 +232,9 @@ var (
 	maxRequestFragmentBytes uint64 = 25
 	completedHttpTxDropped  uint   = 0 // when should we reset this telemetry and how to expose it
 
+	captureHTTP  bool
+	captureHTTPS bool
+
 	summaryCount              uint64
 	eventCount                uint64
 	servedFromCache           uint64
@@ -238,10 +247,13 @@ var (
 	transferedETWBytesPayload uint64
 
 	lastSummaryTime time.Time
+
+	iisConfig *winutil.DynamicIISConfig
 )
 
 func init() {
 	initializeEtwHttpServiceSubscription()
+
 }
 
 func cleanupActivityIdViaConnOpen(connOpen *ConnOpen, activityId C.DDGUID) {
@@ -255,6 +267,37 @@ func cleanupActivityIdViaConnActivityId(connActivityId C.DDGUID, activityId C.DD
 	if connFound {
 		cleanupActivityIdViaConnOpen(connOpen, activityId)
 	}
+}
+
+func getConnOpen(activityId C.DDGUID) (*ConnOpen, bool) {
+	connOpen, connFound := connOpened[activityId]
+	if !connFound {
+		if captureHTTPS || HttpServiceLogVerbosity == HttpServiceLogVeryVerbose {
+			missedConnectionCount++
+			if HttpServiceLogVerbosity == HttpServiceLogVeryVerbose {
+				log.Warnf("* Warning!!!: ActivityId:%v. Failed to find connection object\n\n", formatGuid(activityId))
+			}
+		}
+		return nil, false
+	}
+
+	return connOpen, connFound
+}
+
+func getHttpConnLink(activityId C.DDGUID) (*HttpConnLink, bool) {
+	httpConnLink, found := http2openConn[activityId]
+	if !found {
+		if captureHTTPS || HttpServiceLogVerbosity == HttpServiceLogVeryVerbose {
+			missedConnectionCount++
+			if HttpServiceLogVerbosity == HttpServiceLogVeryVerbose {
+				log.Warnf("* Warning: ActivityId:%v. Failed to find connection ActivityID\n\n", formatGuid(activityId))
+			}
+		}
+
+		return nil, false
+	}
+
+	return httpConnLink, found
 }
 
 func completeReqRespTracking(eventInfo *C.DD_ETW_EVENT_INFO, httpConnLink *HttpConnLink) {
@@ -320,12 +363,18 @@ func completeReqRespTracking(eventInfo *C.DD_ETW_EVENT_INFO, httpConnLink *HttpC
 
 	completedRequestCount++
 
+	if !captureHTTPS && connOpen.ssl {
+		if HttpServiceLogVerbosity == HttpServiceLogVeryVerbose {
+			log.Infof("Dropping HTTPS connection")
+		}
+		return
+	}
+
 	// Http is completed, move it to completed list ...
 	completedHttpTxMux.Lock()
 	defer completedHttpTxMux.Unlock()
 
 	if uint64(len(completedHttpTx)) <= completedHttpTxMaxCount {
-
 		completedHttpTx = append(completedHttpTx, httpConnLink.http)
 	} else {
 		completedHttpTxDropped++
@@ -486,9 +535,6 @@ func httpCallbackOnHTTPConnectionTraceTaskConnClose(eventInfo *C.DD_ETW_EVENT_IN
 
 		// ... and remoe itself from the map
 		delete(connOpened, eventInfo.event.activityId)
-
-	} else {
-		missedConnectionCount++
 	}
 
 	if HttpServiceLogVerbosity == HttpServiceLogVeryVerbose {
@@ -542,13 +588,8 @@ func httpCallbackOnHTTPRequestTraceTaskRecvReq(eventInfo *C.DD_ETW_EVENT_INFO) {
 		return
 	}
 
-	connOpen, connFound := connOpened[eventInfo.event.activityId]
+	connOpen, connFound := getConnOpen(eventInfo.event.activityId)
 	if !connFound {
-		missedConnectionCount++
-		if HttpServiceLogVerbosity == HttpServiceLogVeryVerbose {
-			log.Warnf("* Warning!!!: ActivityId:%v. Releated ActivityId:%v. HTTPRequestTraceTaskRecvReq failed to find connection object\n\n",
-				formatGuid(eventInfo.event.activityId), formatGuid(*eventInfo.relatedActivityId))
-		}
 		return
 	}
 
@@ -602,10 +643,8 @@ func httpCallbackOnHTTPRequestTraceTaskParse(eventInfo *C.DD_ETW_EVENT_INFO) {
 	}
 
 	// Get req/resp conn link
-	httpConnLink, found := http2openConn[eventInfo.event.activityId]
+	httpConnLink, found := getHttpConnLink(eventInfo.event.activityId)
 	if !found {
-		missedConnectionCount++
-		log.Warnf("* Warning!!!: ActivityId:%v. HTTPRequestTraceTaskParse failed to find connection ActivityID\n\n", formatGuid(eventInfo.event.activityId))
 		return
 	}
 
@@ -641,6 +680,7 @@ func httpCallbackOnHTTPRequestTraceTaskParse(eventInfo *C.DD_ETW_EVENT_INFO) {
 		// in future it probably should be optimize because we have already
 		// whole thing
 		httpConnLink.http.RequestFragment = make([]byte, maxRequestFragmentBytes)
+		httpConnLink.http.Txn.MaxRequestFragment = uint16(maxRequestFragmentBytes)
 		httpConnLink.http.RequestFragment[0] = 32
 
 		// copy rest of arguments
@@ -685,24 +725,14 @@ func httpCallbackOnHTTPRequestTraceTaskDeliver(eventInfo *C.DD_ETW_EVENT_INFO) {
 	}
 
 	// Get req/resp conn link
-	httpConnLink, found := http2openConn[eventInfo.event.activityId]
+	httpConnLink, found := getHttpConnLink(eventInfo.event.activityId)
 	if !found {
-		missedConnectionCount++
-		if HttpServiceLogVerbosity == HttpServiceLogVeryVerbose {
-			log.Warnf("* Warning: ActivityId:%v. HTTPRequestTraceTaskDeliver failed to find connection ActivityID\n\n", formatGuid(eventInfo.event.activityId))
-		}
 		return
 	}
 
 	// Extra output
-	connOpen, connFound := connOpened[httpConnLink.connActivityId]
+	connOpen, connFound := getConnOpen(httpConnLink.connActivityId)
 	if !connFound {
-		missedConnectionCount++
-		if HttpServiceLogVerbosity == HttpServiceLogVeryVerbose {
-			log.Warnf("* Warning!!!: ActivityId:%v. Connection ActivityId:%v. HTTPRequestTraceTaskDeliver failed to find connection object\n\n",
-				formatGuid(eventInfo.event.activityId), formatGuid(httpConnLink.connActivityId))
-		}
-
 		// If no connection found then stop tracking
 		delete(http2openConn, eventInfo.event.activityId)
 		return
@@ -722,7 +752,8 @@ func httpCallbackOnHTTPRequestTraceTaskDeliver(eventInfo *C.DD_ETW_EVENT_INFO) {
 	}
 
 	httpConnLink.http.AppPool = appPool
-
+	httpConnLink.http.SiteID = binary.LittleEndian.Uint32(userData[16:24])
+	httpConnLink.http.SiteName = iisConfig.GetSiteNameFromId(httpConnLink.http.SiteID)
 	// Parse url
 	if urlOffset > len(userData) {
 		parsingErrorCount++
@@ -780,13 +811,8 @@ func httpCallbackOnHTTPRequestTraceTaskRecvResp(eventInfo *C.DD_ETW_EVENT_INFO) 
 	}
 
 	// Get req/resp conn link
-	httpConnLink, found := http2openConn[eventInfo.event.activityId]
+	httpConnLink, found := getHttpConnLink(eventInfo.event.activityId)
 	if !found {
-		missedConnectionCount++
-		if HttpServiceLogVerbosity == HttpServiceLogVeryVerbose {
-			log.Warnf("* Warning!!!: ActivityId:%v. HTTPRequestTraceTaskXxxResp failed to find connection ActivityID\n\n",
-				formatGuid(eventInfo.event.activityId))
-		}
 		return
 	}
 	httpConnLink.http.Txn.ResponseStatusCode = binary.LittleEndian.Uint16(userData[16:18])
@@ -840,13 +866,8 @@ func httpCallbackOnHTTPRequestTraceTaskSrvdFrmCache(eventInfo *C.DD_ETW_EVENT_IN
 	}
 
 	// Get req/resp conn link
-	httpConnLink, found := http2openConn[eventInfo.event.activityId]
+	httpConnLink, found := getHttpConnLink(eventInfo.event.activityId)
 	if !found {
-		missedConnectionCount++
-		if HttpServiceLogVerbosity == HttpServiceLogVeryVerbose {
-			log.Warnf("* Warning!!!: ActivityId:%v. HTTPRequestTraceTaskSrvdFrmCache failed to find connection ActivityID\n\n",
-				formatGuid(eventInfo.event.activityId))
-		}
 		return
 	}
 
@@ -878,7 +899,8 @@ func httpCallbackOnHTTPRequestTraceTaskSrvdFrmCache(eventInfo *C.DD_ETW_EVENT_IN
 		httpConnLink.http.Txn.ResponseStatusCode = cacheEntry.http.Txn.ResponseStatusCode
 
 		// <<<MORE ETW HttpService DETAILS>>>
-		// httpConnLink.http.SiteID = cacheEntry.http.SiteID
+		httpConnLink.http.SiteID = cacheEntry.http.SiteID
+		httpConnLink.http.SiteName = iisConfig.GetSiteNameFromId(cacheEntry.http.SiteID)
 
 		completeReqRespTracking(eventInfo, httpConnLink)
 		servedFromCache++
@@ -1041,18 +1063,41 @@ func httpCallbackOnHTTPRequestTraceTaskSend(eventInfo *C.DD_ETW_EVENT_INFO) {
 	}
 
 	// Get req/resp conn link
-	httpConnLink, found := http2openConn[eventInfo.event.activityId]
+	httpConnLink, found := getHttpConnLink(eventInfo.event.activityId)
 	if !found {
-		missedConnectionCount++
-		if HttpServiceLogVerbosity == HttpServiceLogVeryVerbose {
-			log.Warnf("* Warning!!!: ActivityId:%v failed to find connection ActivityID\n\n", formatGuid(eventInfo.event.activityId))
-		}
 		return
 	}
 
 	completeReqRespTracking(eventInfo, httpConnLink)
 }
 
+// -----------------------------------------------------------
+// HttpService ETW Event #34 (EVENT_ID_HttpService_HTTPSSLTraceTaskSslConnEvent)
+//
+func httpCallbackOnHttpSslConnEvent(eventInfo *C.DD_ETW_EVENT_INFO) {
+	if HttpServiceLogVerbosity == HttpServiceLogVeryVerbose {
+		reportHttpCallbackEvents(eventInfo, true)
+	}
+	/*
+			typedef struct _EVENT_PARAM_HttpService_HTTPTraceTaskConnCleanup {
+		    	0: uint64_t connectionObj;
+			} EVENT_PARAM_HttpService_HTTPTraceTaskConnCleanup;
+	*/
+	if !captureHTTPS {
+
+		if HttpServiceLogVerbosity != HttpServiceLogVeryVerbose {
+			// Drop it immedeatly ...
+			delete(connOpened, eventInfo.event.activityId)
+		} else {
+			// ... unless  if we want to track to the very end
+			connOpen, found := connOpened[eventInfo.event.activityId]
+			if found {
+				connOpen.ssl = true
+			}
+
+		}
+	}
+}
 func reportHttpCallbackEvents(eventInfo *C.DD_ETW_EVENT_INFO, willBeProcessed bool) {
 	var processingStatus string
 	if willBeProcessed {
@@ -1161,6 +1206,10 @@ func etwHttpServiceCallback(eventInfo *C.DD_ETW_EVENT_INFO) {
 	case C.EVENT_ID_HttpService_HTTPCacheTraceTaskFlushedCache:
 		httpCallbackOnHTTPCacheTraceTaskFlushedCache(eventInfo)
 
+	// #34
+	case C.EVENT_ID_HttpService_HTTPSSLTraceTaskSslConnEvent:
+		httpCallbackOnHttpSslConnEvent(eventInfo)
+
 	// #10-14
 	case C.EVENT_ID_HttpService_HTTPRequestTraceTaskSendComplete:
 		fallthrough
@@ -1242,12 +1291,32 @@ func SetMaxRequestBytes(maxRequestBytes uint64) {
 	maxRequestFragmentBytes = maxRequestBytes
 }
 
+func SetEnabledProtocols(http, https bool) {
+	captureHTTP = http
+	captureHTTPS = https
+}
 func startEtwHttpServiceSubscription() {
 	initializeEtwHttpServiceSubscription()
 	httpServiceSubscribed = true
+	var err error
+	iisConfig, err = winutil.NewDynamicIISConfig()
+	if err != nil {
+		log.Warnf("Failed to create iis config %v", err)
+		iisConfig = nil
+	} else {
+		err = iisConfig.Start()
+		if err != nil {
+			log.Warnf("Failed to start iis config %v", err)
+			iisConfig = nil
+		}
+	}
 }
 
 func stopEtwHttpServiceSubscription() {
 	httpServiceSubscribed = false
 	initializeEtwHttpServiceSubscription()
+	if iisConfig != nil {
+		iisConfig.Stop()
+		iisConfig = nil
+	}
 }
