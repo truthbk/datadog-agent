@@ -32,6 +32,8 @@ import (
 	"time"
 	"unsafe"
 
+	"runtime/pprof"
+
 	"github.com/cihub/seelog"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/go-multierror"
@@ -87,9 +89,11 @@ runtime_security_config:
     enabled: true
 {{if .EnableActivityDump}}
   activity_dump:
-    syscall_monitor:
-      enabled: true
     enabled: true
+    rate_limiter: {{ .ActivityDumpRateLimiter }}
+    traced_event_types:   {{range .ActivityDumpTracedEventTypes}}
+    - {{.}}
+    {{end}}
 {{end}}
   load_controller:
     events_count_threshold: {{ .EventsCountThreshold }}
@@ -152,11 +156,11 @@ rules:
 
 var (
 	testEnvironment  string
-	useReload        bool
 	logLevelStr      string
 	logPatterns      stringSlice
 	logTags          stringSlice
 	logStatusMetrics bool
+	withProfile      bool
 )
 
 const (
@@ -167,16 +171,19 @@ const (
 )
 
 type testOpts struct {
-	testDir                     string
-	disableFilters              bool
-	disableApprovers            bool
-	enableActivityDump          bool
-	disableDiscarders           bool
-	eventsCountThreshold        int
-	reuseProbeHandler           bool
-	disableERPCDentryResolution bool
-	disableMapDentryResolution  bool
-	envsWithValue               []string
+	testDir                      string
+	disableFilters               bool
+	disableApprovers             bool
+	enableActivityDump           bool
+	activityDumpRateLimiter      int
+	activityDumpTracedEventTypes []string
+	disableDiscarders            bool
+	eventsCountThreshold         int
+	reuseProbeHandler            bool
+	disableERPCDentryResolution  bool
+	disableMapDentryResolution   bool
+	envsWithValue                []string
+	disableAbnormalPathCheck     bool
 }
 
 func (s *stringSlice) String() string {
@@ -192,6 +199,8 @@ func (to testOpts) Equal(opts testOpts) bool {
 	return to.testDir == opts.testDir &&
 		to.disableApprovers == opts.disableApprovers &&
 		to.enableActivityDump == opts.enableActivityDump &&
+		to.activityDumpRateLimiter == opts.activityDumpRateLimiter &&
+		reflect.DeepEqual(to.activityDumpTracedEventTypes, opts.activityDumpTracedEventTypes) &&
 		to.disableDiscarders == opts.disableDiscarders &&
 		to.disableFilters == opts.disableFilters &&
 		to.eventsCountThreshold == opts.eventsCountThreshold &&
@@ -213,6 +222,7 @@ type testModule struct {
 	ruleHandler           testRuleHandler
 	eventDiscarderHandler testEventDiscarderHandler
 	statsdClient          *StatsdClient
+	proFile               *os.File
 }
 
 var testMod *testModule
@@ -304,16 +314,26 @@ func getInode(tb testing.TB, path string) uint64 {
 
 //nolint:deadcode,unused
 func which(tb testing.TB, name string) string {
+	executable, err := whichNonFatal(name)
+	if err != nil {
+		tb.Fatalf("%s", err)
+	}
+	return executable
+}
+
+//nolint:deadcode,unused
+// whichNonFatal is "which" which returns an error instead of fatal
+func whichNonFatal(name string) (string, error) {
 	executable, err := exec.LookPath(name)
 	if err != nil {
-		tb.Fatalf("couldn't resolve %s: %v", name, err)
+		return "", fmt.Errorf("could not resolve %s: %v", name, err)
 	}
 
 	if dest, err := filepath.EvalSymlinks(executable); err == nil {
-		return dest
+		return dest, nil
 	}
 
-	return executable
+	return executable, nil
 }
 
 //nolint:deadcode,unused
@@ -523,9 +543,8 @@ func validateProcessContext(tb testing.TB, event *sprobe.Event) {
 //nolint:deadcode,unused
 func validateEvent(tb testing.TB, validate func(event *sprobe.Event, rule *rules.Rule)) func(event *sprobe.Event, rule *rules.Rule) {
 	return func(event *sprobe.Event, rule *rules.Rule) {
-		validate(event, rule)
-
 		validateProcessContext(tb, event)
+		validate(event, rule)
 	}
 }
 
@@ -546,7 +565,7 @@ func validateExecEvent(tb *testing.T, kind wrapperType, validate func(event *spr
 }
 
 func setTestPolicy(dir string, macros []*rules.MacroDefinition, rules []*rules.RuleDefinition) (string, error) {
-	testPolicyFile, err := os.CreateTemp(dir, "secagent-policy.*.policy")
+	testPolicyFile, err := os.Create(path.Join(dir, "secagent-policy.policy"))
 	if err != nil {
 		return "", err
 	}
@@ -591,6 +610,14 @@ func genTestConfig(dir string, opts testOpts) (*config.Config, error) {
 		opts.eventsCountThreshold = 100000000
 	}
 
+	if opts.activityDumpRateLimiter == 0 {
+		opts.activityDumpRateLimiter = 100
+	}
+
+	if len(opts.activityDumpTracedEventTypes) == 0 {
+		opts.activityDumpTracedEventTypes = []string{"exec", "open", "bind", "dns", "syscalls"}
+	}
+
 	erpcDentryResolutionEnabled := true
 	if opts.disableERPCDentryResolution {
 		erpcDentryResolutionEnabled = false
@@ -603,15 +630,17 @@ func genTestConfig(dir string, opts testOpts) (*config.Config, error) {
 
 	buffer := new(bytes.Buffer)
 	if err := tmpl.Execute(buffer, map[string]interface{}{
-		"TestPoliciesDir":             dir,
-		"DisableApprovers":            opts.disableApprovers,
-		"EnableActivityDump":          opts.enableActivityDump,
-		"EventsCountThreshold":        opts.eventsCountThreshold,
-		"ErpcDentryResolutionEnabled": erpcDentryResolutionEnabled,
-		"MapDentryResolutionEnabled":  mapDentryResolutionEnabled,
-		"LogPatterns":                 logPatterns,
-		"LogTags":                     logTags,
-		"EnvsWithValue":               opts.envsWithValue,
+		"TestPoliciesDir":              dir,
+		"DisableApprovers":             opts.disableApprovers,
+		"EnableActivityDump":           opts.enableActivityDump,
+		"ActivityDumpRateLimiter":      opts.activityDumpRateLimiter,
+		"ActivityDumpTracedEventTypes": opts.activityDumpTracedEventTypes,
+		"EventsCountThreshold":         opts.eventsCountThreshold,
+		"ErpcDentryResolutionEnabled":  erpcDentryResolutionEnabled,
+		"MapDentryResolutionEnabled":   mapDentryResolutionEnabled,
+		"LogPatterns":                  logPatterns,
+		"LogTags":                      logTags,
+		"EnvsWithValue":                opts.envsWithValue,
 	}); err != nil {
 		return nil, err
 	}
@@ -643,6 +672,25 @@ func genTestConfig(dir string, opts testOpts) (*config.Config, error) {
 }
 
 func newTestModule(t testing.TB, macroDefs []*rules.MacroDefinition, ruleDefs []*rules.RuleDefinition, opts testOpts) (*testModule, error) {
+	var proFile *os.File
+	if withProfile {
+		var err error
+		proFile, err = os.CreateTemp("/tmp", fmt.Sprintf("cpu-profile-%s", t.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err = os.Chmod(proFile.Name(), 0666); err != nil {
+			t.Fatal(err)
+		}
+
+		t.Logf("Generating CPU profile in %s", proFile.Name())
+
+		if err := pprof.StartCPUProfile(proFile); err != nil {
+			t.Fatal(err)
+		}
+	}
+
 	if err := initLogger(); err != nil {
 		return nil, err
 	}
@@ -657,17 +705,15 @@ func newTestModule(t testing.TB, macroDefs []*rules.MacroDefinition, ruleDefs []
 		return nil, err
 	}
 
-	cfgFilename, err := setTestPolicy(st.root, macroDefs, ruleDefs)
-	if err != nil {
+	if _, err = setTestPolicy(st.root, macroDefs, ruleDefs); err != nil {
 		return nil, err
 	}
-	defer os.Remove(cfgFilename)
 
 	var cmdWrapper cmdWrapper
 	if testEnvironment == DockerEnvironment {
 		cmdWrapper = newStdCmdWrapper()
 	} else {
-		wrapper, err := newDockerCmdWrapper(st.Root())
+		wrapper, err := newDockerCmdWrapper(st.Root(), "ubuntu")
 		if err == nil {
 			cmdWrapper = newMultiCmdWrapper(wrapper, newStdCmdWrapper())
 		} else {
@@ -676,24 +722,23 @@ func newTestModule(t testing.TB, macroDefs []*rules.MacroDefinition, ruleDefs []
 		}
 	}
 
-	if useReload && testMod != nil {
-		if opts.Equal(testMod.opts) {
-			testMod.st = st
-			testMod.cmdWrapper = cmdWrapper
-			testMod.t = t
+	if testMod != nil && opts.Equal(testMod.opts) {
+		testMod.st = st
+		testMod.cmdWrapper = cmdWrapper
+		testMod.t = t
 
-			testMod.probeHandler.reloading.Lock()
-			defer testMod.probeHandler.reloading.Unlock()
+		testMod.probeHandler.reloading.Lock()
+		defer testMod.probeHandler.reloading.Unlock()
 
-			if err = testMod.reloadConfiguration(); err != nil {
-				return testMod, err
-			}
-
-			if ruleDefs != nil && logStatusMetrics {
-				t.Logf("%s entry stats: %s\n", t.Name(), GetStatusMetrics(testMod.probe))
-			}
-			return testMod, nil
+		if err = testMod.reloadConfiguration(); err != nil {
+			return testMod, err
 		}
+
+		if ruleDefs != nil && logStatusMetrics {
+			t.Logf("%s entry stats: %s\n", t.Name(), GetStatusMetrics(testMod.probe))
+		}
+		return testMod, nil
+	} else if testMod != nil {
 		testMod.probeHandler.SetModule(nil)
 		testMod.cleanup()
 	}
@@ -721,6 +766,7 @@ func newTestModule(t testing.TB, macroDefs []*rules.MacroDefinition, ruleDefs []
 		probeHandler: &testProbeHandler{module: mod.(*module.Module)},
 		cmdWrapper:   cmdWrapper,
 		statsdClient: statsdClient,
+		proFile:      proFile,
 	}
 
 	var loadErr *multierror.Error
@@ -729,6 +775,8 @@ func newTestModule(t testing.TB, macroDefs []*rules.MacroDefinition, ruleDefs []
 		log.Infof("Adding test module as listener")
 		rs.AddListener(testMod)
 	})
+
+	testMod.probe.AddNewNotifyDiscarderPushedCallback(testMod.NotifyDiscarderPushedCallback)
 
 	if err := testMod.module.Init(); err != nil {
 		return nil, fmt.Errorf("failed to init module: %w", err)
@@ -792,19 +840,22 @@ func (tm *testModule) RuleMatch(rule *rules.Rule, event eval.Event) {
 	}
 }
 
+func (tm *testModule) EventDiscarderFound(rs *rules.RuleSet, event eval.Event, field eval.Field, eventType eval.EventType) {
+}
+
 func (tm *testModule) RegisterEventDiscarderHandler(cb eventDiscarderHandler) {
 	tm.eventDiscarderHandler.Lock()
 	tm.eventDiscarderHandler.callback = cb
 	tm.eventDiscarderHandler.Unlock()
 }
 
-func (tm *testModule) EventDiscarderFound(rs *rules.RuleSet, event eval.Event, field eval.Field, eventType eval.EventType) {
+func (tm *testModule) NotifyDiscarderPushedCallback(eventType string, event *sprobe.Event, field string) {
 	tm.eventDiscarderHandler.RLock()
 	callback := tm.eventDiscarderHandler.callback
 	tm.eventDiscarderHandler.RUnlock()
 
 	if callback != nil {
-		discarder := &testDiscarder{event: event.(*sprobe.Event), field: field, eventType: eventType}
+		discarder := &testDiscarder{event: event, field: field, eventType: eventType}
 		_ = callback(discarder)
 	}
 }
@@ -1218,17 +1269,21 @@ func (tm *testModule) cleanup() {
 	tm.module.Close()
 }
 
+func (tm *testModule) validateAbnormalPaths() {
+	assert.Zero(tm.t, tm.statsdClient.Get("datadog.runtime_security.rules.rate_limiter.allow:rule_id:abnormal_path"))
+}
+
 func (tm *testModule) Close() {
-	if logStatusMetrics {
-		tm.t.Logf("%s exit stats: %s\n", tm.t.Name(), GetStatusMetrics(tm.probe))
+	tm.module.SendStats()
+
+	if !tm.opts.disableAbnormalPathCheck {
+		tm.validateAbnormalPaths()
 	}
 
-	if useReload {
-		if _, err := newTestModule(tm.t, nil, nil, tm.opts); err != nil {
-			tm.t.Errorf("couldn't reload module with an empty policy: %v", err)
-		}
-	} else {
-		tm.cleanup()
+	tm.statsdClient.Flush()
+
+	if logStatusMetrics {
+		tm.t.Logf("%s exit stats: %s\n", tm.t.Name(), GetStatusMetrics(tm.probe))
 	}
 }
 
@@ -1398,7 +1453,7 @@ func waitForOpenProbeEvent(test *testModule, action func() error, filename strin
 func TestMain(m *testing.M) {
 	flag.Parse()
 	retCode := m.Run()
-	if useReload && testMod != nil {
+	if testMod != nil {
 		testMod.cleanup()
 	}
 	os.Exit(retCode)
@@ -1407,11 +1462,12 @@ func TestMain(m *testing.M) {
 func init() {
 	os.Setenv("RUNTIME_SECURITY_TESTSUITE", "true")
 	flag.StringVar(&testEnvironment, "env", HostEnvironment, "environment used to run the test suite: ex: host, docker")
-	flag.BoolVar(&useReload, "reload", true, "reload rules instead of stopping/starting the agent for every test")
 	flag.StringVar(&logLevelStr, "loglevel", seelog.WarnStr, "log level")
 	flag.Var(&logPatterns, "logpattern", "List of log pattern")
 	flag.Var(&logTags, "logtag", "List of log tag")
 	flag.BoolVar(&logStatusMetrics, "status-metrics", false, "display status metrics")
+	flag.BoolVar(&withProfile, "with-profile", false, "enable profile per test")
+
 	rand.Seed(time.Now().UnixNano())
 
 	testSuitePid = uint32(utils.Getpid())
@@ -1477,22 +1533,25 @@ func (tm *testModule) StopActivityDumpComm(t *testing.T, comm string) error {
 	return nil
 }
 
-func (tm *testModule) DecodeMSPActivityDump(t *testing.T, path string) (*sprobe.ActivityDump, error) {
+func (tm *testModule) DecodeActivityDump(t *testing.T, path string) (*sprobe.ActivityDump, error) {
 	monitor := tm.probe.GetMonitor()
 	if monitor == nil {
 		return nil, errors.New("No monitor")
 	}
+
 	adm := monitor.GetActivityDumpManager()
 	if adm == nil {
 		return nil, errors.New("No activity dump manager")
 	}
+
 	ad := sprobe.NewActivityDump(adm)
 	if ad == nil {
-		return nil, errors.New("Creatioln of new activity dump fails")
+		return nil, errors.New("Creation of new activity dump fails")
 	}
-	err := ad.Decode(path)
-	if err != nil {
+
+	if err := ad.Decode(path); err != nil {
 		return nil, err
 	}
+
 	return ad, nil
 }

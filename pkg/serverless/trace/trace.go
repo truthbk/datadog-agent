@@ -43,6 +43,9 @@ const lambdaRuntimeURLPrefix = "http://127.0.0.1:9001"
 // lambdaExtensionURLPrefix is the first part of a URL for a call from the Datadog Lambda Library to the Lambda Extension
 const lambdaExtensionURLPrefix = "http://127.0.0.1:8124"
 
+// lambdaStatsDURLPrefix is the first part of a URL for a call from Statsd
+const lambdaStatsDURLPrefix = "http://127.0.0.1:8125"
+
 const invocationSpanResource = "dd-tracer-serverless-span"
 
 // Load loads the config from a file path
@@ -70,9 +73,7 @@ func (s *ServerlessTraceAgent) Start(enabled bool, loadConfig Load) {
 			s.ta.ModifySpan = s.spanModifier.ModifySpan
 			s.ta.DiscardSpan = filterSpanFromLambdaLibraryOrRuntime
 			s.cancel = cancel
-			go func() {
-				s.ta.Run()
-			}()
+			go s.ta.Run()
 		}
 	}
 }
@@ -114,6 +115,12 @@ func filterSpanFromLambdaLibraryOrRuntime(span *pb.Span) bool {
 			log.Debugf("Detected span with http url %s, removing it", val)
 			return true
 		}
+
+		if strings.HasPrefix(val, lambdaStatsDURLPrefix) {
+			log.Debugf("Detected span with http url %s, removing it", val)
+			return true
+		}
+
 		if strings.HasPrefix(val, lambdaRuntimeURLPrefix) {
 			log.Debugf("Detected span with http url %s, removing it", val)
 			return true

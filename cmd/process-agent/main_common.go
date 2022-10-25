@@ -15,10 +15,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	cmdconfig "github.com/DataDog/datadog-agent/cmd/agent/common/commands/config"
+	"github.com/DataDog/datadog-agent/cmd/agent/common/misconfig"
 	"github.com/DataDog/datadog-agent/cmd/manager"
 	"github.com/DataDog/datadog-agent/cmd/process-agent/api"
 	"github.com/DataDog/datadog-agent/cmd/process-agent/app"
+	cmdconfig "github.com/DataDog/datadog-agent/cmd/process-agent/commands/config"
 	sysconfig "github.com/DataDog/datadog-agent/cmd/system-probe/config"
 	apiutil "github.com/DataDog/datadog-agent/pkg/api/util"
 	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
@@ -125,17 +126,13 @@ func runAgent(exit chan struct{}) {
 		}()
 	}
 
-	// We need to load in the system probe environment variables before we load the config, otherwise an
-	// "Unknown environment variable" warning will show up whenever valid system probe environment variables are defined.
-	ddconfig.InitSystemProbeConfig(ddconfig.Datadog)
-
 	if err := config.LoadConfigIfExists(opts.configPath); err != nil {
 		_ = log.Criticalf("Error parsing config: %s", err)
 		cleanupAndExit(1)
 	}
 
 	// For system probe, there is an additional config file that is shared with the system-probe
-	syscfg, err := sysconfig.Merge(opts.sysProbeConfigPath)
+	syscfg, err := sysconfig.New(opts.sysProbeConfigPath)
 	if err != nil {
 		_ = log.Critical(err)
 		cleanupAndExit(1)
@@ -162,6 +159,9 @@ func runAgent(exit chan struct{}) {
 	log.Infof("running on platform: %s", hostInfo.Platform)
 	agentVersion, _ := version.Agent()
 	log.Infof("running version: %s", agentVersion.GetNumberAndPre())
+
+	// Log any potential misconfigs that are related to the process agent
+	misconfig.ToLog(misconfig.ProcessAgent)
 
 	// Start workload metadata store before tagger (used for containerCollection)
 	store := workloadmeta.GetGlobalStore()

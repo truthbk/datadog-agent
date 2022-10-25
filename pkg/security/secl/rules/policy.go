@@ -6,7 +6,6 @@
 package rules
 
 import (
-	"errors"
 	"fmt"
 	"io"
 
@@ -42,7 +41,7 @@ func (p *Policy) AddRule(def *RuleDefinition) {
 	p.Rules = append(p.Rules, def)
 }
 
-func parsePolicyDef(name string, source string, def *PolicyDef, filters []RuleFilter) (*Policy, *multierror.Error) {
+func parsePolicyDef(name string, source string, def *PolicyDef, macroFilters []MacroFilter, ruleFilters []RuleFilter) (*Policy, error) {
 	var errs *multierror.Error
 
 	policy := &Policy{
@@ -51,7 +50,20 @@ func parsePolicyDef(name string, source string, def *PolicyDef, filters []RuleFi
 		Version: def.Version,
 	}
 
+	var skipped []*RuleDefinition
+
+MACROS:
 	for _, macroDef := range def.Macros {
+		for _, filter := range macroFilters {
+			isMacroAccepted, err := filter.IsMacroAccepted(macroDef)
+			if err != nil {
+				errs = multierror.Append(errs, &ErrMacroLoad{Definition: macroDef, Err: fmt.Errorf("error when evaluating one of the macro filters: %w", err)})
+			}
+			if !isMacroAccepted {
+				continue MACROS
+			}
+		}
+
 		if macroDef.ID == "" {
 			errs = multierror.Append(errs, &ErrMacroLoad{Err: fmt.Errorf("no ID defined for macro with expression `%s`", macroDef.Expression)})
 			continue
@@ -64,40 +76,57 @@ func parsePolicyDef(name string, source string, def *PolicyDef, filters []RuleFi
 		policy.AddMacro(macroDef)
 	}
 
-LOOP:
+RULES:
 	for _, ruleDef := range def.Rules {
-		for _, filter := range filters {
-			isAccepted, err := filter.IsAccepted(ruleDef)
+		for _, filter := range ruleFilters {
+			isRuleAccepted, err := filter.IsRuleAccepted(ruleDef)
 			if err != nil {
-				errs = multierror.Append(errs, &ErrRuleLoad{Definition: ruleDef, Err: fmt.Errorf("error when evaluating one of the rules filters: %w", err)})
+				errs = multierror.Append(errs, &ErrRuleLoad{Definition: ruleDef, Err: ErrRuleAgentVersion})
 			}
-			if !isAccepted {
-				continue LOOP
+			if !isRuleAccepted {
+				// report only agent version filtering
+				if _, ok := filter.(*AgentVersionFilter); ok {
+					skipped = append(skipped, ruleDef)
+				}
+				continue RULES
 			}
 		}
 
 		if ruleDef.ID == "" {
-			errs = multierror.Append(errs, &ErrRuleLoad{Definition: ruleDef, Err: fmt.Errorf("no ID defined for rule with expression `%s`", ruleDef.Expression)})
+			errs = multierror.Append(errs, &ErrRuleLoad{Definition: ruleDef, Err: ErrRuleWithoutID})
 			continue
 		}
 		if !validators.CheckRuleID(ruleDef.ID) {
-			errs = multierror.Append(errs, &ErrRuleLoad{Definition: ruleDef, Err: fmt.Errorf("ID does not match pattern `%s`", validators.RuleIDPattern)})
+			errs = multierror.Append(errs, &ErrRuleLoad{Definition: ruleDef, Err: ErrRuleIDPattern})
 			continue
 		}
 
 		if ruleDef.Expression == "" && !ruleDef.Disabled {
-			errs = multierror.Append(errs, &ErrRuleLoad{Definition: ruleDef, Err: errors.New("no expression defined")})
+			errs = multierror.Append(errs, &ErrRuleLoad{Definition: ruleDef, Err: ErrRuleWithoutExpression})
 			continue
 		}
 
 		policy.AddRule(ruleDef)
 	}
 
-	return policy, errs
+LOOP:
+	for _, s := range skipped {
+		for _, r := range policy.Rules {
+			if s.ID == r.ID {
+				continue LOOP
+			}
+		}
+		// set the policy so that when we parse the errors we can get the policy associated
+		s.Policy = policy
+
+		errs = multierror.Append(errs, &ErrRuleLoad{Definition: s, Err: ErrRuleAgentVersion})
+	}
+
+	return policy, errs.ErrorOrNil()
 }
 
 // LoadPolicy load a policy
-func LoadPolicy(name string, source string, reader io.Reader, filters []RuleFilter) (*Policy, error) {
+func LoadPolicy(name string, source string, reader io.Reader, macroFilters []MacroFilter, ruleFilters []RuleFilter) (*Policy, error) {
 	var def PolicyDef
 
 	decoder := yaml.NewDecoder(reader)
@@ -105,10 +134,5 @@ func LoadPolicy(name string, source string, reader io.Reader, filters []RuleFilt
 		return nil, &ErrPolicyLoad{Name: name, Err: err}
 	}
 
-	policy, errs := parsePolicyDef(name, source, &def, filters)
-	if errs.ErrorOrNil() != nil {
-		return nil, errs.ErrorOrNil()
-	}
-
-	return policy, nil
+	return parsePolicyDef(name, source, &def, macroFilters, ruleFilters)
 }

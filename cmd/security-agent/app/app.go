@@ -7,6 +7,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -66,6 +67,10 @@ var (
 Datadog Security Agent takes care of running compliance and security checks.`,
 		SilenceUsage: true, // don't print usage on errors
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if flagNoColor {
+				color.NoColor = true
+			}
+
 			return common.MergeConfigurationFiles("datadog", confPathArray, cmd.Flags().Lookup("cfgpath").Changed)
 		},
 	}
@@ -82,22 +87,17 @@ Datadog Security Agent takes care of running compliance and security checks.`,
 		Short: "Print the version info",
 		Long:  ``,
 		Run: func(cmd *cobra.Command, args []string) {
-			if flagNoColor {
-				color.NoColor = true
-			}
 			av, _ := version.Agent()
 			meta := ""
 			if av.Meta != "" {
 				meta = fmt.Sprintf("- Meta: %s ", color.YellowString(av.Meta))
 			}
-			fmt.Fprintln(
-				color.Output,
-				fmt.Sprintf("Security agent %s %s- Commit: '%s' - Serialization version: %s",
-					color.BlueString(av.GetNumberAndPre()),
-					meta,
-					color.GreenString(version.Commit),
-					color.MagentaString(serializer.AgentPayloadVersion),
-				),
+
+			fmt.Fprintf(color.Output, "Security agent %s %s- Commit: '%s' - Serialization version: %s\n",
+				color.BlueString(av.GetNumberAndPre()),
+				meta,
+				color.GreenString(version.Commit),
+				color.MagentaString(serializer.AgentPayloadVersion),
 			)
 		},
 	}
@@ -164,6 +164,9 @@ func start(cmd *cobra.Command, args []string) error {
 	go handleSignals(stopCh)
 
 	err := RunAgent(ctx)
+	if errors.Is(err, errAllComponentsDisabled) {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
@@ -173,6 +176,8 @@ func start(cmd *cobra.Command, args []string) error {
 
 	return nil
 }
+
+var errAllComponentsDisabled = errors.New("all security-agent component are disabled")
 
 // RunAgent initialized resources and starts API server
 func RunAgent(ctx context.Context) (err error) {
@@ -219,7 +224,7 @@ func RunAgent(ctx context.Context) (err error) {
 		// to startup because of an error. Only applies on Debian 7.
 		time.Sleep(5 * time.Second)
 
-		return nil
+		return errAllComponentsDisabled
 	}
 
 	if !coreconfig.Datadog.IsSet("api_key") {

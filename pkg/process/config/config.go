@@ -8,7 +8,6 @@ package config
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -47,6 +46,7 @@ const (
 	RTContainerCheckName   = "rtcontainer"
 	ConnectionsCheckName   = "connections"
 	PodCheckName           = "pod"
+	PodCheckManifestName   = "pod_manifest"
 	DiscoveryCheckName     = "process_discovery"
 	ProcessEventsCheckName = "process_events"
 
@@ -201,7 +201,7 @@ func NewAgentConfig(loggerName config.LoggerName, yamlPath string, syscfg *sysco
 
 	// (Re)configure the logging from our configuration
 	logFile := config.Datadog.GetString("process_config.log_file")
-	if err := setupLogger(loggerName, logFile, cfg); err != nil {
+	if err := setupLogger(loggerName, logFile); err != nil {
 		log.Errorf("failed to setup configured logger: %s", err)
 		return nil, err
 	}
@@ -278,15 +278,6 @@ func loadEnvVariables() {
 	} {
 		if v, ok := os.LookupEnv(variable.env); ok {
 			config.Datadog.Set(variable.cfg, v)
-		}
-	}
-
-	if v := os.Getenv("DD_ORCHESTRATOR_ADDITIONAL_ENDPOINTS"); v != "" {
-		endpoints := make(map[string][]string)
-		if err := json.Unmarshal([]byte(v), &endpoints); err != nil {
-			log.Errorf(`Could not parse DD_ORCHESTRATOR_ADDITIONAL_ENDPOINTS: %v. It must be of the form '{"https://process.agent.datadoghq.com": ["apikey1", ...], ...}'.`, err)
-		} else {
-			config.Datadog.Set("orchestrator_explorer.orchestrator_additional_endpoints", endpoints)
 		}
 	}
 }
@@ -442,7 +433,11 @@ func constructProxy(host, scheme string, port int, user, password string) (proxy
 	return http.ProxyURL(u), nil
 }
 
-func setupLogger(loggerName config.LoggerName, logFile string, cfg *AgentConfig) error {
+func setupLogger(loggerName config.LoggerName, logFile string) error {
+	if config.Datadog.GetBool("disable_file_logging") {
+		logFile = ""
+	}
+
 	return config.SetupLogger(
 		loggerName,
 		config.Datadog.GetString("log_level"),
