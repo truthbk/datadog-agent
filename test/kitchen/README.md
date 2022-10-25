@@ -12,11 +12,11 @@ However, people outside of Datadog can run it by editing the repository URL that
 
 ### Dependencies
 Non-bundled dependencies:
- - [Ruby](http://www.ruby-lang.org/) (last tested with 2.2.1)
- - [Bundler](http://bundler.io/)
+ - [Ruby](http://www.ruby-lang.org/) (last tested with 2.7.5)
+ - [Bundler](http://bundler.io/) (last tested with 2.3.24)
 
 Then install bundled gem dependencies:
- ` bundle install --path ./Gemfile.local`
+ ` bundle install --gemfile Gemfile.local`
 
 Note: you might run into an error building the `nio4r` native extensions. You
 should be able to get around that by setting the build cflags for the gem
