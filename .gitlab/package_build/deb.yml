@@ -96,7 +96,7 @@ agent_deb-arm64-a6:
     !reference [.on_all_builds_a6]
   stage: package_build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_arm64:$DATADOG_AGENT_ARMBUILDIMAGES
-  tags: ["runner:docker-arm", "platform:arm64"]
+  tags: ["arch:arm64"]
   needs: ["go_mod_tidy_check", "build_system-probe-arm64", "go_deps"]
   variables:
     AGENT_MAJOR_VERSION: 6
@@ -105,6 +105,7 @@ agent_deb-arm64-a6:
     DESTINATION_DEB: 'datadog-agent_6_arm64.deb'
     DESTINATION_DBG_DEB: 'datadog-agent-dbg_6_arm64.deb'
   before_script:
+    - source /etc/profile
     - source /root/.bashrc && conda activate ddpy3
     - export RELEASE_VERSION=$RELEASE_VERSION_6
 
@@ -114,7 +115,7 @@ agent_deb-arm64-a7:
     !reference [.on_all_builds_a7]
   stage: package_build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_arm64:$DATADOG_AGENT_ARMBUILDIMAGES
-  tags: ["runner:docker-arm", "platform:arm64"]
+  tags: ["arch:arm64"]
   needs: ["go_mod_tidy_check", "build_system-probe-arm64", "go_deps"]
   variables:
     AGENT_MAJOR_VERSION: 7
@@ -123,6 +124,7 @@ agent_deb-arm64-a7:
     DESTINATION_DEB: 'datadog-agent_7_arm64.deb'
     DESTINATION_DBG_DEB: 'datadog-agent-dbg_7_arm64.deb'
   before_script:
+    - source /etc/profile
     - source /root/.bashrc && conda activate ddpy3
     - export RELEASE_VERSION=$RELEASE_VERSION_7
 
@@ -167,11 +169,13 @@ iot_agent_deb-arm64:
     !reference [.on_all_builds_a7]
   stage: package_build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_arm64:$DATADOG_AGENT_ARMBUILDIMAGES
-  tags: ["runner:docker-arm", "platform:arm64"]
+  tags: ["arch:arm64"]
   needs: ["go_mod_tidy_check", "go_deps"]
   variables:
     PACKAGE_ARCH: arm64
     DESTINATION_DEB: 'datadog-iot-agent_7_arm64.deb'
+  before_script:
+    - source /etc/profile
 
 iot_agent_deb-armhf:
   extends: .iot_agent_build_common_deb
@@ -180,11 +184,13 @@ iot_agent_deb-armhf:
   stage: package_build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_armhf:$DATADOG_AGENT_ARMBUILDIMAGES
   # Run with platform:arm64 since no platform:armhf exists and arm64 should be backwards compatible
-  tags: ["runner:docker-arm", "platform:arm64"]
+  tags: ["arch:arm64"]
   needs: ["go_mod_tidy_check", "go_deps"]
   variables:
     PACKAGE_ARCH: armhf
     DESTINATION_DEB: 'datadog-iot-agent_7_armhf.deb'
+  before_script:
+    - source /etc/profile
 
 dogstatsd_deb-x64:
   rules:
@@ -220,7 +226,7 @@ dogstatsd_deb-arm64:
     !reference [.on_all_builds_a7]
   stage: package_build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_arm64:$DATADOG_AGENT_ARMBUILDIMAGES
-  tags: ["runner:docker-arm", "platform:arm64"]
+  tags: ["arch:arm64"]
   needs: ["go_mod_tidy_check", "build_dogstatsd-binary_arm64", "go_deps"]
   before_script:
     - !reference [.retrieve_linux_go_deps]

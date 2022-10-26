@@ -91,13 +91,14 @@ agent_rpm-arm64-a6:
     !reference [.on_all_builds_a6]
   stage: package_build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/rpm_arm64:$DATADOG_AGENT_ARMBUILDIMAGES
-  tags: ["runner:docker-arm", "platform:arm64"]
+  tags: ["arch:arm64"]
   needs: ["go_mod_tidy_check", "build_system-probe-arm64", "go_deps"]
   variables:
     AGENT_MAJOR_VERSION: 6
     PYTHON_RUNTIMES: '2,3'
     PACKAGE_ARCH: arm64
   before_script:
+    - source /etc/profile
     - source /root/.bashrc && conda activate ddpy3
     - export RELEASE_VERSION=$RELEASE_VERSION_6
 
@@ -108,13 +109,14 @@ agent_rpm-arm64-a7:
     !reference [.on_all_builds_a7]
   stage: package_build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/rpm_arm64:$DATADOG_AGENT_ARMBUILDIMAGES
-  tags: ["runner:docker-arm", "platform:arm64"]
+  tags: ["arch:arm64"]
   needs: ["go_mod_tidy_check", "build_system-probe-arm64", "go_deps"]
   variables:
     AGENT_MAJOR_VERSION: 7
     PYTHON_RUNTIMES: '3'
     PACKAGE_ARCH: arm64
   before_script:
+    - source /etc/profile
     - source /root/.bashrc && conda activate ddpy3
     - export RELEASE_VERSION=$RELEASE_VERSION_7
 
@@ -159,8 +161,10 @@ iot_agent_rpm-arm64:
     !reference [.on_all_builds_a7]
   stage: package_build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/rpm_arm64:$DATADOG_AGENT_ARMBUILDIMAGES
-  tags: ["runner:docker-arm", "platform:arm64"]
+  tags: ["arch:arm64"]
   needs: ["go_mod_tidy_check", "go_deps"]
+  before_script:
+    - source /etc/profile
 
 iot_agent_rpm-armhf:
   extends: .iot_agent_build_common_rpm
@@ -169,9 +173,10 @@ iot_agent_rpm-armhf:
   stage: package_build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/rpm_armhf:$DATADOG_AGENT_ARMBUILDIMAGES
   # Run with platform:arm64 since no platform:armhf exists and arm64 should be backwards compatible
-  tags: ["runner:docker-arm", "platform:arm64"]
+  tags: ["arch:arm64"]
   needs: ["go_mod_tidy_check", "go_deps"]
   before_script:
+    - source /etc/profile
     # Ensures uname -m reports armv7l
     - export LD_PRELOAD="/usr/local/lib/libfakearmv7l.so"
 
