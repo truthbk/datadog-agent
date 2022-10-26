@@ -37,12 +37,11 @@
       - $CI_PROJECT_DIR/.tmp/binary-ebpf
       - $DD_AGENT_TESTING_DIR/site-cookbooks/dd-security-agent-check/files
       - $DD_AGENT_TESTING_DIR/site-cookbooks/dd-system-probe-check/files
-  before_script:
+  script:
     - !reference [.retrieve_linux_go_deps]
     - !reference [.retrieve_linux_go_tools_deps]
     - mkdir -p $CI_PROJECT_DIR/.tmp/binary-ebpf
     - !reference [.retrieve_sysprobe_deps]
-  script:
     - inv -e install-tools
     - invoke -e golangci-lint --build system-probe ./pkg
     - !reference [.build_sysprobe_artifacts]
@@ -77,6 +76,9 @@ tests_ebpf_arm64:
   tags: ["arch:arm64"]
   variables:
     ARCH: arm64
+  before_script:
+    - source /etc/profile
+    - eval $(gimme)
 
 tests_windows_sysprobe_x64:
   extends: .tests_windows_sysprobe

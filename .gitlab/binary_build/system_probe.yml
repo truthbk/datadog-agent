@@ -54,3 +54,4 @@ build_system-probe-arm64:
     ARCH: arm64
   before_script:
     - source /etc/profile
+    - eval $(gimme)

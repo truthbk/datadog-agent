@@ -11,6 +11,18 @@
   # Placeholder script, overridden by .linux_tests when running all go tests
   script: [ "# Skipping go tests" ]
 
+.rtloader_tests_arm64:
+  stage: source_test
+  before_script:
+    - !reference [.retrieve_linux_go_deps]
+    - source /root/.bashrc && conda activate $CONDA_ENV && export GIMME_ARCH=arm64 && eval $(gimme)
+    - inv -e rtloader.make --install-prefix=$CI_PROJECT_DIR/dev --python-runtimes "$PYTHON_RUNTIMES"
+    - inv -e rtloader.install
+    - inv -e rtloader.format --raise-if-changed
+    - inv -e rtloader.test
+  # Placeholder script, overridden by .linux_tests when running all go tests
+  script: [ "# Skipping go tests" ]
+
 .linux_tests:
   stage: source_test
   variables:
@@ -102,7 +114,7 @@ tests_rpm-x64-py3:
     EXTRA_OPTS: '--build-exclude=systemd'
 
 tests_deb-arm64-py2:
-  extends: .rtloader_tests
+  extends: .rtloader_tests_arm64
   rules:
     !reference [.on_a6]
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_arm64:$DATADOG_AGENT_BUILDIMAGES
@@ -114,7 +126,7 @@ tests_deb-arm64-py2:
 
 tests_deb-arm64-py3:
   extends:
-    - .rtloader_tests
+    - .rtloader_tests_arm64
     - .linux_tests
   needs: ["go_deps", "go_tools_deps"]
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_arm64:$DATADOG_AGENT_BUILDIMAGES
@@ -124,7 +136,7 @@ tests_deb-arm64-py3:
     CONDA_ENV: ddpy3
 
 tests_rpm-arm64-py2:
-  extends: .rtloader_tests
+  extends: .rtloader_tests_arm64
   rules:
     !reference [.on_a6]
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/rpm_arm64:$DATADOG_AGENT_BUILDIMAGES
@@ -136,7 +148,7 @@ tests_rpm-arm64-py2:
 
 tests_rpm-arm64-py3:
   extends:
-    - .rtloader_tests
+    - .rtloader_tests_arm64
     - .linux_tests
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/rpm_arm64:$DATADOG_AGENT_BUILDIMAGES
   tags: ["arch:arm64"]
