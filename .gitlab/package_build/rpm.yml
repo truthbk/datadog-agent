@@ -98,7 +98,6 @@ agent_rpm-arm64-a6:
     PYTHON_RUNTIMES: '2,3'
     PACKAGE_ARCH: arm64
   before_script:
-    - source /etc/profile
     - source /root/.bashrc && conda activate ddpy3 && export GIMME_ARCH=arm64 && eval $(gimme)
     - export RELEASE_VERSION=$RELEASE_VERSION_6
 
@@ -116,7 +115,6 @@ agent_rpm-arm64-a7:
     PYTHON_RUNTIMES: '3'
     PACKAGE_ARCH: arm64
   before_script:
-    - source /etc/profile
     - source /root/.bashrc && conda activate ddpy3 && export GIMME_ARCH=arm64 && eval $(gimme)
     - export RELEASE_VERSION=$RELEASE_VERSION_7
 
@@ -164,7 +162,6 @@ iot_agent_rpm-arm64:
   tags: ["arch:arm64"]
   needs: ["go_mod_tidy_check", "go_deps"]
   before_script:
-    - source /etc/profile
     - source /root/.bashrc && conda activate ddpy3 && export GIMME_ARCH=arm64 && eval $(gimme)
 
 iot_agent_rpm-armhf:
@@ -177,7 +174,6 @@ iot_agent_rpm-armhf:
   tags: ["arch:arm64"]
   needs: ["go_mod_tidy_check", "go_deps"]
   before_script:
-    - source /etc/profile
     - source /root/.bashrc && export GIMME_ARCH=arm && eval $(gimme)
     # Ensures uname -m reports armv7l
     - export LD_PRELOAD="/usr/local/lib/libfakearmv7l.so"
