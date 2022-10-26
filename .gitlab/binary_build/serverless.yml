@@ -35,6 +35,8 @@ build_serverless-deb_arm64:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_arm64:$DATADOG_AGENT_BUILDIMAGES
   tags: ["arch:arm64"]
   needs: ["go_deps"]
+  before_script:
+    - source /etc/profile
 
 check_serverless_size_x64:
   extends: .check_size_common
@@ -59,3 +61,5 @@ check_serverless_size_arm64:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_arm64:$DATADOG_AGENT_BUILDIMAGES
   tags: ["arch:arm64"]
   needs: ["go_deps"]
+  before_script:
+    - source /etc/profile
