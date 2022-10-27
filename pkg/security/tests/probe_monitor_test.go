@@ -41,14 +41,14 @@ func TestRulesetLoaded(t *testing.T) {
 	test.module.SendStats()
 
 	key := metrics.MetricRuleSetLoaded
-	assert.NotEmpty(t, test.statsdClient.Get(key))
-	assert.NotZero(t, test.statsdClient.Get(key))
+	assert.NotEmpty(t, test.statsdClient.Get(key), "missing ruleset loaded metric")
+	assert.NotZero(t, test.statsdClient.Get(key), "ruleset loaded metric is zero")
 
 	test.statsdClient.Flush()
 
 	t.Run("ruleset_loaded", func(t *testing.T) {
 		count := test.statsdClient.Get(key)
-		assert.Zero(t, count)
+		assert.Zero(t, count, "ruleset loaded is not zero")
 
 		err = test.GetCustomEventSent(t, func() error {
 			// force a reload
@@ -58,7 +58,7 @@ func TestRulesetLoaded(t *testing.T) {
 
 			test.module.SendStats()
 
-			assert.Equal(t, count+1, test.statsdClient.Get(key))
+			assert.Equal(t, count+1, test.statsdClient.Get(key), "ruleset loaded metric didn't increase")
 
 			return validateRuleSetLoadedSchema(t, customEvent)
 		}, model.CustomRulesetLoadedEventType)
