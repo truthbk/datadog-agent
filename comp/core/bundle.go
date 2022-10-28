@@ -26,10 +26,14 @@ import (
 type BundleParams = internal.BundleParams
 
 func CreateAgentBundleParams(confFilePath string, configLoadSecrets bool, options ...func(*BundleParams)) BundleParams {
+	return CreateBundleParams(confFilePath, configLoadSecrets, common.DefaultConfPath, options...)
+}
+
+func CreateBundleParams(confFilePath string, configLoadSecrets bool, defaultConfPath string, options ...func(*BundleParams)) BundleParams {
 	bundleParams := BundleParams{
 		ConfFilePath:      confFilePath,
 		ConfigLoadSecrets: configLoadSecrets,
-		DefaultConfPath:   common.DefaultConfPath,
+		DefaultConfPath:   defaultConfPath,
 	}
 	for _, o := range options {
 		o(&bundleParams)
