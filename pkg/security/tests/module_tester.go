@@ -1029,11 +1029,14 @@ func (tm *testModule) GetCustomEventSent(tb testing.TB, action func() error, cb 
 			switch msg {
 			case Continue:
 				if cb(rule, event) {
+					fmt.Printf("callback succeed, calling cancel\n")
 					cancel()
 				} else {
+					fmt.Printf("callback failed, sending continue\n")
 					message <- Continue
 				}
 			case Skip:
+				fmt.Printf("test action failed, skipping event\n")
 				cancel()
 			}
 		}
@@ -1047,11 +1050,13 @@ func (tm *testModule) GetCustomEventSent(tb testing.TB, action func() error, cb 
 	}
 	message <- Continue
 
+	fmt.Println("waiting for callback at ", time.Now().String())
 	select {
 	case <-time.After(getEventTimeout):
-		fmt.Printf("event timeout\n")
+		fmt.Println("timedout at ", time.Now().String())
 		return NewTimeoutError(tm.probe)
 	case <-ctx.Done():
+		fmt.Println("received cancelation at ", time.Now().String())
 		return nil
 	}
 }

@@ -64,7 +64,11 @@ func TestRulesetLoaded(t *testing.T) {
 
 			assert.Equal(t, count+1, test.statsdClient.Get(key), "ruleset loaded metric didn't increase")
 
-			return validateRuleSetLoadedSchema(t, customEvent)
+			fmt.Println("starting schema validation at ", time.Now().String())
+			validSchema := validateRuleSetLoadedSchema(t, customEvent)
+			fmt.Println("done with schema validation at ", time.Now().String())
+			fmt.Printf("schema validation returned %v\n", validSchema)
+			return true
 		}, model.CustomRulesetLoadedEventType)
 		if err != nil {
 			t.Fatal(err)
