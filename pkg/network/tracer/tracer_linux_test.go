@@ -1999,34 +1999,24 @@ func testProtocolClassificationMapCleanup(t *testing.T, cfg *config.Config, clie
 }
 
 func waitForConnectionsWithProtocol(t *testing.T, tr *Tracer, targetAddr, serverAddr string, expectedProtocol network.ProtocolType) {
-	foundIncomingWithProtocol := false
-	foundOutgoingWithProtocol := false
+	var incomingConns, outgoingConns []network.ConnectionStats
 	require.Eventuallyf(t, func() bool {
 		conns := getConnections(t, tr)
-		outgoingConns := searchConnections(conns, func(cs network.ConnectionStats) bool {
+		outgoingConns = searchConnections(conns, func(cs network.ConnectionStats) bool {
 			return fmt.Sprintf("%s:%d", cs.Dest, cs.DPort) == targetAddr
 		})
-		incomingConns := searchConnections(conns, func(cs network.ConnectionStats) bool {
+		incomingConns = searchConnections(conns, func(cs network.ConnectionStats) bool {
 			return fmt.Sprintf("%s:%d", cs.Source, cs.SPort) == serverAddr
 		})
 
-		for _, conn := range outgoingConns {
-			t.Logf("Found outgoing connection %v", conn)
-			if conn.Protocol == expectedProtocol {
-				foundOutgoingWithProtocol = true
-				break
-			}
-		}
-		for _, conn := range incomingConns {
-			t.Logf("Found incoming connection %v", conn)
-			if conn.Protocol == expectedProtocol {
-				foundIncomingWithProtocol = true
-				break
-			}
-		}
+		return len(outgoingConns) > 0 && len(incomingConns) > 0
+	}, 3*time.Second, 500*time.Millisecond, "couldn't find incoming and outgoing connections for server address %s and target address %s", serverAddr, targetAddr)
 
-		return foundOutgoingWithProtocol && foundIncomingWithProtocol
-	}, 3*time.Second, 500*time.Millisecond, "couldn't find incoming and outgoing connections with protocol %d for server address %s and target address %s", expectedProtocol, serverAddr, targetAddr)
+	assert.Len(t, outgoingConns, 1, "outgoing should only report 1 connection")
+	assert.Len(t, incomingConns, 1, "incoming should only report 1 connection")
+	oc, ic := outgoingConns[0], incomingConns[0]
+	assert.Equal(t, expectedProtocol, oc.Protocol, "outgoing connection has incorrect protocol")
+	assert.Equal(t, expectedProtocol, ic.Protocol, "incoming connection has incorrect protocol")
 }
 
 func TestBlockingReadCounts(t *testing.T) {
