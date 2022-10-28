@@ -24,10 +24,32 @@ import (
 // BundleParams defines the parameters for this bundle.
 type BundleParams = internal.BundleParams
 
-func CreateAgentBundleParams(confFilePath string, configLoadSecrets bool) BundleParams {
-	return BundleParams{
+func CreateAgentBundleParams(confFilePath string, configLoadSecrets bool, options ...func(*BundleParams)) BundleParams {
+	bundleParams := BundleParams{
 		ConfFilePath:      confFilePath,
 		ConfigLoadSecrets: configLoadSecrets,
+	}
+	for _, o := range options {
+		o(&bundleParams)
+	}
+	return bundleParams
+}
+
+func WithConfigName(name string) func(*BundleParams) {
+	return func(b *BundleParams) {
+		b.ConfigName = name
+	}
+}
+
+func WithConfigMissingOK(v bool) func(*BundleParams) {
+	return func(b *BundleParams) {
+		b.ConfigMissingOK = v
+	}
+}
+
+func WithConfigLoadSysProbe(v bool) func(*BundleParams) {
+	return func(b *BundleParams) {
+		b.ConfigLoadSysProbe = v
 	}
 }
 
