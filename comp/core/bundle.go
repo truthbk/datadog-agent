@@ -13,6 +13,7 @@
 package core
 
 import (
+	"github.com/DataDog/datadog-agent/cmd/agent/common"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/internal"
 	"github.com/DataDog/datadog-agent/comp/core/log"
@@ -28,6 +29,7 @@ func CreateAgentBundleParams(confFilePath string, configLoadSecrets bool, option
 	bundleParams := BundleParams{
 		ConfFilePath:      confFilePath,
 		ConfigLoadSecrets: configLoadSecrets,
+		DefaultConfPath:   common.DefaultConfPath,
 	}
 	for _, o := range options {
 		o(&bundleParams)
