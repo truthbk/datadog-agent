@@ -753,7 +753,9 @@ func (tm *testModule) HandleEvent(event *sprobe.Event) {
 	}
 }
 
-func (tm *testModule) HandleCustomEvent(rule *rules.Rule, event *sprobe.CustomEvent) {}
+func (tm *testModule) HandleCustomEvent(rule *rules.Rule, event *sprobe.CustomEvent) {
+	fmt.Printf("module tester received custom event, not implemented\n")
+}
 
 func (tm *testModule) SendEvent(rule *rules.Rule, event module.Event, extTagsCb func() []string, service string) {
 	tm.eventHandlers.RLock()
@@ -763,7 +765,10 @@ func (tm *testModule) SendEvent(rule *rules.Rule, event module.Event, extTagsCb 
 	case *sprobe.Event:
 	case *sprobe.CustomEvent:
 		if tm.eventHandlers.onCustomSendEvent != nil {
+			fmt.Printf("module test received custom event, calling handler\n")
 			tm.eventHandlers.onCustomSendEvent(rule, ev)
+		} else {
+			fmt.Printf("module test received custom event but handler is nil\n")
 		}
 	}
 }
@@ -773,11 +778,13 @@ func (tm *testModule) Run(t *testing.T, name string, fnc func(t *testing.T, kind
 }
 
 func (tm *testModule) reloadConfiguration() error {
+	fmt.Printf("reloading testModule configuration\n")
 	log.Debugf("reload configuration with testDir: %s", tm.Root())
 	tm.config.PoliciesDir = tm.Root()
 
 	provider, err := rules.NewPoliciesDirProvider(tm.config.PoliciesDir, false)
 	if err != nil {
+		fmt.Printf("failed to create new policies dir provider: %v\n", err)
 		return err
 	}
 
@@ -1010,6 +1017,7 @@ func (tm *testModule) GetCustomEventSent(tb testing.TB, action func() error, cb 
 	tm.RegisterCustomSendEventHandler(func(rule *rules.Rule, event *sprobe.CustomEvent) {
 		if len(eventType) > 0 {
 			if event.GetEventType() != eventType[0] {
+				fmt.Printf("handle received unexpected event type: %s\n", event.GetEventType().String())
 				return
 			}
 		}
@@ -1033,6 +1041,7 @@ func (tm *testModule) GetCustomEventSent(tb testing.TB, action func() error, cb 
 	defer tm.RegisterCustomSendEventHandler(nil)
 
 	if err := action(); err != nil {
+		fmt.Printf("test action failed with error: %s\n", err)
 		message <- Skip
 		return err
 	}
@@ -1040,6 +1049,7 @@ func (tm *testModule) GetCustomEventSent(tb testing.TB, action func() error, cb 
 
 	select {
 	case <-time.After(getEventTimeout):
+		fmt.Printf("event timeout\n")
 		return NewTimeoutError(tm.probe)
 	case <-ctx.Done():
 		return nil
@@ -1055,6 +1065,7 @@ func (tm *testModule) RegisterProbeEventHandler(cb onProbeEventHandler) {
 func (tm *testModule) RegisterCustomSendEventHandler(cb onCustomSendEventHandler) {
 	tm.eventHandlers.Lock()
 	tm.eventHandlers.onCustomSendEvent = cb
+	fmt.Printf("registered custom event handler\n")
 	tm.eventHandlers.Unlock()
 }
 

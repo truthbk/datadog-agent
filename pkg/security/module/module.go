@@ -216,12 +216,14 @@ func (m *Module) Start() error {
 	go m.statsSender()
 
 	signal.Notify(m.sigupChan, syscall.SIGHUP)
+	fmt.Printf("setting up signal chan for pid %d\n", syscall.Getpid())
 
 	m.wg.Add(1)
 	go func() {
 		defer m.wg.Done()
 
 		for range m.sigupChan {
+			fmt.Printf("received sigup signal\n")
 			if err := m.ReloadPolicies(); err != nil {
 				seclog.Errorf("failed to reload policies: %s", err)
 			}
@@ -233,6 +235,7 @@ func (m *Module) Start() error {
 		defer m.wg.Done()
 
 		for range m.policyLoader.NewPolicyReady() {
+			fmt.Printf("received a new policy\n")
 			if err := m.ReloadPolicies(); err != nil {
 				seclog.Errorf("failed to reload policies: %s", err)
 			}
@@ -310,6 +313,7 @@ func getPoliciesVersions(rs *rules.RuleSet) []string {
 // ReloadPolicies reloads the policies
 func (m *Module) ReloadPolicies() error {
 	seclog.Infof("reload policies")
+	fmt.Printf("reloading policies...\n")
 
 	return m.LoadPolicies(m.policyProviders, true)
 }
@@ -376,6 +380,7 @@ func (m *Module) LoadPolicies(policyProviders []rules.PolicyProvider, sendLoaded
 
 	approvers, err := approverRuleSet.GetApprovers(sprobe.GetCapababilities())
 	if err != nil {
+		fmt.Printf("GetApprovers failed: %s\n", err)
 		return err
 	}
 
@@ -417,6 +422,7 @@ func (m *Module) LoadPolicies(policyProviders []rules.PolicyProvider, sendLoaded
 	// analyze the ruleset, push default policies in the kernel and generate the policy report
 	report, err := rsa.Apply(ruleSet, approvers)
 	if err != nil {
+		fmt.Printf("rulesetapplier failed: %s\n", err)
 		return err
 	}
 
@@ -433,9 +439,12 @@ func (m *Module) LoadPolicies(policyProviders []rules.PolicyProvider, sendLoaded
 	if sendLoadedReport {
 		// report that a new policy was loaded
 		monitor := m.probe.GetMonitor()
+		fmt.Printf("calling ReportRuleSetLoaded\n")
 		monitor.ReportRuleSetLoaded(ruleSet, loadApproversErrs)
 
 		m.policyMonitor.AddPolicies(ruleSet.GetPolicies(), loadApproversErrs)
+	} else {
+		fmt.Printf("not reporting RulesetLoaded because sendLoadedReport is false\n")
 	}
 
 	return nil

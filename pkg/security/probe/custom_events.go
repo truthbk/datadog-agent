@@ -12,6 +12,7 @@ package probe
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -209,6 +210,7 @@ func NewRuleSetLoadedEvent(rs *rules.RuleSet, err *multierror.Error) (*rules.Rul
 
 	// rules ignored due to errors
 	if err != nil && err.Errors != nil {
+		fmt.Printf("errors while loading ruleset: %s\n", err)
 		for _, err := range err.Errors {
 			if rerr, ok := err.(*rules.ErrRuleLoad); ok {
 				policyName := rerr.Definition.Policy.Name

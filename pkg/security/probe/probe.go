@@ -367,6 +367,7 @@ func (p *Probe) DispatchActivityDump(dump *api.ActivityDumpStreamMessage) {
 // DispatchCustomEvent sends a custom event to the probe event handler
 func (p *Probe) DispatchCustomEvent(rule *rules.Rule, event *CustomEvent) {
 	seclog.TraceTagf(event.GetEventType(), "Dispatching custom event %s", event)
+	fmt.Printf("probe dispatching custom event %s\n", event)
 
 	// send specific event
 	if p.config.AgentMonitoringEvents {

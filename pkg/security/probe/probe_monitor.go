@@ -175,11 +175,13 @@ type RuleSetLoadedReport struct {
 func (m *Monitor) ReportRuleSetLoaded(ruleSet *rules.RuleSet, err *multierror.Error) {
 	r, ev := NewRuleSetLoadedEvent(ruleSet, err)
 	report := RuleSetLoadedReport{Rule: r, Event: ev}
+	fmt.Printf("created RulesetLoadedEvent: %+v\n and report: %v\n", ev, report)
 
 	if err := m.probe.statsdClient.Count(metrics.MetricRuleSetLoaded, 1, []string{}, 1.0); err != nil {
 		log.Error(fmt.Errorf("failed to send ruleset_loaded metric: %w", err))
 	}
 
+	fmt.Printf("Dispatching RuleSetLoaded after creation: %+v\n", report.Event)
 	m.probe.DispatchCustomEvent(report.Rule, report.Event)
 }
 

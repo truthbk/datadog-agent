@@ -9,6 +9,8 @@
 package module
 
 import (
+	"fmt"
+
 	"github.com/DataDog/datadog-agent/pkg/process/events/model"
 	sprobe "github.com/DataDog/datadog-agent/pkg/security/probe"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
@@ -49,6 +51,7 @@ func (p *ProcessMonitoring) HandleEvent(event *sprobe.Event) {
 
 // HandleCustomEvent implement the EventHandler interface
 func (p *ProcessMonitoring) HandleCustomEvent(rule *rules.Rule, event *sprobe.CustomEvent) {
+	fmt.Printf("process monitoring handles custom event\n")
 }
 
 // NewProcessMonitoring returns a new ProcessMonitoring instance

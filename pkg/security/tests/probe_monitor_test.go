@@ -9,6 +9,7 @@
 package tests
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -52,8 +53,11 @@ func TestRulesetLoaded(t *testing.T) {
 
 		err = test.GetCustomEventSent(t, func() error {
 			// force a reload
-			return syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
+			pid := syscall.Getpid()
+			fmt.Printf("test action sending signal to pid %d\n", pid)
+			return syscall.Kill(pid, syscall.SIGHUP)
 		}, func(rule *rules.Rule, customEvent *sprobe.CustomEvent) bool {
+			fmt.Printf("rule: %+v\ncustom event: %+v\n", rule, customEvent)
 			assert.Equal(t, sprobe.RulesetLoadedRuleID, rule.ID, "wrong rule")
 
 			test.module.SendStats()
