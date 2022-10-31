@@ -5,7 +5,8 @@
 
 package lldp
 
-// ChassisIDSubtypeMap TODO
+// ChassisIDSubtypeMap mapping to translate into human-readable value for LldpChassisIdSubtype
+// Ref http://www.mibdepot.com/cgi-bin/getmib3.cgi?win=mib_a&i=1&n=LLDP-MIB&r=cisco&f=LLDP-MIB-V1SMI.my&v=v1&t=def#LldpChassisIdSubtype
 var ChassisIDSubtypeMap = map[string]string{
 	"1": "chassis_component",
 	"2": "interface_alias",
@@ -16,7 +17,8 @@ var ChassisIDSubtypeMap = map[string]string{
 	"7": "local",
 }
 
-// PortIDSubTypeMap TODO
+// PortIDSubTypeMap mapping to translate into human-readable value for LldpPortIdSubtype
+// Ref http://www.mibdepot.com/cgi-bin/getmib3.cgi?win=mib_a&i=1&n=LLDP-MIB&r=cisco&f=LLDP-MIB-V1SMI.my&v=v1&t=def#LldpPortIdSubtype
 var PortIDSubTypeMap = map[string]string{
 	"1": "interface_alias",
 	"2": "port_component",
@@ -26,30 +28,3 @@ var PortIDSubTypeMap = map[string]string{
 	"6": "agent_circuit_id",
 	"7": "local",
 }
-
-// RemManAddrSubtype TODO
-//var RemManAddrSubtype = map[int]string{
-//	0:     "other",
-//	1:     "ipV4",
-//	2:     "ipV6",
-//	3:     "nsap",
-//	4:     "hdlc",
-//	5:     "bbn1822",
-//	6:     "all802",
-//	7:     "e163",
-//	8:     "e164",
-//	9:     "f69",
-//	10:    "x121",
-//	11:    "ipx",
-//	12:    "appletalk",
-//	13:    "decnetIV",
-//	14:    "banyanVines",
-//	15:    "e164withNsap",
-//	16:    "dns",
-//	17:    "distinguishedname",
-//	18:    "asnumber",
-//	19:    "xtpoveripv4",
-//	20:    "xtpoveripv6",
-//	21:    "xtpnativemodextp",
-//	65535: "reserved",
-//}
