@@ -190,24 +190,22 @@ func IsMetadataResourceWithScalarOids(resource string) bool {
 	return resource == common.MetadataDeviceResource
 }
 
-// updateMetadataDefinitionWithLegacyFallback will add metadata config for resources
+// updateMetadataDefinitionWithDefaults will add metadata config for resources
 // that does not have metadata definitions
-func updateMetadataDefinitionWithLegacyFallback(config MetadataConfig, collectTopology bool) MetadataConfig {
-	if config == nil {
-		config = MetadataConfig{}
-	}
-	for resourceName, resourceConfig := range LegacyMetadataConfig {
-		if _, ok := config[resourceName]; !ok {
-			config[resourceName] = resourceConfig
-		}
-	}
+func updateMetadataDefinitionWithDefaults(metadataConfig MetadataConfig, collectTopology bool) MetadataConfig {
+	newConfig := make(MetadataConfig)
+	mergeMetadata(newConfig, metadataConfig)
+	mergeMetadata(newConfig, LegacyMetadataConfig)
 	if collectTopology {
-		// TODO: avoid code duplication (LegacyMetadataConfig + TopologyMetadataConfig)
-		for resourceName, resourceConfig := range TopologyMetadataConfig {
-			if _, ok := config[resourceName]; !ok {
-				config[resourceName] = resourceConfig
-			}
+		mergeMetadata(newConfig, TopologyMetadataConfig)
+	}
+	return newConfig
+}
+
+func mergeMetadata(metadataConfig MetadataConfig, extraMetadata MetadataConfig) {
+	for resourceName, resourceConfig := range extraMetadata {
+		if _, ok := metadataConfig[resourceName]; !ok {
+			metadataConfig[resourceName] = resourceConfig
 		}
 	}
-	return config
 }
