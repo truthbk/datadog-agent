@@ -131,15 +131,9 @@ var TopologyMetadataConfig = MetadataConfig{
 					Name: "lldpRemSysDesc",
 				},
 			},
-			//"1.0.8802.1.1.2.1.4.1.1.4",  // lldpRemChassisIdSubtype       Needed?
-			//"1.0.8802.1.1.2.1.4.1.1.5",  // lldpRemChassisId              Needed?
-			//"1.0.8802.1.1.2.1.4.1.1.6",  // lldpRemPortIdSubtype
-			//"1.0.8802.1.1.2.1.4.1.1.7",  // lldpRemPortId
-			//"1.0.8802.1.1.2.1.4.1.1.8",  // lldpRemPortDesc
-			//"1.0.8802.1.1.2.1.4.1.1.9",  // lldpRemSysName
-			//"1.0.8802.1.1.2.1.4.1.1.10", // lldpRemSysDesc
-			//"1.0.8802.1.1.2.1.4.1.1.11", // lldpRemSysCapSupported       TODO LATER
-			//"1.0.8802.1.1.2.1.4.1.1.12", // lldpRemSysCapEnabled         TODO LATER
+			// TODO: Implement later lldpRemSysCapSupported and lldpRemSysCapEnabled
+			//   - 1.0.8802.1.1.2.1.4.1.1.11 lldpRemSysCapSupported
+			//   - 1.0.8802.1.1.2.1.4.1.1.12  lldpRemSysCapEnabled
 		},
 	},
 	"lldp_local": {
@@ -156,9 +150,6 @@ var TopologyMetadataConfig = MetadataConfig{
 					Name: "lldpLocPortID",
 				},
 			},
-			//"1.0.8802.1.1.2.1.3.7.1.2", // lldpLocPortIdSubtype
-			//"1.0.8802.1.1.2.1.3.7.1.3", // lldpLocPortID
-			//"1.0.8802.1.1.2.1.4.2.1.4", // lldpLocPortDesc // TODO: not needed? since already collected by NDM Metadata
 		},
 	},
 }
