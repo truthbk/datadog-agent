@@ -19,6 +19,18 @@ const (
 	DeviceStatusUnreachable = DeviceStatus(2)
 )
 
+type IDType string
+
+const (
+	// IDTypeNDM is used as IDType value for topology data
+	// to indicate the ID uses NDM internal type
+	// e.g. interfaceID of `ndm` type is in this format: `<NAMESPACE>:<DEVICE_IP>:<INTERFACE_INDEX>`
+	IDTypeNDM = "ndm"
+
+	// IDTypeMacAddress represent mac address in `00:00:00:00:00:00` format
+	IDTypeMacAddress = "mac_address"
+)
+
 // NetworkDevicesMetadata contains network devices metadata
 type NetworkDevicesMetadata struct {
 	Subnet           string                 `json:"subnet"`

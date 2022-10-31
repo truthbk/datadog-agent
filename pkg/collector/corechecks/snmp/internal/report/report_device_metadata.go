@@ -248,7 +248,7 @@ func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []meta
 				},
 				Device: &metadata.TopologyLinkDevice{
 					ID:     deviceID,
-					IDType: "ndm",
+					IDType: metadata.IDTypeNDM,
 				},
 			},
 		}
@@ -259,7 +259,7 @@ func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []meta
 
 func formatID(idType string, store *metadata.Store, field string, strIndex string) string {
 	var remoteDeviceID string
-	if idType == "mac_address" {
+	if idType == metadata.IDTypeMacAddress {
 		remoteDeviceID = formatColonSepBytes(store.GetColumnAsByteArray(field, strIndex))
 	} else {
 		remoteDeviceID = store.GetColumnAsString(field, strIndex)
