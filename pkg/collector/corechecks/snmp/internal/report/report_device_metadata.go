@@ -197,7 +197,7 @@ func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []meta
 		// in that case, we just return a nil slice.
 		return nil
 	}
-	indexes := store.GetColumnIndexes("lldp_remote.interface_id")
+	indexes := store.GetColumnIndexes("lldp_remote.interface_id") // using `lldp_remote.interface_id` to get indexes since it's expected to be always present
 	if len(indexes) == 0 {
 		log.Debugf("Unable to build links metadata: no lldp_remote indexes found")
 		return nil
@@ -206,18 +206,23 @@ func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []meta
 	var links []metadata.TopologyLinkMetadata
 	for _, strIndex := range indexes {
 		indexElems := strings.Split(strIndex, ".")
+
+		// The lldpRemEntry index is composed of those 3 elements separate by `.`: lldpRemTimeMark, lldpRemLocalPortNum, lldpRemIndex
 		if len(indexElems) != 3 {
 			log.Debugf("Expected 3 index elements, but got %d, index=`%s`", len(indexElems), strIndex)
 			continue
 		}
-		// TODO: Handle TimeMark? see https://www.rfc-editor.org/rfc/rfc2021
+		// TODO: Handle TimeMark at indexElems[0] if needed later
+		//       See https://www.rfc-editor.org/rfc/rfc2021
+
 		localPortNum := indexElems[1]
 
-		// TODO: need to decompose index to link with other tables
 		remoteDeviceIDType := lldp.ChassisIDSubtypeMap[store.GetColumnAsString("lldp_remote.chassis_id_type", strIndex)]
 		remoteDeviceID := formatID(remoteDeviceIDType, store, "lldp_remote.chassis_id", strIndex)
+
 		remoteInterfaceIDType := lldp.PortIDSubTypeMap[store.GetColumnAsString("lldp_remote.interface_id_type", strIndex)]
 		remoteInterfaceID := formatID(remoteInterfaceIDType, store, "lldp_remote.interface_id", strIndex)
+
 		localInterfaceIDType := lldp.PortIDSubTypeMap[store.GetColumnAsString("lldp_local.interface_id_type", localPortNum)]
 		localInterfaceID := formatID(localInterfaceIDType, store, "lldp_local.interface_id", localPortNum)
 
@@ -239,7 +244,7 @@ func buildNetworkTopologyMetadata(deviceID string, store *metadata.Store) []meta
 				Interface: &metadata.TopologyLinkInterface{
 					ID:     localInterfaceID,
 					IDType: localInterfaceIDType,
-					// TODO: Resolve locally to ifIndex if possible
+					// TODO: We can possibly resolve locally to ifIndex to avoid having to resolve on backend side
 				},
 				Device: &metadata.TopologyLinkDevice{
 					ID:     deviceID,
