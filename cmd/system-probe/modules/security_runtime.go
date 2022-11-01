@@ -10,6 +10,8 @@ package modules
 import (
 	"fmt"
 
+	"github.com/DataDog/datadog-go/v5/statsd"
+
 	"github.com/DataDog/datadog-agent/cmd/system-probe/api/module"
 	"github.com/DataDog/datadog-agent/cmd/system-probe/config"
 	"github.com/DataDog/datadog-agent/pkg/ebpf"
@@ -27,13 +29,13 @@ const (
 var SecurityRuntime = module.Factory{
 	Name:             config.SecurityRuntimeModule,
 	ConfigNamespaces: []string{"runtime_security_config"},
-	Fn: func(agentConfig *config.Config) (module.Module, error) {
+	Fn: func(agentConfig *config.Config, statsd statsd.ClientInterface) (module.Module, error) {
 		config, err := sconfig.NewConfig(agentConfig)
 		if err != nil {
 			return nil, fmt.Errorf("invalid security runtime module configuration: %w", err)
 		}
 
-		m, err := secmodule.NewModule(config)
+		m, err := secmodule.NewModule(config, secmodule.Opts{StatsdClient: statsd})
 		if err == ebpf.ErrNotImplemented {
 			log.Info("Datadog runtime security agent is only supported on Linux")
 			return nil, module.ErrNotEnabled

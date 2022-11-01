@@ -63,8 +63,10 @@ type Config struct {
 	LogLevel  string
 	DebugPort int
 
-	StatsdHost string
-	StatsdPort int
+	StatsdHost     string
+	StatsdPort     int
+	StatsdPipeName string // for Windows Pipes
+	StatsdSocket   string // for UDS Sockets
 
 	// Settings for profiling, or nil if not enabled
 	ProfilingSettings *profiling.Settings
@@ -170,8 +172,10 @@ func load(configPath string) (*Config, error) {
 		LogLevel:  cfg.GetString(key(spNS, "log_level")),
 		DebugPort: cfg.GetInt(key(spNS, "debug_port")),
 
-		StatsdHost: aconfig.GetBindHost(),
-		StatsdPort: cfg.GetInt("dogstatsd_port"),
+		StatsdHost:     cfg.GetString(key(spNS, "bind_host")),
+		StatsdPort:     cfg.GetInt(key(spNS, "dogstatsd_port")),
+		StatsdPipeName: cfg.GetString(key(spNS, "dogstatsd_pipe_name")),
+		StatsdSocket:   cfg.GetString(key(spNS, "dogstatsd_socket")),
 
 		ProfilingSettings: profSettings,
 	}

@@ -11,7 +11,7 @@ package kprobe
 import (
 	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode/runtime"
 	"github.com/DataDog/datadog-agent/pkg/network/config"
-	"github.com/DataDog/datadog-agent/pkg/process/statsd"
+	"github.com/DataDog/datadog-agent/pkg/systemprobe/statsd"
 )
 
 //go:generate go run ../../../../../pkg/ebpf/include_headers.go ../../../../../pkg/network/ebpf/c/runtime/tracer.c ../../../../../pkg/ebpf/bytecode/build/runtime/tracer.c ../../../../../pkg/ebpf/c ../../../../../pkg/network/ebpf/c/runtime ../../../../../pkg/network/ebpf/c

@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"go.uber.org/atomic"
 
 	"github.com/DataDog/datadog-agent/cmd/system-probe/api/module"
@@ -26,7 +27,7 @@ import (
 var TCPQueueLength = module.Factory{
 	Name:             config.TCPQueueLengthTracerModule,
 	ConfigNamespaces: []string{},
-	Fn: func(cfg *config.Config) (module.Module, error) {
+	Fn: func(cfg *config.Config, statsd statsd.ClientInterface) (module.Module, error) {
 		t, err := probe.NewTCPQueueLengthTracer(ebpf.NewConfig())
 		if err != nil {
 			return nil, fmt.Errorf("unable to start the TCP queue length tracer: %w", err)

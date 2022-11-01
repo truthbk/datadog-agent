@@ -8,6 +8,8 @@ package module
 import (
 	"errors"
 
+	"github.com/DataDog/datadog-go/v5/statsd"
+
 	"github.com/DataDog/datadog-agent/cmd/system-probe/config"
 )
 
@@ -19,7 +21,7 @@ var ErrNotEnabled = errors.New("module is not enabled")
 type Factory struct {
 	Name             config.ModuleName
 	ConfigNamespaces []string
-	Fn               func(cfg *config.Config) (Module, error)
+	Fn               func(cfg *config.Config, statsd statsd.ClientInterface) (Module, error)
 }
 
 // Module defines the common API implemented by every System Probe Module

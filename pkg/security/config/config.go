@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
 	"github.com/DataDog/datadog-agent/pkg/security/utils"
+	"github.com/DataDog/datadog-agent/pkg/systemprobe/statsd"
 )
 
 const (
@@ -219,7 +220,7 @@ func NewConfig(cfg *config.Config) (*Config, error) {
 		LoadControllerControlPeriod:        time.Duration(coreconfig.Datadog.GetInt("runtime_security_config.load_controller.control_period")) * time.Second,
 		StatsPollingInterval:               time.Duration(coreconfig.Datadog.GetInt("runtime_security_config.events_stats.polling_interval")) * time.Second,
 		StatsTagsCardinality:               coreconfig.Datadog.GetString("runtime_security_config.events_stats.tags_cardinality"),
-		StatsdAddr:                         fmt.Sprintf("%s:%d", cfg.StatsdHost, cfg.StatsdPort),
+		StatsdAddr:                         statsd.GetAddr(cfg),
 		AgentMonitoringEvents:              coreconfig.Datadog.GetBool("runtime_security_config.agent_monitoring_events"),
 		CustomSensitiveWords:               coreconfig.Datadog.GetStringSlice("runtime_security_config.custom_sensitive_words"),
 		ERPCDentryResolutionEnabled:        coreconfig.Datadog.GetBool("runtime_security_config.erpc_dentry_resolution_enabled"),

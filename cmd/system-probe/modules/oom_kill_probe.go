@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"go.uber.org/atomic"
 
 	"github.com/DataDog/datadog-agent/cmd/system-probe/api/module"
@@ -27,7 +28,7 @@ import (
 var OOMKillProbe = module.Factory{
 	Name:             config.OOMKillProbeModule,
 	ConfigNamespaces: []string{},
-	Fn: func(cfg *config.Config) (module.Module, error) {
+	Fn: func(cfg *config.Config, statsd statsd.ClientInterface) (module.Module, error) {
 		log.Infof("Starting the OOM Kill probe")
 		okp, err := probe.NewOOMKillProbe(ebpf.NewConfig())
 		if err != nil {

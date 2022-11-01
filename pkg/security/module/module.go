@@ -21,7 +21,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/DataDog/datadog-go/v5/statsd"
+	ddgostatsd "github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/hashicorp/go-multierror"
 	"go.uber.org/atomic"
 	"google.golang.org/grpc"
@@ -38,11 +38,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
 	"github.com/DataDog/datadog-agent/pkg/security/utils"
+	"github.com/DataDog/datadog-agent/pkg/systemprobe/statsd"
 	"github.com/DataDog/datadog-agent/pkg/version"
-)
-
-const (
-	statsdPoolSize = 64
 )
 
 // Module represents the system-probe module for the runtime security agent
@@ -53,7 +50,7 @@ type Module struct {
 	config           *sconfig.Config
 	currentRuleSet   *atomic.Value
 	reloading        *atomic.Bool
-	statsdClient     statsd.ClientInterface
+	statsdClient     ddgostatsd.ClientInterface
 	apiServer        *APIServer
 	grpcServer       *grpc.Server
 	listener         net.Listener
@@ -650,17 +647,11 @@ func (m *Module) SetRulesetLoadedCallback(cb func(rs *rules.RuleSet, err *multie
 	m.rulesLoaded = cb
 }
 
-func getStatdClient(cfg *sconfig.Config, opts ...Opts) (statsd.ClientInterface, error) {
+func getStatdClient(cfg *sconfig.Config, opts ...Opts) (ddgostatsd.ClientInterface, error) {
 	if len(opts) != 0 && opts[0].StatsdClient != nil {
 		return opts[0].StatsdClient, nil
 	}
-
-	statsdAddr := os.Getenv("STATSD_URL")
-	if statsdAddr == "" {
-		statsdAddr = cfg.StatsdAddr
-	}
-
-	return statsd.New(statsdAddr, statsd.WithBufferPoolSize(statsdPoolSize))
+	return statsd.Create(cfg.StatsdAddr)
 }
 
 // NewModule instantiates a runtime security system-probe module

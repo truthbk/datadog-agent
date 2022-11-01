@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/DataDog/datadog-go/v5/statsd"
 	gorilla "github.com/gorilla/mux"
 
 	"github.com/DataDog/datadog-agent/cmd/system-probe/api/module"
@@ -21,14 +22,14 @@ import (
 )
 
 // StartServer starts the HTTP server for the system-probe, which registers endpoints from all enabled modules.
-func StartServer(cfg *config.Config) error {
+func StartServer(cfg *config.Config, statsd statsd.ClientInterface) error {
 	conn, err := net.NewListener(cfg.SocketAddress)
 	if err != nil {
 		return fmt.Errorf("error creating IPC socket: %s", err)
 	}
 
 	mux := gorilla.NewRouter()
-	err = module.Register(cfg, mux, modules.All)
+	err = module.Register(cfg, mux, modules.All, statsd)
 	if err != nil {
 		return fmt.Errorf("failed to create system probe: %s", err)
 	}

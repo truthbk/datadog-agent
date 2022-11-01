@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/gorilla/mux"
 
 	"github.com/DataDog/datadog-agent/cmd/system-probe/config"
@@ -39,19 +40,23 @@ type loader struct {
 	cfg     *config.Config
 	routers map[config.ModuleName]*Router
 	closed  bool
+
+	statsdClient statsd.ClientInterface
 }
 
 // Register a set of modules, which involves:
 // * Initialization using the provided Factory;
 // * Registering the HTTP endpoints of each module;
-func Register(cfg *config.Config, httpMux *mux.Router, factories []Factory) error {
+func Register(cfg *config.Config, httpMux *mux.Router, factories []Factory, statsd statsd.ClientInterface) error {
+	l.statsdClient = statsd
+
 	for _, factory := range factories {
 		if !cfg.ModuleIsEnabled(factory.Name) {
 			log.Infof("%s module disabled", factory.Name)
 			continue
 		}
 
-		module, err := factory.Fn(cfg)
+		module, err := factory.Fn(cfg, l.statsdClient)
 
 		// In case a module failed to be started, do not make the whole `system-probe` abort.
 		// Let `system-probe` run the other modules.
@@ -118,7 +123,7 @@ func RestartModule(factory Factory) error {
 	}
 	currentModule.Close()
 
-	newModule, err := factory.Fn(l.cfg)
+	newModule, err := factory.Fn(l.cfg, l.statsdClient)
 	if err != nil {
 		l.errors[factory.Name] = err
 		return err

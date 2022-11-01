@@ -44,7 +44,7 @@ const inactivityRestartDuration = 20 * time.Minute
 var NetworkTracer = module.Factory{
 	Name:             config.NetworkTracerModule,
 	ConfigNamespaces: []string{"network_config", "service_monitoring_config"},
-	Fn: func(cfg *config.Config) (module.Module, error) {
+	Fn: func(cfg *config.Config, statsd statsd.ClientInterface) (module.Module, error) {
 		ncfg := networkconfig.New()
 
 		// Checking whether the current OS + kernel version is supported by the tracer
@@ -58,7 +58,7 @@ var NetworkTracer = module.Factory{
 
 		done := make(chan struct{})
 		if err == nil {
-			startTelemetryReporter(cfg, done)
+			startTelemetryReporter(statsd, done)
 		}
 
 		return &networkTracer{tracer: t, done: done}, err
@@ -259,19 +259,8 @@ func writeConnections(w http.ResponseWriter, marshaler encoding.Marshaler, cs *n
 	log.Tracef("/connections: %d connections, %d bytes", len(cs.Conns), len(buf))
 }
 
-func startTelemetryReporter(cfg *config.Config, done <-chan struct{}) {
-	statsdAddr := os.Getenv("STATSD_URL")
-	if statsdAddr == "" {
-		statsdAddr = fmt.Sprintf("%s:%d", cfg.StatsdHost, cfg.StatsdPort)
-	}
-
-	statsdClient, err := statsd.New(statsdAddr)
-	if err != nil {
-		log.Errorf("failed to start statsd reporter for network_tracer: %s", err)
-		return
-	}
-
-	telemetry.SetStatsdClient(statsdClient)
+func startTelemetryReporter(statsd statsd.ClientInterface, done <-chan struct{}) {
+	telemetry.SetStatsdClient(statsd)
 	ticker := time.NewTicker(30 * time.Second)
 	go func() {
 		defer ticker.Stop()

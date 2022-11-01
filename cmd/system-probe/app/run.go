@@ -10,12 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	_ "net/http/pprof" // Blank import used because this isn't directly used in this file
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	_ "net/http/pprof" // Blank import used because this isn't directly used in this file
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -28,8 +27,8 @@ import (
 	"github.com/DataDog/datadog-agent/cmd/system-probe/utils"
 	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
-	"github.com/DataDog/datadog-agent/pkg/process/statsd"
 	ddruntime "github.com/DataDog/datadog-agent/pkg/runtime"
+	"github.com/DataDog/datadog-agent/pkg/systemprobe/statsd"
 	"github.com/DataDog/datadog-agent/pkg/util"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/profiling"
@@ -189,7 +188,7 @@ func StartSystemProbe() error {
 		}
 	}
 
-	if err := statsd.Configure(cfg.StatsdHost, cfg.StatsdPort); err != nil {
+	if err := statsd.Configure(cfg); err != nil {
 		return log.Criticalf("Error configuring statsd: %s", err)
 	}
 
@@ -203,7 +202,7 @@ func StartSystemProbe() error {
 		}()
 	}
 
-	if err = api.StartServer(cfg); err != nil {
+	if err = api.StartServer(cfg, statsd.Client); err != nil {
 		return log.Criticalf("Error while starting api server, exiting: %v", err)
 	}
 	return nil
