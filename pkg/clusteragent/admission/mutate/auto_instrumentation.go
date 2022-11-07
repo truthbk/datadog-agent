@@ -9,11 +9,13 @@
 package mutate
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/DataDog/datadog-agent/pkg/clusteragent/admission/common"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/admission/metrics"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -138,6 +140,20 @@ func injectAutoInstruConfig(pod *corev1.Pod, lang language, image string) error 
 	}
 
 	injectLibVolume(pod)
+	confAnnot := fmt.Sprintf("admission.datadoghq.com/%s-lib.config", lang)
+	if conf, found := pod.GetAnnotations()[confAnnot]; found {
+		log.Infof("Found custom config: %s:%s", confAnnot, conf)
+		var libConf common.LibConfig
+		err := json.Unmarshal([]byte(conf), &libConf)
+		if err != nil {
+			metrics.LibInjectionErrors.Inc(langStr)
+			return err
+		}
+		for _, env := range libConf.ToEnvs() {
+			log.Infof("Injecting custom config: %+v", env)
+			_ = injectEnv(pod, env)
+		}
+	}
 	injected = true
 
 	return nil

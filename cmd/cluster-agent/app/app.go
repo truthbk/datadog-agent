@@ -36,6 +36,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/clusteragent"
 	admissionpkg "github.com/DataDog/datadog-agent/pkg/clusteragent/admission"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/admission/mutate"
+	admissionpatch "github.com/DataDog/datadog-agent/pkg/clusteragent/admission/patch"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/clusterchecks"
 	"github.com/DataDog/datadog-agent/pkg/collector"
 	"github.com/DataDog/datadog-agent/pkg/config"
@@ -335,6 +336,15 @@ func start(cmd *cobra.Command, args []string) error {
 	}
 
 	if config.Datadog.GetBool("admission_controller.enabled") {
+		if config.Datadog.GetBool("admission_controller.auto_instrumentation.remote_config.enabled") {
+			patchCtx := admissionpatch.ControllerContext{
+				IsLeaderFunc: le.IsLeader,
+				Client:       apiCl.Cl,
+				StopCh:       stopCh,
+			}
+			admissionpatch.StartControllers(patchCtx)
+		}
+
 		admissionCtx := admissionpkg.ControllerContext{
 			IsLeaderFunc:        le.IsLeader,
 			LeaderSubscribeFunc: le.Subscribe,
