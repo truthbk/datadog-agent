@@ -50,7 +50,7 @@ func TestPipelineStatsProxy(t *testing.T) {
 	}
 	rec := httptest.NewRecorder()
 	c := &config.AgentConfig{}
-	newPipelineStatsProxy(c, u, "123", "key:val").ServeHTTP(rec, req)
+	newPipelineStatsProxy(c, []*url.URL{u}, []string{"123"}, "key:val").ServeHTTP(rec, req)
 	result := rec.Result()
 	slurp, err := ioutil.ReadAll(result.Body)
 	result.Body.Close()

@@ -25,14 +25,16 @@ const (
 )
 
 // pipelineStatsEndpoint returns the pipeline intake url and the corresponding API key.
-func pipelineStatsEndpoint(cfg *config.AgentConfig) (url *url.URL, apiKey string, err error) {
+func pipelineStatsEndpoint(cfg *config.AgentConfig) (urls []*url.URL, apiKeys []string, err error) {
 	if e := cfg.Endpoints; len(e) == 0 || e[0].Host == "" || e[0].APIKey == "" {
-		return nil, "", errors.New("config was not properly validated")
+		return nil, nil, errors.New("config was not properly validated")
 	}
-	urlStr := cfg.Endpoints[0].Host + pipelineStatsURLSuffix
-	url, err = url.Parse(urlStr)
-	if err != nil {
-		return nil, "", fmt.Errorf("error parsing pipeline stats intake URL %q: %v", urlStr, err)
+	for _, e := range cfg.Endpoints {
+		urlStr := cfg.Endpoints[0].Host + pipelineStatsURLSuffix
+		url, err = url.Parse(urlStr)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error parsing pipeline stats intake URL %q: %v", urlStr, err)
+		}
 	}
 	return url, cfg.Endpoints[0].APIKey, nil
 }
@@ -61,8 +63,12 @@ func pipelineStatsErrorHandler(err error) http.Handler {
 
 // newPipelineStatsProxy creates an http.ReverseProxy which forwards requests to the pipeline stats intake.
 // The tags will be added as a header to all proxied requests.
+<<<<<<< Updated upstream
 func newPipelineStatsProxy(conf *config.AgentConfig, target *url.URL, key string, tags string) *httputil.ReverseProxy {
 	cidProvider := NewIDProvider(conf.ContainerProcRoot)
+=======
+func newPipelineStatsProxy(conf *config.AgentConfig, targets []*url.URL, keys []string, tags string) *httputil.ReverseProxy {
+>>>>>>> Stashed changes
 	director := func(req *http.Request) {
 		req.Header.Set("Via", fmt.Sprintf("trace-agent %s", conf.AgentVersion))
 		if _, ok := req.Header["User-Agent"]; !ok {
@@ -77,14 +83,12 @@ func newPipelineStatsProxy(conf *config.AgentConfig, target *url.URL, key string
 		}
 		req.Header.Set("X-Datadog-Additional-Tags", tags)
 		metrics.Count("datadog.trace_agent.pipelines_stats", 1, nil, 1)
-		req.Host = target.Host
-		req.URL = target
-		req.Header.Set("DD-API-KEY", key)
 	}
+	transport := conf.NewHTTPTransport()
 	logger := log.NewThrottled(5, 10*time.Second) // limit to 5 messages every 10 seconds
 	return &httputil.ReverseProxy{
 		Director:  director,
 		ErrorLog:  stdlog.New(logger, "pipeline_stats.Proxy: ", 0),
-		Transport: conf.NewHTTPTransport(),
+		Transport: &multiTransport{transport, targets, keys},
 	}
 }
