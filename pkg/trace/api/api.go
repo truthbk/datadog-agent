@@ -734,10 +734,12 @@ func (r *HTTPReceiver) watchdog(now time.Time) {
 		}
 	}
 	rateCPU := 1.0
+	log.Infof("is Max CPU > 0? %f", r.conf.MaxCPU)
 	if r.conf.MaxCPU > 0 {
 		if cpuErr != nil {
 			log.Errorf("Error retrieving current CPU usage: %v. Reusing previous value", cpuErr)
 		}
+		log.Infof("user avg %f, real rate %f", wi.CPU.UserAvg, r.RateLimiter.RealRate())
 		rateCPU = computeRateLimitingRate(r.conf.MaxCPU, wi.CPU.UserAvg, r.RateLimiter.RealRate())
 		if rateCPU < 1 {
 			log.Warnf("CPU threshold exceeded (apm_config.max_cpu_percent: %.0f): %.0f", r.conf.MaxCPU*100, wi.CPU.UserAvg*100)

@@ -340,7 +340,7 @@ func applyDatadogConfig(c *config.AgentConfig) error {
 	} else if coreconfig.Datadog.IsSet("apm_config.k8s_max_milli_cpu") {
 		if mc := coreconfig.Datadog.GetInt("apm_config.k8s_max_milli_cpu"); mc > 0 {
 			c.MaxCPU = float64(mc) / 1000.0 * 0.9
-			log.Infof("Kubernetes CPU limit detected, setting max_cpu_percent to 90%% of %d milli-cpu: %f", mc, c.MaxCPU)
+			log.Infof("Kubernetes CPU limit detected, setting max_cpu_percent to 90%% of %d milli-cpu: %f %% CPU", mc, c.MaxCPU)
 		}
 	}
 
