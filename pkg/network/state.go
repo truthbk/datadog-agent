@@ -151,6 +151,8 @@ type networkState struct {
 
 // NewState creates a new network state
 func NewState(clientExpiry time.Duration, maxClosedConns, maxClientStats int, maxDNSStats int, maxHTTPStats int) State {
+	log.Debugf(">>>>> max closed conns: %d", maxClosedConns)
+
 	return &networkState{
 		clients:        map[string]*client{},
 		telemetry:      telemetry{},
@@ -492,6 +494,9 @@ func (ns *networkState) mergeConnections(id string, active map[string]*Connectio
 
 	closed := client.closedConnections
 	closedKeys := make(map[string]struct{}, len(closed))
+
+	log.Debugf(">>>>> closed connections (post-aggregation): %d", len(closed))
+	log.Debugf(">>>>> connection buffer (before iterating closed conns): %d", buffer.Len())
 	for i := range closed {
 		closedConn := &closed[i]
 		key := string(closedConn.ByteKey(ns.buf))
@@ -511,6 +516,8 @@ func (ns *networkState) mergeConnections(id string, active map[string]*Connectio
 		*buffer.Next() = *closedConn
 	}
 
+	log.Debugf(">>>>> connection buffer (after iterating closed conns): %d", buffer.Len())
+
 	// Active connections
 	for key, c := range active {
 		// If the connection was closed, it has already been processed so skip it
@@ -526,6 +533,8 @@ func (ns *networkState) mergeConnections(id string, active map[string]*Connectio
 		}
 		*buffer.Next() = *c
 	}
+
+	log.Debugf(">>>>> connection buffer (after iterating active conns): %d", buffer.Len())
 }
 
 func (ns *networkState) updateConnWithStats(client *client, key string, c *ConnectionStats) {

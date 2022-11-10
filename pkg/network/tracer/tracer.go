@@ -339,13 +339,19 @@ func (t *Tracer) GetActiveConnections(clientID string) (*network.Connections, er
 	defer t.bufferLock.Unlock()
 	log.Tracef("GetActiveConnections clientID=%s", clientID)
 
+	closed := t.closedConns.Swap(0)
+
 	t.ebpfTracer.FlushPending()
 	latestTime, err := t.getConnections(t.activeBuffer)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving connections: %s", err)
 	}
-	active := t.activeBuffer.Connections()
 
+	active := t.activeBuffer.Connections()
+	totalActive := len(active)
+
+	log.Debugf(">>>>> active connections (pre-state): %d", totalActive)
+	log.Debugf(">>>>> closed connections (pre-aggregation): %d", closed)
 	delta := t.state.GetDelta(clientID, latestTime, active, t.reverseDNS.GetDNSStats(), t.httpMonitor.GetHTTPStats())
 	t.activeBuffer.Reset()
 
