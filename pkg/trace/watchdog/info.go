@@ -6,7 +6,6 @@
 package watchdog
 
 import (
-	"os"
 	"runtime"
 	"sync"
 	"time"
@@ -73,7 +72,7 @@ func init() {
 // NewCurrentInfo creates a new CurrentInfo referring to the current running program.
 func NewCurrentInfo() (*CurrentInfo, error) {
 	return &CurrentInfo{
-		pid:        int32(os.Getpid()),
+		pid:        int32(getpid()),
 		cacheDelay: cacheDelay,
 	}, nil
 }
