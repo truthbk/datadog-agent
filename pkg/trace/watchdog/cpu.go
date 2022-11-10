@@ -18,6 +18,8 @@ import (
 )
 
 func getpid() int {
+	log.Errorf("watchdog.getpid()")
+	defer log.Errorf("watchdog.getpid() DONE")
 	// Based on gopsutil's HostProc https://github.com/shirou/gopsutil/blob/672e2518f2ce365ab8504c9f1a8038dc3ad09cf6/internal/common/common.go#L343-L345
 	// This PID needs to match the one in the procfs that gopsutil is going to look in.
 
@@ -25,18 +27,22 @@ func getpid() int {
 	if p == "" {
 		p = "/proc"
 	}
+	log.Errorf("Using proc at %v\n", p)
 
 	self := filepath.Join(p, "self")
+	log.Errorf("Self: %v\n", self)
 	pidf, err := os.Readlink(self)
 	if err != nil {
-		log.Warnf("Failed to read pid from %s: %s. Falling back to os.Getpid", self, err)
+		log.Errorf("Failed to read pid from %s: %s. Falling back to os.Getpid", self, err)
 		return os.Getpid()
 	}
+	log.Errorf("Pidf: %v\n", self)
 	pid, err := strconv.Atoi(filepath.Base(pidf))
 	if err != nil {
-		log.Warnf("Failed to parse pid from %s: %s. Falling back to os.Getpid", pidf, err)
+		log.Errorf("Failed to parse pid from %s: %s. Falling back to os.Getpid", pidf, err)
 		return os.Getpid()
 	}
+	log.Errorf("Final PID: %v\n", pid)
 	return pid
 }
 
