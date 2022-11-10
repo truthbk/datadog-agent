@@ -62,7 +62,7 @@ type CurrentInfo struct {
 var globalCurrentInfo *CurrentInfo
 
 func setGlobalInfo() {
-	if globarCurrentInfo != nil {
+	if globalCurrentInfo != nil {
 		return
 	}
 	var err error
