@@ -745,6 +745,7 @@ func (r *HTTPReceiver) watchdog(now time.Time) {
 	info.UpdateWatchdogInfo(wi)
 
 	metrics.Gauge("datadog.trace_agent.heap_alloc", float64(wi.Mem.Alloc), nil, 1)
+	log.Errorf("CPU_PERCENT: %v", wi.CPU.UserAvg*100)
 	metrics.Gauge("datadog.trace_agent.cpu_percent", wi.CPU.UserAvg*100, nil, 1)
 	metrics.Gauge("datadog.trace_agent.receiver.ratelimit", stats.TargetRate, nil, 1)
 }
