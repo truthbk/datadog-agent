@@ -29,6 +29,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/diagnose"
 	"github.com/DataDog/datadog-agent/pkg/diagnose/connectivity"
+	"github.com/DataDog/datadog-agent/pkg/process/net"
 	"github.com/DataDog/datadog-agent/pkg/secrets"
 	"github.com/DataDog/datadog-agent/pkg/status"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
@@ -270,6 +271,11 @@ func createArchive(confSearchPaths SearchPaths, local bool, zipFilePath string, 
 		err = zipSystemProbeStats(tempDir, hostname)
 		if err != nil {
 			log.Errorf("Could not zip system probe exp var stats: %s", err)
+		}
+
+		err = zipSystemProbeTelemetry(tempDir, hostname)
+		if err != nil {
+			log.Errorf("Could not zip system probe telemetry: %s", err)
 		}
 	}
 
@@ -552,6 +558,20 @@ func zipSystemProbeStats(tempDir, hostname string) error {
 	}
 
 	return joinPathAndWriteScrubbedFile(sysProbeBuf, tempDir, hostname, "expvar", "system-probe")
+}
+
+func zipSystemProbeTelemetry(tempDir, hostname string) error {
+	probeUtil, err := net.GetRemoteSystemProbeUtil()
+	if err != nil {
+		return err
+	}
+
+	output, err := probeUtil.GetEndpointOutput("/network_tracer/debug/telemetry")
+	if err != nil {
+		return err
+	}
+
+	return joinPathAndWriteScrubbedFile(output, tempDir, hostname, "system_probe_telemetry.json")
 }
 
 // zipProcessAgentFullConfig fetches process-agent runtime config as YAML and writes it to process_agent_runtime_config_dump.yaml

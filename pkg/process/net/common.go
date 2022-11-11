@@ -110,22 +110,11 @@ func (r *RemoteSysProbeUtil) GetProcStats(pids []int32) (*model.ProcStatsWithPer
 
 	req.Header.Set("Accept", contentTypeProtobuf)
 	req.Header.Set("Content-Type", procEncoding.ContentTypeProtobuf)
-	resp, err := r.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("proc_stats request failed: Probe Path %s, url: %s, status code: %d", r.path, procStatsURL, resp.StatusCode)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
+	body, contentType, err := r.doRequest(req)
 	if err != nil {
 		return nil, err
 	}
 
-	contentType := resp.Header.Get("Content-type")
 	results, err := procEncoding.GetUnmarshaler(contentType).Unmarshal(body)
 	if err != nil {
 		return nil, err
@@ -142,23 +131,11 @@ func (r *RemoteSysProbeUtil) GetConnections(clientID string) (*model.Connections
 	}
 
 	req.Header.Set("Accept", contentTypeProtobuf)
-	resp, err := r.httpClient.Do(req)
+	body, contentType, err := r.doRequest(req)
 	if err != nil {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("conn request failed: Probe Path %s, url: %s, status code: %d", r.path, connectionsURL, resp.StatusCode)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	contentType := resp.Header.Get("Content-type")
 	conns, err := netEncoding.GetUnmarshaler(contentType).Unmarshal(body)
 	if err != nil {
 		return nil, err
@@ -174,15 +151,7 @@ func (r *RemoteSysProbeUtil) GetStats() (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	resp, err := r.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	} else if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("conn request failed: Path %s, url: %s, status code: %d", r.path, statsURL, resp.StatusCode)
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	defer resp.Body.Close()
+	body, _, err := r.doRequest(req)
 	if err != nil {
 		return nil, err
 	}
@@ -203,16 +172,38 @@ func (r *RemoteSysProbeUtil) Register(clientID string) error {
 		return err
 	}
 
-	resp, err := r.httpClient.Do(req)
+	_, _, err = r.doRequest(req)
+	return err
+}
+
+// GetEndpointOutput performs a GET request to the given path and returns the raw response body
+func (r *RemoteSysProbeUtil) GetEndpointOutput(path string) ([]byte, error) {
+	req, err := http.NewRequest("GET", path, nil)
 	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("conn request failed: Path %s, url: %s, status code: %d", r.path, statsURL, resp.StatusCode)
+		return nil, err
 	}
 
-	return nil
+	body, _, err := r.doRequest(req)
+	return body, err
+}
+
+func (r *RemoteSysProbeUtil) doRequest(req *http.Request) (body []byte, contentType string, err error) {
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, "", fmt.Errorf("request failed: socket path %s, url: %s, status code: %d", r.path, req.URL.Path, resp.StatusCode)
+	}
+
+	defer resp.Body.Close()
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return body, resp.Header.Get("Content-type"), nil
 }
 
 func newSystemProbe() *RemoteSysProbeUtil {
