@@ -24,6 +24,7 @@ from .rtloader import clean as rtloader_clean
 from .rtloader import install as rtloader_install
 from .rtloader import make as rtloader_make
 from .ssm import get_pfx_pass, get_signing_cert
+from .vrl import build as vrl_build
 from .utils import (
     REPO_PATH,
     bin_name,
@@ -112,6 +113,8 @@ def build(
         inv agent.build --build-exclude=systemd
     """
     flavor = AgentFlavor[flavor]
+
+    vrl_build(ctx)
 
     if not exclude_rtloader and not flavor.is_iot():
         # If embedded_path is set, we should give it to rtloader as it should install the headers/libs

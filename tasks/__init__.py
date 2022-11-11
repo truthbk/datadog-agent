@@ -26,6 +26,7 @@ from . import (
     systray,
     trace_agent,
     vscode,
+    vrl,
 )
 from .build_tags import audit_tag_impact, print_default_build_tags
 from .components import lint_components
@@ -115,6 +116,7 @@ ns.add_collection(system_probe)
 ns.add_collection(process_agent)
 ns.add_collection(security_agent)
 ns.add_collection(vscode)
+ns.add_collection(vrl)
 ns.configure(
     {
         'run': {
