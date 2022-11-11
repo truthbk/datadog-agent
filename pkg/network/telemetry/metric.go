@@ -6,7 +6,6 @@
 package telemetry
 
 import (
-	"encoding/json"
 	"strings"
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -91,22 +90,6 @@ func (m *Metric) Delta() int64 {
 	current := m.value.Load()
 	previous := m.prevValue.Swap(current)
 	return current - previous
-}
-
-// MarshalJSON returns a json representation of the current `Metric`. We
-// implement our own method so we don't need to export the fields.
-// This is mostly inteded for serving a list of the existing
-// metrics under /network_tracer/debug/telemetry endpoint
-func (m *Metric) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
-		Name string
-		Tags []string `json:",omitempty"`
-		Opts []string
-	}{
-		Name: m.name,
-		Tags: m.tags,
-		Opts: m.opts,
-	})
 }
 
 func (m *Metric) isEqual(other *Metric) bool {
