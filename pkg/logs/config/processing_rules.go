@@ -8,6 +8,8 @@ package config
 import (
 	"fmt"
 	"regexp"
+
+	"github.com/DataDog/datadog-agent/pkg/logs/vrl"
 )
 
 // Processing rule types
@@ -27,6 +29,7 @@ type ProcessingRule struct {
 	Pattern            string
 	// TODO: should be moved out
 	Regex       *regexp.Regexp
+	VrlProgram  vrl.VrlProgram
 	Placeholder []byte
 }
 
@@ -72,8 +75,7 @@ func CompileProcessingRules(rules []*ProcessingRule) error {
 		case ExcludeAtMatch, IncludeAtMatch:
 			rule.Regex = re
 		case MaskSequences:
-			rule.Regex = re
-			rule.Placeholder = []byte(rule.ReplacePlaceholder)
+			rule.VrlProgram = maskToVrl(rule.Pattern, rule.ReplacePlaceholder)
 		case MultiLine:
 			rule.Regex, err = regexp.Compile("^" + rule.Pattern)
 			if err != nil {
@@ -82,4 +84,9 @@ func CompileProcessingRules(rules []*ProcessingRule) error {
 		}
 	}
 	return nil
+}
+
+func maskToVrl(regex string, placeholder string) vrl.VrlProgram {
+	// TODO: handel errors
+	return vrl.CompileVrl(fmt.Sprintf(`. = replace(string!(.), r'%s', "%s", 1)`, regex, placeholder))
 }

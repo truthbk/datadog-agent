@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/diagnostic"
 	"github.com/DataDog/datadog-agent/pkg/logs/internal/metrics"
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
+	"github.com/DataDog/datadog-agent/pkg/logs/vrl"
 )
 
 // A Processor updates messages from an inputChan and pushes
@@ -120,7 +121,7 @@ func (p *Processor) applyRedactingRules(msg *message.Message) (bool, []byte) {
 				return false, nil
 			}
 		case config.MaskSequences:
-			content = rule.Regex.ReplaceAll(content, rule.Placeholder)
+			content = []byte(vrl.Run(rule.VrlProgram, string(content)))
 		}
 	}
 	return true, content

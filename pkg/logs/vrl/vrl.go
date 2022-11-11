@@ -17,7 +17,7 @@ func CompileVrl(str string) VrlProgram {
 	return VrlProgram{p: program}
 }
 
-func ProcessStringVrl(str string, program VrlProgram) string {
+func Run(program VrlProgram, str string) string {
 	cs := C.CString(str)
 	b := C.run_vrl_c(cs, program.p)
 	s := C.GoString(b)
