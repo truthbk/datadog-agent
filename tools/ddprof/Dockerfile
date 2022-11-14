@@ -2,11 +2,11 @@ ARG AGENT_VERSION
 FROM datadog/agent:${AGENT_VERSION}
 
 # install ddprof
-RUN curl -L https://github.com/DataDog/ddprof/releases/download/v0.8.1/ddprof-0.8.1-$(/usr/bin/arch)-unknown-linux-gnu.tar.xz -o ddprof.tar.xz \
- && tar xvf ddprof.tar.xz \
- && cp ddprof/bin/ddprof /usr/local/bin/ddprof \
- && rm -f ddprof.tar.xz \
- && rm -rf ddprof/
+ARG DDPROF_VERSION=0.9.3
+ARG TARGETARCH
+RUN curl -L https://github.com/DataDog/ddprof/releases/download/v${DDPROF_VERSION}/ddprof-${DDPROF_VERSION}-${TARGETARCH}-unknown-linux-gnu.tar.xz -o ddprof.tar.xz \
+ && tar --strip-components=2 -C /opt/datadog-agent/embedded/bin -xf ddprof.tar.xz ddprof/bin/ddprof \
+ && rm -f ddprof.tar.xz
 
 # Install datadog-agent-dbg at the right version
 RUN apt-get update && apt-get install -o Dpkg::Options::="--force-confold" --no-install-recommends -y gnupg dirmngr ca-certificates \
