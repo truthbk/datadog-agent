@@ -15,10 +15,14 @@ def get_vrl_path():
 
 @task 
 def build(ctx):
-    targets = "--target wasm32-wasi"
+    arch = ctx.run("uname -m").stdout.replace('\n', '')
+    if arch == "arm64":
+        arch = "aarch64"
+
+    targets = ""
     if sys.platform.startswith('linux'):
-        targets += " --target aarch64-unknown-linux-gnu"
+        targets += f" --target {arch}-unknown-linux-gnu"
     if sys.platform == 'darwin':
-        targets += " --target aarch64-apple-darwin"
+        targets += f" --target {arch}-apple-darwin"
 
     ctx.run(f"cd {get_vrl_path()} && cargo build --release {targets}")
