@@ -16,6 +16,7 @@ from invoke.exceptions import Exit, UnexpectedExit
 from .build_tags import get_default_build_tags
 from .libs.ninja_syntax import NinjaWriter
 from .utils import REPO_PATH, bin_name, get_build_flags, get_version_numeric_only
+from .vrl import build as vrl_build
 
 BIN_DIR = os.path.join(".", "bin", "system-probe")
 BIN_PATH = os.path.join(BIN_DIR, bin_name("system-probe"))
@@ -380,6 +381,9 @@ def build(
     """
     Build the system-probe
     """
+
+    vrl_build(ctx)
+    
     build_object_files(
         ctx,
         windows=windows,
