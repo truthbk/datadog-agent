@@ -88,5 +88,5 @@ func CompileProcessingRules(rules []*ProcessingRule) error {
 
 func maskToVrl(regex string, placeholder string) vrl.VrlProgram {
 	// TODO: handel errors
-	return vrl.CompileVrl(fmt.Sprintf(`. = replace(string!(.), r'%s', "%s", 1)`, regex, placeholder))
+	return vrl.CompileVrl(fmt.Sprintf(`. = replace(string!(.), r'%s', "%s")`, regex, placeholder))
 }
