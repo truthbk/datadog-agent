@@ -5,7 +5,7 @@ package vrl
 //#include <string.h>
 //#include <vrl.h>
 //#cgo CFLAGS: -I${SRCDIR}/pkg/logs/vrl/target/release/
-//#cgo LDFLAGS: -L${SRCDIR}/target/release -Wl,-rpath,${SRCDIR}/target/release -lvrl_bridge
+//#cgo LDFLAGS: -L${SRCDIR}/target/release -Wl,-rpath,${SRCDIR}/target/release -lvrl_bridge -lm
 import "C"
 import "unsafe"
 
