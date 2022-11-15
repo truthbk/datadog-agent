@@ -178,12 +178,19 @@ func (s *Server) mutateHandler(w http.ResponseWriter, r *http.Request, mutateFun
 		return
 	}
 
-	encoder := json.NewEncoder(w)
-	err = encoder.Encode(&response)
+	jsonResponse, err := json.Marshal(&response)
 	if err != nil {
-		log.Warnf("Failed to encode the response: %v", err)
+		log.Warnf("Failed to encode the JSON response: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	written, err := w.Write(jsonResponse)
+	if err != nil {
+		log.Warnf("Error while writing HTTP response, written bytes: %d, err: %v", written, err)
+		log.Info(string(body))
 	}
 }
 
