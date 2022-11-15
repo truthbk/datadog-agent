@@ -29,11 +29,18 @@ FROM baseimage AS extract
 ARG WITH_JMX
 ARG PYTHON_VERSION
 ARG DD_AGENT_ARTIFACT=datadog-agent*_amd64.deb
+ARG DD_AGENT_DBG_ARTIFACT
 ARG GENERAL_ARTIFACTS_CACHE_BUCKET_URL
 
 # copy everything - globbing with args wont work
 COPY datadog-agent*_amd64.deb /
 WORKDIR /output
+
+# get ddprof
+ENV DDPROF_VERSION=0.10.1
+ENV DDPROF_SHA256SUM=910ca1c5eeb80e7320970d46448e1c178ae06331d6b2cfe552cc1c37ef408d37
+ADD https://github.com/DataDog/ddprof/releases/download/v${DDPROF_VERSION}/ddprof-${DDPROF_VERSION}-amd64-linux.tar.xz /output/ddprof.tar.xz
+RUN echo "${DDPROF_SHA256SUM} /output/ddprof.tar.xz" | sha256sum -c -
 
 # Get s6-overlay
 ENV S6_VERSION v1.22.1.0
@@ -53,7 +60,7 @@ RUN echo "${S6_SHA256SUM} /output/s6.tgz" | sha256sum -c -
 #   - jmxfetch on nojmx build
 
 # DEBUGGING
-RUN find / -maxdepth 1 -type f -name 'datadog-agent*_amd64.deb' ! -name "$DD_AGENT_ARTIFACT" -exec rm {} \; \
+RUN find / -maxdepth 1 -type f -name 'datadog-agent*_amd64.deb' ! -name "$DD_AGENT_ARTIFACT" ! -name "$DD_AGENT_DBG_ARTIFACT" -exec rm {} \; \
  && find / -maxdepth 1 -name 'datadog-agent*_amd64.deb' -exec dpkg -X {} . \; | egrep '.*' \
  && rm -rf usr etc/init lib \
     opt/datadog-agent/sources \
@@ -171,6 +178,21 @@ RUN tar xzf s6.tgz -C / --exclude="./bin" \
  && chmod 755 /probe.sh /initlog.sh \
  && chown root:root /readsecret.py /readsecret.sh /readsecret_multiple_providers.sh \
  && chmod 550 /readsecret.py /readsecret.sh /readsecret_multiple_providers.sh
+
+# extract ddprof
+RUN tar --strip-components=2 -C /opt/datadog-agent/embedded/bin -xf ddprof.tar.xz ddprof/bin/ddprof \
+ && rm ddprof.tar.xz
+
+# setup build id -> symbol mappings
+RUN mkdir -p /usr/lib/debug/.build-id/$(readelf -n /opt/datadog-agent/bin/agent/agent | perl -nE 'say $1 if /Build ID: (..)(.*)/')
+RUN cp /opt/datadog-agent/.debug/opt/datadog-agent/bin/agent/agent.dbg \
+       /usr/lib/debug/.build-id/$(readelf -n /opt/datadog-agent/bin/agent/agent | perl -nE 'say "$1/$2.debug" if /Build ID: (..)(.*)/')
+RUN mkdir -p /usr/lib/debug/.build-id/$(readelf -n /opt/datadog-agent/embedded/bin/process-agent | perl -nE 'say $1 if /Build ID: (..)(.*)/')
+RUN cp /opt/datadog-agent/.debug/opt/datadog-agent/embedded/bin/process-agent.dbg \
+       /usr/lib/debug/.build-id/$(readelf -n /opt/datadog-agent/embedded/bin/process-agent | perl -nE 'say "$1/$2.debug" if /Build ID: (..)(.*)/')
+RUN mkdir -p /usr/lib/debug/.build-id/$(readelf -n /opt/datadog-agent/embedded/bin/system-probe | perl -nE 'say $1 if /Build ID: (..)(.*)/')
+RUN cp /opt/datadog-agent/.debug/opt/datadog-agent/embedded/bin/system-probe.dbg \
+       /usr/lib/debug/.build-id/$(readelf -n /opt/datadog-agent/embedded/bin/system-probe | perl -nE 'say "$1/$2.debug" if /Build ID: (..)(.*)/')
 
 # Update links to python binaries
 
