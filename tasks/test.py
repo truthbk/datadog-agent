@@ -27,6 +27,7 @@ from .libs.junit_upload import add_flavor_to_junitxml, junit_upload_from_tgz, pr
 from .modules import DEFAULT_MODULES, GoModule
 from .trace_agent import integration_tests as trace_integration_tests
 from .utils import DEFAULT_BRANCH, get_build_flags
+from .vrl import build as vrl_build
 
 PROFILE_COV = "profile.cov"
 GO_TEST_RESULT_TMP_JSON = 'tmp.json'
@@ -349,6 +350,7 @@ def test(
                 ctx, modules=modules, flavor=flavor, build_tags=build_tags, arch=arch, rtloader_root=rtloader_root
             )
 
+    vrl_build(ctx)
     ldflags, gcflags, env = get_build_flags(
         ctx,
         rtloader_root=rtloader_root,
