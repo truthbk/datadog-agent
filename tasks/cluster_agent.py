@@ -13,6 +13,7 @@ from .build_tags import get_build_tags, get_default_build_tags
 from .cluster_agent_helpers import build_common, clean_common, refresh_assets_common, version_common
 from .go import deps
 from .utils import load_release_versions
+from .vrl import build as vrl_build
 
 # constants
 BIN_PATH = os.path.join(".", "bin", "datadog-cluster-agent")
@@ -50,6 +51,8 @@ def build(
         development,
         skip_assets,
     )
+
+    vrl_build(ctx)
 
     if policies_version is None:
         print(f"Loading release versions for {release_version}")
