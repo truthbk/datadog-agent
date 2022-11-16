@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"runtime/debug"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/forwarder"
@@ -309,6 +310,7 @@ func (s *Serializer) AreSeriesEnabled() bool {
 
 // SendIterableSeries serializes a list of series and sends the payload to the forwarder
 func (s *Serializer) SendIterableSeries(serieSource metrics.SerieSource) error {
+	debug.PrintStack()
 	if !s.AreSeriesEnabled() {
 		log.Debug("series payloads are disabled: dropping it")
 		return nil
