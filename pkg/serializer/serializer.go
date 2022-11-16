@@ -322,10 +322,13 @@ func (s *Serializer) SendIterableSeries(serieSource metrics.SerieSource) error {
 	var err error
 
 	if useV1API && s.enableJSONStream {
+		fmt.Println("[debug] useV1API && s.enableJSONStream")
 		seriesBytesPayloads, extraHeaders, err = s.serializeIterableStreamablePayload(seriesSerializer, stream.DropItemOnErrItemTooBig)
 	} else if useV1API && !s.enableJSONStream {
+		fmt.Println("[debug] useV1API && !s.enableJSONStream")
 		seriesBytesPayloads, extraHeaders, err = s.serializePayloadJSON(seriesSerializer, true)
 	} else {
+		fmt.Println("[debug] else")
 		seriesBytesPayloads, err = seriesSerializer.MarshalSplitCompress(marshaler.DefaultBufferContext())
 		extraHeaders = protobufExtraHeadersWithCompression
 	}
