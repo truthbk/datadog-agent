@@ -13,6 +13,7 @@ import (
 	tracecmdconfig "github.com/DataDog/datadog-agent/cmd/trace-agent/config"
 	ddConfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/serverless/executioncontext"
+	"github.com/DataDog/datadog-agent/pkg/serverless/random"
 	"github.com/DataDog/datadog-agent/pkg/trace/agent"
 	"github.com/DataDog/datadog-agent/pkg/trace/config"
 	"github.com/DataDog/datadog-agent/pkg/trace/pb"
@@ -77,6 +78,7 @@ func (s *ServerlessTraceAgent) Start(enabled bool, loadConfig Load, executionCon
 					executionContext: executionContext,
 					traceAgent:       s,
 					createSpan:       &sync.Once{},
+					coldStartSpanId:  random.Random.Uint64(),
 				}
 			}
 

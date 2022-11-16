@@ -28,9 +28,15 @@ func (s *spanModifier) ModifySpan(span *pb.Span) {
 			span.Service = s.tags["service"]
 		}
 		if s.coldStartSpanCreator != nil {
-			s.coldStartSpanCreator.create(span)
+			s.coldStartSpanCreator.create(span, s.coldStartSpanCreator.coldStartSpanId)
 		}
 	}
+
+	if span.Name == "aws.lambda.load" {
+		// ASTUYVE remap parentspanID to coldstart span
+		span.ParentID = s.coldStartSpanCreator.coldStartSpanId
+	}
+
 	if inferredspan.CheckIsInferredSpan(span) {
 		log.Debug("Detected a managed service span, filtering out function tags")
 

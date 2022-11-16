@@ -54,7 +54,7 @@ func TestColdStartSpanCreatorCreateValid(t *testing.T) {
 		ParentID: random.Random.Uint64(),
 		Duration: 500000000,
 	}
-	coldStartSpanCreator.create(lambdaSpan)
+	coldStartSpanCreator.create(lambdaSpan, random.Random.Uint64())
 	timeout := time.After(2 * time.Second)
 	var span *pb.Span
 	select {
@@ -101,7 +101,7 @@ func TestColdStartSpanCreatorCreateDuplicate(t *testing.T) {
 		ParentID: random.Random.Uint64(),
 		Duration: 500,
 	}
-	coldStartSpanCreator.create(lambdaSpan)
+	coldStartSpanCreator.create(lambdaSpan, random.Random.Uint64())
 	timeout := time.After(time.Second)
 	timedOut := false
 	select {
@@ -140,7 +140,7 @@ func TestColdStartSpanCreatorNotColdStart(t *testing.T) {
 		ParentID: random.Random.Uint64(),
 		Duration: 500,
 	}
-	coldStartSpanCreator.create(lambdaSpan)
+	coldStartSpanCreator.create(lambdaSpan, random.Random.Uint64())
 	timeout := time.After(time.Second)
 	timedOut := false
 	select {

@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/DataDog/datadog-agent/pkg/serverless/executioncontext"
-	"github.com/DataDog/datadog-agent/pkg/serverless/random"
 	"github.com/DataDog/datadog-agent/pkg/trace/api"
 	"github.com/DataDog/datadog-agent/pkg/trace/info"
 	"github.com/DataDog/datadog-agent/pkg/trace/pb"
@@ -38,9 +37,10 @@ type ColdStartSpanCreator struct {
 	executionContext *executioncontext.ExecutionContext
 	traceAgent       *ServerlessTraceAgent
 	createSpan       *sync.Once
+	coldStartSpanId  uint64
 }
 
-func (c *ColdStartSpanCreator) create(lambdaSpan *pb.Span) {
+func (c *ColdStartSpanCreator) create(lambdaSpan *pb.Span, spanId uint64) {
 	// Prevent infinite loop from SpanModifier call
 	if lambdaSpan.Name == "aws.lambda.cold_start" {
 		return
@@ -61,7 +61,7 @@ func (c *ColdStartSpanCreator) create(lambdaSpan *pb.Span) {
 		Service:  service,
 		Name:     spanName,
 		Resource: functionName,
-		SpanID:   random.Random.Uint64(),
+		SpanID:   spanId,
 		TraceID:  lambdaSpan.TraceID,
 		ParentID: lambdaSpan.ParentID,
 		Start:    lambdaSpan.Start - int64(durationNs),
