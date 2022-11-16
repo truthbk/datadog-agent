@@ -7,8 +7,11 @@ package model
 
 import (
 	"container/list"
+	"fmt"
 	"strings"
 	"time"
+
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 const (
@@ -185,6 +188,10 @@ func (p *ArgsEnvsCacheEntry) release() {
 func (p *ArgsEnvsCacheEntry) Append(entry *ArgsEnvsCacheEntry) {
 	p.TotalSize += uint64(entry.Size)
 
+	if entry.last != nil || entry.next != nil {
+		panic("entry with next/last field not empty")
+	}
+
 	if p.last != nil {
 		p.last.next = entry
 	} else {
@@ -217,11 +224,38 @@ func NewArgsEnvsCacheEntry(onRelease func(_ *ArgsEnvsCacheEntry)) *ArgsEnvsCache
 	return entry
 }
 
+func (p *ArgsEnvsCacheEntry) ohNo(values []string) {
+	log.Errorf("OH NO, entry values: %+v", values)
+
+	entry := p
+
+	const maxEntries = 150
+	var count int
+
+	var pointers []string
+
+	for entry != nil {
+		pointers = append(pointers, fmt.Sprintf("%p", entry))
+
+		count++
+		if count > maxEntries {
+			break
+		}
+
+		entry = entry.next
+	}
+
+	log.Errorf("OH NO, entry pointers: %+v", pointers)
+}
+
 func (p *ArgsEnvsCacheEntry) toArray() ([]string, bool) {
 	entry := p
 
 	var values []string
 	var truncated bool
+
+	const maxEntries = 150
+	var count int
 
 	for entry != nil {
 		v, err := UnmarshalStringArray(entry.ValuesRaw[:entry.Size])
@@ -235,7 +269,16 @@ func (p *ArgsEnvsCacheEntry) toArray() ([]string, bool) {
 			values = append(values, v...)
 		}
 
+		count++
+		if count > maxEntries {
+			break
+		}
+
 		entry = entry.next
+	}
+
+	if count > maxEntries {
+		p.ohNo(values)
 	}
 
 	return values, truncated
