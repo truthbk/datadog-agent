@@ -630,9 +630,7 @@ func (t *Tracer) getStats(comps ...statsComp) (map[string]interface{}, error) {
 		case stateStats:
 			ret["state"] = t.state.GetStats()["telemetry"]
 		case tracerStats:
-			tracerStats := atomicstats.Report(t)
-			tracerStats["runtime"] = runtime.Tracer.GetTelemetry()
-			ret["tracer"] = tracerStats
+			ret["tracer"] = atomicstats.Report(t)
 		case bpfMapStats:
 			ret["map_ops"] = t.bpfTelemetry.GetMapsTelemetry()
 		case bpfHelperStats:
