@@ -12,6 +12,7 @@ from invoke.exceptions import Exit
 from .build_tags import get_default_build_tags
 from .go import golangci_lint
 from .libs.ninja_syntax import NinjaWriter
+from .vrl import build as vrl_build
 from .system_probe import (
     CURRENT_ARCH,
     build_cws_object_files,
@@ -54,6 +55,8 @@ def build(
     Build the security agent
     """
     ldflags, gcflags, env = get_build_flags(ctx, major_version=major_version, python_runtimes='3')
+
+    vrl_build(ctx)
 
     # generate windows resources
     if sys.platform == 'win32':
@@ -660,6 +663,8 @@ def go_generate_check(ctx):
         [generate_runtime_files],
     ]
     failing_tasks = []
+
+    vrl_build(ctx)
 
     for task_entry in tasks:
         task, args = task_entry[0], task_entry[1:]

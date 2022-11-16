@@ -573,6 +573,8 @@ def kitchen_prepare(ctx, windows=is_windows, kernel_release=None):
             .split("\n")
         )
 
+    vrl_build(ctx)
+
     # This will compile one 'testsuite' file per package by running `go test -c -o output_path`.
     # These artifacts will be "vendored" inside a chef recipe like the following:
     # test/kitchen/site-cookbooks/dd-system-probe-check/files/default/tests/pkg/network/testsuite
