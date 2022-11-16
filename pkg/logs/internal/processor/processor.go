@@ -121,7 +121,7 @@ func (p *Processor) applyRedactingRules(msg *message.Message) (bool, []byte) {
 				return false, nil
 			}
 		case config.MaskSequences:
-			content = []byte(vrl.Run(rule.VrlProgram, string(content)))
+			content = []byte(vrl.Run(*rule.VrlProgram, string(content)))
 		}
 	}
 	return true, content

@@ -29,7 +29,7 @@ type ProcessingRule struct {
 	Pattern            string
 	// TODO: should be moved out
 	Regex       *regexp.Regexp
-	VrlProgram  vrl.VrlProgram
+	VrlProgram  *vrl.VrlProgram
 	Placeholder []byte
 }
 
@@ -75,7 +75,8 @@ func CompileProcessingRules(rules []*ProcessingRule) error {
 		case ExcludeAtMatch, IncludeAtMatch:
 			rule.Regex = re
 		case MaskSequences:
-			rule.VrlProgram = maskToVrl(rule.Pattern, rule.ReplacePlaceholder)
+			program := maskToVrl(rule.Pattern, rule.ReplacePlaceholder)
+			rule.VrlProgram = &program
 		case MultiLine:
 			rule.Regex, err = regexp.Compile("^" + rule.Pattern)
 			if err != nil {

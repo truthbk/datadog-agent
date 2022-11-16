@@ -114,9 +114,8 @@ func (suite *ConfigTestSuite) TestGlobalProcessingRulesShouldReturnRulesWithVali
 	rule = rules[0]
 	suite.Equal(MaskSequences, rule.Type)
 	suite.Equal("mask_api_keys", rule.Name)
-	suite.Equal("([A-Fa-f0-9]{28})", rule.Pattern)
+	suite.NotNil(rule.VrlProgram)
 	suite.Equal("****************************", rule.ReplacePlaceholder)
-	suite.NotNil(rule.Regex)
 }
 
 func (suite *ConfigTestSuite) TestTaggerWarmupDuration() {
