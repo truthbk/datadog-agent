@@ -487,7 +487,7 @@ build do
       if windows?
         command "#{python} -m pip check"
       else
-        command "#{pip} check"
+        command "#{pip} check -vvv --debug"
       end
     end
   end
