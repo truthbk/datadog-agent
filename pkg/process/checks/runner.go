@@ -142,7 +142,6 @@ func (r *runnerWithWatermark) run() {
 			log.Info("Running watermark check due to ticker")
 			r.RunCheck(RunOptions{})
 		case s := <-r.watermarkChan:
-			log.Infof("Received watermark signal: %s", s.SignalType.String())
 			if r.shouldRunOnWatermark(s) {
 				log.Infof("Running watermark due to watermark signal: %s", s.SignalType.String())
 				r.RunCheck(RunOptions{})

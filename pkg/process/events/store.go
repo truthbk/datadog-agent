@@ -128,7 +128,8 @@ func NewRingStore(client statsd.ClientInterface) (Store, error) {
 		statsInterval: time.Duration(statsInterval) * time.Second,
 		expiredInput:  atomic.NewInt64(0),
 		expiredBuffer: atomic.NewInt64(0),
-		watermarkChan: make(chan *watermark.Signal, 10),
+		// only allow one signal to be buffered
+		watermarkChan: make(chan *watermark.Signal, 1),
 	}, nil
 }
 
@@ -272,20 +273,16 @@ func (s *RingStore) sendStats() {
 // This function is not thread-safe and should only be called internally by the RingStore routine or during tests
 func (s *RingStore) evaluateItemCount() *watermark.Signal {
 	if s.size() == len(s.buffer) {
-		log.Info("WATERMARK: FULL")
 		return &watermark.Signal{SignalType: watermark.ItemCount100Full}
 	}
 
 	usage := float32(s.size()) / float32(len(s.buffer))
 	switch {
 	case usage >= 0.9:
-		log.Info("WATERMARK: 90%")
 		return &watermark.Signal{SignalType: watermark.ItemCount90Full}
 	case usage >= 0.8:
-		log.Info("WATERMARK: 80%")
 		return &watermark.Signal{SignalType: watermark.ItemCount80Full}
 	default:
-		log.Infof("WATERMARK USAGE: %.2f", usage)
 		return nil
 	}
 }
@@ -298,7 +295,6 @@ func (s *RingStore) run() {
 	for {
 		select {
 		case req := <-s.pushReq:
-			log.Info("Adding event to store")
 			s.push(req.event)
 			if req.done != nil {
 				req.done <- true
@@ -306,15 +302,16 @@ func (s *RingStore) run() {
 
 			// Notify if a watermark has been reached
 			if signal := s.evaluateItemCount(); signal != nil {
-				log.Infof("Watermark generated: %s", signal.SignalType.String())
 				select {
 				case s.watermarkChan <- signal:
 				default:
+					// If channel is full, prioritize newer signal since it's closer to the real store state
+					<-s.watermarkChan
+					s.watermarkChan <- signal
 					// TODO: Do not span warn logs
 					log.Warn("WatermarkChan is full")
 				}
 			} else {
-				log.Info("Watermark NOT generated")
 			}
 		case req := <-s.pullReq:
 			req.results <- s.pull()
