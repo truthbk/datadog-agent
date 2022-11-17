@@ -575,6 +575,7 @@ func (l *Collector) runnerForCheck(c checks.Check, exit chan struct{}) (func(), 
 	results := l.resultsQueueForCheck(c.Name())
 
 	if withWatermark, ok := c.(checks.CheckWithWatermark); ok {
+		log.Infof("Creating WatemarkRunner for check %s", withWatermark.Name())
 		// TODO: fill out configs
 		cfg := checks.RunnerConfig{
 			CheckInterval:  l.cfg.CheckInterval(withWatermark.Name()),

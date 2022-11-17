@@ -34,7 +34,7 @@ type runnerWithRealTime struct {
 
 type runnerWithWatermark struct {
 	RunnerConfig
-	watermarkChan <-chan watermark.Signal
+	watermarkChan <-chan *watermark.Signal
 	newTicker     func(d time.Duration) *time.Ticker
 	stopTicker    func(t *time.Ticker)
 }
@@ -117,7 +117,7 @@ func getRtRatio(checkInterval, rtInterval time.Duration) (int, error) {
 }
 
 // NewRunnerWithWatermark creates a runner func for CheckWithWatermark
-func NewRunnerWithWatermark(config RunnerConfig, watermarkChan <-chan watermark.Signal) (func(), error) {
+func NewRunnerWithWatermark(config RunnerConfig, watermarkChan <-chan *watermark.Signal) (func(), error) {
 	r := &runnerWithWatermark{
 		RunnerConfig: config,
 		newTicker:    time.NewTicker,

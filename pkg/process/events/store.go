@@ -35,7 +35,7 @@ type Store interface {
 	// Pull fetches all events in the store that haven't been consumed yet
 	Pull(context.Context, time.Duration) ([]*model.ProcessEvent, error)
 	// WatermarkChannel returns a channel used to signal the Store state
-	WatermarkChannel() <-chan watermark.Signal
+	WatermarkChannel() <-chan *watermark.Signal
 }
 
 // ringNode represents an event stored in the RingStore buffer
@@ -82,7 +82,7 @@ type RingStore struct {
 	expiredBuffer *atomic.Int64 // how many events have been dropped due to a full buffer
 
 	// Channel used to signal how full the store is
-	watermarkChan chan watermark.Signal
+	watermarkChan chan *watermark.Signal
 }
 
 // readPositiveInt reads a config stored in the given key and asserts that it's a positive value
@@ -128,6 +128,7 @@ func NewRingStore(client statsd.ClientInterface) (Store, error) {
 		statsInterval: time.Duration(statsInterval) * time.Second,
 		expiredInput:  atomic.NewInt64(0),
 		expiredBuffer: atomic.NewInt64(0),
+		watermarkChan: make(chan *watermark.Signal, 10),
 	}, nil
 }
 
@@ -201,7 +202,7 @@ func (s *RingStore) Pull(ctx context.Context, timeout time.Duration) ([]*model.P
 	return batch, nil
 }
 
-func (s *RingStore) WatermarkChannel() <-chan watermark.Signal {
+func (s *RingStore) WatermarkChannel() <-chan *watermark.Signal {
 	return s.watermarkChan
 }
 
@@ -275,10 +276,12 @@ func (s *RingStore) run() {
 
 	for {
 		select {
-		// Test sending watemakrs from Store to Collector
+		// Test sending watemarks from Store to Collector
 		// TODO: replace signal handling based on storage usage
+		// TODO: better handle when channel is full
 		case <-watermarkTicker.C:
-			s.watermarkChan <- watermark.Signal{SignalType: watermark.ItemCount80Full}
+			log.Info("Store sending watermark")
+			s.watermarkChan <- &watermark.Signal{SignalType: watermark.ItemCount80Full}
 		case req := <-s.pushReq:
 			s.push(req.event)
 			if req.done != nil {
