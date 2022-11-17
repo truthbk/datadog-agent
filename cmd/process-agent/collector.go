@@ -275,9 +275,9 @@ const (
 )
 
 // getRequestID generates a unique identifier (string representation of 64 bits integer) that is composed as follows:
-//	1. 22 bits of the seconds in the current month.
-//	2. 28 bits of hash of the hostname and process agent pid.
-// 	3. 14 bits of the current message in the batch being sent to the server.
+//  1. 22 bits of the seconds in the current month.
+//  2. 28 bits of hash of the hostname and process agent pid.
+//  3. 14 bits of the current message in the batch being sent to the server.
 func (l *Collector) getRequestID(start time.Time, chunkIndex int) string {
 	// The epoch is the beginning of the month of the `start` variable.
 	epoch := time.Date(start.Year(), start.Month(), 1, 0, 0, 0, 0, start.Location())
@@ -573,6 +573,12 @@ func (l *Collector) resultsQueueForCheck(name string) *api.WeightedQueue {
 
 func (l *Collector) runnerForCheck(c checks.Check, exit chan struct{}) (func(), error) {
 	results := l.resultsQueueForCheck(c.Name())
+
+	if withWatermark, ok := c.(checks.CheckWithWatermark); ok {
+		// TODO: fill out configs
+		cfg := checks.RunnerConfig{}
+		return checks.NewRunnerWithWatermark(cfg, withWatermark.WatermarkChannel())
+	}
 
 	withRealTime, ok := c.(checks.CheckWithRealTime)
 	if !l.runRealTime || !ok {

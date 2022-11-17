@@ -9,6 +9,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/process/util/watermark"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
@@ -29,6 +30,13 @@ type runnerWithRealTime struct {
 	counter    int
 	newTicker  func(d time.Duration) *time.Ticker
 	stopTicker func(t *time.Ticker)
+}
+
+type runnerWithWatermark struct {
+	RunnerConfig
+	watermarkChan chan<- watermark.Signal
+	newTicker     func(d time.Duration) *time.Ticker
+	stopTicker    func(t *time.Ticker)
 }
 
 // NewRunnerWithRealTime creates a runner func for CheckWithRealTime
@@ -106,4 +114,22 @@ func getRtRatio(checkInterval, rtInterval time.Duration) (int, error) {
 		return -1, errors.New("check interval should be divisible by RT interval")
 	}
 	return int(checkInterval / rtInterval), nil
+}
+
+// NewRunnerWithWatermark creates a runner func for CheckWithWatermark
+func NewRunnerWithWatermark(config RunnerConfig, watermarkChan chan<- watermark.Signal) (func(), error) {
+	r := &runnerWithWatermark{
+		RunnerConfig: config,
+		newTicker:    time.NewTicker,
+		stopTicker: func(t *time.Ticker) {
+			t.Stop()
+		},
+	}
+
+	return r.run, nil
+}
+
+// run performs runs for CheckWithWatermark checks
+func (r *runnerWithWatermark) run() {
+	// TODO: implement run function
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/process/events"
 	"github.com/DataDog/datadog-agent/pkg/process/events/model"
 	"github.com/DataDog/datadog-agent/pkg/process/statsd"
+	"github.com/DataDog/datadog-agent/pkg/process/util/watermark"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
@@ -128,6 +129,10 @@ func (e *ProcessEventsCheck) Cleanup() {
 		e.store.Stop()
 	}
 	log.Info("process_events check cleaned up")
+}
+
+func (e *ProcessEventsCheck) WatermarkChannel() chan<- watermark.Signal {
+	return e.store.WatermarkChannel()
 }
 
 func (e *ProcessEventsCheck) isCheckCorrectlySetup() bool {

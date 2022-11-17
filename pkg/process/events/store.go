@@ -17,6 +17,7 @@ import (
 
 	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/process/events/model"
+	"github.com/DataDog/datadog-agent/pkg/process/util/watermark"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
@@ -33,6 +34,8 @@ type Store interface {
 	Push(*model.ProcessEvent, chan bool) error
 	// Pull fetches all events in the store that haven't been consumed yet
 	Pull(context.Context, time.Duration) ([]*model.ProcessEvent, error)
+	// WatermarkChannel returns a channel used to signal the Store state
+	WatermarkChannel() chan<- watermark.Signal
 }
 
 // ringNode represents an event stored in the RingStore buffer
@@ -58,9 +61,9 @@ type pullRequest struct {
 // head points to the oldest event in the buffer, where data should be consumed from
 // tail points to the node where the next event will be inserted into
 // head = tail if
-//		* the store is empty, in which case the underlying ringNode doesn't have any data
-// 		* the store is full. Subsequent Push operations override the data pointed by head and move both head and tail
-//		to the next position
+//   - the store is empty, in which case the underlying ringNode doesn't have any data
+//   - the store is full. Subsequent Push operations override the data pointed by head and move both head and tail
+//     to the next position
 type RingStore struct {
 	head   int
 	tail   int
@@ -77,6 +80,9 @@ type RingStore struct {
 	statsInterval time.Duration
 	expiredInput  *atomic.Int64 // how many events have been dropped due to a full pushReq channel
 	expiredBuffer *atomic.Int64 // how many events have been dropped due to a full buffer
+
+	// Channel used to signal how full the store is
+	watermarkChan chan watermark.Signal
 }
 
 // readPositiveInt reads a config stored in the given key and asserts that it's a positive value
@@ -193,6 +199,10 @@ func (s *RingStore) Pull(ctx context.Context, timeout time.Duration) ([]*model.P
 	}
 
 	return batch, nil
+}
+
+func (s *RingStore) WatermarkChannel() chan<- watermark.Signal {
+	return s.watermarkChan
 }
 
 // size returns how many events are currently stored in the RingStore
