@@ -135,6 +135,17 @@ func (e *ProcessEventsCheck) WatermarkChannel() <-chan *watermark.Signal {
 	return e.store.WatermarkChannel()
 }
 
+func (e *ProcessEventsCheck) WatermarkHandler() ShouldRunOnWatermark {
+	return func(signal *watermark.Signal) bool {
+		switch signal.SignalType {
+		case watermark.ItemCount80Full, watermark.ItemCount90Full, watermark.ItemCount100Full:
+			return true
+		default:
+			return false
+		}
+	}
+}
+
 func (e *ProcessEventsCheck) isCheckCorrectlySetup() bool {
 	return e.store != nil && e.listener != nil
 }

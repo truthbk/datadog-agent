@@ -44,11 +44,15 @@ type CheckWithRealTime interface {
 	RunWithOptions(cfg *config.AgentConfig, nextGroupID func() int32, options RunOptions) (*RunResult, error)
 }
 
+// ShouldRunOnWatermark takes a watermark signal and returns whether a CheckWithWatermark should run
+type ShouldRunOnWatermark func(*watermark.Signal) bool
+
 // CheckWithWatermark provides an extended interface for running checks with a watermark channel
 // The watermark channel can be used to send signals to the collector and triggers a check run
 type CheckWithWatermark interface {
 	Check
 	WatermarkChannel() <-chan *watermark.Signal
+	WatermarkHandler() ShouldRunOnWatermark
 }
 
 // All is a list of all runnable checks. Putting a check in here does not guarantee it will be run,

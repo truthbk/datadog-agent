@@ -34,9 +34,11 @@ type runnerWithRealTime struct {
 
 type runnerWithWatermark struct {
 	RunnerConfig
-	watermarkChan <-chan *watermark.Signal
-	newTicker     func(d time.Duration) *time.Ticker
-	stopTicker    func(t *time.Ticker)
+	watermarkChan        <-chan *watermark.Signal
+	shouldRunOnWatermark ShouldRunOnWatermark
+
+	checkRunTicker func(d time.Duration) *time.Ticker
+	stopTicker     func(t *time.Ticker)
 }
 
 // NewRunnerWithRealTime creates a runner func for CheckWithRealTime
@@ -117,14 +119,15 @@ func getRtRatio(checkInterval, rtInterval time.Duration) (int, error) {
 }
 
 // NewRunnerWithWatermark creates a runner func for CheckWithWatermark
-func NewRunnerWithWatermark(config RunnerConfig, watermarkChan <-chan *watermark.Signal) (func(), error) {
+func NewRunnerWithWatermark(config RunnerConfig, watermarkChan <-chan *watermark.Signal, signalHandler ShouldRunOnWatermark) (func(), error) {
 	r := &runnerWithWatermark{
-		RunnerConfig: config,
-		newTicker:    time.NewTicker,
+		RunnerConfig:   config,
+		checkRunTicker: time.NewTicker,
 		stopTicker: func(t *time.Ticker) {
 			t.Stop()
 		},
-		watermarkChan: watermarkChan,
+		watermarkChan:        watermarkChan,
+		shouldRunOnWatermark: signalHandler,
 	}
 
 	return r.run, nil
@@ -137,10 +140,13 @@ func (r *runnerWithWatermark) run() {
 		select {
 		case <-ticker.C:
 			log.Info("Running watermark check due to ticker")
-			//TODO: call RunCheck
+			r.RunCheck(RunOptions{})
 		case s := <-r.watermarkChan:
-			log.Info("Received watermark signal: ", s.SignalType.String())
-			//TODO: call RunCheck based on signals
+			log.Infof("Received watermark signal: %s", s.SignalType.String())
+			if r.shouldRunOnWatermark(s) {
+				log.Infof("Running watermark due to watermark signal: %s", s.SignalType.String())
+				r.RunCheck(RunOptions{})
+			}
 		case _, ok := <-r.ExitChan:
 			log.Info("Stopping watermark runner")
 			if !ok {

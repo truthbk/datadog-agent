@@ -585,12 +585,11 @@ func (l *Collector) runnerForCheck(c checks.Check, exit chan struct{}) (func(), 
 			RtEnabled: func() bool {
 				return false
 			},
-			RunCheck: func(options checks.RunOptions) {
-				// TODO: Run process_events check
-				return
+			RunCheck: func(_ checks.RunOptions) {
+				l.runCheck(c, results)
 			},
 		}
-		return checks.NewRunnerWithWatermark(cfg, withWatermark.WatermarkChannel())
+		return checks.NewRunnerWithWatermark(cfg, withWatermark.WatermarkChannel(), withWatermark.WatermarkHandler())
 	}
 
 	withRealTime, ok := c.(checks.CheckWithRealTime)
