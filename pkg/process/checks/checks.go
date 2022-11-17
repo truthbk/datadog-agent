@@ -9,6 +9,7 @@ import (
 	model "github.com/DataDog/agent-payload/v5/process"
 
 	"github.com/DataDog/datadog-agent/pkg/process/config"
+	"github.com/DataDog/datadog-agent/pkg/process/util/watermark"
 )
 
 // Check is an interface for Agent checks that collect data. Each check returns
@@ -41,6 +42,13 @@ type CheckWithRealTime interface {
 	Check
 	RealTimeName() string
 	RunWithOptions(cfg *config.AgentConfig, nextGroupID func() int32, options RunOptions) (*RunResult, error)
+}
+
+// CheckWithWatermark provides an extended interface for running checks with a watermark channel
+// The watermark channel can be used to send signals to the collector and triggers a check run
+type CheckWithWatermark interface {
+	Check
+	WatermarkChan() chan<- watermark.Signal
 }
 
 // All is a list of all runnable checks. Putting a check in here does not guarantee it will be run,
