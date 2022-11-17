@@ -267,25 +267,54 @@ func (s *RingStore) sendStats() {
 	}
 }
 
+// evaluateItemCount assesses the amount of events currently buffered in the store and returns a signal
+// if it's reaching the max capacity
+// This function is not thread-safe and should only be called internally by the RingStore routine or during tests
+func (s *RingStore) evaluateItemCount() *watermark.Signal {
+	if s.size() == len(s.buffer) {
+		log.Info("WATERMARK: FULL")
+		return &watermark.Signal{SignalType: watermark.ItemCount100Full}
+	}
+
+	usage := float32(s.size()) / float32(len(s.buffer))
+	switch {
+	case usage >= 0.9:
+		log.Info("WATERMARK: 90%")
+		return &watermark.Signal{SignalType: watermark.ItemCount90Full}
+	case usage >= 0.8:
+		log.Info("WATERMARK: 80%")
+		return &watermark.Signal{SignalType: watermark.ItemCount80Full}
+	default:
+		log.Infof("WATERMARK USAGE: %.2f", usage)
+		return nil
+	}
+}
+
 // run listens for requests sent to the RingStore channels
 func (s *RingStore) run() {
 	statsTicker := time.NewTicker(s.statsInterval)
-	//TODO: remove
-	watermarkTicker := time.NewTicker(2 * time.Second)
 	defer statsTicker.Stop()
 
 	for {
 		select {
-		// Test sending watemarks from Store to Collector
-		// TODO: replace signal handling based on storage usage
-		// TODO: better handle when channel is full
-		case <-watermarkTicker.C:
-			log.Info("Store sending watermark")
-			s.watermarkChan <- &watermark.Signal{SignalType: watermark.ItemCount80Full}
 		case req := <-s.pushReq:
+			log.Info("Adding event to store")
 			s.push(req.event)
 			if req.done != nil {
 				req.done <- true
+			}
+
+			// Notify if a watermark has been reached
+			if signal := s.evaluateItemCount(); signal != nil {
+				log.Infof("Watermark generated: %s", signal.SignalType.String())
+				select {
+				case s.watermarkChan <- signal:
+				default:
+					// TODO: Do not span warn logs
+					log.Warn("WatermarkChan is full")
+				}
+			} else {
+				log.Info("Watermark NOT generated")
 			}
 		case req := <-s.pullReq:
 			req.results <- s.pull()
