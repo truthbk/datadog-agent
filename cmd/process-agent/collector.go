@@ -576,7 +576,19 @@ func (l *Collector) runnerForCheck(c checks.Check, exit chan struct{}) (func(), 
 
 	if withWatermark, ok := c.(checks.CheckWithWatermark); ok {
 		// TODO: fill out configs
-		cfg := checks.RunnerConfig{}
+		cfg := checks.RunnerConfig{
+			CheckInterval:  l.cfg.CheckInterval(withWatermark.Name()),
+			ExitChan:       exit,
+			RtIntervalChan: nil,
+			// WatermarkRunner doesn't support realtime mode
+			RtEnabled: func() bool {
+				return false
+			},
+			RunCheck: func(options checks.RunOptions) {
+				// TODO: Run process_events check
+				return
+			},
+		}
 		return checks.NewRunnerWithWatermark(cfg, withWatermark.WatermarkChannel())
 	}
 

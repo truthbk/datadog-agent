@@ -48,7 +48,7 @@ type CheckWithRealTime interface {
 // The watermark channel can be used to send signals to the collector and triggers a check run
 type CheckWithWatermark interface {
 	Check
-	WatermarkChannel() chan<- watermark.Signal
+	WatermarkChannel() <-chan watermark.Signal
 }
 
 // All is a list of all runnable checks. Putting a check in here does not guarantee it will be run,

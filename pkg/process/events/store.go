@@ -35,7 +35,7 @@ type Store interface {
 	// Pull fetches all events in the store that haven't been consumed yet
 	Pull(context.Context, time.Duration) ([]*model.ProcessEvent, error)
 	// WatermarkChannel returns a channel used to signal the Store state
-	WatermarkChannel() chan<- watermark.Signal
+	WatermarkChannel() <-chan watermark.Signal
 }
 
 // ringNode represents an event stored in the RingStore buffer
@@ -201,7 +201,7 @@ func (s *RingStore) Pull(ctx context.Context, timeout time.Duration) ([]*model.P
 	return batch, nil
 }
 
-func (s *RingStore) WatermarkChannel() chan<- watermark.Signal {
+func (s *RingStore) WatermarkChannel() <-chan watermark.Signal {
 	return s.watermarkChan
 }
 

@@ -131,7 +131,7 @@ func (e *ProcessEventsCheck) Cleanup() {
 	log.Info("process_events check cleaned up")
 }
 
-func (e *ProcessEventsCheck) WatermarkChannel() chan<- watermark.Signal {
+func (e *ProcessEventsCheck) WatermarkChannel() <-chan watermark.Signal {
 	return e.store.WatermarkChannel()
 }
 
