@@ -136,16 +136,27 @@ func NewRunnerWithWatermark(config RunnerConfig, watermarkChan <-chan *watermark
 // run performs runs for CheckWithWatermark checks
 func (r *runnerWithWatermark) run() {
 	ticker := time.NewTicker(r.CheckInterval)
+	var lastRun time.Time
+
 	for {
 		select {
 		case <-ticker.C:
 			log.Info("Running watermark check due to ticker")
 			r.RunCheck(RunOptions{})
+			lastRun = time.Now()
 		case s := <-r.watermarkChan:
-			if r.shouldRunOnWatermark(s) {
-				log.Infof("Running watermark due to watermark signal: %s", s.SignalType.String())
+			// TODO: we need to improve the handling logic. E.g, if we have the following events
+			// 12:10:10 -> ticker run
+			// 12:10:10:500 -> item_count_100_full: -> signal will be ignored
+			// If no event is added to the store, the next run will only take place at 12:10:20
+			// idea: If item_count_100_full is received, we schedule a run for the following second given that the next event
+			// added to the store will expire an old event entry
+			if r.shouldRunOnWatermark(s) && time.Since(lastRun) > time.Second {
+				log.Infof("Running watermark check due to watermark signal: %s", s.SignalType.String())
 				r.RunCheck(RunOptions{})
+				lastRun = time.Now()
 			}
+			log.Infof("Received watermark signal: %s. Ignoring it due to cooldown window (1s)", s.SignalType.String())
 		case _, ok := <-r.ExitChan:
 			log.Info("Stopping watermark runner")
 			if !ok {
