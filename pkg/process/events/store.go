@@ -269,10 +269,16 @@ func (s *RingStore) sendStats() {
 // run listens for requests sent to the RingStore channels
 func (s *RingStore) run() {
 	statsTicker := time.NewTicker(s.statsInterval)
+	//TODO: remove
+	watermarkTicker := time.NewTicker(2 * time.Second)
 	defer statsTicker.Stop()
 
 	for {
 		select {
+		// Test sending watemakrs from Store to Collector
+		// TODO: replace signal handling based on storage usage
+		case <-watermarkTicker.C:
+			s.watermarkChan <- watermark.Signal{SignalType: watermark.ItemCount80Full}
 		case req := <-s.pushReq:
 			s.push(req.event)
 			if req.done != nil {
