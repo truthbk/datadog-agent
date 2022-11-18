@@ -199,6 +199,8 @@ func (nt *networkTracer) Register(httpMux *module.Router) error {
 		utils.WriteAsJSON(w, metrics)
 	})
 
+	httpMux.HandleFunc("/debug/prometheus", telemetry.PrometheusEndpoint)
+
 	// Convenience logging if nothing has made any requests to the system-probe in some time, let's log something.
 	// This should be helpful for customers + support to debug the underlying issue.
 	time.AfterFunc(inactivityLogDuration, func() {
