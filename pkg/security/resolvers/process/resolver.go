@@ -463,21 +463,21 @@ func (p *Resolver) enrichEventFromProc(entry *model.ProcessCacheEntry, proc *pro
 	// Heuristic to detect likely interpreter event
 	// Cannot detect when a script if as follows:
 	// perl <<__HERE__
-	//#!/usr/bin/perl
+	// #!/usr/bin/perl
 	//
-	//sleep 10;
+	// sleep 10;
 	//
-	//print "Hello from Perl\n";
-	//__HERE__
+	// print "Hello from Perl\n";
+	// __HERE__
 	// Because the entry only has 1 argument (perl in this case). But can detect when a script is as follows:
-	//cat << EOF > perlscript.pl
-	//#!/usr/bin/perl
+	// cat << EOF > perlscript.pl
+	// #!/usr/bin/perl
 	//
-	//sleep 15;
+	// sleep 15;
 	//
-	//print "Hello from Perl\n";
+	// print "Hello from Perl\n";
 	//
-	//EOF
+	// EOF
 	if values, _ := entry.ArgsEntry.ToArray(); len(values) > 1 {
 		firstArg := values[0]
 		lastArg := values[len(values)-1]
@@ -544,8 +544,9 @@ func (p *Resolver) insertEntry(entry, prev *model.ProcessCacheEntry, origin proc
 		prev.Release()
 	}
 
-	if entry.IsContainerInit() {
-		p.cgroupResolver.AddPID1(entry.ContainerID, entry.Pid)
+	if p.cgroupResolver != nil {
+		// add the new PID in the right cgroup_resolver bucket
+		p.cgroupResolver.AddPID(entry)
 	}
 
 	switch origin {
@@ -594,17 +595,12 @@ func (p *Resolver) deleteEntry(pid uint32, exitTime time.Time) {
 	if !ok {
 		return
 	}
+
+	if p.cgroupResolver != nil {
+		p.cgroupResolver.DelPIDWithID(entry.ContainerID, entry.Pid)
+	}
+
 	entry.Exit(exitTime)
-
-	if entry.IsContainerInit() {
-		p.cgroupResolver.Release(entry.ContainerID)
-	}
-
-	// Release also the parent if the entry is a fork child. The parent could have increased the ref counter too
-	if entry.IsThread && entry.Ancestor.IsContainerInit() {
-		p.cgroupResolver.Release(entry.Ancestor.ContainerID)
-	}
-
 	delete(p.entryCache, entry.Pid)
 	entry.Release()
 }
