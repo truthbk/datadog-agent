@@ -36,8 +36,9 @@ type Resolvers struct {
 	DentryResolver    *resolvers.DentryResolver
 	ProcessResolver   *ProcessResolver
 	NamespaceResolver *NamespaceResolver
-	CgroupsResolver   *resolvers.CgroupsResolver
+	CgroupsResolver   *resolvers.CGroupsResolver
 	TCResolver        *resolvers.TCResolver
+	SBOMResolver      *resolvers.SBOMResolver
 }
 
 // NewResolvers creates a new instance of Resolvers
@@ -62,7 +63,14 @@ func NewResolvers(config *config.Config, probe *Probe) (*Resolvers, error) {
 		return nil, err
 	}
 
-	cgroupsResolver, err := resolvers.NewCgroupsResolver()
+	tagsResolver := resolvers.NewTagsResolver(config)
+
+	sbomResolver, err := resolvers.NewSBOMResolver(probe.Config, tagsResolver, probe, probe.StatsdClient)
+	if err != nil {
+		return nil, err
+	}
+
+	cgroupsResolver, err := resolvers.NewCGroupsResolver(sbomResolver)
 	if err != nil {
 		return nil, err
 	}
@@ -80,11 +88,12 @@ func NewResolvers(config *config.Config, probe *Probe) (*Resolvers, error) {
 		ContainerResolver: &resolvers.ContainerResolver{},
 		TimeResolver:      timeResolver,
 		UserGroupResolver: userGroupResolver,
-		TagsResolver:      resolvers.NewTagsResolver(config),
+		TagsResolver:      tagsResolver,
 		DentryResolver:    dentryResolver,
 		NamespaceResolver: namespaceResolver,
 		CgroupsResolver:   cgroupsResolver,
 		TCResolver:        tcResolver,
+		SBOMResolver:      sbomResolver,
 	}
 
 	processResolver, err := NewProcessResolver(probe.Manager, probe.Config, probe.StatsdClient,
@@ -203,7 +212,12 @@ func (r *Resolvers) Start(ctx context.Context) error {
 		return err
 	}
 
-	return r.NamespaceResolver.Start(ctx)
+	if err := r.NamespaceResolver.Start(ctx); err != nil {
+		return err
+	}
+
+	r.SBOMResolver.Start(ctx)
+	return nil
 }
 
 // Snapshot collects data on the current state of the system to populate user space and kernel space caches.

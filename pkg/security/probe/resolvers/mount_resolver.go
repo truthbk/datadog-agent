@@ -22,11 +22,12 @@ import (
 	"go.uber.org/atomic"
 	"golang.org/x/sys/unix"
 
+	"github.com/DataDog/datadog-go/v5/statsd"
+
 	skernel "github.com/DataDog/datadog-agent/pkg/security/ebpf/kernel"
 	"github.com/DataDog/datadog-agent/pkg/security/metrics"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
-	"github.com/DataDog/datadog-go/v5/statsd"
 )
 
 var (
@@ -95,7 +96,7 @@ type MountResolverOpts struct {
 // MountResolver represents a cache for mountpoints and the corresponding file systems
 type MountResolver struct {
 	opts            MountResolverOpts
-	cgroupsResolver *CgroupsResolver
+	cgroupsResolver *CGroupsResolver
 	statsdClient    statsd.ClientInterface
 	lock            sync.RWMutex
 	mounts          map[uint32]*model.Mount
@@ -165,7 +166,7 @@ func (mr *MountResolver) syncCache(mountID uint32, pids ...uint32) error {
 	for _, pid := range pids {
 		mnts, err = kernel.ParseMountInfoFile(int32(pid))
 		if err != nil {
-			mr.cgroupsResolver.DelByPID(pid)
+			mr.cgroupsResolver.DelPID(pid)
 			continue
 		}
 
@@ -250,7 +251,7 @@ func (mr *MountResolver) ResolveFilesystem(mountID, pid uint32, containerID stri
 	mr.lock.Lock()
 	defer mr.lock.Unlock()
 
-	mount, err := mr.resolveMount(mountID, pid, containerID)
+	mount, err := mr.resolveMount(mountID, containerID, pid)
 	if err != nil {
 		return "", err
 	}
@@ -403,7 +404,7 @@ func (mr *MountResolver) ResolveMountRoot(mountID, pid uint32, containerID strin
 }
 
 func (mr *MountResolver) resolveMountRoot(mountID, pid uint32, containerID string) (string, error) {
-	mount, err := mr.resolveMount(mountID, pid, containerID)
+	mount, err := mr.resolveMount(mountID, containerID, pid)
 	if err != nil {
 		return "", err
 	}
@@ -415,16 +416,19 @@ func (mr *MountResolver) ResolveMountPath(mountID, pid uint32, containerID strin
 	mr.lock.Lock()
 	defer mr.lock.Unlock()
 
-	return mr.resolveMountPath(mountID, pid, containerID)
+	return mr.resolveMountPath(mountID, containerID, pid)
 }
 
-func (mr *MountResolver) resolveMountPath(mountID, pid uint32, containerID string) (string, error) {
+func (mr *MountResolver) resolveMountPath(mountID uint32, containerID string, pids ...uint32) (string, error) {
 	if _, err := mr.IsMountIDValid(mountID); err != nil {
 		return "", err
 	}
 
-	// force pid1 resolution here to keep the LRU doing his job and not evicting important entries
-	pid1, _ := mr.cgroupsResolver.GetPID1(containerID)
+	// force a resolution here to make sure the LRU keeps doing its job and doesn't evict important entries
+	workload, exists := mr.cgroupsResolver.GetWorkload(containerID)
+	if exists {
+		pids = append(pids, workload.GetRootPIDs()...)
+	}
 
 	path, err := mr.getMountPath(mountID)
 	if err == nil {
@@ -441,7 +445,7 @@ func (mr *MountResolver) resolveMountPath(mountID, pid uint32, containerID strin
 		return "", ErrMountNotFound
 	}
 
-	if err := mr.syncCache(mountID, pid, pid1); err != nil {
+	if err := mr.syncCache(mountID, pids...); err != nil {
 		mr.procMissStats.Inc()
 		return "", err
 	}
@@ -460,16 +464,19 @@ func (mr *MountResolver) ResolveMount(mountID, pid uint32, containerID string) (
 	mr.lock.Lock()
 	defer mr.lock.Unlock()
 
-	return mr.resolveMount(mountID, pid, containerID)
+	return mr.resolveMount(mountID, containerID, pid)
 }
 
-func (mr *MountResolver) resolveMount(mountID, pid uint32, containerID string) (*model.Mount, error) {
+func (mr *MountResolver) resolveMount(mountID uint32, containerID string, pids ...uint32) (*model.Mount, error) {
 	if _, err := mr.IsMountIDValid(mountID); err != nil {
 		return nil, err
 	}
 
-	// force pid1 resolution here to keep the LRU doing his job and not evicting important entries
-	pid1, _ := mr.cgroupsResolver.GetPID1(containerID)
+	// force a resolution here to make sure the LRU keeps doing its job and doesn't evict important entries
+	workload, exists := mr.cgroupsResolver.GetWorkload(containerID)
+	if exists {
+		pids = append(pids, workload.GetRootPIDs()...)
+	}
 
 	mount, exists := mr.mounts[mountID]
 	if exists {
@@ -486,7 +493,7 @@ func (mr *MountResolver) resolveMount(mountID, pid uint32, containerID string) (
 		return nil, ErrMountNotFound
 	}
 
-	if err := mr.syncCache(mountID, pid, pid1); err != nil {
+	if err := mr.syncCache(mountID, pids...); err != nil {
 		mr.procMissStats.Inc()
 		return nil, err
 	}
@@ -599,7 +606,7 @@ func (mr *MountResolver) SendStats() error {
 }
 
 // NewMountResolver instantiates a new mount resolver
-func NewMountResolver(statsdClient statsd.ClientInterface, cgroupsResolver *CgroupsResolver, opts MountResolverOpts) (*MountResolver, error) {
+func NewMountResolver(statsdClient statsd.ClientInterface, cgroupsResolver *CGroupsResolver, opts MountResolverOpts) (*MountResolver, error) {
 	mr := &MountResolver{
 		opts:            opts,
 		statsdClient:    statsdClient,

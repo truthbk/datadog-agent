@@ -49,6 +49,11 @@ import (
 	utilkernel "github.com/DataDog/datadog-agent/pkg/util/kernel"
 )
 
+// SBOMHandler represents a handler for the SBOMs sent by the probe
+type SBOMHandler interface {
+	HandleSBOM(sbom *api.SBOMMessage)
+}
+
 // ActivityDumpHandler represents an handler for the activity dumps sent by the probe
 type ActivityDumpHandler interface {
 	HandleActivityDump(dump *api.ActivityDumpStreamMessage)
@@ -100,6 +105,9 @@ type Probe struct {
 
 	// ActivityDumps section
 	activityDumpHandler ActivityDumpHandler
+
+	// SBOM
+	sbomHandler SBOMHandler
 
 	// Approvers / discarders section
 	Erpc                               *erpc.ERPC
@@ -304,6 +312,11 @@ func (p *Probe) Start() error {
 	return p.eventStream.Start(&p.wg)
 }
 
+// AddSBOMHandler set the probe SBOM handler
+func (p *Probe) AddSBOMHandler(handler SBOMHandler) {
+	p.sbomHandler = handler
+}
+
 // AddActivityDumpHandler set the probe activity dump handler
 func (p *Probe) AddActivityDumpHandler(handler ActivityDumpHandler) {
 	p.activityDumpHandler = handler
@@ -336,6 +349,13 @@ func (p *Probe) DispatchEvent(event *model.Event) {
 func (p *Probe) DispatchActivityDump(dump *api.ActivityDumpStreamMessage) {
 	if handler := p.activityDumpHandler; handler != nil {
 		handler.HandleActivityDump(dump)
+	}
+}
+
+// DispatchSBOM sends a SBOM message to the probe SBOM handler
+func (p *Probe) DispatchSBOM(sbom *api.SBOMMessage) {
+	if handler := p.sbomHandler; handler != nil {
+		handler.HandleSBOM(sbom)
 	}
 }
 
