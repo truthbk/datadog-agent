@@ -166,6 +166,10 @@ type Server struct {
 	ServerlessMode     bool
 	UdsListenerRunning bool
 
+	// originTracker reports telemetry on origins sending metrics.
+	// Nil if not enabled.
+	originTracker *listeners.OriginTelemetryTracker
+
 	enrichConfig enrichConfig
 }
 
@@ -228,6 +232,8 @@ func NewServer(demultiplexer aggregator.Demultiplexer, serverless bool) (*Server
 	// This needs to be done after the configuration is loaded
 	once.Do(initLatencyTelemetry)
 
+	stopChan := make(chan bool)
+
 	var stats *util.Stats
 	if config.Datadog.GetBool("dogstatsd_stats_enable") {
 		buff := config.Datadog.GetInt("dogstatsd_stats_buffer")
@@ -259,8 +265,11 @@ func NewServer(demultiplexer aggregator.Demultiplexer, serverless bool) (*Server
 
 	udsListenerRunning := false
 
-	// origin tracking
-	originTracker := listeners.StartOriginTracker()
+	// origin tracking if enabled
+	var originTracker *listeners.OriginTelemetryTracker
+	if config.Datadog.GetBool("dogstatsd_origin_telemetry_enable") {
+		originTracker = listeners.StartOriginTelemetry(stopChan)
+	}
 
 	socketPath := config.Datadog.GetString("dogstatsd_socket")
 	if len(socketPath) > 0 {
@@ -349,7 +358,7 @@ func NewServer(demultiplexer aggregator.Demultiplexer, serverless bool) (*Server
 		sharedFloat64List:       newFloat64ListPool(),
 		demultiplexer:           demultiplexer,
 		listeners:               tmpListeners,
-		stopChan:                make(chan bool),
+		stopChan:                stopChan,
 		serverlessFlushChan:     make(chan bool),
 		health:                  health.RegisterLiveness("dogstatsd-main"),
 		histToDist:              histToDist,
@@ -373,6 +382,7 @@ func NewServer(demultiplexer aggregator.Demultiplexer, serverless bool) (*Server
 			serverlessMode:            serverless,
 			originOptOutEnabled:       config.Datadog.GetBool("dogstatsd_origin_optout_enabled"),
 		},
+		originTracker: originTracker,
 	}
 
 	// packets forwarding
@@ -753,6 +763,7 @@ func (s *Server) Stop() {
 		s.TCapture.Stop()
 	}
 	s.health.Deregister() //nolint:errcheck
+	// stop the origin tracker
 	s.Started = false
 }
 

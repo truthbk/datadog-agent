@@ -517,6 +517,7 @@ func InitConfig(config Config) {
 	config.BindEnvAndSetDefault("dogstatsd_origin_optout_enabled", true)
 	config.BindEnvAndSetDefault("dogstatsd_so_rcvbuf", 0)
 	config.BindEnvAndSetDefault("dogstatsd_metrics_stats_enable", false)
+	config.BindEnvAndSetDefault("dogstatsd_origin_telemetry_enable", false)
 	config.BindEnvAndSetDefault("dogstatsd_tags", []string{})
 	config.BindEnvAndSetDefault("dogstatsd_mapper_cache_size", 1000)
 	config.BindEnvAndSetDefault("dogstatsd_string_interner_size", 4096)
@@ -978,7 +979,6 @@ func InitConfig(config Config) {
 	config.BindEnvAndSetDefault("clc_runner_host", "") // must be set using the Kubernetes downward API
 	config.BindEnvAndSetDefault("clc_runner_port", 5005)
 	config.BindEnvAndSetDefault("clc_runner_server_write_timeout", 15)
-	config.BindEnvAndSetDefault("clc_runner_server_readheader_timeout", 10)
 	// Admission controller
 	config.BindEnvAndSetDefault("admission_controller.enabled", false)
 	config.BindEnvAndSetDefault("admission_controller.mutate_unlabelled", false)
