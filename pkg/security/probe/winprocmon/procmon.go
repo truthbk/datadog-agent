@@ -23,6 +23,9 @@ const (
 type WinProcessNotification struct {
 	Type      uint64 // will be ProcmonNotifyStop or ProcmonNotifyStart
 	Pid       uint64
+	ParentPid         uint64
+	CreatingThreadPid uint64
+	CreatingThreadTid uint64
 	ImageFile string
 	CmdLine   string
 }
@@ -116,6 +119,9 @@ func decodeStruct(data []uint8, sz uint32) (*WinProcessNotification, uint32) {
 	if n.NotifyType == ProcmonNotifyStart {
 		wpn.ImageFile = convertWindowsString(data[n.ImageFileOffset : n.ImageFileOffset+n.ImageFileLen])
 		wpn.CmdLine = convertWindowsString(data[n.CommandLineOffset : n.CommandLineOffset+n.CommandLineLen])
+		wpn.ParentPid = n.ParentProcessId
+		wpn.CreatingThreadPid = n.CreatingThreadIdProcessId
+		wpn.CreatingThreadTid = n.CreatingThreadIdThreadId
 	}
 	return wpn, consumed
 }

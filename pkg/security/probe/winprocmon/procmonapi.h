@@ -47,6 +47,9 @@ typedef struct _dd_process_notification {
     uint64_t            ProcessId;
     uint64_t            NotifyType; // as type DD_NOTIFY_TYPE
     // all below here only valid when NotifyType == DD_NOTIFY_START
+    uint64_t            ParentProcessId;
+    uint64_t            CreatingThreadIdProcessId;
+    uint64_t            CreatingThreadIdThreadId;
     uint64_t            ImageFileLen;
     uint64_t            ImageFileOffset;
     uint64_t            CommandLineLen;

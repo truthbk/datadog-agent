@@ -16,11 +16,14 @@ const (
 )
 
 type DDProcessNotification struct {
-	Size              uint64
-	ProcessId         uint64
-	NotifyType        uint64
-	ImageFileLen      uint64
-	ImageFileOffset   uint64
-	CommandLineLen    uint64
-	CommandLineOffset uint64
+	Size                      uint64
+	ProcessId                 uint64
+	NotifyType                uint64
+	ParentProcessId           uint64
+	CreatingThreadIdProcessId uint64
+	CreatingThreadIdThreadId  uint64
+	ImageFileLen              uint64
+	ImageFileOffset           uint64
+	CommandLineLen            uint64
+	CommandLineOffset         uint64
 }

@@ -20,5 +20,6 @@ import (
 
 const (
 	// DefaultRuntimePoliciesDir is the default policies directory used by the runtime security module
-	DefaultRuntimePoliciesDir = "c:\\ProgrammData\\DataDog\\runtime-security.d"
+	// TODO: Use %PROGRAMDATA%
+	DefaultRuntimePoliciesDir = "C:\\ProgramData\\DataDog\\runtime-security.d"
 )

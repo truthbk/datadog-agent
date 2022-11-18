@@ -23,9 +23,15 @@ func (p *ProcessMonitoring) HandleEvent(event *sprobe.Event) {
 		CollectionTime: event.Timestamp,
 		Pid:            uint32(event.WPT.Pid),
 		ContainerID:    "",
-		Ppid:           0,
-		UID:            0,
-		GID:            0,
+
+		// TODO: Determine if uint32 is sufficient size
+		Ppid:           uint32(event.WPT.ParentPid),
+
+		// TODO: On Windows replace with CreatingThreadPid label
+		UID:            uint32(event.WPT.CreatingThreadPid),
+
+		// TODO: On Windows replace with CreatingThreadTid label
+		GID:            uint32(event.WPT.CreatingThreadTid),
 		Username:       "",
 		Group:          "",
 		Exe:            event.WPT.ImageFile, //entry.FileEvent.PathnameStr, // FileEvent is not a pointer, so it can be directly accessed
