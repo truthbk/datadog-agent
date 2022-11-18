@@ -35,6 +35,7 @@ type Resolvers struct {
 	DentryResolver    *resolvers.DentryResolver
 	ProcessResolver   *ProcessResolver
 	NamespaceResolver *NamespaceResolver
+	SBOMResolver      *SBOMResolver
 }
 
 // NewResolvers creates a new instance of Resolvers
@@ -64,6 +65,11 @@ func NewResolvers(config *config.Config, probe *Probe) (*Resolvers, error) {
 		return nil, err
 	}
 
+	sbomResolver, err := NewSBOMResolver(probe)
+	if err != nil {
+		return nil, err
+	}
+
 	resolvers := &Resolvers{
 		probe:             probe,
 		MountResolver:     mountResolver,
@@ -73,6 +79,7 @@ func NewResolvers(config *config.Config, probe *Probe) (*Resolvers, error) {
 		TagsResolver:      resolvers.NewTagsResolver(config),
 		DentryResolver:    dentryResolver,
 		NamespaceResolver: namespaceResolver,
+		SBOMResolver:      sbomResolver,
 	}
 
 	processResolver, err := NewProcessResolver(probe.Manager, probe.Config, probe.StatsdClient,
@@ -201,7 +208,12 @@ func (r *Resolvers) Start(ctx context.Context) error {
 		return err
 	}
 
-	return r.NamespaceResolver.Start(ctx)
+	if err := r.NamespaceResolver.Start(ctx); err != nil {
+		return err
+	}
+
+	r.SBOMResolver.Start(ctx)
+	return nil
 }
 
 // Snapshot collects data on the current state of the system to populate user space and kernel space caches.

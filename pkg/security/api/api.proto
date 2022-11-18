@@ -180,6 +180,13 @@ message ActivityDumpStreamMessage {
     bytes Data = 3;
 }
 
+message GetSBOMStreamParams {}
+
+message SBOMMessage {
+    string Name = 1;
+    bytes Data = 2;
+}
+
 service SecurityModule {
     rpc GetEvents(GetEventParams) returns (stream SecurityEventMessage) {}
     rpc GetProcessEvents(GetProcessEventParams) returns (stream SecurityProcessEventMessage) {}
@@ -197,4 +204,7 @@ service SecurityModule {
     rpc StopActivityDump(ActivityDumpStopParams) returns (ActivityDumpStopMessage) {}
     rpc TranscodingRequest(TranscodingRequestParams) returns (TranscodingRequestMessage) {}
     rpc GetActivityDumpStream(ActivityDumpStreamParams) returns (stream ActivityDumpStreamMessage) {}
+
+    // SBOM
+    rpc GetSBOMStream(GetSBOMStreamParams) returns (stream SBOMMessage) {}
 }

@@ -463,21 +463,21 @@ func (p *ProcessResolver) enrichEventFromProc(entry *model.ProcessCacheEntry, pr
 	// Heuristic to detect likely interpreter event
 	// Cannot detect when a script if as follows:
 	// perl <<__HERE__
-	//#!/usr/bin/perl
+	// #!/usr/bin/perl
 	//
-	//sleep 10;
+	// sleep 10;
 	//
-	//print "Hello from Perl\n";
-	//__HERE__
+	// print "Hello from Perl\n";
+	// __HERE__
 	// Because the entry only has 1 argument (perl in this case). But can detect when a script is as follows:
-	//cat << EOF > perlscript.pl
-	//#!/usr/bin/perl
+	// cat << EOF > perlscript.pl
+	// #!/usr/bin/perl
 	//
-	//sleep 15;
+	// sleep 15;
 	//
-	//print "Hello from Perl\n";
+	// print "Hello from Perl\n";
 	//
-	//EOF
+	// EOF
 	if valueCount := len(entry.ArgsEntry.Values); valueCount > 1 {
 		firstArg := entry.ArgsEntry.Values[0]
 		lastArg := entry.ArgsEntry.Values[valueCount-1]
@@ -574,6 +574,9 @@ func (p *ProcessResolver) insertExecEntry(entry *model.ProcessCacheEntry) {
 	}
 
 	p.insertEntry(entry, prev)
+
+	// Retain SBOM, we have a new process in the SBOM workload
+	p.resolvers.SBOMResolver.Retain(entry)
 }
 
 func (p *ProcessResolver) deleteEntry(pid uint32, exitTime time.Time) {
@@ -582,8 +585,10 @@ func (p *ProcessResolver) deleteEntry(pid uint32, exitTime time.Time) {
 	if !ok {
 		return
 	}
-	entry.Exit(exitTime)
+	// Release SBOM, a process of the SBOM workload has exited
+	p.resolvers.SBOMResolver.Release(entry)
 
+	entry.Exit(exitTime)
 	delete(p.entryCache, entry.Pid)
 	entry.Release()
 }
