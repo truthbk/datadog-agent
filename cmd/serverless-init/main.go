@@ -46,6 +46,8 @@ func main() {
 	metric.AddColdStartMetric(prefix, metricAgent.GetExtraTags(), time.Now(), metricAgent.Demux)
 
 	go metricAgent.Flush()
+
+	setupEndpoints(traceAgent, metricAgent)
 	initcontainer.Run(cloudService, logConfig, metricAgent, traceAgent, os.Args[1:])
 }
 
