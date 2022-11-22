@@ -1008,7 +1008,8 @@ func TestOTLPConvertSpan(t *testing.T) {
 				Duration: 200000000,
 				Meta: map[string]string{
 					"env":                             "staging",
-					"_dd.tags.container":              "container_id:cid,kube_container_name:k8s-container",
+					"container_id":                    "cid",
+					"kube_container_name":             "k8s-container",
 					semconv.AttributeContainerID:      "cid",
 					semconv.AttributeK8SContainerName: "k8s-container",
 					"http.method":                     "GET",
