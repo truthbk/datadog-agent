@@ -487,6 +487,7 @@ func TestMountEvent(t *testing.T) {
 			}
 		})
 	})
+	wrapperTruePositive.stop()
 
 	legitimateSourcePath := testDrive.Path("legitimate_source")
 	if err = os.Mkdir(legitimateSourcePath, 0755); err != nil {
@@ -507,4 +508,5 @@ func TestMountEvent(t *testing.T) {
 			t.Fatal(otherErr)
 		}
 	})
+	wrapperFalsePositive.stop()
 }
