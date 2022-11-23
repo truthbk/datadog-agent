@@ -652,6 +652,7 @@ func (agg *BufferedAggregator) GetEvents() metrics.Events {
 // GetEventPlatformEvents grabs the event platform events from the queue and clears them.
 // Note that this works only if using the 'noop' event platform forwarder
 func (agg *BufferedAggregator) GetEventPlatformEvents() map[string][]*message.Message {
+	log.Info("calling GetEventPlatformEvents")
 	return agg.eventPlatformForwarder.Purge()
 }
 
