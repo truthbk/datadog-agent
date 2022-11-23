@@ -12,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -36,6 +37,8 @@ var (
 	ErrMountUndefined = errors.New("undefined mountID")
 	// ErrMountLoop is returned when there is a resolution loop
 	ErrMountLoop = errors.New("mount resolution loop")
+	// ErrMountPathEmpty is returned when the resolved mount path is empty
+	ErrMountPathEmpty = errors.New("mount resolution return empty path")
 )
 
 const (
@@ -70,6 +73,7 @@ func newMountFromMountInfo(mnt *mountinfo.Info) (*model.Mount, error) {
 	return &model.Mount{
 		ParentMountID: uint32(mnt.Parent),
 		MountPointStr: mnt.Mountpoint,
+		Path:          mnt.Mountpoint,
 		RootStr:       mnt.Root,
 		MountID:       uint32(mnt.ID),
 		GroupID:       groupID,
@@ -91,7 +95,6 @@ type MountResolver struct {
 	devices          map[uint32]map[uint32]*model.Mount
 	deleteQueue      []deleteRequest
 	overlayPathCache *simplelru.LRU[uint32, string]
-	parentPathCache  *simplelru.LRU[uint32, string]
 
 	// stats
 	cacheHitsStats *atomic.Int64
@@ -224,17 +227,10 @@ func (mr *MountResolver) insert(e model.Mount) {
 		mr.delete(prev)
 	}
 
-	// Retrieve the parent paths and strip it from the event
-	p, ok := mr.mounts[e.ParentMountID]
-	if ok {
-		prefix, err := mr.getParentPath(p.MountID)
-		if err != nil {
-			// do not log error here. it will be report during the next path resolution
-			return
-		}
-		if len(prefix) > 0 && prefix != "/" {
-			e.MountPointStr = strings.TrimPrefix(e.MountPointStr, prefix)
-		}
+	// if we're inserting a mountpoint from a mount event (!= procfs) that isn't the root fs
+	// then remove the leading slash from the mountpoint
+	if len(e.Path) == 0 && e.MountPointStr != "/" {
+		e.MountPointStr = strings.TrimPrefix(e.MountPointStr, "/")
 	}
 
 	deviceMounts := mr.devices[e.Device]
@@ -247,10 +243,14 @@ func (mr *MountResolver) insert(e model.Mount) {
 	mr.mounts[e.MountID] = &e
 }
 
-func (mr *MountResolver) _getParentPath(mountID uint32, cache map[uint32]bool) (string, error) {
+func (mr *MountResolver) _getMountPath(mountID uint32, cache map[uint32]bool) (string, error) {
 	mount, exists := mr.mounts[mountID]
 	if !exists {
 		return "", ErrMountNotFound
+	}
+
+	if len(mount.Path) > 0 {
+		return mount.Path, nil
 	}
 
 	mountPointStr := mount.MountPointStr
@@ -264,31 +264,27 @@ func (mr *MountResolver) _getParentPath(mountID uint32, cache map[uint32]bool) (
 	}
 	cache[mountID] = true
 
-	if mount.ParentMountID != 0 {
-		p, err := mr._getParentPath(mount.ParentMountID, cache)
-		if err != nil {
-			return "", err
-		}
-
-		if p != "/" && !strings.HasPrefix(mount.MountPointStr, p) {
-			mountPointStr = p + mount.MountPointStr
-		}
+	if mount.ParentMountID == 0 {
+		return "", ErrMountUndefined
 	}
+
+	parentMountPath, err := mr._getMountPath(mount.ParentMountID, cache)
+	if err != nil {
+		return "", err
+	}
+	mountPointStr = path.Join(parentMountPath, mountPointStr)
+
+	if len(mountPointStr) == 0 {
+		return "", ErrMountPathEmpty
+	}
+
+	mount.Path = mountPointStr
 
 	return mountPointStr, nil
 }
 
-func (mr *MountResolver) getParentPath(mountID uint32) (string, error) {
-	if entry, found := mr.parentPathCache.Get(mountID); found {
-		return entry, nil
-	}
-
-	path, err := mr._getParentPath(mountID, map[uint32]bool{})
-	if err != nil {
-		return "", err
-	}
-	mr.parentPathCache.Add(mountID, path)
-	return path, nil
+func (mr *MountResolver) getMountPath(mountID uint32) (string, error) {
+	return mr._getMountPath(mountID, map[uint32]bool{})
 }
 
 func (mr *MountResolver) _getAncestor(mount *model.Mount, cache map[uint32]bool) *model.Mount {
@@ -325,7 +321,7 @@ func (mr *MountResolver) getOverlayPath(mount *model.Mount) (string, error) {
 
 	for _, deviceMount := range mr.devices[mount.Device] {
 		if mount.MountID != deviceMount.MountID && deviceMount.IsOverlayFS() {
-			p, err := mr.getParentPath(deviceMount.MountID)
+			p, err := mr.getMountPath(deviceMount.MountID)
 			if err != nil {
 				return "", err
 			}
@@ -373,7 +369,6 @@ func (mr *MountResolver) dequeue(now time.Time) {
 }
 
 func (mr *MountResolver) clearCacheForMountID(mountID uint32) {
-	mr.parentPathCache.Remove(mountID)
 	mr.overlayPathCache.Remove(mountID)
 }
 
@@ -442,7 +437,7 @@ func (mr *MountResolver) GetMountPath(mountID, pid uint32) (string, string, stri
 		return "", "", "", err
 	}
 
-	parentPath, err := mr.getParentPath(mountID)
+	parentPath, err := mr.getMountPath(mountID)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -554,18 +549,12 @@ func NewMountResolver(statsdClient statsd.ClientInterface) (*MountResolver, erro
 		return nil, err
 	}
 
-	parentPathCache, err := simplelru.NewLRU[uint32, string](256, nil)
-	if err != nil {
-		return nil, err
-	}
-
 	return &MountResolver{
 		statsdClient:     statsdClient,
 		lock:             sync.RWMutex{},
 		devices:          make(map[uint32]map[uint32]*model.Mount),
 		mounts:           make(map[uint32]*model.Mount),
 		overlayPathCache: overlayPathCache,
-		parentPathCache:  parentPathCache,
 		cacheHitsStats:   atomic.NewInt64(0),
 		procHitsStats:    atomic.NewInt64(0),
 		cacheMissStats:   atomic.NewInt64(0),

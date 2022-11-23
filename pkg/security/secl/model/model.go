@@ -523,6 +523,7 @@ type Mount struct {
 	FSType         string `field:"fs_type"` // Type of the mounted file system
 	MountPointStr  string `field:"-"`
 	RootStr        string `field:"-"`
+	Path           string `field:"-"`
 }
 
 // MountEvent represents a mount event
