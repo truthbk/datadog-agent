@@ -114,7 +114,7 @@ func (m *Module) Init() error {
 	}
 
 	m.probe.AddEventHandler(model.UnknownEventType, m)
-	m.probe.AddActivityDumpHandler(m)
+	m.probe.adm.AddActivityDumpHandler(m)
 
 	// initialize extra event monitors
 	if m.config.EventMonitoring {

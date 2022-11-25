@@ -8,7 +8,7 @@
 
 //go:generate go run github.com/mailru/easyjson/easyjson -gen_build_flags=-mod=mod -no_std_marshalers -build_tags linux $GOFILE
 
-package probe
+package dump
 
 import (
 	"bytes"
@@ -38,9 +38,11 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/process/util"
 	adproto "github.com/DataDog/datadog-agent/pkg/security/adproto/v1"
 	"github.com/DataDog/datadog-agent/pkg/security/api"
+	"github.com/DataDog/datadog-agent/pkg/security/config"
 	"github.com/DataDog/datadog-agent/pkg/security/ebpf/probes"
 	"github.com/DataDog/datadog-agent/pkg/security/metrics"
-	"github.com/DataDog/datadog-agent/pkg/security/probe/dump"
+	"github.com/DataDog/datadog-agent/pkg/security/probe/event"
+	"github.com/DataDog/datadog-agent/pkg/security/probe/probectx"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
@@ -113,9 +115,9 @@ type ActivityDump struct {
 	Tags    []string `json:"-"`
 	DDTags  string   `json:"ddtags,omitempty"`
 
-	CookiesNode         map[uint32]*ProcessActivityNode              `json:"-"`
-	ProcessActivityTree []*ProcessActivityNode                       `json:"-"`
-	StorageRequests     map[dump.StorageFormat][]dump.StorageRequest `json:"-"`
+	CookiesNode         map[uint32]*ProcessActivityNode                  `json:"-"`
+	ProcessActivityTree []*ProcessActivityNode                           `json:"-"`
+	StorageRequests     map[config.StorageFormat][]config.StorageRequest `json:"-"`
 
 	// Dump metadata
 	DumpMetadata
@@ -126,7 +128,7 @@ type ActivityDump struct {
 }
 
 // NewActivityDumpLoadConfig returns a new instance of ActivityDumpLoadConfig
-func NewActivityDumpLoadConfig(evt []model.EventType, timeout time.Duration, waitListTimeout time.Duration, rate int, start time.Time, resolver *TimeResolver) *model.ActivityDumpLoadConfig {
+func NewActivityDumpLoadConfig(evt []model.EventType, timeout time.Duration, waitListTimeout time.Duration, rate int, start time.Time, resolver probectx.TimeResolver) *model.ActivityDumpLoadConfig {
 	adlc := &model.ActivityDumpLoadConfig{
 		TracedEventTypes: evt,
 		Timeout:          timeout,
@@ -149,7 +151,7 @@ func NewEmptyActivityDump() *ActivityDump {
 		addedRuntimeCount:  make(map[model.EventType]*atomic.Uint64),
 		addedSnapshotCount: make(map[model.EventType]*atomic.Uint64),
 		pathMergedCount:    atomic.NewUint64(0),
-		StorageRequests:    make(map[dump.StorageFormat][]dump.StorageRequest),
+		StorageRequests:    make(map[config.StorageFormat][]config.StorageRequest),
 	}
 
 	// generate counters
@@ -171,27 +173,27 @@ func NewActivityDump(adm *ActivityDumpManager, options ...WithDumpOption) *Activ
 	ad.DumpMetadata = DumpMetadata{
 		AgentVersion:      version.AgentVersion,
 		AgentCommit:       version.Commit,
-		KernelVersion:     adm.probe.kernelVersion.Code.String(),
-		LinuxDistribution: adm.probe.kernelVersion.OsRelease["PRETTY_NAME"],
+		KernelVersion:     adm.ctx.KernelVersion.Code.String(),
+		LinuxDistribution: adm.ctx.KernelVersion.OsRelease["PRETTY_NAME"],
 		Name:              fmt.Sprintf("activity-dump-%s", eval.RandString(10)),
 		ProtobufVersion:   ProtobufVersion,
 		Start:             now,
-		End:               now.Add(adm.probe.config.ActivityDumpCgroupDumpTimeout),
+		End:               now.Add(adm.ctx.Config.ActivityDumpCgroupDumpTimeout),
 		Arch:              probes.RuntimeArch,
 	}
 	ad.Host = adm.hostname
 	ad.Source = ActivityDumpSource
 	ad.adm = adm
-	ad.shouldMergePaths = adm.probe.config.ActivityDumpPathMergeEnabled
+	ad.shouldMergePaths = adm.ctx.Config.ActivityDumpPathMergeEnabled
 
 	// set load configuration to initial defaults
 	ad.LoadConfig = NewActivityDumpLoadConfig(
-		adm.probe.config.ActivityDumpTracedEventTypes,
-		adm.probe.config.ActivityDumpCgroupDumpTimeout,
-		adm.probe.config.ActivityDumpCgroupWaitListTimeout,
-		adm.probe.config.ActivityDumpRateLimiter,
+		adm.ctx.Config.ActivityDumpTracedEventTypes,
+		adm.ctx.Config.ActivityDumpCgroupDumpTimeout,
+		adm.ctx.Config.ActivityDumpCgroupWaitListTimeout,
+		adm.ctx.Config.ActivityDumpRateLimiter,
 		now,
-		adm.probe.resolvers.TimeResolver,
+		adm.ctx.TimeResolver,
 	)
 	ad.LoadConfigCookie = eval.NewCookie()
 
@@ -248,17 +250,17 @@ func NewActivityDumpFromMessage(msg *api.ActivityDumpMessage) (*ActivityDump, er
 
 	// parse requests from message
 	for _, request := range msg.GetStorage() {
-		storageType, err := dump.ParseStorageType(request.GetType())
+		storageType, err := config.ParseStorageType(request.GetType())
 		if err != nil {
 			// invalid storage type, ignore
 			continue
 		}
-		storageFormat, err := dump.ParseStorageFormat(request.GetFormat())
+		storageFormat, err := config.ParseStorageFormat(request.GetFormat())
 		if err != nil {
 			// invalid storage format, ignore
 			continue
 		}
-		ad.StorageRequests[storageFormat] = append(ad.StorageRequests[storageFormat], dump.NewStorageRequest(
+		ad.StorageRequests[storageFormat] = append(ad.StorageRequests[storageFormat], config.NewStorageRequest(
 			storageType,
 			storageFormat,
 			request.GetCompression(),
@@ -276,18 +278,18 @@ func (ad *ActivityDump) SetState(state ActivityDumpStatus) {
 }
 
 // AddStorageRequest adds a storage request to an activity dump
-func (ad *ActivityDump) AddStorageRequest(request dump.StorageRequest) {
+func (ad *ActivityDump) AddStorageRequest(request config.StorageRequest) {
 	ad.Lock()
 	defer ad.Unlock()
 
 	if ad.StorageRequests == nil {
-		ad.StorageRequests = make(map[dump.StorageFormat][]dump.StorageRequest)
+		ad.StorageRequests = make(map[config.StorageFormat][]config.StorageRequest)
 	}
 	ad.StorageRequests[request.Format] = append(ad.StorageRequests[request.Format], request)
 }
 
 func (ad *ActivityDump) checkInMemorySize() {
-	if ad.computeInMemorySize() < int64(ad.adm.probe.config.ActivityDumpMaxDumpSize()) {
+	if ad.computeInMemorySize() < int64(ad.adm.ctx.Config.ActivityDumpMaxDumpSize()) {
 		return
 	}
 
@@ -316,8 +318,8 @@ func (ad *ActivityDump) SetLoadConfig(cookie uint32, config model.ActivityDumpLo
 	ad.LoadConfigCookie = cookie
 
 	// Update metadata
-	ad.DumpMetadata.Start = ad.adm.probe.resolvers.TimeResolver.ResolveMonotonicTimestamp(ad.LoadConfig.StartTimestampRaw)
-	ad.DumpMetadata.End = ad.adm.probe.resolvers.TimeResolver.ResolveMonotonicTimestamp(ad.LoadConfig.EndTimestampRaw)
+	ad.DumpMetadata.Start = ad.adm.ctx.TimeResolver.ResolveMonotonicTimestamp(ad.LoadConfig.StartTimestampRaw)
+	ad.DumpMetadata.End = ad.adm.ctx.TimeResolver.ResolveMonotonicTimestamp(ad.LoadConfig.EndTimestampRaw)
 }
 
 // SetTimeout updates the activity dump timeout
@@ -325,7 +327,7 @@ func (ad *ActivityDump) SetTimeout(timeout time.Duration) {
 	ad.LoadConfig.SetTimeout(timeout)
 
 	// Update metadata
-	ad.DumpMetadata.End = ad.adm.probe.resolvers.TimeResolver.ResolveMonotonicTimestamp(ad.LoadConfig.EndTimestampRaw)
+	ad.DumpMetadata.End = ad.adm.ctx.TimeResolver.ResolveMonotonicTimestamp(ad.LoadConfig.EndTimestampRaw)
 }
 
 // updateTracedPid traces a pid in kernel space
@@ -491,7 +493,7 @@ func (ad *ActivityDump) scrubAndRetainProcessArgsEnvs() {
 
 	for len(openList) != 0 {
 		current := openList[len(openList)-1]
-		current.scrubAndReleaseArgsEnvs(ad.adm.probe.resolvers.ProcessResolver)
+		current.scrubAndReleaseArgsEnvs(ad.adm.ctx.ProcessResolver)
 		openList = append(openList[:len(openList)-1], current.Children...)
 	}
 }
@@ -503,7 +505,7 @@ func (ad *ActivityDump) debug(w io.Writer) {
 	}
 }
 
-func (ad *ActivityDump) isEventTypeTraced(event *Event) bool {
+func (ad *ActivityDump) isEventTypeTraced(event *event.Event) bool {
 	for _, evtType := range ad.LoadConfig.TracedEventTypes {
 		if evtType == event.GetEventType() {
 			return true
@@ -514,7 +516,7 @@ func (ad *ActivityDump) isEventTypeTraced(event *Event) bool {
 
 // Insert inserts the provided event in the active ActivityDump. This function returns true if a new entry was added,
 // false if the event was dropped.
-func (ad *ActivityDump) Insert(event *Event) (newEntry bool) {
+func (ad *ActivityDump) Insert(event *event.Event) (newEntry bool) {
 	ad.Lock()
 	defer ad.Unlock()
 
@@ -605,7 +607,7 @@ func (ad *ActivityDump) findOrCreateProcessActivityNode(entry *model.ProcessCach
 
 		// go through the root nodes and check if one of them matches the input ProcessCacheEntry:
 		for _, root := range ad.ProcessActivityTree {
-			if root.Matches(entry, ad.DumpMetadata.DifferentiateArgs, ad.adm.probe.resolvers) {
+			if root.Matches(entry, ad.DumpMetadata.DifferentiateArgs, ad.adm.ctx.ProcessResolver) {
 				return root
 			}
 		}
@@ -620,7 +622,7 @@ func (ad *ActivityDump) findOrCreateProcessActivityNode(entry *model.ProcessCach
 		// to add the current entry no matter if it matches the selector or not. Go through the root children of the
 		// parent node and check if one of them matches the input ProcessCacheEntry.
 		for _, child := range parentNode.Children {
-			if child.Matches(entry, ad.DumpMetadata.DifferentiateArgs, ad.adm.probe.resolvers) {
+			if child.Matches(entry, ad.DumpMetadata.DifferentiateArgs, ad.adm.ctx.ProcessResolver) {
 				return child
 			}
 		}
@@ -701,7 +703,7 @@ func (ad *ActivityDump) SendStats() error {
 	for evtType, count := range ad.processedCount {
 		tags := []string{fmt.Sprintf("event_type:%s", evtType)}
 		if value := count.Swap(0); value > 0 {
-			if err := ad.adm.probe.statsdClient.Count(metrics.MetricActivityDumpEventProcessed, int64(value), tags, 1.0); err != nil {
+			if err := ad.adm.ctx.StatsdClient.Count(metrics.MetricActivityDumpEventProcessed, int64(value), tags, 1.0); err != nil {
 				return fmt.Errorf("couldn't send %s metric: %w", metrics.MetricActivityDumpEventProcessed, err)
 			}
 		}
@@ -710,7 +712,7 @@ func (ad *ActivityDump) SendStats() error {
 	for evtType, count := range ad.addedRuntimeCount {
 		tags := []string{fmt.Sprintf("event_type:%s", evtType), fmt.Sprintf("generation_type:%s", Runtime)}
 		if value := count.Swap(0); value > 0 {
-			if err := ad.adm.probe.statsdClient.Count(metrics.MetricActivityDumpEventAdded, int64(value), tags, 1.0); err != nil {
+			if err := ad.adm.ctx.StatsdClient.Count(metrics.MetricActivityDumpEventAdded, int64(value), tags, 1.0); err != nil {
 				return fmt.Errorf("couldn't send %s metric: %w", metrics.MetricActivityDumpEventAdded, err)
 			}
 		}
@@ -719,14 +721,14 @@ func (ad *ActivityDump) SendStats() error {
 	for evtType, count := range ad.addedSnapshotCount {
 		tags := []string{fmt.Sprintf("event_type:%s", evtType), fmt.Sprintf("generation_type:%s", Snapshot)}
 		if value := count.Swap(0); value > 0 {
-			if err := ad.adm.probe.statsdClient.Count(metrics.MetricActivityDumpEventAdded, int64(value), tags, 1.0); err != nil {
+			if err := ad.adm.ctx.StatsdClient.Count(metrics.MetricActivityDumpEventAdded, int64(value), tags, 1.0); err != nil {
 				return fmt.Errorf("couldn't send %s metric: %w", metrics.MetricActivityDumpEventAdded, err)
 			}
 		}
 	}
 
 	if value := ad.pathMergedCount.Swap(0); value > 0 {
-		if err := ad.adm.probe.statsdClient.Count(metrics.MetricActivityDumpPathMergeCount, int64(value), nil, 1.0); err != nil {
+		if err := ad.adm.ctx.StatsdClient.Count(metrics.MetricActivityDumpPathMergeCount, int64(value), nil, 1.0); err != nil {
 			return fmt.Errorf("couldn't send %s metric: %w", metrics.MetricActivityDumpPathMergeCount, err)
 		}
 	}
@@ -766,7 +768,7 @@ func (ad *ActivityDump) resolveTags() error {
 	}
 
 	var err error
-	ad.Tags, err = ad.adm.probe.resolvers.TagsResolver.ResolveWithErr(ad.DumpMetadata.ContainerID)
+	ad.Tags, err = ad.adm.ctx.TagsResolver.ResolveWithErr(ad.DumpMetadata.ContainerID)
 	if err != nil {
 		return fmt.Errorf("failed to resolve %s: %w", ad.DumpMetadata.ContainerID, err)
 	}
@@ -821,15 +823,15 @@ func (ad *ActivityDump) ToTranscodingRequestMessage() *api.TranscodingRequestMes
 }
 
 // Encode encodes an activity dump in the provided format
-func (ad *ActivityDump) Encode(format dump.StorageFormat) (*bytes.Buffer, error) {
+func (ad *ActivityDump) Encode(format config.StorageFormat) (*bytes.Buffer, error) {
 	switch format {
-	case dump.JSON:
+	case config.JSON:
 		return ad.EncodeJSON()
-	case dump.PROTOBUF:
+	case config.PROTOBUF:
 		return ad.EncodeProtobuf()
-	case dump.DOT:
+	case config.DOT:
 		return ad.EncodeDOT()
-	case dump.Profile:
+	case config.Profile:
 		return ad.EncodeProfile()
 	default:
 		return nil, fmt.Errorf("couldn't encode activity dump [%s] as [%s]: unknown format", ad.GetSelectorStr(), format)
@@ -846,7 +848,7 @@ func (ad *ActivityDump) EncodeProtobuf() (*bytes.Buffer, error) {
 
 	raw, err := pad.MarshalVT()
 	if err != nil {
-		return nil, fmt.Errorf("couldn't encode in %s: %v", dump.PROTOBUF, err)
+		return nil, fmt.Errorf("couldn't encode in %s: %v", config.PROTOBUF, err)
 	}
 	return bytes.NewBuffer(raw), nil
 }
@@ -866,7 +868,7 @@ func (ad *ActivityDump) EncodeJSON() (*bytes.Buffer, error) {
 
 	raw, err := opts.Marshal(pad)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't encode in %s: %v", dump.JSON, err)
+		return nil, fmt.Errorf("couldn't encode in %s: %v", config.JSON, err)
 	}
 	return bytes.NewBuffer(raw), nil
 }
@@ -913,7 +915,7 @@ func (ad *ActivityDump) Decode(inputFile string) error {
 		ext = filepath.Ext(inputFile)
 	}
 
-	format, err := dump.ParseStorageFormat(ext)
+	format, err := config.ParseStorageFormat(ext)
 	if err != nil {
 		return err
 	}
@@ -928,9 +930,9 @@ func (ad *ActivityDump) Decode(inputFile string) error {
 }
 
 // DecodeFromReader decodes an activity dump from a reader with the provided format
-func (ad *ActivityDump) DecodeFromReader(reader io.Reader, format dump.StorageFormat) error {
+func (ad *ActivityDump) DecodeFromReader(reader io.Reader, format config.StorageFormat) error {
 	switch format {
-	case dump.PROTOBUF:
+	case config.PROTOBUF:
 		return ad.DecodeProtobuf(reader)
 	default:
 		return fmt.Errorf("unsupported input format: %s", format)
@@ -1017,7 +1019,7 @@ func (pan *ProcessActivityNode) retain() {
 }
 
 // scrubAndReleaseArgsEnvs scrubs the process args and envs, and then releases them
-func (pan *ProcessActivityNode) scrubAndReleaseArgsEnvs(resolver *ProcessResolver) {
+func (pan *ProcessActivityNode) scrubAndReleaseArgsEnvs(resolver probectx.ProcessResolver) {
 	_, _ = resolver.GetProcessScrubbedArgv(&pan.Process)
 	envs, envsTruncated := resolver.GetProcessEnvs(&pan.Process)
 	pan.Process.Envs = envs
@@ -1035,15 +1037,15 @@ func (pan *ProcessActivityNode) scrubAndReleaseArgsEnvs(resolver *ProcessResolve
 }
 
 // Matches return true if the process fields used to generate the dump are identical with the provided ProcessCacheEntry
-func (pan *ProcessActivityNode) Matches(entry *model.ProcessCacheEntry, matchArgs bool, resolvers *Resolvers) bool {
+func (pan *ProcessActivityNode) Matches(entry *model.ProcessCacheEntry, matchArgs bool, resolver probectx.ProcessResolver) bool {
 
 	if pan.Process.Comm == entry.Comm && pan.Process.FileEvent.PathnameStr == entry.FileEvent.PathnameStr &&
 		pan.Process.Credentials == entry.Credentials {
 
 		if matchArgs {
 
-			panArgs, _ := resolvers.ProcessResolver.GetProcessArgv(&pan.Process)
-			entryArgs, _ := resolvers.ProcessResolver.GetProcessArgv(&entry.Process)
+			panArgs, _ := resolver.GetProcessArgv(&pan.Process)
+			entryArgs, _ := resolver.GetProcessArgv(&entry.Process)
 			if len(panArgs) != len(entryArgs) {
 				return false
 			}
@@ -1094,7 +1096,7 @@ func extractFirstParent(path string) (string, int) {
 
 // InsertFileEventInProcess inserts the provided file event in the current node. This function returns true if a new entry was
 // added, false if the event was dropped.
-func (ad *ActivityDump) InsertFileEventInProcess(pan *ProcessActivityNode, fileEvent *model.FileEvent, event *Event, generationType NodeGenerationType) bool {
+func (ad *ActivityDump) InsertFileEventInProcess(pan *ProcessActivityNode, fileEvent *model.FileEvent, event *event.Event, generationType NodeGenerationType) bool {
 	var filePath string
 	if generationType != Snapshot {
 		filePath = event.ResolveFilePath(fileEvent)
@@ -1159,7 +1161,7 @@ func (ad *ActivityDump) snapshotProcess(pan *ProcessActivityNode) error {
 }
 
 func (ad *ActivityDump) insertSnapshotedSocket(pan *ProcessActivityNode, p *process.Process, family uint16, ip net.IP, port uint16) {
-	evt := NewEvent(ad.adm.probe.resolvers, ad.adm.probe.scrubber, ad.adm.probe)
+	evt := event.NewEvent(ad.adm.ctx)
 	evt.Event.Type = uint32(model.BindEventType)
 
 	evt.Bind.SyscallEvent.Retval = 0
@@ -1301,7 +1303,7 @@ func (pan *ProcessActivityNode) snapshotFiles(p *process.Process, ad *ActivityDu
 			continue
 		}
 
-		evt := NewEvent(ad.adm.probe.resolvers, ad.adm.probe.scrubber, ad.adm.probe)
+		evt := event.NewEvent(ad.adm.ctx)
 		evt.Event.Type = uint32(model.FileOpenEventType)
 
 		resolvedPath, err = filepath.EvalSymlinks(f)
@@ -1315,8 +1317,8 @@ func (pan *ProcessActivityNode) snapshotFiles(p *process.Process, ad *ActivityDu
 		evt.Open.File.FileFields.Inode = stat.Ino
 		evt.Open.File.FileFields.UID = stat.Uid
 		evt.Open.File.FileFields.GID = stat.Gid
-		evt.Open.File.FileFields.MTime = uint64(ad.adm.probe.resolvers.TimeResolver.ComputeMonotonicTimestamp(time.Unix(stat.Mtim.Sec, stat.Mtim.Nsec)))
-		evt.Open.File.FileFields.CTime = uint64(ad.adm.probe.resolvers.TimeResolver.ComputeMonotonicTimestamp(time.Unix(stat.Ctim.Sec, stat.Ctim.Nsec)))
+		evt.Open.File.FileFields.MTime = uint64(ad.adm.ctx.TimeResolver.ComputeMonotonicTimestamp(time.Unix(stat.Mtim.Sec, stat.Mtim.Nsec)))
+		evt.Open.File.FileFields.CTime = uint64(ad.adm.ctx.TimeResolver.ComputeMonotonicTimestamp(time.Unix(stat.Ctim.Sec, stat.Ctim.Nsec)))
 
 		evt.Open.File.Mode = evt.Open.File.FileFields.Mode
 		// TODO: add open flags by parsing `/proc/[pid]/fdinfo/fd` + O_RDONLY|O_CLOEXEC for the shared libs
@@ -1414,7 +1416,7 @@ type OpenNode struct {
 }
 
 // NewFileActivityNode returns a new FileActivityNode instance
-func NewFileActivityNode(fileEvent *model.FileEvent, event *Event, name string, generationType NodeGenerationType, nodeStats *ActivityDumpNodeStats) *FileActivityNode {
+func NewFileActivityNode(fileEvent *model.FileEvent, event *event.Event, name string, generationType NodeGenerationType, nodeStats *ActivityDumpNodeStats) *FileActivityNode {
 	nodeStats.fileNodes++
 	fan := &FileActivityNode{
 		Name:           name,
@@ -1437,7 +1439,7 @@ func (fan *FileActivityNode) getNodeLabel() string {
 	return label
 }
 
-func (fan *FileActivityNode) enrichFromEvent(event *Event) {
+func (fan *FileActivityNode) enrichFromEvent(event *event.Event) {
 	if event == nil {
 		return
 	}
@@ -1457,7 +1459,7 @@ func (fan *FileActivityNode) enrichFromEvent(event *Event) {
 
 // InsertFileEventInFile inserts an event in a FileActivityNode. This function returns true if a new entry was added, false if
 // the event was dropped.
-func (ad *ActivityDump) InsertFileEventInFile(fan *FileActivityNode, fileEvent *model.FileEvent, event *Event, remainingPath string, generationType NodeGenerationType) bool {
+func (ad *ActivityDump) InsertFileEventInFile(fan *FileActivityNode, fileEvent *model.FileEvent, event *event.Event, remainingPath string, generationType NodeGenerationType) bool {
 	currentFan := fan
 	currentPath := remainingPath
 	somethingChanged := false

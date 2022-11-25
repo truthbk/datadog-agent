@@ -34,13 +34,13 @@ import (
 	aconfig "github.com/DataDog/datadog-agent/pkg/config"
 	pconfig "github.com/DataDog/datadog-agent/pkg/process/config"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
-	"github.com/DataDog/datadog-agent/pkg/security/api"
 	"github.com/DataDog/datadog-agent/pkg/security/config"
 	"github.com/DataDog/datadog-agent/pkg/security/ebpf"
 	kernel "github.com/DataDog/datadog-agent/pkg/security/ebpf/kernel"
 	"github.com/DataDog/datadog-agent/pkg/security/ebpf/probes"
 	"github.com/DataDog/datadog-agent/pkg/security/metrics"
 	"github.com/DataDog/datadog-agent/pkg/security/probe/constantfetch"
+	"github.com/DataDog/datadog-agent/pkg/security/probe/event"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
@@ -49,14 +49,9 @@ import (
 	utilkernel "github.com/DataDog/datadog-agent/pkg/util/kernel"
 )
 
-// ActivityDumpHandler represents an handler for the activity dumps sent by the probe
-type ActivityDumpHandler interface {
-	HandleActivityDump(dump *api.ActivityDumpStreamMessage)
-}
-
 // EventHandler represents an handler for the events sent by the probe
 type EventHandler interface {
-	HandleEvent(event *Event)
+	HandleEvent(event *event.Event)
 	HandleCustomEvent(rule *rules.Rule, event *CustomEvent)
 }
 
@@ -70,7 +65,7 @@ type EventStream interface {
 }
 
 // NotifyDiscarderPushedCallback describe the callback used to retrieve pushed discarders information
-type NotifyDiscarderPushedCallback func(eventType string, event *Event, field string)
+type NotifyDiscarderPushedCallback func(eventType string, event *event.Event, field string)
 
 // Probe represents the runtime security eBPF probe in charge of
 // setting up the required kProbes and decoding events sent from the kernel
@@ -90,12 +85,9 @@ type Probe struct {
 	handlers    [model.MaxAllEventType][]EventHandler
 	monitor     *Monitor
 	resolvers   *Resolvers
-	event       *Event
+	event       *event.Event
 	eventStream EventStream
 	scrubber    *pconfig.DataScrubber
-
-	// ActivityDumps section
-	activityDumpHandler ActivityDumpHandler
 
 	// Approvers / discarders section
 	erpc                               *ERPC
@@ -329,18 +321,13 @@ func (p *Probe) Start() error {
 	return p.eventStream.Start(&p.wg)
 }
 
-// AddActivityDumpHandler set the probe activity dump handler
-func (p *Probe) AddActivityDumpHandler(handler ActivityDumpHandler) {
-	p.activityDumpHandler = handler
-}
-
 // AddEventHandler set the probe event handler
 func (p *Probe) AddEventHandler(eventType model.EventType, handler EventHandler) {
 	p.handlers[eventType] = append(p.handlers[eventType], handler)
 }
 
 // DispatchEvent sends an event to the probe event handler
-func (p *Probe) DispatchEvent(event *Event) {
+func (p *Probe) DispatchEvent(event *event.Event) {
 	seclog.TraceTagf(event.GetEventType(), "Dispatching event %s", event)
 
 	// send wildcard first
@@ -355,13 +342,6 @@ func (p *Probe) DispatchEvent(event *Event) {
 
 	// Process after evaluation because some monitors need the DentryResolver to have been called first.
 	p.monitor.ProcessEvent(event)
-}
-
-// DispatchActivityDump sends an activity dump to the probe activity dump handler
-func (p *Probe) DispatchActivityDump(dump *api.ActivityDumpStreamMessage) {
-	if handler := p.activityDumpHandler; handler != nil {
-		handler.HandleActivityDump(dump)
-	}
 }
 
 // DispatchCustomEvent sends a custom event to the probe event handler
@@ -403,12 +383,12 @@ func (p *Probe) GetMonitor() *Monitor {
 	return p.monitor
 }
 
-func (p *Probe) zeroEvent() *Event {
+func (p *Probe) zeroEvent() *event.Event {
 	*p.event = eventZero
 	return p.event
 }
 
-func (p *Probe) unmarshalContexts(data []byte, event *Event) (int, error) {
+func (p *Probe) unmarshalContexts(data []byte, event *event.Event) (int, error) {
 	read, err := model.UnmarshalBinary(data, &event.PIDContext, &event.SpanContext, &event.ContainerContext)
 	if err != nil {
 		return 0, err
@@ -826,7 +806,7 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 }
 
 // OnRuleMatch is called when a rule matches just before sending
-func (p *Probe) OnRuleMatch(rule *rules.Rule, event *Event) {
+func (p *Probe) OnRuleMatch(rule *rules.Rule, event *event.Event) {
 	// ensure that all the fields are resolved before sending
 	event.ResolveContainerID(&event.ContainerContext)
 	event.ResolveContainerTags(&event.ContainerContext)
@@ -841,7 +821,7 @@ func (p *Probe) AddNewNotifyDiscarderPushedCallback(cb NotifyDiscarderPushedCall
 }
 
 // OnNewDiscarder is called when a new discarder is found
-func (p *Probe) OnNewDiscarder(rs *rules.RuleSet, event *Event, field eval.Field, eventType eval.EventType) error {
+func (p *Probe) OnNewDiscarder(rs *rules.RuleSet, event *event.Event, field eval.Field, eventType eval.EventType) error {
 	// discarders disabled
 	if !p.config.EnableDiscarders {
 		return nil

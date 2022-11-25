@@ -19,6 +19,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/security/api"
 	"github.com/DataDog/datadog-agent/pkg/security/metrics"
+	"github.com/DataDog/datadog-agent/pkg/security/probe/dump"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -29,7 +30,7 @@ type Monitor struct {
 
 	loadController      *LoadController
 	perfBufferMonitor   *PerfBufferMonitor
-	activityDumpManager *ActivityDumpManager
+	activityDumpManager *dump.ActivityDumpManager
 	runtimeMonitor      *RuntimeMonitor
 	discarderMonitor    *DiscarderMonitor
 }
@@ -54,7 +55,7 @@ func NewMonitor(p *Probe) (*Monitor, error) {
 	}
 
 	if p.config.ActivityDumpEnabled {
-		m.activityDumpManager, err = NewActivityDumpManager(p)
+		m.activityDumpManager, err = dump.NewActivityDumpManager(p)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't create the activity dump manager: %w", err)
 		}
@@ -78,7 +79,7 @@ func (m *Monitor) GetPerfBufferMonitor() *PerfBufferMonitor {
 }
 
 // GetActivityDumpManager returns the activity dump manager
-func (m *Monitor) GetActivityDumpManager() *ActivityDumpManager {
+func (m *Monitor) GetActivityDumpManager() *dump.ActivityDumpManager {
 	return m.activityDumpManager
 }
 

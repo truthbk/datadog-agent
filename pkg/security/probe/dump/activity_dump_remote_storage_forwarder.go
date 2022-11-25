@@ -6,36 +6,36 @@
 //go:build linux
 // +build linux
 
-package probe
+package dump
 
 import (
 	"bytes"
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/security/api"
-	"github.com/DataDog/datadog-agent/pkg/security/probe/dump"
+	"github.com/DataDog/datadog-agent/pkg/security/config"
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
 )
 
 // ActivityDumpRemoteStorageForwarder is a remote storage that forwards dumps to the security-agent
 type ActivityDumpRemoteStorageForwarder struct {
-	probe *Probe
+	adm *ActivityDumpManager
 }
 
 // NewActivityDumpRemoteStorageForwarder returns a new instance of ActivityDumpRemoteStorageForwarder
-func NewActivityDumpRemoteStorageForwarder(p *Probe) (ActivityDumpStorage, error) {
+func NewActivityDumpRemoteStorageForwarder(adm *ActivityDumpManager) (ActivityDumpStorage, error) {
 	return &ActivityDumpRemoteStorageForwarder{
-		probe: p,
+		adm: adm,
 	}, nil
 }
 
 // GetStorageType returns the storage type of the ActivityDumpRemoteStorage
-func (storage *ActivityDumpRemoteStorageForwarder) GetStorageType() dump.StorageType {
-	return dump.RemoteStorage
+func (storage *ActivityDumpRemoteStorageForwarder) GetStorageType() config.StorageType {
+	return config.RemoteStorage
 }
 
 // Persist saves the provided buffer to the persistent storage
-func (storage *ActivityDumpRemoteStorageForwarder) Persist(request dump.StorageRequest, ad *ActivityDump, raw *bytes.Buffer) error {
+func (storage *ActivityDumpRemoteStorageForwarder) Persist(request config.StorageRequest, ad *ActivityDump, raw *bytes.Buffer) error {
 	// set activity dump size for current encoding
 	ad.DumpMetadata.Size = uint64(raw.Len())
 
@@ -48,7 +48,7 @@ func (storage *ActivityDumpRemoteStorageForwarder) Persist(request dump.StorageR
 	// override storage request so that it contains only the current persisted data
 	msg.Dump.Storage = []*api.StorageRequestMessage{request.ToStorageRequestMessage(ad.DumpMetadata.Name)}
 
-	storage.probe.DispatchActivityDump(msg)
+	storage.adm.DispatchActivityDump(msg)
 
 	seclog.Infof("[%s] file for activity dump [%s] was forwarded to the security-agent", request.Format, ad.GetSelectorStr())
 	return nil

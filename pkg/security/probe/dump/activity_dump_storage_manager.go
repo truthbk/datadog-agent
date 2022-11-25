@@ -6,32 +6,34 @@
 //go:build linux
 // +build linux
 
-package probe
+package dump
 
 import (
 	"bytes"
 	"fmt"
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
+	"github.com/DataDog/datadog-agent/pkg/security/config"
 	"github.com/DataDog/datadog-agent/pkg/security/metrics"
-	"github.com/DataDog/datadog-agent/pkg/security/probe/dump"
+	"github.com/DataDog/datadog-agent/pkg/security/probe/probectx"
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
 )
 
 // ActivityDumpStorage defines the interface implemented by all activity dump storages
 type ActivityDumpStorage interface {
 	// GetStorageType returns the storage type
-	GetStorageType() dump.StorageType
+	GetStorageType() config.StorageType
 	// Persist saves the provided buffer to the persistent storage
-	Persist(request dump.StorageRequest, ad *ActivityDump, raw *bytes.Buffer) error
+	Persist(request config.StorageRequest, ad *ActivityDump, raw *bytes.Buffer) error
 	// SendTelemetry sends metrics using the provided metrics sender
 	SendTelemetry(sender aggregator.Sender)
 }
 
 // ActivityDumpStorageManager is used to manage activity dump storages
 type ActivityDumpStorageManager struct {
-	probe    *Probe
-	storages map[dump.StorageType]ActivityDumpStorage
+	// probe    *Probe
+	ctx      *probectx.ProbeCtx
+	storages map[config.StorageType]ActivityDumpStorage
 
 	metricsSender aggregator.Sender
 }
@@ -39,7 +41,7 @@ type ActivityDumpStorageManager struct {
 // NewSecurityAgentStorageManager returns a new instance of ActivityDumpStorageManager
 func NewSecurityAgentStorageManager() (*ActivityDumpStorageManager, error) {
 	manager := &ActivityDumpStorageManager{
-		storages: make(map[dump.StorageType]ActivityDumpStorage),
+		storages: make(map[config.StorageType]ActivityDumpStorage),
 	}
 
 	sender, err := aggregator.GetDefaultSender()
@@ -59,18 +61,19 @@ func NewSecurityAgentStorageManager() (*ActivityDumpStorageManager, error) {
 }
 
 // NewActivityDumpStorageManager returns a new instance of ActivityDumpStorageManager
-func NewActivityDumpStorageManager(p *Probe) (*ActivityDumpStorageManager, error) {
-	storageFactory := []func(p *Probe) (ActivityDumpStorage, error){
+func NewActivityDumpStorageManager(adm *ActivityDumpManager) (*ActivityDumpStorageManager, error) {
+	storageFactory := []func(adm *ActivityDumpManager) (ActivityDumpStorage, error){
 		NewActivityDumpLocalStorage,
 		NewActivityDumpRemoteStorageForwarder,
 	}
 
 	manager := &ActivityDumpStorageManager{
-		storages: make(map[dump.StorageType]ActivityDumpStorage),
-		probe:    p,
+		storages: make(map[config.StorageType]ActivityDumpStorage),
+		// probe:    p,
+		ctx: adm.ctx,
 	}
 	for _, factory := range storageFactory {
-		storage, err := factory(p)
+		storage, err := factory(adm)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't instantiate storage: %w", err)
 		}
@@ -103,7 +106,7 @@ func (manager *ActivityDumpStorageManager) Persist(ad *ActivityDump) error {
 }
 
 // PersistRaw saves the provided dump to the requested storages
-func (manager *ActivityDumpStorageManager) PersistRaw(requests []dump.StorageRequest, ad *ActivityDump, raw *bytes.Buffer) error {
+func (manager *ActivityDumpStorageManager) PersistRaw(requests []config.StorageRequest, ad *ActivityDump, raw *bytes.Buffer) error {
 	for _, request := range requests {
 		storage, ok := manager.storages[request.Type]
 		if !ok || storage == nil {
@@ -117,10 +120,10 @@ func (manager *ActivityDumpStorageManager) PersistRaw(requests []dump.StorageReq
 		}
 
 		// send dump metric
-		if manager.probe != nil {
+		if manager.ctx != nil {
 			if size := len(raw.Bytes()); size > 0 {
 				tags := []string{"format:" + request.Format.String(), "storage_type:" + request.Type.String(), fmt.Sprintf("compression:%v", request.Compression)}
-				if err := manager.probe.statsdClient.Gauge(metrics.MetricActivityDumpSizeInBytes, float64(size), tags, 1.0); err != nil {
+				if err := manager.ctx.StatsdClient.Gauge(metrics.MetricActivityDumpSizeInBytes, float64(size), tags, 1.0); err != nil {
 					seclog.Warnf("couldn't send %s metric: %v", metrics.MetricActivityDumpSizeInBytes, err)
 				}
 			}

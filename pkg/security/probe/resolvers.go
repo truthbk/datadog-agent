@@ -20,11 +20,17 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/utils"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-go/v5/statsd"
+	manager "github.com/DataDog/ebpf-manager"
 )
 
 // Resolvers holds the list of the event attribute resolvers
 type Resolvers struct {
-	probe             *Probe
+	// probe             *Probe
+	config       *config.Config
+	manager      *manager.Manager
+	statsdClient statsd.ClientInterface
+
 	DentryResolver    *DentryResolver
 	MountResolver     *MountResolver
 	ContainerResolver *ContainerResolver
@@ -36,7 +42,7 @@ type Resolvers struct {
 }
 
 // NewResolvers creates a new instance of Resolvers
-func NewResolvers(config *config.Config, probe *Probe) (*Resolvers, error) {
+func NewResolvers(probe *Probe, config *config.Config, manager *manager.Manager, statsdClient statsd.ClientInterface) (*Resolvers, error) {
 	dentryResolver, err := NewDentryResolver(probe)
 	if err != nil {
 		return nil, err
@@ -52,7 +58,7 @@ func NewResolvers(config *config.Config, probe *Probe) (*Resolvers, error) {
 		return nil, err
 	}
 
-	mountResolver, err := NewMountResolver(probe.statsdClient)
+	mountResolver, err := NewMountResolver(statsdClient)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +69,10 @@ func NewResolvers(config *config.Config, probe *Probe) (*Resolvers, error) {
 	}
 
 	resolvers := &Resolvers{
-		probe:             probe,
+		// probe:             probe,
+		config:            config,
+		manager:           manager,
+		statsdClient:      statsdClient,
 		DentryResolver:    dentryResolver,
 		MountResolver:     mountResolver,
 		TimeResolver:      timeResolver,
