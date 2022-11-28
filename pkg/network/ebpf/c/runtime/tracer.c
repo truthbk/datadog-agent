@@ -39,7 +39,7 @@
 #include "sock.h"
 
 // Given msghdr pointer, extracts the buffer pointer from the struct and its size.
-static __always_inline void* get_msghdr_buffer_ptr(struct msghdr *ptr) {
+static __always_inline void* get_msghdr_buffer_ptr(void *ptr) {
     struct msghdr local_msghdr = {0};
     bpf_probe_read_kernel_with_telemetry(&local_msghdr, sizeof(local_msghdr), ptr);
 
@@ -134,9 +134,7 @@ int kretprobe__tcp_recvmsg(struct pt_regs *ctx) {
         return 0;
     }
 
-    void *buffer_ptr = get_msghdr_buffer_ptr(args->msghdr);
-
-    return handle_tcp_recv(pid_tgid, skp, buffer_ptr, recv);
+    return handle_tcp_recv(pid_tgid, skp, args->buf, recv);
 }
 
 SEC("kprobe/tcp_close")

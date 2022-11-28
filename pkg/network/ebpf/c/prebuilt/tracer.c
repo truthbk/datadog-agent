@@ -36,11 +36,11 @@ static __always_inline __u64 offset_msghdr_buffer_head() {
 }
 
 // Given msghdr pointer, extracts the buffer pointer from the struct and its size.
-static __always_inline void* get_msghdr_buffer_ptr(char *ptr) {
+static __always_inline void* get_msghdr_buffer_ptr(void *ptr) {
     void *buffer_ptr = NULL;
     bpf_probe_read_kernel(&buffer_ptr, sizeof(buffer_ptr), ptr + offset_msghdr_buffer_head());
     bpf_probe_read_kernel(&buffer_ptr, sizeof(buffer_ptr), buffer_ptr);
-    return (void*)buffer_ptr;
+    return buffer_ptr;
 }
 
 SEC("kprobe/tcp_sendmsg")
@@ -135,13 +135,7 @@ int kretprobe__tcp_recvmsg(struct pt_regs *ctx) {
         return 0;
     }
 
-    void *buffer_ptr = NULL;
-
-    if (args->msghdr != NULL) {
-        buffer_ptr = get_msghdr_buffer_ptr(args->msghdr);
-    }
-
-    return handle_tcp_recv(pid_tgid, skp, buffer_ptr, recv);
+    return handle_tcp_recv(pid_tgid, skp, args->buf, recv);
 }
 
 

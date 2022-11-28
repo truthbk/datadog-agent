@@ -50,6 +50,7 @@ int __always_inline handle_tcp_recv(u64 pid_tgid, struct sock *skp, void *buffer
     return handle_message(&t, 0, recv, CONN_DIRECTION_UNKNOWN, packets_out, packets_in, PACKET_COUNT_ABSOLUTE, protocol, skp);
 }
 
+static  void* get_msghdr_buffer_ptr(void *ptr);
 SEC("kprobe/tcp_recvmsg")
 int kprobe__tcp_recvmsg(struct pt_regs *ctx) {
     u64 pid_tgid = bpf_get_current_pid_tgid();
@@ -70,6 +71,7 @@ int kprobe__tcp_recvmsg(struct pt_regs *ctx) {
     tcp_recvmsg_args_t args = {0};
     args.sk = sk;
     args.msghdr = msghdr;
+    args.buf = get_msghdr_buffer_ptr(msghdr);
     bpf_map_update_with_telemetry(tcp_recvmsg_args, &pid_tgid, &args, BPF_ANY);
     return 0;
 }
@@ -77,11 +79,13 @@ int kprobe__tcp_recvmsg(struct pt_regs *ctx) {
 SEC("kprobe/tcp_read_sock")
 int kprobe__tcp_read_sock(struct pt_regs *ctx) {
     u64 pid_tgid = bpf_get_current_pid_tgid();
-    void *parm1 = (void*)PT_REGS_PARM1(ctx);
-    struct sock* skp = parm1;
+
+    tcp_recvmsg_args_t args = {0};
+    args.sk = (struct sock*)PT_REGS_PARM1(ctx);
+
     // we reuse tcp_recvmsg_args here since there is no overlap
     // between the tcp_recvmsg and tcp_read_sock paths
-    bpf_map_update_with_telemetry(tcp_recvmsg_args, &pid_tgid, &skp, BPF_ANY);
+    bpf_map_update_with_telemetry(tcp_recvmsg_args, &pid_tgid, &args, BPF_ANY);
     return 0;
 }
 
@@ -90,12 +94,12 @@ int kretprobe__tcp_read_sock(struct pt_regs *ctx) {
     u64 pid_tgid = bpf_get_current_pid_tgid();
     // we reuse tcp_recvmsg_args here since there is no overlap
     // between the tcp_recvmsg and tcp_read_sock paths
-    struct sock **skpp = (struct sock**) bpf_map_lookup_elem(&tcp_recvmsg_args, &pid_tgid);
-    if (!skpp) {
+    tcp_recvmsg_args_t *args = bpf_map_lookup_elem(&tcp_recvmsg_args, &pid_tgid);
+    if (!args) {
         return 0;
     }
 
-    struct sock *skp = *skpp;
+    struct sock *skp = args->sk;
     bpf_map_delete_elem(&tcp_recvmsg_args, &pid_tgid);
     if (!skp) {
         return 0;

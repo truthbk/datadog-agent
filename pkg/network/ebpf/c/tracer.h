@@ -178,6 +178,10 @@ typedef struct {
 typedef struct {
     struct sock *sk;
     void *msghdr;
+
+    // address of msghdr.msg_iter.iov->iov_base during the beginning of tcp_recvmsg execution
+    // TODO: investigate if we need to account for msghdr.msg_iter.iov_offset as well
+    void *buf;
 } tcp_recvmsg_args_t;
 
 #endif
