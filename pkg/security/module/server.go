@@ -68,7 +68,7 @@ type APIServer struct {
 }
 
 // GetSBOMStream waits for SBOM messages and forwards them to the stream
-func (a *APIServer) GetSBOMStream(params *api.GetSBOMFeedParams, stream api.SecurityModule_GetSBOMStreamServer) error {
+func (a *APIServer) GetSBOMStream(params *api.GetSBOMStreamParams, stream api.SecurityModule_GetSBOMStreamServer) error {
 	select {
 	case sbom := <-a.sbomMsgs:
 		if err := stream.Send(sbom); err != nil {

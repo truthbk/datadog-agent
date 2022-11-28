@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -219,7 +220,7 @@ func (rsa *RuntimeSecurityAgent) StartSBOMListener() {
 			if err == io.EOF || msg == nil {
 				break
 			}
-			log.Tracef("Got SBOM [%s]", msg.GetName())
+			log.Tracef("Got SBOM for [%s]", strings.Join(msg.GetTags(), ", "))
 
 			rsa.sbomReceived.Inc()
 

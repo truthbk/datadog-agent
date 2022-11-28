@@ -14,6 +14,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
+
+	"github.com/golang/protobuf/proto"
 
 	logsconfig "github.com/DataDog/datadog-agent/pkg/logs/config"
 	"github.com/DataDog/datadog-agent/pkg/security/api"
@@ -53,7 +56,12 @@ func NewSBOMRemoteStorage(enableCompression bool) (*SBOMRemoteStorage, error) {
 }
 
 func (storage *SBOMRemoteStorage) writeSBOM(writer io.Writer, sbom *api.SBOMMessage) error {
-	if _, err := writer.Write(sbom.GetData()); err != nil {
+	encoded, err := proto.Marshal(sbom)
+	if err != nil {
+		return fmt.Errorf("couldn't encode SBOM: %w", err)
+	}
+
+	if _, err = writer.Write(encoded); err != nil {
 		return fmt.Errorf("couldn't write SBOM to request body: %w", err)
 	}
 	return nil
@@ -111,7 +119,7 @@ func (storage *SBOMRemoteStorage) SendSBOM(sbom *api.SBOMMessage) error {
 		if err = storage.sendToEndpoint(url, storage.apiKeys[i], body); err != nil {
 			seclog.Warnf("couldn't sent SBOM to [%s, body size: %d]: %v", url, body.Len(), err)
 		} else {
-			seclog.Infof("SBOM for [%s] successfully sent to [%s]", sbom.GetName(), url)
+			seclog.Infof("SBOM for [%s] successfully sent to [%s]", strings.Join(sbom.GetTags(), ", "), url)
 		}
 	}
 

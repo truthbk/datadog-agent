@@ -10,36 +10,56 @@ package probe
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 
 	trivyTypes "github.com/aquasecurity/trivy/pkg/fanal/types"
 	trivyReport "github.com/aquasecurity/trivy/pkg/types"
 	"go.uber.org/atomic"
 
-	"github.com/DataDog/datadog-agent/pkg/security/api"
+	coreconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
 	"github.com/DataDog/datadog-agent/pkg/security/utils"
 )
 
+// SBOMSource defines is the default log source for the SBOM events
+const SBOMSource = "runtime-security-agent"
+
 type SBOM struct {
 	sync.RWMutex
 	trivyReport.Report
 
+	Host             string
+	Source           string
+	Service          string
+	Tags             []string
+	ContainerID      string
 	ReferenceCounter *atomic.Uint64
 	ReportReady      bool
+	sbomResolver     *SBOMResolver
 }
 
-// ToSBOMMessage returns an *api.SBOMMessage instance from an SBOM instance
-func (s *SBOM) ToSBOMMessage() (*api.SBOMMessage, error) {
-	// TODO add image & version name in SBOMMessage
-	data, err := json.Marshal(s)
-	if err == nil {
-		return &api.SBOMMessage{Data: data}, nil
+// ResolveTags resolves the tags of the SBOM
+func (s *SBOM) ResolveTags() error {
+	s.Lock()
+	defer s.Unlock()
+	return s.resolveTags()
+}
+
+// resolveTags thread unsafe version of ResolveTags
+func (s *SBOM) resolveTags() error {
+	if len(s.Tags) >= 10 || len(s.ContainerID) == 0 {
+		return nil
 	}
-	return nil, err
+
+	var err error
+	s.Tags, err = s.sbomResolver.probe.resolvers.TagsResolver.ResolveWithErr(s.ContainerID)
+	if err != nil {
+		return fmt.Errorf("failed to resolve %s: %w", s.ContainerID, err)
+	}
+	return nil
 }
 
 type workloadAnalysisRequest struct {
@@ -58,6 +78,11 @@ type SBOMResolver struct {
 	queuedWorkloadsInitCountersLock sync.RWMutex
 	queuedWorkloadsInitCounters     map[string]int
 	workloadAnalysisQueue           chan workloadAnalysisRequest
+
+	// context tags and attributes
+	hostname    string
+	source      string
+	contextTags []string
 }
 
 // NewSBOMResolver returns a new instance of SBOMResolver
@@ -68,7 +93,33 @@ func NewSBOMResolver(p *Probe) (*SBOMResolver, error) {
 		queuedWorkloadsInitCounters: make(map[string]int),
 		workloadAnalysisQueue:       make(chan workloadAnalysisRequest),
 	}
+	resolver.prepareContextTags()
 	return resolver, nil
+}
+
+func (r *SBOMResolver) prepareContextTags() {
+	// add hostname tag
+	hostname, err := utils.GetHostname()
+	if err != nil || hostname == "" {
+		hostname = "unknown"
+	}
+	r.hostname = hostname
+	r.contextTags = append(r.contextTags, fmt.Sprintf("host:%s", r.hostname))
+
+	// merge tags from config
+	for _, tag := range coreconfig.GetConfiguredTags(true) {
+		if strings.HasPrefix(tag, "host") {
+			continue
+		}
+		r.contextTags = append(r.contextTags, tag)
+	}
+
+	// add source tag
+	r.source = utils.GetTagValue("source", r.contextTags)
+	if len(r.source) == 0 {
+		r.source = SBOMSource
+		r.contextTags = append(r.contextTags, fmt.Sprintf("source:%s", SBOMSource))
+	}
 }
 
 // Start starts the goroutine of the SBOM resolver
@@ -89,17 +140,20 @@ func (r *SBOMResolver) Start(ctx context.Context) {
 }
 
 // generateSBOM calls Trivy to generate the SBOM of a workload
-func (r *SBOMResolver) generateSBOM(root string) (*SBOM, error) {
+func (r *SBOMResolver) generateSBOM(root string, containerID string) (*SBOM, error) {
 	// TODO: call "trivy fs" on "root"
 	output := &SBOM{
 		ReferenceCounter: atomic.NewUint64(1),
+		Host:             r.hostname,
+		Source:           r.source,
+		ContainerID:      containerID,
 	}
 	return output, nil
 }
 
 // analyzeWorkload generates the SBOM of the provided workload and send it to the security agent
 func (r *SBOMResolver) analyzeWorkload(req workloadAnalysisRequest) error {
-	sbom, err := r.generateSBOM(req.root)
+	sbom, err := r.generateSBOM(req.root, req.containerID)
 	if err != nil {
 		return err
 	}
@@ -107,6 +161,14 @@ func (r *SBOMResolver) analyzeWorkload(req workloadAnalysisRequest) error {
 	r.workloadsLock.Lock()
 	defer r.workloadsLock.Unlock()
 	r.workloads[req.containerID] = sbom
+
+	// resolve tags
+	// TODO we should delay this
+	_ = sbom.resolveTags()
+	r.AddContextTags(sbom)
+
+	// resolve the service if it is defined
+	sbom.Service = utils.GetTagValue("service", sbom.Tags)
 
 	// send SBOM to the security agent
 	sbomMsg, err := sbom.ToSBOMMessage()
@@ -168,6 +230,7 @@ func (r *SBOMResolver) queueWorkloadAnalysis(process *model.ProcessCacheEntry) {
 		containerID: process.ContainerID,
 		root:        utils.ProcRootPath(int32(process.Pid)),
 	}
+	// TODO Select
 	r.workloadAnalysisQueue <- req
 	return
 }
@@ -205,5 +268,32 @@ func (r *SBOMResolver) Release(process *model.ProcessCacheEntry) {
 	if counter <= 0 {
 		// remove SBOM entry
 		delete(r.workloads, process.ContainerID)
+	}
+}
+
+// AddContextTags Adds the tags resolved by the resolver to the provided SBOM
+func (r *SBOMResolver) AddContextTags(s *SBOM) {
+	var tagName string
+	var found bool
+
+	dumpTagNames := make([]string, 0, len(s.Tags))
+	for _, tag := range s.Tags {
+		dumpTagNames = append(dumpTagNames, utils.GetTagName(tag))
+	}
+
+	for _, tag := range r.contextTags {
+		tagName = utils.GetTagName(tag)
+		found = false
+
+		for _, dumpTagName := range dumpTagNames {
+			if tagName == dumpTagName {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			s.Tags = append(s.Tags, tag)
+		}
 	}
 }

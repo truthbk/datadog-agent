@@ -3,6 +3,7 @@ syntax = "proto3";
 option go_package = "pkg/security/api";
 
 package api;
+import "pkg/security/api/cyclonedx/bom-1.4.proto";
 
 message GetEventParams {}
 
@@ -183,8 +184,11 @@ message ActivityDumpStreamMessage {
 message GetSBOMStreamParams {}
 
 message SBOMMessage {
-    string Name = 1;
-    bytes Data = 2;
+    string Host = 1;
+    string Service = 2;
+    string Source = 3;
+    repeated string Tags = 4;
+    cyclonedx.v1_4.Bom BOM = 5;
 }
 
 service SecurityModule {
