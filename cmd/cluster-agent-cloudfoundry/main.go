@@ -11,30 +11,56 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	_ "expvar"         // Blank import used because this isn't directly used in this file
 	_ "net/http/pprof" // Blank import used because this isn't directly used in this file
 
-	"go.uber.org/fx"
-	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/cmd/agent/common"
 	"github.com/DataDog/datadog-agent/cmd/cluster-agent-cloudfoundry/app"
+	"github.com/DataDog/datadog-agent/cmd/cluster-agent/api"
+	dcav1 "github.com/DataDog/datadog-agent/cmd/cluster-agent/api/v1"
+	"github.com/DataDog/datadog-agent/comp/core"
+	"github.com/DataDog/datadog-agent/comp/core/config"
+	"github.com/DataDog/datadog-agent/pkg/aggregator"
+	"github.com/DataDog/datadog-agent/pkg/api/healthprobe"
+	"github.com/DataDog/datadog-agent/pkg/clusteragent"
+	"github.com/DataDog/datadog-agent/pkg/clusteragent/clusterchecks"
+	"github.com/DataDog/datadog-agent/pkg/collector"
+	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/config/resolver"
+	"github.com/DataDog/datadog-agent/pkg/forwarder"
+	"github.com/DataDog/datadog-agent/pkg/serializer"
+	"github.com/DataDog/datadog-agent/pkg/status/health"
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
+	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
+	"github.com/DataDog/datadog-agent/pkg/util/hostname"
+	"github.com/DataDog/datadog-agent/pkg/util/input"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/version"
+	"github.com/fatih/color"
+	"github.com/gorilla/mux"
+	"github.com/spf13/cobra"
+	"go.uber.org/fx"
 )
 
 // loggerName is the name of the cluster agent logger
 const loggerName pkgconfig.LoggerName = "CLUSTER"
 
 type cliParams struct {
-	confPath string
-	flagNoColor bool
+	confPath      string
+	flagNoColor   bool
 	customerEmail string
 	autoconfirm   bool
 }
 
 func MakeRootCommand() *cobra.Command {
 
+	cliParams := &cliParams{}
 	clusterAgentCmd := &cobra.Command{
 		Use:   "datadog-cluster-agent-cloudfoundry [command]",
 		Short: "Datadog Cluster Agent for Cloud Foundry at your service.",
@@ -43,11 +69,9 @@ Datadog Cluster Agent for Cloud Foundry takes care of running checks that need t
 once per cluster.`,
 	}
 
-
 	for _, cmd := range makeCommands() {
 		clusterAgentCmd.AddCommand(cmd)
 	}
-
 
 	clusterAgentCmd.PersistentFlags().StringVarP(&cliParams.confPath, "cfgpath", "c", "", "path to directory containing datadog.yaml")
 	clusterAgentCmd.PersistentFlags().BoolVarP(&cliParams.flagNoColor, "no-color", "n", false, "disable color output")
@@ -62,7 +86,7 @@ func makeCommands() []*cobra.Command {
 		Use:   "run",
 		Short: "Run the Cluster Agent for Cloud Foundry",
 		Long:  `Runs Datadog Cluster Agent for Cloud Foundry in the foreground`,
-		RunE:  func(*cobra.Command, []string) error {
+		RunE: func(*cobra.Command, []string) error {
 			return runCFClusterAgentFct(cliParams, "", run)
 		},
 	}
@@ -71,7 +95,7 @@ func makeCommands() []*cobra.Command {
 		Use:   "version",
 		Short: "Print the version info",
 		Long:  ``,
-		RunE: 	func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if cliParams.flagNoColor {
 				color.NoColor = true
 			}
@@ -105,24 +129,21 @@ func makeCommands() []*cobra.Command {
 		},
 	}
 
-	clusterChecksCmd := commands.GetClusterChecksCobraCmd(&cliParams.flagNoColor, &cliParams.confPath, loggerName)
+	//clusterChecksCmd := commands.getClusterChecksCobraCmd(&cliParams.flagNoColor, &cliParams.confPath, loggerName)
 
-	configCheckCmd := commands.GetConfigCheckCobraCmd(&cliParams.flagNoColor, &cliParams.confPath, loggerName)
+	//configCheckCmd := commands.GetConfigCheckCobraCmd(&cliParams.flagNoColor, &cliParams.confPath, loggerName)
 
-	
 	flareCmd.Flags().StringVarP(&cliParams.customerEmail, "email", "e", "", "Your email")
 	flareCmd.Flags().BoolVarP(&cliParams.autoconfirm, "send", "s", false, "Automatically send flare (don't prompt for confirmation)")
 	flareCmd.SetArgs([]string{"caseID"})
 
-	
 	return []*cobra.Command{runCmd, versionCmd, flareCmd}
 
 }
 
-
 func run(cliParams *cliParams, config config.Component) error {
 	// we'll search for a config file named `datadog-cluster.yaml`
-	config.SetConfigName("datadog-cluster")
+	pkgconfig.Datadog.SetConfigName("datadog-cluster")
 	err := common.SetupConfig(cliParams.confPath)
 	if err != nil {
 		return fmt.Errorf("unable to set up global agent configuration: %v", err)
@@ -197,12 +218,12 @@ func run(cliParams *cliParams, config config.Component) error {
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM)
 
 	// initialize CC Cache
-	if err = initializeCCCache(mainCtx); err != nil {
+	if err = app.initializeCCCache(mainCtx); err != nil {
 		_ = log.Errorf("Error initializing Cloud Foundry CCAPI cache, some advanced tagging features may be missing: %v", err)
 	}
 
 	// initialize BBS Cache before starting provider/listener
-	if err = initializeBBSCache(mainCtx); err != nil {
+	if err = app.initializeBBSCache(mainCtx); err != nil {
 		return err
 	}
 
@@ -221,7 +242,7 @@ func run(cliParams *cliParams, config config.Component) error {
 	}
 
 	var clusterCheckHandler *clusterchecks.Handler
-	clusterCheckHandler, err = setupClusterCheck(mainCtx)
+	clusterCheckHandler, err = app.setupClusterCheck(mainCtx)
 	if err == nil {
 		api.ModifyAPIRouter(func(r *mux.Router) {
 			dcav1.InstallChecksEndpoints(r, clusteragent.ServerContext{ClusterCheckHandler: clusterCheckHandler})
@@ -250,15 +271,15 @@ func run(cliParams *cliParams, config config.Component) error {
 	return nil
 }
 
-
+// TODO: just import the flare command from the cluster agent
 func flare(cliParams *cliParams, config config.Component) error {
-	
+
 	if cliParams.flagNoColor {
 		color.NoColor = true
 	}
 
 	// we'll search for a config file named `datadog-cluster.yaml`
-	config.SetConfigName("datadog-cluster")
+	pkgconfig.Datadog.SetConfigName("datadog-cluster")
 	err := common.SetupConfig(cliParams.confPath)
 	if err != nil {
 		return fmt.Errorf("unable to set up global cluster agent configuration: %v", err)
@@ -272,10 +293,7 @@ func flare(cliParams *cliParams, config config.Component) error {
 	}
 
 	caseID := ""
-	if len(args) > 0 {
-		caseID = args[0]
-	}
-
+	// TODO case ID cliParams
 	if cliParams.customerEmail == "" {
 		var err error
 		cliParams.customerEmail, err = input.AskForEmail()
@@ -285,7 +303,7 @@ func flare(cliParams *cliParams, config config.Component) error {
 		}
 	}
 
-	return requestFlare(caseID, cliParams.customerEmail, cliParams.autoconfirm)
+	return app.requestFlare(caseID, cliParams.customerEmail, cliParams.autoconfirm)
 }
 
 func runCFClusterAgentFct(cliParams *cliParams, defaultConfPath string, fct interface{}) error {
