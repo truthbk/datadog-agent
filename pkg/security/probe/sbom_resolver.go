@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	trivyTypes "github.com/aquasecurity/trivy/pkg/fanal/types"
 	trivyReport "github.com/aquasecurity/trivy/pkg/types"
@@ -37,15 +38,10 @@ type SBOM struct {
 	Tags             []string
 	ContainerID      string
 	ReferenceCounter *atomic.Uint64
-	ReportReady      bool
-	sbomResolver     *SBOMResolver
-}
 
-// ResolveTags resolves the tags of the SBOM
-func (s *SBOM) ResolveTags() error {
-	s.Lock()
-	defer s.Unlock()
-	return s.resolveTags()
+	sbomResolver    *SBOMResolver
+	doNotSendBefore time.Time
+	sent            bool
 }
 
 // resolveTags thread unsafe version of ResolveTags
@@ -76,7 +72,7 @@ type SBOMResolver struct {
 
 	// Queued workload analysis
 	queuedWorkloadsInitCountersLock sync.RWMutex
-	queuedWorkloadsInitCounters     map[string]int
+	queuedWorkloadsInitCounters     map[string]*atomic.Uint64
 	workloadAnalysisQueue           chan workloadAnalysisRequest
 
 	// context tags and attributes
@@ -90,8 +86,8 @@ func NewSBOMResolver(p *Probe) (*SBOMResolver, error) {
 	resolver := &SBOMResolver{
 		probe:                       p,
 		workloads:                   make(map[string]*SBOM),
-		queuedWorkloadsInitCounters: make(map[string]int),
-		workloadAnalysisQueue:       make(chan workloadAnalysisRequest),
+		queuedWorkloadsInitCounters: make(map[string]*atomic.Uint64),
+		workloadAnalysisQueue:       make(chan workloadAnalysisRequest, 1000),
 	}
 	resolver.prepareContextTags()
 	return resolver, nil
@@ -127,6 +123,9 @@ func (r *SBOMResolver) Start(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	senderTick := time.NewTimer(1 * time.Minute)
+	defer senderTick.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -134,6 +133,10 @@ func (r *SBOMResolver) Start(ctx context.Context) {
 		case req := <-r.workloadAnalysisQueue:
 			if err := r.analyzeWorkload(req); err != nil {
 				seclog.Errorf("couldn't analyze workload [%s]: %v", req.containerID, err)
+			}
+		case <-senderTick.C:
+			if err := r.SendAvailableSBOMs(); err != nil {
+				seclog.Errorf("couldn't send SBOMs: %w", err)
 			}
 		}
 	}
@@ -143,10 +146,11 @@ func (r *SBOMResolver) Start(ctx context.Context) {
 func (r *SBOMResolver) generateSBOM(root string, containerID string) (*SBOM, error) {
 	// TODO: call "trivy fs" on "root"
 	output := &SBOM{
-		ReferenceCounter: atomic.NewUint64(1),
+		ReferenceCounter: atomic.NewUint64(0),
 		Host:             r.hostname,
 		Source:           r.source,
 		ContainerID:      containerID,
+		doNotSendBefore:  time.Now().Add(5 * time.Minute),
 	}
 	return output, nil
 }
@@ -158,24 +162,27 @@ func (r *SBOMResolver) analyzeWorkload(req workloadAnalysisRequest) error {
 		return err
 	}
 
+	// add reference counter value
+	r.queuedWorkloadsInitCountersLock.Lock()
+	defer r.queuedWorkloadsInitCountersLock.Unlock()
+	counter, ok := r.queuedWorkloadsInitCounters[req.containerID]
+	if ok {
+		sbom.ReferenceCounter.Add(counter.Load())
+	} else {
+		sbom.ReferenceCounter.Add(1)
+	}
+
 	r.workloadsLock.Lock()
 	defer r.workloadsLock.Unlock()
-	r.workloads[req.containerID] = sbom
 
-	// resolve tags
-	// TODO we should delay this
-	_ = sbom.resolveTags()
-	r.AddContextTags(sbom)
-
-	// resolve the service if it is defined
-	sbom.Service = utils.GetTagValue("service", sbom.Tags)
-
-	// send SBOM to the security agent
-	sbomMsg, err := sbom.ToSBOMMessage()
-	if err != nil {
-		return fmt.Errorf("couldn't serialize SBOM to JSON: %w", err)
+	// check if a SBOM already exists to transfer reference counter values
+	existingSBOM, ok := r.workloads[req.containerID]
+	if ok {
+		sbom.ReferenceCounter.Add(existingSBOM.ReferenceCounter.Load())
 	}
-	r.probe.DispatchSBOM(sbomMsg)
+
+	// replace existing SBOM with new one
+	r.workloads[req.containerID] = sbom
 	return nil
 }
 
@@ -190,9 +197,8 @@ func (r *SBOMResolver) RefreshSBOM(process *model.ProcessCacheEntry) {
 // resolved.
 func (r *SBOMResolver) ResolvePackage(containerID string, file *model.FileEvent) *trivyTypes.Package {
 	r.workloadsLock.RLock()
-	defer r.workloadsLock.RUnlock()
-
 	sbom, ok := r.workloads[containerID]
+	r.workloadsLock.RUnlock()
 	if !ok {
 		return nil
 	}
@@ -220,18 +226,20 @@ func (r *SBOMResolver) queueWorkloadAnalysis(process *model.ProcessCacheEntry) {
 
 	counter, ok := r.queuedWorkloadsInitCounters[process.ContainerID]
 	if ok {
-		counter += 1
+		counter.Add(1)
 		return
 	}
 
 	// queue analysis request
-	r.queuedWorkloadsInitCounters[process.ContainerID] = 1
+	r.queuedWorkloadsInitCounters[process.ContainerID] = atomic.NewUint64(1)
 	req := workloadAnalysisRequest{
 		containerID: process.ContainerID,
 		root:        utils.ProcRootPath(int32(process.Pid)),
 	}
-	// TODO Select
-	r.workloadAnalysisQueue <- req
+	select {
+	case r.workloadAnalysisQueue <- req:
+	default:
+	}
 	return
 }
 
@@ -265,10 +273,18 @@ func (r *SBOMResolver) Release(process *model.ProcessCacheEntry) {
 	sbom.Lock()
 	defer sbom.Unlock()
 	counter := sbom.ReferenceCounter.Sub(1)
-	if counter <= 0 {
-		// remove SBOM entry
-		delete(r.workloads, process.ContainerID)
+	// only delete sbom if it has already been sent, delay the deletion to the sender otherwise
+	if counter <= 0 && sbom.sent {
+		r.deleteSBOM(process.ContainerID)
 	}
+}
+
+// deleteSBOM thread unsafe delete all data indexed by the provided container ID
+func (r *SBOMResolver) deleteSBOM(containerID string) {
+	// remove SBOM entry
+	delete(r.workloads, containerID)
+	// to be safe, delete the init counters as well
+	delete(r.queuedWorkloadsInitCounters, containerID)
 }
 
 // AddContextTags Adds the tags resolved by the resolver to the provided SBOM
@@ -296,4 +312,55 @@ func (r *SBOMResolver) AddContextTags(s *SBOM) {
 			s.Tags = append(s.Tags, tag)
 		}
 	}
+}
+
+// SendAvailableSBOMs sends all SBOMs that are ready to be sent
+func (r *SBOMResolver) SendAvailableSBOMs() error {
+	r.workloadsLock.Lock()
+	defer r.workloadsLock.Unlock()
+	now := time.Now()
+
+	for _, sbom := range r.workloads {
+		if err := r.processSBOM(sbom, now); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// processSBOM resolves the tags of the provided SBOM, send it and delete it when applicable
+func (r *SBOMResolver) processSBOM(sbom *SBOM, now time.Time) error {
+	sbom.Lock()
+	defer sbom.Unlock()
+
+	if !sbom.sent {
+		// resolve tags
+		_ = sbom.resolveTags()
+	}
+
+	if now.After(sbom.doNotSendBefore) {
+
+		// check if we should send the SBOM now
+		if !sbom.sent {
+			r.AddContextTags(sbom)
+
+			// resolve the service if it is defined
+			sbom.Service = utils.GetTagValue("service", sbom.Tags)
+
+			// send SBOM to the security agent
+			sbomMsg, err := sbom.ToSBOMMessage()
+			if err != nil {
+				return fmt.Errorf("couldn't serialize SBOM to JSON: %w", err)
+			}
+			r.probe.DispatchSBOM(sbomMsg)
+			sbom.sent = true
+		}
+
+		// check if we should delete the sbom
+		if sbom.ReferenceCounter.Load() == 0 {
+			r.deleteSBOM(sbom.ContainerID)
+		}
+	}
+	return nil
 }
