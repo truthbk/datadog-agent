@@ -7,12 +7,21 @@ package appsec
 
 import (
 	"fmt"
+	"net/url"
+	"strconv"
+	"strings"
+	"sync"
 
 	"github.com/DataDog/datadog-agent/pkg/trace/api"
 	"github.com/DataDog/datadog-agent/pkg/trace/appsec/spoe"
 	"github.com/DataDog/datadog-agent/pkg/trace/log"
 	waf "github.com/DataDog/go-libddwaf"
 )
+
+type SpanMap struct {
+	sync.Mutex
+	spans map[string]httpSpan
+}
 
 func printInterface(i interface{}) {
 	switch i.(type) { // the switch uses the type of the interface
@@ -27,7 +36,7 @@ func printInterface(i interface{}) {
 	case string:
 		log.Infof("string: %s", i.(string))
 	default:
-		log.Info("Unknown")
+		log.Infof("Unknown: %v", i)
 	}
 }
 
@@ -41,7 +50,28 @@ func argToString(input interface{}) (string, error) {
 	return result, nil
 }
 
+func parseHeaders(input string) map[string]string {
+	var result = make(map[string]string)
+
+	headerLines := strings.Split(input, "\n")
+
+	for _, line := range headerLines {
+		headerElments := strings.SplitAfterN(line, ":", 2)
+		if len(headerElments) > 1 {
+			result[strings.TrimRight(headerElments[0], ":")] = strings.TrimRight(strings.TrimLeft(headerElments[1], " "), "\r\n")
+		}
+	}
+
+	return result
+}
+
 func NewSpoeSecHandler(handle *waf.Handle, traceChan chan *api.Payload) func(messages *spoe.MessageIterator) ([]spoe.Action, error) {
+
+	var currentSpanMap = SpanMap{
+		sync.Mutex{},
+		make(map[string]httpSpan),
+	}
+
 	return func(messages *spoe.MessageIterator) ([]spoe.Action, error) {
 		reputation := 0
 
@@ -51,9 +81,16 @@ func NewSpoeSecHandler(handle *waf.Handle, traceChan chan *api.Payload) func(mes
 			log.Infof("spoe message: %s", msg.Name)
 
 			if msg.Name == "frontend_http_request" {
-				sp := startHTTPRequestSpan(0, 0, "", "")
+				var id string
+				var service = "an-haproxy"
+				var remoteAddr string
+				var version string
+				var method string
+				var urlTemp string
+				var url *url.URL
+				var headers map[string]string
 
-				var url string
+				var err error
 				for msg.Args.Next() {
 					arg := msg.Args.Arg
 
@@ -61,27 +98,72 @@ func NewSpoeSecHandler(handle *waf.Handle, traceChan chan *api.Payload) func(mes
 					printInterface(arg.Value)
 
 					switch arg.Name {
+					case "id":
+						id = arg.Value.(string)
 					case "http.method":
-						sp.Meta[arg.Name] = arg.Value.(string)
+						method = arg.Value.(string)
 					case "http.version":
-						sp.Meta[arg.Name] = arg.Value.(string)
+						version = arg.Value.(string)
 					case "http.url":
-						// TODO parse out the resouce name
-						sp.Resource = arg.Value.(string)
-						sp.Meta[arg.Name] = arg.Value.(string)
+						urlTemp = "/toto" // arg.Value.(string)
+						log.Infof("urlTemp %s", urlTemp)
 					case "http.headers":
-						log.Infof("TODO parse headers")
+						headers = parseHeaders(arg.Value.(string))
 					}
 				}
 
-				log.Infof("opentracing:frontend_http_request for: %s", url)
-				sp.Meta["appsec.event"] = "true"
+				urlFake := fmt.Sprintf("http://%s%s", headers["host"], urlTemp)
+				url, err = url.Parse(urlFake)
+				log.Info("done url.Parse")
+				if err != nil {
+					log.Errorf("Error parsing url %s, err = %s", urlFake, err.Error())
+					continue
+				}
+
+				sp := startHTTPRequestSpan(0, 0, service, remoteAddr, method, url, headers)
+				sp.Meta["http.version"] = version
+
+				currentSpanMap.Lock()
+				currentSpanMap.spans[id] = sp
+				currentSpanMap.Unlock()
+
 				defer func() {
 					sp.finish()
 					sendSpan(sp.Span, int32(1), traceChan)
 					log.Infof("sent span for: %s", url)
 				}()
 			}
+			if msg.Name == "http_response" {
+				var id string
+				var status int
+				for msg.Args.Next() {
+					arg := msg.Args.Arg
+
+					log.Infof("arg.Name: %s", arg.Name)
+					printInterface(arg.Value)
+
+					switch arg.Name {
+					case "id":
+						id = arg.Value.(string)
+					case "http.status_code":
+						status = arg.Value.(int)
+					}
+				}
+
+				var sp httpSpan
+				currentSpanMap.Lock()
+				sp = currentSpanMap.spans[id]
+				delete(currentSpanMap.spans, id)
+				currentSpanMap.Unlock()
+
+				sp.Meta["http.status"] = strconv.Itoa(status)
+				sp.finish()
+
+				defer func() {
+					sendSpan(sp.Span, int32(1), traceChan)
+				}()
+			}
+
 		}
 
 		return []spoe.Action{
