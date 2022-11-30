@@ -29,6 +29,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/trace/agent"
 	"github.com/DataDog/datadog-agent/pkg/trace/api"
 	"github.com/DataDog/datadog-agent/pkg/trace/appsec"
+	"github.com/DataDog/datadog-agent/pkg/trace/appsec/spoe"
 	"github.com/DataDog/datadog-agent/pkg/trace/config"
 	"github.com/DataDog/datadog-agent/pkg/trace/info"
 	tracelog "github.com/DataDog/datadog-agent/pkg/trace/log"
@@ -272,15 +273,27 @@ func initASM(traceChan chan *api.Payload) {
 		addr := "0.0.0.0:42424"
 		lis, err := net.Listen("tcp", addr)
 		if err != nil {
-			log.Errorf("appsec: could not listen on the grpc server address %s: %v", addr, err)
+			log.Errorf("appsec: could not listen on the grpc server address %s: %v", lis.Addr().String(), err)
 		} else {
-			log.Infof("appsec: grpc server listening on %s", addr)
+			log.Infof("appsec: grpc server listening on %s", lis.Addr().String())
 			go func() {
 				if err := srv.Serve(lis); err != nil {
 					log.Errorf("appsec: grpc server error: %v", err)
 				}
 			}()
 		}
+	}
+
+	{
+		spoeHandler := appsec.NewSpoeSecHandler(wafHandle, traceChan)
+		agent := spoe.New(spoeHandler)
+
+		go func() {
+			addr := "0.0.0.0:9001"
+			if err := agent.ListenAndServe(addr); err != nil {
+				log.Error(err)
+			}
+		}()
 	}
 }
 
