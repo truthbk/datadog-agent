@@ -18,9 +18,15 @@ import (
 	waf "github.com/DataDog/go-libddwaf"
 )
 
-type SpanMap struct {
+type spanInfo struct {
+	span    httpSpan
+	headers map[string]string
+	url     *url.URL
+}
+
+type spanMap struct {
 	sync.Mutex
-	spans map[string]httpSpan
+	spans map[string]spanInfo
 }
 
 func printInterface(i interface{}) {
@@ -65,11 +71,33 @@ func parseHeaders(input string) map[string]string {
 	return result
 }
 
+func makeHTTPSecAddressesOfHeaderMap(requestHeaders map[string]string, method string, url *url.URL, clientIP string, status string) map[string]interface{} {
+	headers := map[string]string{}
+	for h, v := range requestHeaders {
+		h = strings.ToLower(h)
+		if h == "cookie" {
+			continue
+		}
+		headers[h] = v
+	}
+	addr := map[string]interface{}{
+		"server.request.method":             method,
+		"server.request.headers.no_cookies": headers,
+		"server.request.uri.raw":            url.RequestURI(),
+		"server.request.query":              url.Query(),
+		"server.response.status":            status,
+	}
+	if clientIP != "" {
+		addr["http.client_ip"] = clientIP
+	}
+	return addr
+}
+
 func NewSpoeSecHandler(handle *waf.Handle, traceChan chan *api.Payload) func(messages *spoe.MessageIterator) ([]spoe.Action, error) {
 
-	var currentSpanMap = SpanMap{
+	var currentSpanMap = spanMap{
 		sync.Mutex{},
-		make(map[string]httpSpan),
+		make(map[string]spanInfo),
 	}
 
 	return func(messages *spoe.MessageIterator) ([]spoe.Action, error) {
@@ -124,14 +152,8 @@ func NewSpoeSecHandler(handle *waf.Handle, traceChan chan *api.Payload) func(mes
 				sp.Meta["http.version"] = version
 
 				currentSpanMap.Lock()
-				currentSpanMap.spans[id] = sp
+				currentSpanMap.spans[id] = spanInfo{sp, headers, url}
 				currentSpanMap.Unlock()
-
-				defer func() {
-					sp.finish()
-					sendSpan(sp.Span, int32(1), traceChan)
-					log.Infof("sent span for: %s", url)
-				}()
 			}
 			if msg.Name == "http_response" {
 				var id string
@@ -150,20 +172,46 @@ func NewSpoeSecHandler(handle *waf.Handle, traceChan chan *api.Payload) func(mes
 					}
 				}
 
-				var sp httpSpan
+				var si spanInfo
 				currentSpanMap.Lock()
-				sp = currentSpanMap.spans[id]
+				si = currentSpanMap.spans[id]
 				delete(currentSpanMap.spans, id)
 				currentSpanMap.Unlock()
 
-				sp.Meta["http.status"] = strconv.Itoa(status)
-				sp.finish()
+				sp := si.span
+
+				statusString := strconv.Itoa(status)
+				sp.Meta["http.status"] = statusString
 
 				defer func() {
+					sp.finish()
 					sendSpan(sp.Span, int32(1), traceChan)
 				}()
-			}
 
+				wafCtx := waf.NewContext(handle)
+				if wafCtx == nil {
+					// The WAF handle got released in the meantime
+					// writeUnavailableResponse(w)
+					continue
+				}
+				defer wafCtx.Close()
+
+				addresses := makeHTTPSecAddressesOfHeaderMap(si.headers, sp.Meta["http.method"], si.url, sp.Meta["http.client_ip"], statusString)
+				log.Debug("appsec: httpsec api: running the security rules against %v", addresses)
+				matches, actions, err := wafCtx.Run(addresses, defaultWAFTimeout)
+				if err != nil && err != waf.ErrTimeout {
+					log.Errorf("Error running waf: %v", err)
+					continue
+				}
+				log.Infof("appsec: httpsec api: matches=%s actions=%v", string(matches), actions)
+
+				if len(matches) > 0 {
+					setSecurityEventsTags(sp, matches, si.headers, nil)
+				}
+				if len(actions) > 0 {
+					sp.Meta["blocked"] = "true"
+				}
+			}
 		}
 
 		return []spoe.Action{
