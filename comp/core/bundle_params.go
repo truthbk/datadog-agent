@@ -7,24 +7,40 @@ package core
 
 import (
 	"github.com/DataDog/datadog-agent/cmd/agent/common"
-	"github.com/DataDog/datadog-agent/comp/core/internal"
+	"github.com/DataDog/datadog-agent/comp/core/config"
+	"github.com/DataDog/datadog-agent/comp/core/log"
 )
 
 // BundleParams defines the parameters for this bundle.
-type BundleParams = internal.BundleParams
+type BundleParams struct {
+	config config.Params
+	log    log.Params
+}
+
+func CreateBundleParams2(config config.Params, log log.Params) BundleParams { // $$$ rename to CreateBundleParams
+	return BundleParams{
+		config: config,
+		log:    log,
+	}
+}
+
+/// *********************************************
+/// ***** Temporary code after this line *******
+/// WithXXX will be moved to config / log package
+/// *********************************************
 
 // CreateAgentBundleParams creates a new BundleParams for the Core Agent
 func CreateAgentBundleParams(confFilePath string, configLoadSecrets bool, options ...func(*BundleParams)) BundleParams {
 	params := CreateBundleParams(common.DefaultConfPath, options...)
-	params.ConfFilePath = confFilePath
-	params.ConfigLoadSecrets = configLoadSecrets
+	params.config.ConfFilePath = confFilePath
+	params.config.ConfigLoadSecrets = configLoadSecrets
 	return params
 }
 
 // CreateBundleParams creates a new BundleParams
 func CreateBundleParams(defaultConfPath string, options ...func(*BundleParams)) BundleParams {
 	bundleParams := BundleParams{
-		DefaultConfPath: defaultConfPath,
+		config: config.Params{DefaultConfPath: defaultConfPath},
 	}
 	for _, o := range options {
 		o(&bundleParams)
@@ -34,60 +50,70 @@ func CreateBundleParams(defaultConfPath string, options ...func(*BundleParams)) 
 
 func WithConfigName(name string) func(*BundleParams) {
 	return func(b *BundleParams) {
-		b.ConfigName = name
+		//	b.ConfigName = name
 	}
 }
 
 func WithConfigMissingOK(v bool) func(*BundleParams) {
 	return func(b *BundleParams) {
-		b.ConfigMissingOK = v
+		//		b.ConfigMissingOK = v
 	}
 }
 
 func WithConfigLoadSysProbe(v bool) func(*BundleParams) {
 	return func(b *BundleParams) {
-		b.ConfigLoadSysProbe = v
+		//	b.ConfigLoadSysProbe = v
 	}
 }
 
 func WithSecurityAgentConfigFilePaths(securityAgentConfigFilePaths []string) func(*BundleParams) {
 	return func(b *BundleParams) {
-		b.SecurityAgentConfigFilePaths = securityAgentConfigFilePaths
+		//	b.SecurityAgentConfigFilePaths = securityAgentConfigFilePaths
 	}
 }
 
 func WithConfigLoadSecurityAgent(configLoadSecurityAgent bool) func(*BundleParams) {
 	return func(b *BundleParams) {
-		b.ConfigLoadSecurityAgent = configLoadSecurityAgent
+		//	b.ConfigLoadSecurityAgent = configLoadSecurityAgent
 	}
 }
 
 func WithConfFilePath(confFilePath string) func(*BundleParams) {
 	return func(b *BundleParams) {
-		b.ConfFilePath = confFilePath
+		//	b.ConfFilePath = confFilePath
 	}
 }
 
 func WithConfigLoadSecrets(configLoadSecrets bool) func(*BundleParams) {
 	return func(b *BundleParams) {
-		b.ConfigLoadSecrets = configLoadSecrets
+		//	b.ConfigLoadSecrets = configLoadSecrets
 	}
 }
 
 func WithLogForOneShot(loggerName, level string, overrideFromEnv bool) func(*BundleParams) {
 	return func(b *BundleParams) {
-		*b = b.LogForOneShot(loggerName, level, overrideFromEnv)
+		//	*b = b.LogForOneShot(loggerName, level, overrideFromEnv)
 	}
 }
 
 func WithLogForDaemon(loggerName, logFileConfig, defaultLogFile string) func(*BundleParams) {
 	return func(b *BundleParams) {
-		*b = b.LogForDaemon(loggerName, logFileConfig, defaultLogFile)
+		//	*b = b.LogForDaemon(loggerName, logFileConfig, defaultLogFile)
 	}
 }
 
 func WithLogToFile(logFile string) func(*BundleParams) {
 	return func(b *BundleParams) {
-		*b = b.LogToFile(logFile)
+		//	*b = b.LogToFile(logFile)
 	}
+}
+
+func (params BundleParams) LogForOneShot(loggerName, level string, overrideFromEnv bool) BundleParams {
+	params.log = log.LogForOneShot(loggerName, level, overrideFromEnv)
+	return params
+}
+
+func (params BundleParams) LogForDaemon(loggerName, logFileConfig, defaultLogFile string) BundleParams {
+	params.log = params.log.LogForDaemon(loggerName, logFileConfig, defaultLogFile)
+	return params
 }

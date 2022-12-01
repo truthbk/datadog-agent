@@ -16,13 +16,16 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
+	"go.uber.org/fx"
 )
 
 // team: agent-shared-components
 
 // Bundle defines the fx options for this bundle.
 var Bundle = fxutil.Bundle(
+	fx.Provide(func(params BundleParams) config.Params { return params.config }),
 	config.Module,
+	fx.Provide(func(params BundleParams) log.Params { return params.log }),
 	log.Module,
 )
 

@@ -11,13 +11,12 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/DataDog/datadog-agent/comp/core/config"
-	"github.com/DataDog/datadog-agent/comp/core/internal"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
 func TestLogging(t *testing.T) {
 	fxutil.Test(t, fx.Options(
-		fx.Supply(internal.BundleParams{}.LogForOneShot("TEST", "debug", false)),
+		fx.Supply(Params{}.LogForOneShot("TEST", "debug", false)),
 		config.MockModule,
 		Module,
 	), func(log Component) {
