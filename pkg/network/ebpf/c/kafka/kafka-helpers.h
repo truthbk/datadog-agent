@@ -28,7 +28,8 @@ static __inline bool kafka_read_big_endian_int32(kafka_transaction_t *kafka_tran
 }
 
 static __inline bool kafka_read_big_endian_int16(kafka_transaction_t *kafka_transaction, int16_t* result) {
-    if (kafka_transaction->current_offset_in_request_fragment > sizeof(kafka_transaction->request_fragment)) {
+    barrier();
+    if (kafka_transaction->current_offset_in_request_fragment > KAFKA_BUFFER_SIZE) {
         return false;
     }
     *result = read_big_endian_int16(kafka_transaction->request_fragment + kafka_transaction->current_offset_in_request_fragment);
@@ -209,10 +210,10 @@ static __always_inline bool extract_and_set_first_topic_name(kafka_transaction_t
     if (kafka_transaction->current_offset_in_request_fragment + topic_name_size_final  > sizeof(kafka_transaction->request_fragment)) {
         return false;
     }
-    char* topic_name_offset =  kafka_transaction->request_fragment + kafka_transaction->current_offset_in_request_fragment;
-    for (uint32_t i = 0; i < topic_name_size_final; i++) {
-        kafka_transaction->topic_name[i] = topic_name_offset[i];
-    }
+//    char* topic_name_offset =  kafka_transaction->request_fragment + kafka_transaction->current_offset_in_request_fragment;
+//    for (uint32_t i = 0; i < topic_name_size_final; i++) {
+//        kafka_transaction->topic_name[i] = topic_name_offset[i];
+//    }
 //    bpf_probe_read_kernel(
 //        kafka_transaction->topic_name,
 //        topic_name_size_final,
