@@ -2,6 +2,7 @@
 #define __KAFKA_HELPERS_H
 
 #include "kafka-types.h"
+#include "bpf_builtins.h"
 
 // Forward declaration
 static __always_inline bool try_parse_produce_request(kafka_transaction_t *kafka_transaction);
@@ -210,10 +211,15 @@ static __always_inline bool extract_and_set_first_topic_name(kafka_transaction_t
     if (kafka_transaction->current_offset_in_request_fragment + topic_name_size_final  > sizeof(kafka_transaction->request_fragment)) {
         return false;
     }
-//    char* topic_name_offset =  kafka_transaction->request_fragment + kafka_transaction->current_offset_in_request_fragment;
-//    for (uint32_t i = 0; i < topic_name_size_final; i++) {
-//        kafka_transaction->topic_name[i] = topic_name_offset[i];
-//    }
+    char* topic_name_offset =  kafka_transaction->request_fragment + kafka_transaction->current_offset_in_request_fragment;
+    bpf_memcpy(kafka_transaction->topic_name, topic_name_offset, sizeof(kafka_transaction->topic_name));
+    // Add NULL byte to end string.
+    // You can be extra careful and null all remaining bytes.
+    // Does not seem necessary to me though.
+    if (topic_name_size_final < sizeof(kafka_transaction->topic_name)) {
+        kafka_transaction->topic_name[topic_name_size_final] = 0;
+    }
+
 //    bpf_probe_read_kernel(
 //        kafka_transaction->topic_name,
 //        topic_name_size_final,
