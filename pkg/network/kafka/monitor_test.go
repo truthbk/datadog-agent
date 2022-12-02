@@ -11,12 +11,13 @@ package kafka
 import (
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/DataDog/datadog-agent/pkg/network/config"
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 	"github.com/segmentio/kafka-go"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 func skipTestIfKernelNotSupported(t *testing.T) {
@@ -25,6 +26,18 @@ func skipTestIfKernelNotSupported(t *testing.T) {
 	if currKernelVersion < MinimumKernelVersion {
 		t.Skip(fmt.Sprintf("HTTP feature not available on pre %s kernels", MinimumKernelVersion.String()))
 	}
+}
+
+func TestBpf(t *testing.T) {
+	skipTestIfKernelNotSupported(t)
+	cfg := config.New()
+	monitor, err := NewMonitor(cfg, nil)
+	require.NoError(t, err)
+	err = monitor.Start()
+	require.NoError(t, err)
+	defer monitor.Stop()
+
+	return
 }
 
 // This test loads the Kafka binary, produce and fetch kafka messages and verifies that we capture them
