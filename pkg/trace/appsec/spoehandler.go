@@ -101,7 +101,7 @@ func NewSpoeSecHandler(handle *waf.Handle, traceChan chan *api.Payload) func(mes
 	}
 
 	return func(messages *spoe.MessageIterator) ([]spoe.Action, error) {
-		reputation := 0
+		onMatchAction := ""
 
 		for messages.Next() {
 			msg := messages.Message
@@ -210,15 +210,16 @@ func NewSpoeSecHandler(handle *waf.Handle, traceChan chan *api.Payload) func(mes
 				}
 				if len(actions) > 0 {
 					sp.Meta["blocked"] = "true"
+					onMatchAction = "blocked"
 				}
 			}
 		}
 
 		return []spoe.Action{
 			spoe.ActionSetVar{
-				Name:  "reputation",
+				Name:  "on_match",
 				Scope: spoe.VarScopeSession,
-				Value: reputation,
+				Value: onMatchAction,
 			},
 		}, nil
 	}

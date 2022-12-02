@@ -6418,6 +6418,40 @@
       "transformers": []
     },
     {
+      "id": "ua0-600-56x",
+      "name": "Datadog test scanner blocking: user-agent",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              },
+              {
+                "address": "grpc.server.request.metadata",
+                "key_path": [
+                  "dd-canary"
+                ]
+              }
+            ],
+            "regex": "^dd-test-scanner-log-block$"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
+    },
+    {
       "id": "ua0-600-5xx",
       "name": "Blind SQL Injection Brute Forcer",
       "tags": {
