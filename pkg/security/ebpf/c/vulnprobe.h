@@ -57,7 +57,6 @@ __attribute__((always_inline)) static u64 load_vuln_rule_id() {
 }
 
 __attribute__((always_inline)) static u8 check_vulnarg(u64 val, struct vulnarg *arg) {
-
     if (arg->toderef == 0) {
         u16 tocheck16;
         u32 tocheck32;

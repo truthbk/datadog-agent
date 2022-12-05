@@ -158,3 +158,69 @@ func (adlc *ActivityDumpLoadConfig) MarshalBinary() ([]byte, error) {
 
 	return raw, nil
 }
+
+// MarshalBinaryUProbeVulnArg marshals a binary representation of itself
+func MarshalBinaryUProbeVulnArg(data []byte, upva *UProbeVulnArg) (int, error) {
+	totalSize := 4 + UPROBE_MAX_CHECK_LEN
+	if len(data) < totalSize {
+		return 0, ErrNotEnoughSpace
+	}
+
+	if upva.Tocheck {
+		data[0] = 1
+	} else {
+		data[0] = 0
+	}
+	if upva.Toderef {
+		data[1] = 1
+	} else {
+		data[1] = 0
+	}
+	data[2] = upva.Len
+	data[3] = upva.Offset
+	for i := 0; i < UPROBE_MAX_CHECK_LEN; i++ {
+		data[4+i] = upva.Val[i]
+	}
+	return totalSize, nil
+}
+
+// MarshalBinary marshals a binary representation of itself
+func (upvas *UProbeVulnArgs) MarshalBinary(data []byte) (int, error) {
+	totalSize := (4 + UPROBE_MAX_CHECK_LEN) * 5
+	if len(data) < totalSize {
+		return 0, ErrNotEnoughSpace
+	}
+
+	written := 0
+	toAdd, err := MarshalBinaryUProbeVulnArg(data[written:], &upvas.Arg1)
+	if err != nil {
+		return 0, err
+	}
+	written += toAdd
+
+	toAdd, err = MarshalBinaryUProbeVulnArg(data[written:], &upvas.Arg2)
+	if err != nil {
+		return 0, err
+	}
+	written += toAdd
+
+	toAdd, err = MarshalBinaryUProbeVulnArg(data[written:], &upvas.Arg3)
+	if err != nil {
+		return 0, err
+	}
+	written += toAdd
+
+	toAdd, err = MarshalBinaryUProbeVulnArg(data[written:], &upvas.Arg4)
+	if err != nil {
+		return 0, err
+	}
+	written += toAdd
+
+	toAdd, err = MarshalBinaryUProbeVulnArg(data[written:], &upvas.Arg5)
+	if err != nil {
+		return 0, err
+	}
+	written += toAdd
+
+	return written, nil
+}

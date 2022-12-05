@@ -982,3 +982,25 @@ type UProbeEvent struct {
 	FunctionName string      `field:"function_name,handler:ResolveUProbeFunctionName"`
 	Offset       string      `field:"offset,handler:ResolveUProbeOffset"`
 }
+
+const UPROBE_MAX_CHECK_LEN = 9
+
+// UProbeVulnArg represents one arg to be match
+//msgp:ignore UProbeVulnArg
+type UProbeVulnArg struct {
+	Tocheck bool
+	Toderef bool
+	Len     uint8
+	Offset  uint8
+	Val     [UPROBE_MAX_CHECK_LEN]uint8
+}
+
+// UProbeVulnArgs represents the args list to be match
+//msgp:ignore UProbeVulnArgs
+type UProbeVulnArgs struct {
+	Arg1 UProbeVulnArg
+	Arg2 UProbeVulnArg
+	Arg3 UProbeVulnArg
+	Arg4 UProbeVulnArg
+	Arg5 UProbeVulnArg
+}

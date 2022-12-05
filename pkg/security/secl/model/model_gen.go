@@ -1296,6 +1296,159 @@ func (z *LinuxBinprm) Msgsize() (s int) {
 }
 
 // DecodeMsg implements msgp.Decodable
+func (z *NewMountNSEvent) DecodeMsg(dc *msgp.Reader) (err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, err = dc.ReadMapHeader()
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, err = dc.ReadMapKeyPtr()
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "PidOne":
+			z.PidOne, err = dc.ReadUint32()
+			if err != nil {
+				err = msgp.WrapError(err, "PidOne")
+				return
+			}
+		case "PidOnePPid":
+			z.PidOnePPid, err = dc.ReadUint32()
+			if err != nil {
+				err = msgp.WrapError(err, "PidOnePPid")
+				return
+			}
+		case "Flags":
+			z.Flags, err = dc.ReadUint32()
+			if err != nil {
+				err = msgp.WrapError(err, "Flags")
+				return
+			}
+		default:
+			err = dc.Skip()
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	return
+}
+
+// EncodeMsg implements msgp.Encodable
+func (z NewMountNSEvent) EncodeMsg(en *msgp.Writer) (err error) {
+	// map header, size 3
+	// write "PidOne"
+	err = en.Append(0x83, 0xa6, 0x50, 0x69, 0x64, 0x4f, 0x6e, 0x65)
+	if err != nil {
+		return
+	}
+	err = en.WriteUint32(z.PidOne)
+	if err != nil {
+		err = msgp.WrapError(err, "PidOne")
+		return
+	}
+	// write "PidOnePPid"
+	err = en.Append(0xaa, 0x50, 0x69, 0x64, 0x4f, 0x6e, 0x65, 0x50, 0x50, 0x69, 0x64)
+	if err != nil {
+		return
+	}
+	err = en.WriteUint32(z.PidOnePPid)
+	if err != nil {
+		err = msgp.WrapError(err, "PidOnePPid")
+		return
+	}
+	// write "Flags"
+	err = en.Append(0xa5, 0x46, 0x6c, 0x61, 0x67, 0x73)
+	if err != nil {
+		return
+	}
+	err = en.WriteUint32(z.Flags)
+	if err != nil {
+		err = msgp.WrapError(err, "Flags")
+		return
+	}
+	return
+}
+
+// MarshalMsg implements msgp.Marshaler
+func (z NewMountNSEvent) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	// map header, size 3
+	// string "PidOne"
+	o = append(o, 0x83, 0xa6, 0x50, 0x69, 0x64, 0x4f, 0x6e, 0x65)
+	o = msgp.AppendUint32(o, z.PidOne)
+	// string "PidOnePPid"
+	o = append(o, 0xaa, 0x50, 0x69, 0x64, 0x4f, 0x6e, 0x65, 0x50, 0x50, 0x69, 0x64)
+	o = msgp.AppendUint32(o, z.PidOnePPid)
+	// string "Flags"
+	o = append(o, 0xa5, 0x46, 0x6c, 0x61, 0x67, 0x73)
+	o = msgp.AppendUint32(o, z.Flags)
+	return
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *NewMountNSEvent) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, bts, err = msgp.ReadMapHeaderBytes(bts)
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, bts, err = msgp.ReadMapKeyZC(bts)
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "PidOne":
+			z.PidOne, bts, err = msgp.ReadUint32Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "PidOne")
+				return
+			}
+		case "PidOnePPid":
+			z.PidOnePPid, bts, err = msgp.ReadUint32Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "PidOnePPid")
+				return
+			}
+		case "Flags":
+			z.Flags, bts, err = msgp.ReadUint32Bytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Flags")
+				return
+			}
+		default:
+			bts, err = msgp.Skip(bts)
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	o = bts
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z NewMountNSEvent) Msgsize() (s int) {
+	s = 1 + 7 + msgp.Uint32Size + 11 + msgp.Uint32Size + 6 + msgp.Uint32Size
+	return
+}
+
+// DecodeMsg implements msgp.Decodable
 func (z *PIDContext) DecodeMsg(dc *msgp.Reader) (err error) {
 	var field []byte
 	_ = field
