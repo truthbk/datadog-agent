@@ -10,6 +10,7 @@ package uprobe
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -43,9 +44,10 @@ var uman *uprobeManager
 type uprobeManager struct {
 	lock             sync.Mutex
 	options          UProbeManagerOptions
-	allUProbes       map[uint64]*uprobe   // id to uprobe map
-	ruleFilesUprobes map[string][]*uprobe // path to list of uprobe map
-	containerUProbes map[uint32][]*uprobe // container pid one to uprobe map
+	allUProbes       map[uint64]*uprobe               // id to uprobe map
+	ruleFilesUprobes map[string][]*uprobe             // path to list of uprobe map
+	containerUProbes map[uint32][]*uprobe             // container pid one to uprobe map
+	ruleVulnArgs     map[uint64]*model.UProbeVulnArgs // id to uprobe args
 	m                *manager.Manager
 	uprobeFreeList   chan *uprobe
 	nextRuleID       uint64
@@ -64,6 +66,7 @@ func Init(manager *manager.Manager, options UProbeManagerOptions) {
 			allUProbes:       make(map[uint64]*uprobe),
 			ruleFilesUprobes: make(map[string][]*uprobe),
 			containerUProbes: make(map[uint32][]*uprobe),
+			ruleVulnArgs:     make(map[uint64]*model.UProbeVulnArgs),
 			m:                manager,
 			options:          options,
 		}
@@ -184,6 +187,29 @@ func CreateUProbeFromRule(rule *rules.Rule) error {
 		return err
 	}
 
+	// TODO: remove this part, it's only here for test/example
+	vargs := NewUProbeArgs()
+	// check ARG1 as UINT32
+	vargs.Arg1.Tocheck = true
+	vargs.Arg1.Toderef = false
+	vargs.Arg1.Len = 4
+	vargs.Arg1.Offset = 0
+	vargs.Arg1.Val[0] = 0xfc
+	vargs.Arg1.Val[1] = 0xfb
+	vargs.Arg1.Val[2] = 0xfa
+	vargs.Arg1.Val[3] = 0xff
+	// check ARG2 as STRING
+	vargs.Arg2.Tocheck = true
+	vargs.Arg2.Toderef = true
+	vargs.Arg2.Len = 4
+	vargs.Arg2.Offset = 0
+	vargs.Arg2.Val[0] = 'f'
+	vargs.Arg2.Val[1] = 'o'
+	vargs.Arg2.Val[2] = 'o'
+	vargs.Arg2.Val[3] = 0
+	uman.ruleVulnArgs[up.id] = vargs
+	pushRuleArgs(up.id, vargs)
+
 	uman.allUProbes[up.id] = up
 	uman.ruleFilesUprobes[up.desc.Path] = append(uman.ruleFilesUprobes[up.desc.Path], up)
 
@@ -263,4 +289,40 @@ func HandleProcessExit(event *model.ExitEvent) {
 		putUProbe(up)
 	}
 	delete(uman.containerUProbes, event.PIDContext.Tid)
+}
+
+func NewUProbeArgs() *model.UProbeVulnArgs {
+	return &model.UProbeVulnArgs{
+		Arg1: model.UProbeVulnArg{
+			Tocheck: false,
+		},
+		Arg2: model.UProbeVulnArg{
+			Tocheck: false,
+		},
+		Arg3: model.UProbeVulnArg{
+			Tocheck: false,
+		},
+		Arg4: model.UProbeVulnArg{
+			Tocheck: false,
+		},
+		Arg5: model.UProbeVulnArg{
+			Tocheck: false,
+		},
+	}
+}
+
+func pushRuleArgs(ruleID uint64, vargs *model.UProbeVulnArgs) error {
+	vulnargsMap, found, err := uman.m.GetMap("vulnargs")
+	if err != nil {
+		return err
+	}
+	if !found {
+		return fmt.Errorf("couldn't find vulnargs map")
+	}
+
+	err = vulnargsMap.Put(ruleID, vargs)
+	if err != nil {
+		return err
+	}
+	return nil
 }
