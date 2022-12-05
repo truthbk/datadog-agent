@@ -178,7 +178,7 @@ func MarshalBinaryUProbeVulnArg(data []byte, upva *UProbeVulnArg) (int, error) {
 	}
 	data[2] = upva.Len
 	data[3] = upva.Offset
-	for i := 0; i < UPROBE_MAX_CHECK_LEN; i++ {
+	for i := uint8(0); i < upva.Len; i++ {
 		data[4+i] = upva.Val[i]
 	}
 	return totalSize, nil
@@ -192,35 +192,13 @@ func (upvas *UProbeVulnArgs) MarshalBinary(data []byte) (int, error) {
 	}
 
 	written := 0
-	toAdd, err := MarshalBinaryUProbeVulnArg(data[written:], &upvas.Arg1)
-	if err != nil {
-		return 0, err
+	for i := 0; i < 5; i++ {
+		toAdd, err := MarshalBinaryUProbeVulnArg(data[written:], &upvas.Args[i])
+		if err != nil {
+			return 0, err
+		}
+		written += toAdd
 	}
-	written += toAdd
-
-	toAdd, err = MarshalBinaryUProbeVulnArg(data[written:], &upvas.Arg2)
-	if err != nil {
-		return 0, err
-	}
-	written += toAdd
-
-	toAdd, err = MarshalBinaryUProbeVulnArg(data[written:], &upvas.Arg3)
-	if err != nil {
-		return 0, err
-	}
-	written += toAdd
-
-	toAdd, err = MarshalBinaryUProbeVulnArg(data[written:], &upvas.Arg4)
-	if err != nil {
-		return 0, err
-	}
-	written += toAdd
-
-	toAdd, err = MarshalBinaryUProbeVulnArg(data[written:], &upvas.Arg5)
-	if err != nil {
-		return 0, err
-	}
-	written += toAdd
 
 	return written, nil
 }
