@@ -190,23 +190,23 @@ func CreateUProbeFromRule(rule *rules.Rule) error {
 	// TODO: remove this part, it's only here for test/example
 	vargs := NewUProbeArgs()
 	// check ARG1 as UINT32
-	vargs.Arg1.Tocheck = true
-	vargs.Arg1.Toderef = false
-	vargs.Arg1.Len = 4
-	vargs.Arg1.Offset = 0
-	vargs.Arg1.Val[0] = 0xfc
-	vargs.Arg1.Val[1] = 0xfb
-	vargs.Arg1.Val[2] = 0xfa
-	vargs.Arg1.Val[3] = 0xff
+	vargs.Args[0].Tocheck = true
+	vargs.Args[0].Toderef = false
+	vargs.Args[0].Len = 4
+	vargs.Args[0].Offset = 0
+	vargs.Args[0].Val[0] = 0xfc
+	vargs.Args[0].Val[1] = 0xfb
+	vargs.Args[0].Val[2] = 0xfa
+	vargs.Args[0].Val[3] = 0xff
 	// check ARG2 as STRING
-	vargs.Arg2.Tocheck = true
-	vargs.Arg2.Toderef = true
-	vargs.Arg2.Len = 4
-	vargs.Arg2.Offset = 0
-	vargs.Arg2.Val[0] = 'f'
-	vargs.Arg2.Val[1] = 'o'
-	vargs.Arg2.Val[2] = 'o'
-	vargs.Arg2.Val[3] = 0
+	vargs.Args[1].Tocheck = true
+	vargs.Args[1].Toderef = true
+	vargs.Args[1].Len = 4
+	vargs.Args[1].Offset = 0
+	vargs.Args[1].Val[0] = 'f'
+	vargs.Args[1].Val[1] = 'o'
+	vargs.Args[1].Val[2] = 'o'
+	vargs.Args[1].Val[3] = 0
 	uman.ruleVulnArgs[up.id] = vargs
 	pushRuleArgs(up.id, vargs)
 
@@ -292,23 +292,11 @@ func HandleProcessExit(event *model.ExitEvent) {
 }
 
 func NewUProbeArgs() *model.UProbeVulnArgs {
-	return &model.UProbeVulnArgs{
-		Arg1: model.UProbeVulnArg{
-			Tocheck: false,
-		},
-		Arg2: model.UProbeVulnArg{
-			Tocheck: false,
-		},
-		Arg3: model.UProbeVulnArg{
-			Tocheck: false,
-		},
-		Arg4: model.UProbeVulnArg{
-			Tocheck: false,
-		},
-		Arg5: model.UProbeVulnArg{
-			Tocheck: false,
-		},
+	args := &model.UProbeVulnArgs{}
+	for i := 0; i < 5; i++ {
+		args.Args[i].Tocheck = false
 	}
+	return args
 }
 
 func pushRuleArgs(ruleID uint64, vargs *model.UProbeVulnArgs) error {

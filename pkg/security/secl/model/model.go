@@ -998,9 +998,5 @@ type UProbeVulnArg struct {
 // UProbeVulnArgs represents the args list to be match
 //msgp:ignore UProbeVulnArgs
 type UProbeVulnArgs struct {
-	Arg1 UProbeVulnArg
-	Arg2 UProbeVulnArg
-	Arg3 UProbeVulnArg
-	Arg4 UProbeVulnArg
-	Arg5 UProbeVulnArg
+	Args [5]UProbeVulnArg
 }
