@@ -251,7 +251,7 @@ func CreateUProbeFromRules(rules []*rules.Rule) error {
 			up.args[i].txt = argValue
 		}
 
-		vargs := NewUProbeArgs()
+		vargs := newUProbeArgs()
 
 		// push any valid argument value to the kernel map
 		for i := 0; i < 5; i++ {
