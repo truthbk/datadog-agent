@@ -18,7 +18,6 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/DataDog/datadog-agent/pkg/security/probe/uprobe"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/utils"
@@ -500,6 +499,11 @@ type UProbeEventSerializer struct {
 	Version string `json:"Version,omitempty" jsonschema_description:"Version"`
 	Func    string `json:"Function" jsonschema_description:"Function name"`
 	Offset  string `json:"Offset,omitempty" jsonschema_description:"Offset"`
+	Arg1    string `json:"Arg1,omitempty" jsonschema_description:"Arg1"`
+	Arg2    string `json:"Arg2,omitempty" jsonschema_description:"Arg2"`
+	Arg3    string `json:"Arg3,omitempty" jsonschema_description:"Arg3"`
+	Arg4    string `json:"Arg4,omitempty" jsonschema_description:"Arg4"`
+	Arg5    string `json:"Arg5,omitempty" jsonschema_description:"Arg5"`
 }
 
 // EventSerializer serializes an event to JSON
@@ -930,18 +934,17 @@ func serializeSyscallRetval(retval int64) string {
 }
 
 func newUProbeEventSerializer(e *Event) *UProbeEventSerializer {
-	up := uprobe.GetUProbeDesc(e.UProbe.ID)
-	if up == nil {
-		return nil
+	return &UProbeEventSerializer{
+		Path:    e.UProbe.Path,
+		Version: e.UProbe.Version,
+		Func:    e.UProbe.FunctionName,
+		Offset:  e.UProbe.Offset,
+		Arg1:    e.UProbe.Arg1,
+		Arg2:    e.UProbe.Arg2,
+		Arg3:    e.UProbe.Arg3,
+		Arg4:    e.UProbe.Arg4,
+		Arg5:    e.UProbe.Arg5,
 	}
-
-	upes := &UProbeEventSerializer{
-		Path:    up.Path,
-		Version: up.Version,
-		Func:    up.FunctionName,
-		Offset:  up.OffsetStr,
-	}
-	return upes
 }
 
 // NewEventSerializer creates a new event serializer based on the event type

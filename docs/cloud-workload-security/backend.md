@@ -1049,6 +1049,53 @@ CWS logs have the following JSON schema:
             ],
             "description": "SpliceEventSerializer serializes a splice event to JSON"
         },
+        "UProbeEvent": {
+            "properties": {
+                "Path": {
+                    "type": "string",
+                    "description": "BinaryPath"
+                },
+                "Version": {
+                    "type": "string",
+                    "description": "Version"
+                },
+                "Function": {
+                    "type": "string",
+                    "description": "Function name"
+                },
+                "Offset": {
+                    "type": "string",
+                    "description": "Offset"
+                },
+                "Arg1": {
+                    "type": "string",
+                    "description": "Arg1"
+                },
+                "Arg2": {
+                    "type": "string",
+                    "description": "Arg2"
+                },
+                "Arg3": {
+                    "type": "string",
+                    "description": "Arg3"
+                },
+                "Arg4": {
+                    "type": "string",
+                    "description": "Arg4"
+                },
+                "Arg5": {
+                    "type": "string",
+                    "description": "Arg5"
+                }
+            },
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+                "Path",
+                "Function"
+            ],
+            "description": "UProbeEventSerializer serializes an uprobe event to JSON"
+        },
         "UserContext": {
             "properties": {
                 "id": {
@@ -1120,6 +1167,9 @@ CWS logs have the following JSON schema:
         "container": {
             "$ref": "#/$defs/ContainerContext"
         },
+        "uprobe": {
+            "$ref": "#/$defs/UProbeEvent"
+        },
         "date": {
             "type": "string",
             "format": "date-time"
@@ -1152,6 +1202,7 @@ CWS logs have the following JSON schema:
 | `process` | $ref | Please see [ProcessContext](#processcontext) |
 | `dd` | $ref | Please see [DDContext](#ddcontext) |
 | `container` | $ref | Please see [ContainerContext](#containercontext) |
+| `uprobe` | $ref | Please see [UProbeEvent](#uprobeevent) |
 | `date` | string |  |
 
 ## `BPFEvent`
@@ -2717,6 +2768,73 @@ CWS logs have the following JSON schema:
 | ----- | ----------- |
 | `pipe_entry_flag` | Entry flag of the fd_out pipe passed to the splice syscall |
 | `pipe_exit_flag` | Exit flag of the fd_out pipe passed to the splice syscall |
+
+
+## `UProbeEvent`
+
+
+{{< code-block lang="json" collapsible="true" >}}
+{
+    "properties": {
+        "Path": {
+            "type": "string",
+            "description": "BinaryPath"
+        },
+        "Version": {
+            "type": "string",
+            "description": "Version"
+        },
+        "Function": {
+            "type": "string",
+            "description": "Function name"
+        },
+        "Offset": {
+            "type": "string",
+            "description": "Offset"
+        },
+        "Arg1": {
+            "type": "string",
+            "description": "Arg1"
+        },
+        "Arg2": {
+            "type": "string",
+            "description": "Arg2"
+        },
+        "Arg3": {
+            "type": "string",
+            "description": "Arg3"
+        },
+        "Arg4": {
+            "type": "string",
+            "description": "Arg4"
+        },
+        "Arg5": {
+            "type": "string",
+            "description": "Arg5"
+        }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+        "Path",
+        "Function"
+    ],
+    "description": "UProbeEventSerializer serializes an uprobe event to JSON"
+}
+
+{{< /code-block >}}
+
+| Field | Description |
+| ----- | ----------- |
+| `Path` | BinaryPath |
+| `Version` | Version |
+| `Function` | Function name |
+| `Offset` | Offset |
+| `Arg1` | Arg1 |
+| `Arg2` | Arg2 |
+| `Arg3` | Arg3 |
+| `Arg4` | Arg4 |
+| `Arg5` | Arg5 |
 
 
 ## `UserContext`

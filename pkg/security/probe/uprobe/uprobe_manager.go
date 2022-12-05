@@ -32,6 +32,7 @@ var (
 	ErrUProbeRuleInvalidFunctionName         = errors.New("uprobe rule has invalid function name value")
 	ErrUProbeRuleInvalidOffset               = errors.New("uprobe rule has invalid offset value")
 	ErrUProbeRuleMissingFunctionNameOrOffset = errors.New("uprobe rule requires either a function name or an offset value")
+	ErrUProbeRuleInvalidArgumentExpression   = errors.New("uprobe rule has invalid argument expression")
 	ErrMaxConcurrentUProbes                  = errors.New("max concurrent uprobe reached")
 )
 
@@ -53,14 +54,28 @@ type uprobeManager struct {
 	nextRuleID       uint64
 }
 
+type uprobeDesc struct {
+	Path         string
+	Version      string
+	FunctionName string
+	OffsetStr    string
+	Offset       uint64
+}
+
+type uprobeArg struct {
+	txt    string
+	parsed *UProbeArgumentExpression
+}
+
 type uprobe struct {
-	desc   model.UProbeDesc
+	desc   uprobeDesc
+	args   [5]uprobeArg
 	id     uint64
 	ruleID uint64
 	pID    manager.ProbeIdentificationPair
 }
 
-func Init(manager *manager.Manager, options UProbeManagerOptions) {
+func Init(manager *manager.Manager, options UProbeManagerOptions) error {
 	if uman == nil {
 		uman = &uprobeManager{
 			allUProbes:       make(map[uint64]*uprobe),
@@ -79,6 +94,7 @@ func Init(manager *manager.Manager, options UProbeManagerOptions) {
 			putUProbe(&uprobe{id: i})
 		}
 	}
+	return nil
 }
 
 func getNextRuleID() uint64 {
@@ -102,116 +118,185 @@ func putUProbe(up *uprobe) {
 	}
 }
 
-func GetUProbeDesc(id uint64) *model.UProbeDesc {
+func ResolveUProbeEventFields(event *model.UProbeEvent) {
 	uman.lock.Lock()
 	defer uman.lock.Unlock()
 
-	if up, exists := uman.allUProbes[id]; exists {
-		return &up.desc
+	if up, exists := uman.allUProbes[event.ID]; exists {
+		event.Path = up.desc.Path
+		event.Version = up.desc.Version
+		event.FunctionName = up.desc.FunctionName
+		event.Offset = up.desc.OffsetStr
+		event.Arg1 = up.args[0].txt
+		event.Arg2 = up.args[1].txt
+		event.Arg3 = up.args[2].txt
+		event.Arg4 = up.args[3].txt
+		event.Arg5 = up.args[4].txt
 	}
-	return nil
 }
 
-func CreateUProbeFromRule(rule *rules.Rule) error {
+func CreateUProbeFromRules(rules []*rules.Rule) error {
 	uman.lock.Lock()
 	defer uman.lock.Unlock()
 
-	up := getUProbe()
-	if up == nil {
-		return ErrMaxConcurrentUProbes
-	}
+	for _, rule := range rules {
+		up := getUProbe()
+		if up == nil {
+			return ErrMaxConcurrentUProbes
+		}
 
-	pathValues := rule.GetFieldValues("uprobe.path")
-	if len(pathValues) == 0 {
-		putUProbe(up)
-		return ErrUProbeRuleMissingPath
-	}
-	pathValue, ok := pathValues[0].Value.(string)
-	if !ok {
-		putUProbe(up)
-		return ErrUProbeRuleInvalidPath
-	}
-
-	var versionValue string
-	versionValues := rule.GetFieldValues("uprobe.version")
-	if len(versionValues) != 0 {
-		versionValue, ok = versionValues[0].Value.(string)
+		pathValues := rule.GetFieldValues("uprobe.path")
+		if len(pathValues) == 0 {
+			putUProbe(up)
+			return ErrUProbeRuleMissingPath
+		}
+		pathValue, ok := pathValues[0].Value.(string)
 		if !ok {
 			putUProbe(up)
-			return ErrUProbeRuleInvalidVersion
+			return ErrUProbeRuleInvalidPath
 		}
-	}
 
-	var functionNameValue string
-	functionNameValues := rule.GetFieldValues("uprobe.function_name")
-	if len(functionNameValues) != 0 {
-		functionNameValue, ok = functionNameValues[0].Value.(string)
-		if !ok {
+		var versionValue string
+		versionValues := rule.GetFieldValues("uprobe.version")
+		if len(versionValues) != 0 {
+			versionValue, ok = versionValues[0].Value.(string)
+			if !ok {
+				putUProbe(up)
+				return ErrUProbeRuleInvalidVersion
+			}
+		}
+
+		var functionNameValue string
+		functionNameValues := rule.GetFieldValues("uprobe.function_name")
+		if len(functionNameValues) != 0 {
+			functionNameValue, ok = functionNameValues[0].Value.(string)
+			if !ok {
+				putUProbe(up)
+				return ErrUProbeRuleInvalidFunctionName
+			}
+		}
+
+		var offsetValue string
+		var offsetInt uint64
+		offsetValues := rule.GetFieldValues("uprobe.offset")
+		if len(offsetValues) != 0 {
+			offsetValue, ok = offsetValues[0].Value.(string)
+			if !ok {
+				putUProbe(up)
+				return ErrUProbeRuleInvalidOffset
+			}
+			var err error
+			offsetInt, err = strconv.ParseUint(offsetValue, 0, 64)
+			if err != nil {
+				putUProbe(up)
+				return ErrUProbeRuleInvalidOffset
+			}
+		}
+
+		if len(functionNameValue) == 0 && len(offsetValue) == 0 {
 			putUProbe(up)
-			return ErrUProbeRuleInvalidFunctionName
+			return ErrUProbeRuleMissingFunctionNameOrOffset
 		}
-	}
 
-	var offsetValue string
-	var offsetInt uint64
-	offsetValues := rule.GetFieldValues("uprobe.offset")
-	if len(offsetValues) != 0 {
-		offsetValue, ok = offsetValues[0].Value.(string)
-		if !ok {
+		// parse optional argument expressions
+		for i := 0; i < 5; i++ {
+			seclKey := fmt.Sprintf("uprobe.arg%d", i+1)
+			argValues := rule.GetFieldValues(seclKey)
+			if len(argValues) == 0 {
+				continue
+			}
+
+			var argValue string
+			argValue, ok = argValues[0].Value.(string)
+			if !ok {
+				putUProbe(up)
+				return ErrUProbeRuleInvalidArgumentExpression
+			}
+
+			var err error
+			up.args[i].parsed, err = argParser.ParseString("", argValue)
+			if err != nil || up.args[i].parsed == nil {
+				return ErrUProbeRuleInvalidArgumentExpression
+			}
+			up.args[i].txt = argValue
+		}
+
+		vargs := NewUProbeArgs()
+
+		// push any valid argument value to the kernel map
+		for i := 0; i < 5; i++ {
+			if up.args[i].parsed == nil {
+				continue
+			}
+
+			switch val := up.args[i].parsed.Arg.(type) {
+			case UProbeU8Argument:
+				fmt.Printf(">>>>>> [%d] got u8 arg: %d\n", i+1, val.Value)
+				vargs.Args[i].Tocheck = true
+				vargs.Args[i].Toderef = false
+				vargs.Args[i].Len = 1
+				vargs.Args[i].Offset = 0
+				vargs.Args[i].Val[0] = val.Value
+			case UProbeU16Argument:
+				fmt.Printf(">>>>>> [%d] got u16 arg: %d\n", i+1, val.Value)
+				vargs.Args[i].Tocheck = true
+				vargs.Args[i].Toderef = false
+				vargs.Args[i].Len = 2
+				vargs.Args[i].Offset = 0
+				model.ByteOrder.PutUint16(vargs.Args[i].Val[0:], val.Value)
+			case UProbeU32Argument:
+				fmt.Printf(">>>>>> [%d] got u32 arg: %d\n", i+1, val.Value)
+				vargs.Args[i].Tocheck = true
+				vargs.Args[i].Toderef = false
+				vargs.Args[i].Len = 4
+				vargs.Args[i].Offset = 0
+				model.ByteOrder.PutUint32(vargs.Args[i].Val[0:], val.Value)
+			case UProbeU64Argument:
+				fmt.Printf(">>>>>> [%d] got u64 arg: %d\n", i+1, val.Value)
+				vargs.Args[i].Tocheck = true
+				vargs.Args[i].Toderef = false
+				vargs.Args[i].Len = 8
+				vargs.Args[i].Offset = 0
+				model.ByteOrder.PutUint64(vargs.Args[i].Val[0:], val.Value)
+			case UProbeStringArgument:
+				fmt.Printf(">>>>>> [%d] got string arg: %s\n", i+1, val.Value)
+				if len(val.Value) > model.UPROBE_MAX_CHECK_LEN {
+					seclog.Warnf("uprobe argument string %s exceeds the maximum length of %d, skipping the rule\n", val.Value, model.UPROBE_MAX_CHECK_LEN)
+					continue
+				}
+				vargs.Args[i].Tocheck = true
+				vargs.Args[i].Toderef = true
+				vargs.Args[i].Len = uint8(len(val.Value))
+				vargs.Args[i].Offset = 0
+				copy(vargs.Args[i].Val[:], val.Value)
+			default:
+				seclog.Errorf("uprobe argument has unknown type, shouldn't happen")
+				continue
+			}
+		}
+
+		ruleID := getNextRuleID()
+
+		if err := pushRuleArgs(ruleID, vargs); err != nil {
 			putUProbe(up)
-			return ErrUProbeRuleInvalidOffset
+			return err
 		}
-		var err error
-		offsetInt, err = strconv.ParseUint(offsetValue, 0, 64)
-		if err != nil {
+
+		up.desc.Path = pathValue
+		up.desc.Version = versionValue
+		up.desc.FunctionName = functionNameValue
+		up.desc.OffsetStr = offsetValue
+		up.desc.Offset = offsetInt
+		up.ruleID = ruleID
+
+		if err := attachProbe(uman.m, up); err != nil {
 			putUProbe(up)
-			return ErrUProbeRuleInvalidOffset
+			return err
 		}
+
+		uman.allUProbes[up.id] = up
+		uman.ruleFilesUprobes[up.desc.Path] = append(uman.ruleFilesUprobes[up.desc.Path], up)
 	}
-
-	if len(functionNameValue) == 0 && len(offsetValue) == 0 {
-		putUProbe(up)
-		return ErrUProbeRuleMissingFunctionNameOrOffset
-	}
-
-	up.desc.Path = pathValue
-	up.desc.Version = versionValue
-	up.desc.FunctionName = functionNameValue
-	up.desc.OffsetStr = offsetValue
-	up.desc.Offset = offsetInt
-	up.ruleID = getNextRuleID()
-
-	err := attachProbe(uman.m, up)
-	if err != nil {
-		putUProbe(up)
-		return err
-	}
-
-	// TODO: remove this part, it's only here for test/example
-	vargs := NewUProbeArgs()
-	// check ARG1 as UINT32
-	vargs.Args[0].Tocheck = true
-	vargs.Args[0].Toderef = false
-	vargs.Args[0].Len = 4
-	vargs.Args[0].Offset = 0
-	vargs.Args[0].Val[0] = 0xfc
-	vargs.Args[0].Val[1] = 0xfb
-	vargs.Args[0].Val[2] = 0xfa
-	vargs.Args[0].Val[3] = 0xff
-	// check ARG2 as STRING
-	vargs.Args[1].Tocheck = true
-	vargs.Args[1].Toderef = true
-	vargs.Args[1].Len = 4
-	vargs.Args[1].Offset = 0
-	vargs.Args[1].Val[0] = 'f'
-	vargs.Args[1].Val[1] = 'o'
-	vargs.Args[1].Val[2] = 'o'
-	vargs.Args[1].Val[3] = 0
-	uman.ruleVulnArgs[up.id] = vargs
-	pushRuleArgs(up.id, vargs)
-
-	uman.allUProbes[up.id] = up
-	uman.ruleFilesUprobes[up.desc.Path] = append(uman.ruleFilesUprobes[up.desc.Path], up)
 
 	return nil
 }

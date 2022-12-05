@@ -249,10 +249,6 @@ func (ev *Event) ResolveFields(forADs bool) {
 		_ = ev.ResolveFileFilesystem(&ev.Unlink.File)
 	case "unload_module":
 	case "uprobe":
-		_ = ev.ResolveUProbePath(&ev.UProbe)
-		_ = ev.ResolveUProbeVersion(&ev.UProbe)
-		_ = ev.ResolveUProbeFunctionName(&ev.UProbe)
-		_ = ev.ResolveUProbeOffset(&ev.UProbe)
 	case "utimes":
 		_ = ev.ResolveFileFieldsUser(&ev.Utimes.File.FileFields)
 		_ = ev.ResolveFileFieldsGroup(&ev.Utimes.File.FileFields)

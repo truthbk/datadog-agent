@@ -1050,6 +1050,26 @@
         "Offset": {
           "type": "string",
           "description": "Offset"
+        },
+        "Arg1": {
+          "type": "string",
+          "description": "Arg1"
+        },
+        "Arg2": {
+          "type": "string",
+          "description": "Arg2"
+        },
+        "Arg3": {
+          "type": "string",
+          "description": "Arg3"
+        },
+        "Arg4": {
+          "type": "string",
+          "description": "Arg4"
+        },
+        "Arg5": {
+          "type": "string",
+          "description": "Arg5"
         }
       },
       "additionalProperties": false,

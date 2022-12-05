@@ -113,6 +113,16 @@ func easyjsonA970e379DecodeGithubComDataDogDatadogAgentPkgSecurityProbe1(in *jle
 			out.Func = string(in.String())
 		case "Offset":
 			out.Offset = string(in.String())
+		case "Arg1":
+			out.Arg1 = string(in.String())
+		case "Arg2":
+			out.Arg2 = string(in.String())
+		case "Arg3":
+			out.Arg3 = string(in.String())
+		case "Arg4":
+			out.Arg4 = string(in.String())
+		case "Arg5":
+			out.Arg5 = string(in.String())
 		default:
 			in.SkipRecursive()
 		}
@@ -146,6 +156,31 @@ func easyjsonA970e379EncodeGithubComDataDogDatadogAgentPkgSecurityProbe1(out *jw
 		const prefix string = ",\"Offset\":"
 		out.RawString(prefix)
 		out.String(string(in.Offset))
+	}
+	if in.Arg1 != "" {
+		const prefix string = ",\"Arg1\":"
+		out.RawString(prefix)
+		out.String(string(in.Arg1))
+	}
+	if in.Arg2 != "" {
+		const prefix string = ",\"Arg2\":"
+		out.RawString(prefix)
+		out.String(string(in.Arg2))
+	}
+	if in.Arg3 != "" {
+		const prefix string = ",\"Arg3\":"
+		out.RawString(prefix)
+		out.String(string(in.Arg3))
+	}
+	if in.Arg4 != "" {
+		const prefix string = ",\"Arg4\":"
+		out.RawString(prefix)
+		out.String(string(in.Arg4))
+	}
+	if in.Arg5 != "" {
+		const prefix string = ",\"Arg5\":"
+		out.RawString(prefix)
+		out.String(string(in.Arg5))
 	}
 	out.RawByte('}')
 }

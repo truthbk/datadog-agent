@@ -816,6 +816,7 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 			seclog.Errorf("failed to decode uprobe event: %s (offset %d, len %d)", err, offset, len(data))
 			return
 		}
+		uprobe.ResolveUProbeEventFields(&event.UProbe)
 	default:
 		seclog.Errorf("unsupported event type %d", eventType)
 		return
