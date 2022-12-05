@@ -8596,13 +8596,53 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 			Field:  field,
 			Weight: eval.FunctionWeight,
 		}, nil
+	case "uprobe.arg1":
+		return &eval.StringEvaluator{
+			EvalFnc: func(ctx *eval.Context) string {
+				return (*Event)(ctx.Object).UProbe.Arg1
+			},
+			Field:  field,
+			Weight: eval.FunctionWeight,
+		}, nil
+	case "uprobe.arg2":
+		return &eval.StringEvaluator{
+			EvalFnc: func(ctx *eval.Context) string {
+				return (*Event)(ctx.Object).UProbe.Arg2
+			},
+			Field:  field,
+			Weight: eval.FunctionWeight,
+		}, nil
+	case "uprobe.arg3":
+		return &eval.StringEvaluator{
+			EvalFnc: func(ctx *eval.Context) string {
+				return (*Event)(ctx.Object).UProbe.Arg3
+			},
+			Field:  field,
+			Weight: eval.FunctionWeight,
+		}, nil
+	case "uprobe.arg4":
+		return &eval.StringEvaluator{
+			EvalFnc: func(ctx *eval.Context) string {
+				return (*Event)(ctx.Object).UProbe.Arg4
+			},
+			Field:  field,
+			Weight: eval.FunctionWeight,
+		}, nil
+	case "uprobe.arg5":
+		return &eval.StringEvaluator{
+			EvalFnc: func(ctx *eval.Context) string {
+				return (*Event)(ctx.Object).UProbe.Arg5
+			},
+			Field:  field,
+			Weight: eval.FunctionWeight,
+		}, nil
 	case "uprobe.function_name":
 		return &eval.StringEvaluator{
 			EvalFnc: func(ctx *eval.Context) string {
 				return (*Event)(ctx.Object).UProbe.FunctionName
 			},
 			Field:  field,
-			Weight: eval.HandlerWeight,
+			Weight: eval.FunctionWeight,
 		}, nil
 	case "uprobe.offset":
 		return &eval.StringEvaluator{
@@ -8610,7 +8650,7 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 				return (*Event)(ctx.Object).UProbe.Offset
 			},
 			Field:  field,
-			Weight: eval.HandlerWeight,
+			Weight: eval.FunctionWeight,
 		}, nil
 	case "uprobe.path":
 		return &eval.StringEvaluator{
@@ -8618,7 +8658,7 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 				return (*Event)(ctx.Object).UProbe.Path
 			},
 			Field:  field,
-			Weight: eval.HandlerWeight,
+			Weight: eval.FunctionWeight,
 		}, nil
 	case "uprobe.version":
 		return &eval.StringEvaluator{
@@ -8626,7 +8666,7 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 				return (*Event)(ctx.Object).UProbe.Version
 			},
 			Field:  field,
-			Weight: eval.HandlerWeight,
+			Weight: eval.FunctionWeight,
 		}, nil
 	case "utimes.file.change_time":
 		return &eval.IntEvaluator{
@@ -9629,6 +9669,11 @@ func (e *Event) GetFields() []eval.Field {
 		"unlink.retval",
 		"unload_module.name",
 		"unload_module.retval",
+		"uprobe.arg1",
+		"uprobe.arg2",
+		"uprobe.arg3",
+		"uprobe.arg4",
+		"uprobe.arg5",
 		"uprobe.function_name",
 		"uprobe.offset",
 		"uprobe.path",
@@ -13320,6 +13365,16 @@ func (e *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 		return e.UnloadModule.Name, nil
 	case "unload_module.retval":
 		return int(e.UnloadModule.SyscallEvent.Retval), nil
+	case "uprobe.arg1":
+		return e.UProbe.Arg1, nil
+	case "uprobe.arg2":
+		return e.UProbe.Arg2, nil
+	case "uprobe.arg3":
+		return e.UProbe.Arg3, nil
+	case "uprobe.arg4":
+		return e.UProbe.Arg4, nil
+	case "uprobe.arg5":
+		return e.UProbe.Arg5, nil
 	case "uprobe.function_name":
 		return e.UProbe.FunctionName, nil
 	case "uprobe.offset":
@@ -15079,6 +15134,16 @@ func (e *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 		return "unload_module", nil
 	case "unload_module.retval":
 		return "unload_module", nil
+	case "uprobe.arg1":
+		return "uprobe", nil
+	case "uprobe.arg2":
+		return "uprobe", nil
+	case "uprobe.arg3":
+		return "uprobe", nil
+	case "uprobe.arg4":
+		return "uprobe", nil
+	case "uprobe.arg5":
+		return "uprobe", nil
 	case "uprobe.function_name":
 		return "uprobe", nil
 	case "uprobe.offset":
@@ -16838,6 +16903,16 @@ func (e *Event) GetFieldType(field eval.Field) (reflect.Kind, error) {
 		return reflect.String, nil
 	case "unload_module.retval":
 		return reflect.Int, nil
+	case "uprobe.arg1":
+		return reflect.String, nil
+	case "uprobe.arg2":
+		return reflect.String, nil
+	case "uprobe.arg3":
+		return reflect.String, nil
+	case "uprobe.arg4":
+		return reflect.String, nil
+	case "uprobe.arg5":
+		return reflect.String, nil
 	case "uprobe.function_name":
 		return reflect.String, nil
 	case "uprobe.offset":
@@ -24640,6 +24715,41 @@ func (e *Event) SetFieldValue(field eval.Field, value interface{}) error {
 			return &eval.ErrValueTypeMismatch{Field: "UnloadModule.SyscallEvent.Retval"}
 		}
 		e.UnloadModule.SyscallEvent.Retval = int64(v)
+		return nil
+	case "uprobe.arg1":
+		str, ok := value.(string)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "UProbe.Arg1"}
+		}
+		e.UProbe.Arg1 = str
+		return nil
+	case "uprobe.arg2":
+		str, ok := value.(string)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "UProbe.Arg2"}
+		}
+		e.UProbe.Arg2 = str
+		return nil
+	case "uprobe.arg3":
+		str, ok := value.(string)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "UProbe.Arg3"}
+		}
+		e.UProbe.Arg3 = str
+		return nil
+	case "uprobe.arg4":
+		str, ok := value.(string)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "UProbe.Arg4"}
+		}
+		e.UProbe.Arg4 = str
+		return nil
+	case "uprobe.arg5":
+		str, ok := value.(string)
+		if !ok {
+			return &eval.ErrValueTypeMismatch{Field: "UProbe.Arg5"}
+		}
+		e.UProbe.Arg5 = str
 		return nil
 	case "uprobe.function_name":
 		str, ok := value.(string)

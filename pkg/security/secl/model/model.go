@@ -966,21 +966,17 @@ type SyscallsEvent struct {
 	Syscalls []Syscall // 64 * 8 = 512 > 450, bytes should be enough to hold all 450 syscalls
 }
 
-type UProbeDesc struct {
-	Path         string
-	Version      string
-	FunctionName string
-	OffsetStr    string
-	Offset       uint64
-}
-
 type UProbeEvent struct {
-	ID           uint64      `field:"-"`
-	Desc         *UProbeDesc `field:"-"`
-	Path         string      `field:"path,handler:ResolveUProbePath"`
-	Version      string      `field:"version,handler:ResolveUProbeVersion"`
-	FunctionName string      `field:"function_name,handler:ResolveUProbeFunctionName"`
-	Offset       string      `field:"offset,handler:ResolveUProbeOffset"`
+	ID           uint64 `field:"-"`
+	Path         string `field:"path"`
+	Version      string `field:"version"`
+	FunctionName string `field:"function_name"`
+	Offset       string `field:"offset"`
+	Arg1         string `field:"arg1"`
+	Arg2         string `field:"arg2"`
+	Arg3         string `field:"arg3"`
+	Arg4         string `field:"arg4"`
+	Arg5         string `field:"arg5"`
 }
 
 const UPROBE_MAX_CHECK_LEN = 9

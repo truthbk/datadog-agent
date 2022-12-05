@@ -5387,6 +5387,36 @@
       "experimental": false,
       "properties": [
         {
+          "name": "uprobe.arg1",
+          "type": "string",
+          "definition": "",
+          "constants": ""
+        },
+        {
+          "name": "uprobe.arg2",
+          "type": "string",
+          "definition": "",
+          "constants": ""
+        },
+        {
+          "name": "uprobe.arg3",
+          "type": "string",
+          "definition": "",
+          "constants": ""
+        },
+        {
+          "name": "uprobe.arg4",
+          "type": "string",
+          "definition": "",
+          "constants": ""
+        },
+        {
+          "name": "uprobe.arg5",
+          "type": "string",
+          "definition": "",
+          "constants": ""
+        },
+        {
           "name": "uprobe.function_name",
           "type": "string",
           "definition": "",

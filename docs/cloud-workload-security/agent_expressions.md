@@ -58,6 +58,7 @@ Triggers are events that correspond to types of activity seen by the system. The
 | `splice` | File | A splice command was executed | 7.36 |
 | `unlink` | File | A file was deleted | 7.27 |
 | `unload_module` | Kernel | A kernel module was deleted | 7.35 |
+| `uprobe` |  |  |  |
 | `utimes` | File | Change file access/modification times | 7.27 |
 
 ## Operators
@@ -1207,6 +1208,22 @@ A kernel module was deleted
 | -------- | ---- | ---------- | --------- |
 | `unload_module.name` | string | Name of the kernel module that was deleted |  |
 | `unload_module.retval` | int | Return value of the syscall | Error Constants |
+
+### Event `uprobe`
+
+
+
+| Property | Type | Definition | Constants |
+| -------- | ---- | ---------- | --------- |
+| `uprobe.arg1` | string |  |  |
+| `uprobe.arg2` | string |  |  |
+| `uprobe.arg3` | string |  |  |
+| `uprobe.arg4` | string |  |  |
+| `uprobe.arg5` | string |  |  |
+| `uprobe.function_name` | string |  |  |
+| `uprobe.offset` | string |  |  |
+| `uprobe.path` | string |  |  |
+| `uprobe.version` | string |  |  |
 
 ### Event `utimes`
 

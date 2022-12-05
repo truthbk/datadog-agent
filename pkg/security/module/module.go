@@ -413,11 +413,8 @@ func (m *Module) LoadPolicies(policyProviders []rules.PolicyProvider, sendLoaded
 
 	uprobesBucket := ruleSet.GetBucket(model.UProbeEventType.String())
 	if uprobesBucket != nil {
-		for _, uprobeRule := range uprobesBucket.GetRules() {
-			if err := uprobe.CreateUProbeFromRule(uprobeRule); err != nil {
-				seclog.Warnf("not all uprobe rules could be loaded, try increasing maximum number of concurrent uprobes: %s", err)
-				break
-			}
+		if err := uprobe.CreateUProbeFromRules(uprobesBucket.GetRules()); err != nil {
+			return err
 		}
 	}
 
