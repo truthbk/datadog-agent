@@ -83,7 +83,7 @@ __attribute__((always_inline)) static u8 check_vulnarg(u64 val, struct vulnarg *
         u8 argstr[MAX_CHECK_LEN];
         long len = bpf_probe_read_str(&argstr, MAX_CHECK_LEN, (void*)val);
         bpf_printk("val: (%s) len %li\n", argstr, len);
-        if (len != arg->len) {
+        if ((len - 1) != arg->len) { // do not count the null byte
             return 0;
         }
 
