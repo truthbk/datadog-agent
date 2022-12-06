@@ -7,6 +7,7 @@ use vrl::diagnostic::Formatter;
 use vrl::Program;
 use vrl::TimeZone;
 use vrl::{state, Runtime, TargetValueRef};
+use std::borrow::Cow;
 
 #[no_mangle]
 pub extern "C" fn compile_vrl_c(input: *const libc::c_char) -> *mut Program {
@@ -31,11 +32,11 @@ pub extern "C" fn run_vrl_c(
     let prog = unsafe { program.as_ref().unwrap() };
     let inpt: &CStr = unsafe { CStr::from_ptr(input) };
     let output = run_vrl(inpt.to_str().unwrap(), prog);
-    let c_str = CString::new(output.as_bytes()).expect("CString::new failed");
+    let c_str = CString::new(output.as_str().unwrap().as_bytes()).expect("CString::new failed");
     return c_str.into_raw();
 }
 
-fn run_vrl(s: &str, program: &Program) -> String {
+fn run_vrl(s: &str, program: &Program) -> Value {
     let mut value: Value = Value::from(s);
     let mut metadata = Value::Object(BTreeMap::new());
     let mut secrets = Secrets::new();
@@ -48,5 +49,5 @@ fn run_vrl(s: &str, program: &Program) -> String {
     let output =
         Runtime::new(state::Runtime::default()).resolve(&mut target, program, &TimeZone::Local);
 
-    return output.unwrap().to_string();
+    return output.unwrap()
 }
