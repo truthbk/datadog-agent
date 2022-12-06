@@ -9,20 +9,18 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
-
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/DataDog/datadog-agent/pkg/trace/config"
-	"github.com/DataDog/datadog-agent/pkg/trace/metrics"
+	"github.com/DataDog/datadog-agent/pkg/trace/teststatsd"
 	"github.com/DataDog/datadog-agent/pkg/trace/testutil"
 )
 
@@ -38,7 +36,7 @@ func (r roundTripperMock) RoundTrip(req *http.Request) (*http.Response, error) {
 func sendRequestThroughForwarder(conf *config.AgentConfig, inReq *http.Request) (outReqs []*http.Request, resp *http.Response, logs string) {
 	mockRoundTripper := roundTripperMock(func(req *http.Request) (*http.Response, error) {
 		if req.Body != nil {
-			if _, err := ioutil.ReadAll(req.Body); err != nil && err != io.EOF {
+			if _, err := io.ReadAll(req.Body); err != nil && err != io.EOF {
 				return nil, err
 			}
 		}
@@ -46,7 +44,7 @@ func sendRequestThroughForwarder(conf *config.AgentConfig, inReq *http.Request) 
 		// If we got here it means the proxy didn't raise an error earlier, return an ok resp
 		return &http.Response{
 			StatusCode: 200,
-			Body:       ioutil.NopCloser(bytes.NewBuffer([]byte("ok_resprino"))),
+			Body:       io.NopCloser(bytes.NewBuffer([]byte("ok_resprino"))),
 		}, nil
 	})
 	handler := evpProxyForwarder(conf)
@@ -62,9 +60,8 @@ func TestEVPProxyForwarder(t *testing.T) {
 	randBodyBuf := make([]byte, 1024)
 	rand.Read(randBodyBuf)
 
-	stats := &testutil.TestStatsClient{}
-	defer func(old metrics.StatsClient) { metrics.Client = old }(metrics.Client)
-	metrics.Client = stats
+	stats := &teststatsd.Client{}
+	defer testutil.WithStatsClient(stats)()
 
 	t.Run("ok", func(t *testing.T) {
 		stats.Reset()

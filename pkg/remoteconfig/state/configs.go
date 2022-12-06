@@ -11,8 +11,6 @@ import (
 	"fmt"
 
 	"github.com/theupdateframework/go-tuf/data"
-
-	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state/products/apmsampling"
 )
 
 /*
@@ -66,18 +64,14 @@ func parseConfig(product string, raw []byte, metadata Metadata) (interface{}, er
 // APMSamplingConfig is a deserialized APM Sampling configuration file
 // along with its associated remote config metadata.
 type APMSamplingConfig struct {
-	Config   apmsampling.APMSampling
+	Config   []byte
 	Metadata Metadata
 }
 
 func parseConfigAPMSampling(data []byte, metadata Metadata) (APMSamplingConfig, error) {
-	var apmConfig apmsampling.APMSampling
-	_, err := apmConfig.UnmarshalMsg(data)
-	if err != nil {
-		return APMSamplingConfig{}, fmt.Errorf("could not parse apm sampling config: %v", err)
-	}
+	// We actually don't parse the payload here, we delegate this responsibility to the trace agent
 	return APMSamplingConfig{
-		Config:   apmConfig,
+		Config:   data,
 		Metadata: metadata,
 	}, nil
 }
@@ -247,9 +241,15 @@ type ASMDataRulesData struct {
 
 // ASMDataRuleData is an entry in the rules data list held by an ASMData configuration
 type ASMDataRuleData struct {
-	ID   string        `json:"id"`
-	Type string        `json:"type"`
-	Data []interface{} `json:"data"`
+	ID   string                 `json:"id"`
+	Type string                 `json:"type"`
+	Data []ASMDataRuleDataEntry `json:"data"`
+}
+
+// ASMDataRuleDataEntry represents a data entry in a rule data file
+type ASMDataRuleDataEntry struct {
+	Expiration int64  `json:"expiration,omitempty"`
+	Value      string `json:"value"`
 }
 
 func parseConfigASMData(data []byte, metadata Metadata) (ASMDataConfig, error) {

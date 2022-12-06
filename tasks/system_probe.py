@@ -48,7 +48,8 @@ arch_mapping = {
     "arm64": "arm64",  # darwin
 }
 CURRENT_ARCH = arch_mapping.get(platform.machine(), "x64")
-CLANG_VERSION = "12.0.1"
+CLANG_VERSION_RUNTIME = "12.0.1"
+CLANG_VERSION_SYSTEM_PREFIX = "12.0"
 
 
 def ninja_define_windows_resources(ctx, nw, major_version):
@@ -271,7 +272,14 @@ def ninja_cgo_type_files(nw, windows):
     nw.pool(name="cgo_pool", depth=1)
     if windows:
         go_platform = "windows"
-        def_files = {"pkg/network/driver/types.go": ["pkg/network/driver/ddnpmapi.h"]}
+        def_files = {
+            "pkg/network/driver/types.go": [
+                "pkg/network/driver/ddnpmapi.h",
+            ],
+            "pkg/util/winutil/etw/types.go": [
+                "pkg/util/winutil/etw/etw-provider.h",
+            ],
+        }
         nw.rule(
             name="godefs",
             pool="cgo_pool",
@@ -292,9 +300,17 @@ def ninja_cgo_type_files(nw, windows):
                 "pkg/network/ebpf/c/tcp_states.h",
                 "pkg/network/ebpf/c/prebuilt/offset-guess.h",
             ],
+            "pkg/network/protocols/http/gotls/go_tls_types.go": [
+                "pkg/network/ebpf/c/protocols/go-tls-types.h",
+            ],
             "pkg/network/protocols/http/http_types.go": [
                 "pkg/network/ebpf/c/tracer.h",
+                "pkg/network/ebpf/c/protocols/tags-types.h",
                 "pkg/network/ebpf/c/protocols/http-types.h",
+                "pkg/network/ebpf/c/protocols/protocol-classification-defs.h",
+            ],
+            "pkg/network/telemetry/telemetry_types.go": [
+                "pkg/ebpf/c/telemetry_types.h",
             ],
         }
         nw.rule(
@@ -545,6 +561,17 @@ def test(
     ctx.run(cmd.format(**args), env=env)
 
 
+@contextlib.contextmanager
+def chdir(dirname=None):
+    curdir = os.getcwd()
+    try:
+        if dirname is not None:
+            os.chdir(dirname)
+        yield
+    finally:
+        os.chdir(curdir)
+
+
 @task
 def kitchen_prepare(ctx, windows=is_windows, kernel_release=None):
     """
@@ -602,6 +629,14 @@ def kitchen_prepare(ctx, windows=is_windows, kernel_release=None):
             extra_path = os.path.join(pkg, extra)
             if os.path.isdir(extra_path):
                 shutil.copytree(extra_path, os.path.join(target_path, extra))
+
+        gotls_client_dir = os.path.join("testutil", "gotls_client")
+        gotls_client_binary = os.path.join(gotls_client_dir, "gotls_client")
+        gotls_extra_path = os.path.join(pkg, gotls_client_dir)
+        if not windows and os.path.isdir(gotls_extra_path):
+            gotls_binary_path = os.path.join(target_path, gotls_client_binary)
+            with chdir(gotls_extra_path):
+                ctx.run(f"go build -o {gotls_binary_path} -ldflags=\"-extldflags '-static'\" gotls_client.go")
 
     gopath = os.getenv("GOPATH")
     copy_files = [
@@ -969,14 +1004,14 @@ def setup_runtime_clang(ctx):
     if arch == "x64":
         arch = "amd64"
 
-    if clang_version_str != CLANG_VERSION:
+    if clang_version_str != CLANG_VERSION_RUNTIME:
         # download correct version from dd-agent-omnibus S3 bucket
-        clang_url = f"https://dd-agent-omnibus.s3.amazonaws.com/llvm/clang-{CLANG_VERSION}.{arch}"
+        clang_url = f"https://dd-agent-omnibus.s3.amazonaws.com/llvm/clang-{CLANG_VERSION_RUNTIME}.{arch}"
         ctx.run(f"{sudo} wget -q {clang_url} -O /opt/datadog-agent/embedded/bin/clang-bpf")
         ctx.run(f"{sudo} chmod 0755 /opt/datadog-agent/embedded/bin/clang-bpf")
 
-    if llc_version_str != CLANG_VERSION:
-        llc_url = f"https://dd-agent-omnibus.s3.amazonaws.com/llvm/llc-{CLANG_VERSION}.{arch}"
+    if llc_version_str != CLANG_VERSION_RUNTIME:
+        llc_url = f"https://dd-agent-omnibus.s3.amazonaws.com/llvm/llc-{CLANG_VERSION_RUNTIME}.{arch}"
         ctx.run(f"{sudo} wget -q {llc_url} -O /opt/datadog-agent/embedded/bin/llc-bpf")
         ctx.run(f"{sudo} chmod 0755 /opt/datadog-agent/embedded/bin/llc-bpf")
 
@@ -989,8 +1024,10 @@ def verify_system_clang_version(ctx):
         version_index = clang_version_parts.index("version")
         clang_version_str = clang_version_parts[version_index + 1].split("-")[0]
 
-    if clang_version_str != CLANG_VERSION:
-        raise Exit(f"unsupported clang version {clang_version_str} in use. Please install {CLANG_VERSION}.")
+    if not clang_version_str.startswith(CLANG_VERSION_SYSTEM_PREFIX):
+        raise Exit(
+            f"unsupported clang version {clang_version_str} in use. Please install {CLANG_VERSION_SYSTEM_PREFIX}."
+        )
 
 
 def build_object_files(
