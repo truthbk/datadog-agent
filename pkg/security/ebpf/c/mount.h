@@ -62,16 +62,19 @@ SYSCALL_KPROBE1(unshare, unsigned long, flags) {
     return 0;
 }
 
-SEC("kprobe/attach_mnt")
-int kprobe_attach_mnt(struct pt_regs *ctx) {
+int __attribute__((always_inline)) new_mountpoint(struct pt_regs *ctx, struct mount *mnt, struct mount *parent, struct mountpoint *mp) {
     struct syscall_cache_t *syscall = peek_syscall(EVENT_UNSHARE_MNTNS);
     if (!syscall) {
         return 0;
     }
 
-    syscall->unshare_mntns.mnt = (struct mount *)PT_REGS_PARM1(ctx);
-    syscall->unshare_mntns.parent = (struct mount *)PT_REGS_PARM2(ctx);
-    syscall->unshare_mntns.mp = (struct mountpoint *)PT_REGS_PARM3(ctx);
+    if (syscall->unshare_mntns.mnt == mnt) {
+        return 0;
+    }
+
+    syscall->unshare_mntns.mnt = mnt;
+    syscall->unshare_mntns.parent = parent;
+    syscall->unshare_mntns.mp = mp;
 
     struct dentry *dentry = get_vfsmount_dentry(get_mount_vfsmount(syscall->unshare_mntns.mnt));
     syscall->unshare_mntns.root_key.mount_id = get_mount_mount_id(syscall->unshare_mntns.mnt);
@@ -90,6 +93,16 @@ int kprobe_attach_mnt(struct pt_regs *ctx) {
 
     resolve_dentry(ctx, DR_KPROBE);
     return 0;
+}
+
+SEC("kprobe/attach_mnt")
+int kprobe_attach_mnt(struct pt_regs *ctx) {
+    return new_mountpoint(ctx, (struct mount *)PT_REGS_PARM1(ctx), (struct mount *)PT_REGS_PARM2(ctx), (struct mountpoint *)PT_REGS_PARM3(ctx));
+}
+
+SEC("kprobe/mnt_set_mountpoint")
+int kprobe_mnt_set_mountpoint(struct pt_regs *ctx) {
+    return new_mountpoint(ctx, (struct mount *)PT_REGS_PARM3(ctx), (struct mount *)PT_REGS_PARM1(ctx), (struct mountpoint *)PT_REGS_PARM2(ctx));
 }
 
 SEC("kprobe/dr_unshare_mntns_stage_one_callback")
