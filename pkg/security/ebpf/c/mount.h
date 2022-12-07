@@ -31,12 +31,9 @@ struct unshare_mntns_event_t {
     struct mount_fields_t mountfields;
 };
 
-SYSCALL_COMPAT_KPROBE4(mount, const char*, source, const char*, target, const char*, fstype, unsigned long, flags) {
+SYSCALL_COMPAT_KPROBE3(mount, const char*, source, const char*, target, const char*, fstype) {
     struct syscall_cache_t syscall = {
         .type = EVENT_MOUNT,
-        .mount = {
-            .flags = flags,
-        },
     };
 
     cache_syscall(&syscall);
@@ -158,11 +155,6 @@ int __attribute__((always_inline)) kprobe_dr_unshare_mntns_stage_two_callback(st
 int __attribute__((always_inline)) fill_bind_mount_src(struct pt_regs *ctx) {
     struct syscall_cache_t *syscall = peek_syscall(EVENT_MOUNT);
     if (!syscall) {
-        return 0;
-    }
-
-    if ((syscall->mount.flags & (MS_REMOUNT | MS_BIND)) == (MS_REMOUNT | MS_BIND)
-        || !(syscall->mount.flags & MS_BIND)) {
         return 0;
     }
 

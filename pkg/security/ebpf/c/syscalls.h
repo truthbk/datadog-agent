@@ -114,7 +114,6 @@ struct syscall_cache_t {
             struct path_key_t path_key;
             struct path_key_t bind_src_key;
             const char *fstype;
-            unsigned long flags;
         } mount;
 
         struct {
