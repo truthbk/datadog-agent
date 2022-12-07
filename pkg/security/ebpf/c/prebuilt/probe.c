@@ -10,6 +10,7 @@
 #include <linux/pipe_fs_i.h>
 #include <linux/nsproxy.h>
 #include <linux/module.h>
+#include <uapi/linux/mount.h>
 
 #include <net/sock.h>
 #include <net/netfilter/nf_conntrack.h>

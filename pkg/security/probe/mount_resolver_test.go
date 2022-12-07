@@ -408,7 +408,7 @@ func TestMountResolver(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			for _, evt := range tt.args.events {
 				if evt.mount != nil {
-					mr.insert(evt.mount.Mount)
+					mr.insert(&evt.mount.Mount)
 				}
 				if evt.umount != nil {
 					if err := mr.Delete(evt.umount.MountID); err != nil {

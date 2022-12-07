@@ -114,6 +114,7 @@ struct syscall_cache_t {
             struct path_key_t path_key;
             struct path_key_t bind_src_key;
             const char *fstype;
+            unsigned long flags;
         } mount;
 
         struct {
@@ -218,6 +219,16 @@ struct syscall_cache_t {
             u16 family;
             u16 port;
         } bind;
+
+        struct {
+            struct mount *mnt;
+            struct mount *parent;
+            struct mountpoint *mp;
+            const char *fstype;
+            struct path_key_t root_key;
+            struct path_key_t path_key;
+            unsigned long flags;
+        } unshare_mntns;
     };
 };
 
