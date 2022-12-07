@@ -4,7 +4,6 @@
 // Copyright 2022-present Datadog, Inc.
 
 //go:build !windows
-// +build !windows
 
 package api
 
@@ -16,8 +15,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/DataDog/datadog-agent/pkg/trace/config"
 	"github.com/stretchr/testify/require"
+
+	"github.com/DataDog/datadog-agent/pkg/trace/config"
 )
 
 func TestDogStatsDReverseProxyEndToEndUDS(t *testing.T) {

@@ -4,17 +4,15 @@
 // Copyright 2016-present Datadog, Inc.
 
 //go:build !windows && clusterchecks
-// +build !windows,clusterchecks
 
 //go:generate go run ../../pkg/config/render_config.go dcacf ../../pkg/config/config_template.yaml ../../cloudfoundry.yaml
 
 package main
 
 import (
-	"os"
-
 	_ "expvar"         // Blank import used because this isn't directly used in this file
 	_ "net/http/pprof" // Blank import used because this isn't directly used in this file
+	"os"
 
 	"github.com/DataDog/datadog-agent/cmd/cluster-agent-cloudfoundry/app"
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"

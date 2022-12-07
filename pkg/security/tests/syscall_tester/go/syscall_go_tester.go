@@ -4,16 +4,14 @@
 // Copyright 2016-present Datadog, Inc.
 
 //go:build syscalltesters
-// +build syscalltesters
 
 package main
 
 import (
 	"bytes"
+	_ "embed"
 	"flag"
 	"fmt"
-
-	_ "embed"
 
 	manager "github.com/DataDog/ebpf-manager"
 	"github.com/syndtr/gocapability/capability"

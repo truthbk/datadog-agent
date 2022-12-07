@@ -484,11 +484,11 @@ func parseFile(filename string, pkgName string) (*common.Module, error) {
 	var buildTags []string
 	for _, tag := range splittedBuildTags {
 		if tag != "" {
-			buildTags = append(buildTags, fmt.Sprintf("+build %s", tag))
+			buildTags = append(buildTags, fmt.Sprintf("go:build %s", tag))
 		}
 	}
 	for _, comment := range astFile.Comments {
-		if strings.HasPrefix(comment.Text(), "+build ") {
+		if strings.HasPrefix(comment.Text(), "go:build ") {
 			buildTags = append(buildTags, comment.Text())
 		}
 	}
