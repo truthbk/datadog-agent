@@ -25,7 +25,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/serverless/metrics"
 	"github.com/DataDog/datadog-agent/pkg/serverless/proxy"
 	"github.com/DataDog/datadog-agent/pkg/serverless/registration"
-	"github.com/DataDog/datadog-agent/pkg/serverless/trace"
+	//"github.com/DataDog/datadog-agent/pkg/serverless/trace"
 	"github.com/DataDog/datadog-agent/pkg/serverless/trace/inferredspan"
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -219,15 +219,15 @@ func runAgent(stopCh chan struct{}) (serverlessDaemon *daemon.Daemon, err error)
 
 	// Concurrently start heavyweight features
 	var wg sync.WaitGroup
-	wg.Add(3)
+	wg.Add(2)
 
 	// starts trace agent
-	go func() {
-		defer wg.Done()
-		traceAgent := &trace.ServerlessTraceAgent{}
-		traceAgent.Start(config.Datadog.GetBool("apm_config.enabled"), &trace.LoadConfig{Path: datadogConfigPath}, serverlessDaemon.ExecutionContext)
-		serverlessDaemon.SetTraceAgent(traceAgent)
-	}()
+	// go func() {
+	// 	defer wg.Done()
+	// 	traceAgent := &trace.ServerlessTraceAgent{}
+	// 	traceAgent.Start(config.Datadog.GetBool("apm_config.enabled"), &trace.LoadConfig{Path: datadogConfigPath}, serverlessDaemon.ExecutionContext)
+	// 	serverlessDaemon.SetTraceAgent(traceAgent)
+	// }()
 
 	// enable telemetry collection
 	go func() {
@@ -273,7 +273,7 @@ func runAgent(stopCh chan struct{}) (serverlessDaemon *daemon.Daemon, err error)
 	serverlessDaemon.InvocationProcessor = &invocationlifecycle.LifecycleProcessor{
 		ExtraTags:            serverlessDaemon.ExtraTags,
 		Demux:                serverlessDaemon.MetricAgent.Demux,
-		ProcessTrace:         serverlessDaemon.TraceAgent.Get().Process,
+		//ProcessTrace:         serverlessDaemon.TraceAgent.Get().Process,
 		DetectLambdaLibrary:  func() bool { return serverlessDaemon.LambdaLibraryDetected },
 		InferredSpansEnabled: inferredspan.IsInferredSpansEnabled(),
 		SubProcessor:         httpsecSubProcessor,
