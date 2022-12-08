@@ -190,6 +190,8 @@ func (t EventType) String() string {
 		return "veth_pair"
 	case BindEventType:
 		return "bind"
+	case UnshareMountNsEventType:
+		return "unshare_mntns"
 	case SyscallsEventType:
 		return "syscalls"
 
