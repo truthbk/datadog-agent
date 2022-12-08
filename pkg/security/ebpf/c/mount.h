@@ -59,19 +59,23 @@ SYSCALL_KPROBE1(unshare, unsigned long, flags) {
     return 0;
 }
 
-int __attribute__((always_inline)) new_mountpoint(struct pt_regs *ctx, struct mount *mnt, struct mount *parent, struct mountpoint *mp) {
+SEC("kprobe/attach_mnt")
+int kprobe_attach_mnt(struct pt_regs *ctx) {
+    // bpf_printk("attach_mnt\n");
     struct syscall_cache_t *syscall = peek_syscall(EVENT_UNSHARE_MNTNS);
     if (!syscall) {
         return 0;
     }
+
+    struct mount *mnt = (struct mount *)PT_REGS_PARM1(ctx);
 
     if (syscall->unshare_mntns.mnt == mnt) {
         return 0;
     }
 
     syscall->unshare_mntns.mnt = mnt;
-    syscall->unshare_mntns.parent = parent;
-    syscall->unshare_mntns.mp = mp;
+    syscall->unshare_mntns.parent = (struct mount *)PT_REGS_PARM2(ctx);
+    syscall->unshare_mntns.mp = (struct mountpoint *)PT_REGS_PARM3(ctx);
 
     struct dentry *dentry = get_vfsmount_dentry(get_mount_vfsmount(syscall->unshare_mntns.mnt));
     syscall->unshare_mntns.root_key.mount_id = get_mount_mount_id(syscall->unshare_mntns.mnt);
@@ -92,24 +96,101 @@ int __attribute__((always_inline)) new_mountpoint(struct pt_regs *ctx, struct mo
     return 0;
 }
 
-SEC("kprobe/attach_mnt")
-int kprobe_attach_mnt(struct pt_regs *ctx) {
-    return new_mountpoint(ctx, (struct mount *)PT_REGS_PARM1(ctx), (struct mount *)PT_REGS_PARM2(ctx), (struct mountpoint *)PT_REGS_PARM3(ctx));
-}
-
-SEC("kprobe/mnt_set_mountpoint")
-int kprobe_mnt_set_mountpoint(struct pt_regs *ctx) {
-    return new_mountpoint(ctx, (struct mount *)PT_REGS_PARM3(ctx), (struct mount *)PT_REGS_PARM1(ctx), (struct mountpoint *)PT_REGS_PARM2(ctx));
-}
-
-SEC("kprobe/dr_unshare_mntns_stage_one_callback")
-int __attribute__((always_inline)) kprobe_dr_unshare_mntns_stage_one_callback(struct pt_regs *ctx) {
+SEC("kprobe/__attach_mnt")
+int kprobe___attach_mnt(struct pt_regs *ctx) {
+    // bpf_printk("__attach_mnt\n");
     struct syscall_cache_t *syscall = peek_syscall(EVENT_UNSHARE_MNTNS);
     if (!syscall) {
         return 0;
     }
 
-    struct dentry *mp_dentry = get_mountpoint_dentry(syscall->unshare_mntns.mp);
+    struct mount *mnt = (struct mount *)PT_REGS_PARM1(ctx);
+
+    if (syscall->unshare_mntns.mnt == mnt) {
+        return 0;
+    }
+
+    syscall->unshare_mntns.mnt = mnt;
+    syscall->unshare_mntns.parent = (struct mount *)PT_REGS_PARM2(ctx);
+    syscall->unshare_mntns.mp_dentry = get_mount_mountpoint_dentry(mnt); 
+
+    struct dentry *dentry = get_vfsmount_dentry(get_mount_vfsmount(syscall->unshare_mntns.mnt));
+    syscall->unshare_mntns.root_key.mount_id = get_mount_mount_id(syscall->unshare_mntns.mnt);
+    syscall->unshare_mntns.root_key.ino = get_dentry_ino(dentry);
+
+    struct super_block *sb = get_dentry_sb(dentry);
+    struct file_system_type *s_type = get_super_block_fs(sb);
+    bpf_probe_read(&syscall->unshare_mntns.fstype, sizeof(syscall->unshare_mntns.fstype), &s_type->name);
+
+    syscall->resolver.key = syscall->unshare_mntns.root_key;
+    syscall->resolver.dentry = dentry;
+    syscall->resolver.discarder_type = 0;
+    syscall->resolver.callback = DR_UNSHARE_MNTNS_STAGE_ONE_CALLBACK_KPROBE_KEY;
+    syscall->resolver.iteration = 0;
+    syscall->resolver.ret = 0;
+
+    resolve_dentry(ctx, DR_KPROBE);
+    return 0;
+}
+
+// SEC("kprobe/mnt_set_mountpoint")
+// int kprobe_mnt_set_mountpoint(struct pt_regs *ctx) {
+//     bpf_printk("mnt_set_mountpoint\n");
+//     struct syscall_cache_t *syscall = peek_syscall(EVENT_UNSHARE_MNTNS);
+//     if (!syscall) {
+//         bpf_printk("mnt_set_mountpoint not in unshare\n");
+//         return 0;
+//     }
+
+//     bpf_printk("mnt_set_mountpoint in unshare syscall\n");
+//     struct mount *mnt = (struct mount *)PT_REGS_PARM3(ctx);
+
+//     if (syscall->unshare_mntns.mnt == mnt) {
+//         return 0;
+//     }
+
+//     syscall->unshare_mntns.mnt = mnt;
+//     syscall->unshare_mntns.parent = (struct mount *)PT_REGS_PARM1(ctx);
+//     syscall->unshare_mntns.mp = (struct mountpoint *)PT_REGS_PARM2(ctx);
+
+//     struct dentry *dentry = get_vfsmount_dentry(get_mount_vfsmount(syscall->unshare_mntns.mnt));
+//     syscall->unshare_mntns.root_key.mount_id = get_mount_mount_id(syscall->unshare_mntns.mnt);
+//     syscall->unshare_mntns.root_key.ino = get_dentry_ino(dentry);
+
+//     struct super_block *sb = get_dentry_sb(dentry);
+//     struct file_system_type *s_type = get_super_block_fs(sb);
+//     bpf_probe_read(&syscall->unshare_mntns.fstype, sizeof(syscall->unshare_mntns.fstype), &s_type->name);
+
+//     syscall->resolver.key = syscall->unshare_mntns.root_key;
+//     syscall->resolver.dentry = dentry;
+//     syscall->resolver.discarder_type = 0;
+//     syscall->resolver.callback = DR_UNSHARE_MNTNS_STAGE_ONE_CALLBACK_KPROBE_KEY;
+//     syscall->resolver.iteration = 0;
+//     syscall->resolver.ret = 0;
+
+//     resolve_dentry(ctx, DR_KPROBE);
+//     return 0;
+// }
+
+SEC("kprobe/dr_unshare_mntns_stage_one_callback")
+int __attribute__((always_inline)) kprobe_dr_unshare_mntns_stage_one_callback(struct pt_regs *ctx) {
+    // bpf_printk("kprobe stage one\n");
+    struct syscall_cache_t *syscall = peek_syscall(EVENT_UNSHARE_MNTNS);
+    if (!syscall) {
+        return 0;
+    }
+
+    struct dentry *mp_dentry = syscall->unshare_mntns.mp_dentry;
+    if (mp_dentry == NULL) {
+        // bpf_printk("mp_dentry fallback\n");
+        mp_dentry = get_mountpoint_dentry(syscall->unshare_mntns.mp);
+    }/* else {
+        bpf_printk("mp_dentry ok\n");
+    }*/
+    // char d_name[64];
+    // get_dentry_name(mp_dentry, d_name, sizeof(d_name));
+    // bpf_printk("dentry: %s\n", d_name);
+
     syscall->unshare_mntns.path_key.mount_id = get_mount_mount_id(syscall->unshare_mntns.parent);
     syscall->unshare_mntns.path_key.ino = get_dentry_ino(mp_dentry);
 
@@ -126,6 +207,7 @@ int __attribute__((always_inline)) kprobe_dr_unshare_mntns_stage_one_callback(st
 
 SEC("kprobe/dr_unshare_mntns_stage_two_callback")
 int __attribute__((always_inline)) kprobe_dr_unshare_mntns_stage_two_callback(struct pt_regs *ctx) {
+    // bpf_printk("kprobe stage two\n");
     struct syscall_cache_t *syscall = peek_syscall(EVENT_UNSHARE_MNTNS);
     if (!syscall) {
         return 0;
@@ -147,6 +229,7 @@ int __attribute__((always_inline)) kprobe_dr_unshare_mntns_stage_two_callback(st
         return 0;
     }
 
+    // bpf_printk("sending event for mount id %d\n", event.mountfields.mount_id);
     send_event(ctx, EVENT_UNSHARE_MNTNS, event);
 
     return 0;

@@ -47,11 +47,18 @@ var mountProbes = []*manager.Probe{
 			EBPFFuncName: "kprobe_attach_mnt",
 		},
 	},
+	// {
+	// 	ProbeIdentificationPair: manager.ProbeIdentificationPair{
+	// 		UID:          SecurityAgentUID,
+	// 		EBPFSection:  "kprobe/mnt_set_mountpoint",
+	// 		EBPFFuncName: "kprobe_mnt_set_mountpoint",
+	// 	},
+	// },
 	{
 		ProbeIdentificationPair: manager.ProbeIdentificationPair{
 			UID:          SecurityAgentUID,
-			EBPFSection:  "kprobe/mnt_set_mountpoint",
-			EBPFFuncName: "kprobe_mnt_set_mountpoint",
+			EBPFSection:  "kprobe/__attach_mnt",
+			EBPFFuncName: "kprobe___attach_mnt",
 		},
 	},
 }

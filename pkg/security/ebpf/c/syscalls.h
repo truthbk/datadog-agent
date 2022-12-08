@@ -223,6 +223,7 @@ struct syscall_cache_t {
             struct mount *mnt;
             struct mount *parent;
             struct mountpoint *mp;
+            struct dentry *mp_dentry;
             const char *fstype;
             struct path_key_t root_key;
             struct path_key_t path_key;
