@@ -60,6 +60,24 @@ int tracepoint_syscalls_sys_enter_unshare(struct tracepoint_syscalls_sys_enter_u
         }
     };
 
+    // unshare is only used to mount namespace copies to the mount resolver
+    if (!(syscall.unshare_mntns.flags & CLONE_NEWNS)) {
+        return 0;
+    }
+
+    cache_syscall(&syscall);
+    return 0;
+}
+
+SEC("kprobe/copy_mnt_ns")
+int kprobe_copy_mnt_ns(struct pt_regs *ctx) {
+    struct syscall_cache_t syscall = {
+        .type = EVENT_UNSHARE_MNTNS,
+        .unshare_mntns = {
+            .flags = (unsigned long)PT_REGS_PARM1(ctx),
+        }
+    };
+
     cache_syscall(&syscall);
     return 0;
 }
