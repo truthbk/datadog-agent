@@ -222,10 +222,10 @@ int __attribute__((always_inline)) kprobe_dr_unshare_mntns_stage_one_callback(st
     }
 
     struct dentry *mp_dentry = syscall->unshare_mntns.mp_dentry;
-    if (mp_dentry == NULL) {
+    /*if (mp_dentry == NULL) {
         // bpf_printk("mp_dentry fallback\n");
         mp_dentry = get_mountpoint_dentry(syscall->unshare_mntns.mp);
-    }/* else {
+    } else {
         bpf_printk("mp_dentry ok\n");
     }*/
     // char d_name[64];

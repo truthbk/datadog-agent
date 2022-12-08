@@ -211,6 +211,7 @@ func (ev *Event) ResolveMountPointPath(e *model.MountEvent) string {
 			return ""
 		}
 		e.MountPointPath = mountPointPath
+		fmt.Printf("> resolved %d MountPointPath to %s\n", e.MountID, e.MountPointPath)
 	}
 	return e.MountPointPath
 }
@@ -230,6 +231,7 @@ func (ev *Event) ResolveMountSourcePath(e *model.MountEvent) string {
 			return ""
 		}
 		e.MountSourcePath = path.Join(bindSourceMountPath, rootStr)
+		fmt.Printf("> resolved %d MountSourcePath to %s\n", e.MountID, e.MountSourcePath)
 	}
 	return e.MountSourcePath
 }

@@ -399,7 +399,7 @@ func TestMountEvent(t *testing.T) {
 		},
 		{
 			ID:         "test_mount_in_container_root",
-			Expression: `mount.mountpoint.path == "/host_root" && mount.source.path == "/" && mount.fs_type != "overlay"`,
+			Expression: `mount.mountpoint.path == "/host_root" && mount.source.path == "/"`,
 		},
 	}
 
@@ -483,13 +483,16 @@ func TestMountEvent(t *testing.T) {
 			args := []string{"-al", "/host_root"}
 			envs := []string{"LD_LIBRARY_PATH=/tmp/lib"}
 			cmd := cmdFunc("ls", args, envs)
-			_ = cmd.Run()
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(output))
 			return nil
 		}, func(event *sprobe.Event, rule *rules.Rule) {
 			assertTriggeredRule(t, rule, "test_mount_in_container_root")
 			assertFieldEqual(t, event, "mount.mountpoint.path", "/host_root")
 			assertFieldEqual(t, event, "mount.source.path", "/")
-			assertFieldNotEqual(t, event, "mount.fs_type", "overlay")
 			if !validateMountSchema(t, event) {
 				t.Error(event.String())
 			}
@@ -506,6 +509,14 @@ func TestMountEvent(t *testing.T) {
 	// testing false-positives
 	wrapperFalsePositive.Run(t, "mount-in-container-legitimate", func(t *testing.T, kind wrapperType, cmdFunc func(cmd string, args []string, envs []string) *exec.Cmd) {
 		err = test.GetSignal(t, func() error {
+			args := []string{"-al", "/host_root"}
+			envs := []string{"LD_LIBRARY_PATH=/tmp/lib"}
+			cmd := cmdFunc("ls", args, envs)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(output))
 			return nil
 		}, func(event *sprobe.Event, rule *rules.Rule) {
 			t.Errorf("shouldn't get an event: event %s matched rule %s", event, rule.Expression)

@@ -58,4 +58,7 @@ const (
 
 	// iouring constants
 	OffsetNameIoKiocbStructCtx = "iokiocb_ctx_offset"
+
+	// mount related constants
+	OffsetNameMountMountPointStructDentry = "mount_mnt_mountpoint_dentry"
 )

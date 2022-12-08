@@ -246,10 +246,8 @@ func GetSelectorsPerEventType() map[eval.EventType][]manager.ProbesSelector {
 					// &manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/mnt_set_mountpoint", EBPFFuncName: "kprobe_mnt_set_mountpoint"}},
 					// &manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/__attach_mnt", EBPFFuncName: "kprobe___attach_mnt"}},
 					&manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "tracepoint/syscalls/sys_enter_unshare", EBPFFuncName: "tracepoint_syscalls_sys_enter_unshare"}},
-					&manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/__attach_mnt", EBPFFuncName: "kprobe___attach_mnt"}},
-				}},
-				&manager.BestEffort{Selectors: []manager.ProbesSelector{
 					&manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/copy_mnt_ns", EBPFFuncName: "kprobe_copy_mnt_ns"}},
+					&manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/__attach_mnt", EBPFFuncName: "kprobe___attach_mnt"}},
 				}},
 				&manager.OneOf{Selectors: ExpandSyscallProbesSelector(
 					manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "mount"}, EntryAndExit, true),
