@@ -399,7 +399,7 @@ func TestMountEvent(t *testing.T) {
 		},
 		{
 			ID:         "test_mount_in_container_root",
-			Expression: `mount.mountpoint.path == "/host_root" && mount.source.path == "/" && mount.fs_type != "overlay" && container.id != ""`,
+			Expression: `mount.mountpoint.path == "/host_root" && mount.source.path == "/" && mount.fs_type != "overlay"`,
 		},
 	}
 
@@ -480,13 +480,16 @@ func TestMountEvent(t *testing.T) {
 	wrapperTruePositive.Run(t, "mount-in-container-root", func(t *testing.T, kind wrapperType, cmdFunc func(cmd string, args []string, envs []string) *exec.Cmd) {
 		// wrapper.Run triggers the signal
 		test.WaitSignal(t, func() error {
+			args := []string{"-al", "/host_root"}
+			envs := []string{"LD_LIBRARY_PATH=/tmp/lib"}
+			cmd := cmdFunc("ls", args, envs)
+			_ = cmd.Run()
 			return nil
 		}, func(event *sprobe.Event, rule *rules.Rule) {
 			assertTriggeredRule(t, rule, "test_mount_in_container_root")
 			assertFieldEqual(t, event, "mount.mountpoint.path", "/host_root")
 			assertFieldEqual(t, event, "mount.source.path", "/")
 			assertFieldNotEqual(t, event, "mount.fs_type", "overlay")
-			assertFieldNotEmpty(t, event, "container.id")
 			if !validateMountSchema(t, event) {
 				t.Error(event.String())
 			}
