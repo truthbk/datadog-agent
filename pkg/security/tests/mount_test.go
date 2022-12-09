@@ -11,7 +11,6 @@ package tests
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path"
 	"strings"
 	"syscall"
@@ -399,7 +398,7 @@ func TestMountEvent(t *testing.T) {
 		},
 		{
 			ID:         "test_mount_in_container_root",
-			Expression: `mount.mountpoint.path == "/host_root" && mount.source.path == "/"`,
+			Expression: `mount.mountpoint.path == "/host_root" && mount.source.path == "/" && mount.fs_type != "overlay" && container.id != ""`,
 		},
 	}
 
@@ -477,17 +476,14 @@ func TestMountEvent(t *testing.T) {
 		return
 	}
 
-	wrapperTruePositive.Run(t, "mount-in-container-root", func(t *testing.T, kind wrapperType, cmdFunc func(cmd string, args []string, envs []string) *exec.Cmd) {
-		// wrapper.Run triggers the signal
+	t.Run("mount-in-container-root", func(t *testing.T) {
 		test.WaitSignal(t, func() error {
-			args := []string{"-al", "/host_root"}
-			envs := []string{"LD_LIBRARY_PATH=/tmp/lib"}
-			cmd := cmdFunc("ls", args, envs)
-			output, err := cmd.CombinedOutput()
-			if err != nil {
+			if _, err := wrapperTruePositive.start(); err != nil {
 				return err
 			}
-			fmt.Println(string(output))
+			if _, err := wrapperTruePositive.stop(); err != nil {
+				return err
+			}
 			return nil
 		}, func(event *sprobe.Event, rule *rules.Rule) {
 			assertTriggeredRule(t, rule, "test_mount_in_container_root")
@@ -498,25 +494,70 @@ func TestMountEvent(t *testing.T) {
 			}
 		})
 	})
-	wrapperTruePositive.stop()
+
+	// wrapperTruePositive.Run(t, "mount-in-container-root", func(t *testing.T, kind wrapperType, cmdFunc func(cmd string, args []string, envs []string) *exec.Cmd) {
+	// 	// wrapper.Run triggers the signal
+	// 	test.WaitSignal(t, func() error {
+	// 		args := []string{"-al", "/host_root"}
+	// 		envs := []string{"LD_LIBRARY_PATH=/tmp/lib"}
+	// 		cmd := cmdFunc("ls", args, envs)
+	// 		output, err := cmd.CombinedOutput()
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 		fmt.Println(string(output))
+	// 		return nil
+	// 	}, func(event *sprobe.Event, rule *rules.Rule) {
+	// 		assertTriggeredRule(t, rule, "test_mount_in_container_root")
+	// 		assertFieldEqual(t, event, "mount.mountpoint.path", "/host_root")
+	// 		assertFieldEqual(t, event, "mount.source.path", "/")
+	// 		if !validateMountSchema(t, event) {
+	// 			t.Error(event.String())
+	// 		}
+	// 	})
+	// })
+	// wrapperTruePositive.stop()
 
 	legitimateSourcePath := testDrive.Path("legitimate_source")
 	if err = os.Mkdir(legitimateSourcePath, 0755); err != nil {
 		t.Fatal(err)
 	}
 	wrapperFalsePositive, err := newDockerCmdWrapper(legitimateSourcePath, dockerMountDest, "alpine")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// testing false-positives
-	wrapperFalsePositive.Run(t, "mount-in-container-legitimate", func(t *testing.T, kind wrapperType, cmdFunc func(cmd string, args []string, envs []string) *exec.Cmd) {
+	// wrapperFalsePositive.Run(t, "mount-in-container-legitimate", func(t *testing.T, kind wrapperType, cmdFunc func(cmd string, args []string, envs []string) *exec.Cmd) {
+	// 	err = test.GetSignal(t, func() error {
+	// 		args := []string{"-al", "/host_root"}
+	// 		envs := []string{"LD_LIBRARY_PATH=/tmp/lib"}
+	// 		cmd := cmdFunc("ls", args, envs)
+	// 		output, err := cmd.CombinedOutput()
+	// 		if err != nil {
+	// 			return err
+	// 		}
+	// 		fmt.Println(string(output))
+	// 		return nil
+	// 	}, func(event *sprobe.Event, rule *rules.Rule) {
+	// 		t.Errorf("shouldn't get an event: event %s matched rule %s", event, rule.Expression)
+	// 	})
+	// 	if err == nil {
+	// 		t.Error("shouldn't get an event")
+	// 	} else if otherErr, ok := err.(ErrTimeout); !ok {
+	// 		t.Fatal(otherErr)
+	// 	}
+	// })
+	// wrapperFalsePositive.stop()
+
+	t.Run("mount-in-container-legitimate", func(t *testing.T) {
 		err = test.GetSignal(t, func() error {
-			args := []string{"-al", "/host_root"}
-			envs := []string{"LD_LIBRARY_PATH=/tmp/lib"}
-			cmd := cmdFunc("ls", args, envs)
-			output, err := cmd.CombinedOutput()
-			if err != nil {
+			if _, err := wrapperFalsePositive.start(); err != nil {
 				return err
 			}
-			fmt.Println(string(output))
+			if _, err := wrapperFalsePositive.stop(); err != nil {
+				return err
+			}
 			return nil
 		}, func(event *sprobe.Event, rule *rules.Rule) {
 			t.Errorf("shouldn't get an event: event %s matched rule %s", event, rule.Expression)
@@ -527,5 +568,4 @@ func TestMountEvent(t *testing.T) {
 			t.Fatal(otherErr)
 		}
 	})
-	wrapperFalsePositive.stop()
 }

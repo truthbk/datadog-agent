@@ -40,13 +40,13 @@ var mountProbes = []*manager.Probe{
 			EBPFFuncName: "kprobe_clone_mnt",
 		},
 	},
-	{
-		ProbeIdentificationPair: manager.ProbeIdentificationPair{
-			UID:          SecurityAgentUID,
-			EBPFSection:  "tracepoint/syscalls/sys_enter_unshare",
-			EBPFFuncName: "tracepoint_syscalls_sys_enter_unshare",
-		},
-	},
+	// {
+	// 	ProbeIdentificationPair: manager.ProbeIdentificationPair{
+	// 		UID:          SecurityAgentUID,
+	// 		EBPFSection:  "tracepoint/syscalls/sys_enter_unshare",
+	// 		EBPFFuncName: "tracepoint_syscalls_sys_enter_unshare",
+	// 	},
+	// },
 	// {
 	// 	ProbeIdentificationPair: manager.ProbeIdentificationPair{
 	// 		UID:          SecurityAgentUID,
@@ -61,6 +61,13 @@ var mountProbes = []*manager.Probe{
 	// 		EBPFFuncName: "kprobe_mnt_set_mountpoint",
 	// 	},
 	// },
+	// {
+	// 	ProbeIdentificationPair: manager.ProbeIdentificationPair{
+	// 		UID:          SecurityAgentUID,
+	// 		EBPFSection:  "kprobe/copy_mnt_ns",
+	// 		EBPFFuncName: "kprobe_copy_mnt_ns",
+	// 	},
+	// },
 	{
 		ProbeIdentificationPair: manager.ProbeIdentificationPair{
 			UID:          SecurityAgentUID,
@@ -71,8 +78,8 @@ var mountProbes = []*manager.Probe{
 	{
 		ProbeIdentificationPair: manager.ProbeIdentificationPair{
 			UID:          SecurityAgentUID,
-			EBPFSection:  "kprobe/copy_mnt_ns",
-			EBPFFuncName: "kprobe_copy_mnt_ns",
+			EBPFSection:  "kprobe/attach_mnt",
+			EBPFFuncName: "kprobe_attach_mnt",
 		},
 	},
 }
@@ -90,12 +97,12 @@ func getMountProbes() []*manager.Probe {
 		},
 		SyscallFuncName: "umount",
 	}, EntryAndExit)...)
-	// mountProbes = append(mountProbes, ExpandSyscallProbes(&manager.Probe{
-	// 	ProbeIdentificationPair: manager.ProbeIdentificationPair{
-	// 		UID: SecurityAgentUID,
-	// 	},
-	// 	SyscallFuncName: "unshare",
-	// }, Entry)...)
+	mountProbes = append(mountProbes, ExpandSyscallProbes(&manager.Probe{
+		ProbeIdentificationPair: manager.ProbeIdentificationPair{
+			UID: SecurityAgentUID,
+		},
+		SyscallFuncName: "unshare",
+	}, Entry)...)
 
 	return mountProbes
 }

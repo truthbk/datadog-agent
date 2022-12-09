@@ -483,8 +483,6 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 		if _, err = event.UnshareMountNS.UnmarshalBinary(data[offset:]); err != nil {
 			seclog.Errorf("failed to decode unshare mnt ns event: %s (offset %d, len %d)", err, offset, dataLen)
 			return
-		} else {
-			fmt.Printf(">>>>> got UNSHARE for id %d with parent %d and bind src %d\n", event.UnshareMountNS.MountID, event.UnshareMountNS.ParentMountID, event.UnshareMountNS.BindSrcMountID)
 		}
 		if err := p.handleNewMount(event, &event.UnshareMountNS.Mount); err != nil {
 			seclog.Debugf("failed to handle new mount from unshare mnt ns event: %s", err)
@@ -515,8 +513,6 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 		if _, err = event.Mount.UnmarshalBinary(data[offset:]); err != nil {
 			seclog.Errorf("failed to decode mount event: %s (offset %d, len %d)", err, offset, dataLen)
 			return
-		} else {
-			fmt.Printf(">>>>> got MOUNT for id %d with parent %d and bind src %d\n", event.Mount.MountID, event.Mount.ParentMountID, event.Mount.BindSrcMountID)
 		}
 		if err := p.handleNewMount(event, &event.Mount.Mount); err != nil {
 			seclog.Debugf("failed to handle new mount from mount event: %s\n", err)
@@ -1259,15 +1255,11 @@ func (p *Probe) handleNewMount(event *Event, m *model.Mount) error {
 	if err := event.SetMountPoint(m); err != nil {
 		seclog.Debugf("failed to set mount point: %v", err)
 		return err
-	} else {
-		fmt.Printf(">>> with mountpoint %s\n", m.MountPointStr)
 	}
 	// Resolve root
 	if err := event.SetMountRoot(m); err != nil {
 		seclog.Debugf("failed to set mount root: %v", err)
 		return err
-	} else {
-		fmt.Printf(">>> with root %s\n", m.RootStr)
 	}
 
 	// Insert new mount point in cache, passing it a copy of the mount that we got from the event
@@ -1583,5 +1575,5 @@ func AppendProbeRequestsToFetcher(constantFetcher constantfetch.ConstantFetcher,
 	}
 
 	// mount related constants
-	constantFetcher.AppendOffsetofRequest(constantfetch.OffsetNameMountMountPointStructDentry, "struct mount", "mnt_mountpoint", "fs/mount.h")
+	constantFetcher.AppendOffsetofRequest(constantfetch.OffsetNameMountMountPointStructDentry, "struct mount", "mnt_mountpoint", "")
 }
