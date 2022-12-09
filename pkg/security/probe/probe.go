@@ -1573,7 +1573,4 @@ func AppendProbeRequestsToFetcher(constantFetcher constantfetch.ConstantFetcher,
 	if kv.Code != 0 && (kv.Code >= kernel.Kernel5_1) {
 		constantFetcher.AppendOffsetofRequest(constantfetch.OffsetNameIoKiocbStructCtx, "struct io_kiocb", "ctx", "")
 	}
-
-	// mount related constants
-	constantFetcher.AppendOffsetofRequest(constantfetch.OffsetNameMountMountPointStructDentry, "struct mount", "mnt_mountpoint", "")
 }

@@ -102,8 +102,6 @@ func (f *FallbackConstantFetcher) appendRequest(id string) {
 		value = getBinPrmFileFieldOffset(f.kernelVersion)
 	case OffsetNameIoKiocbStructCtx:
 		value = getIoKcbCtxOffset(f.kernelVersion)
-	case OffsetNameMountMountPointStructDentry:
-		value = getMountMountPointStructDentry(f.kernelVersion)
 	}
 	f.res[id] = value
 }
@@ -720,8 +718,4 @@ func getIoKcbCtxOffset(kv *kernel.Version) uint64 {
 	default:
 		return 80
 	}
-}
-
-func getMountMountPointStructDentry(kv *kernel.Version) uint64 {
-	return 24
 }

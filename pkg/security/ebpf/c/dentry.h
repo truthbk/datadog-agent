@@ -79,16 +79,9 @@ int __attribute__((always_inline)) get_mount_peer_group_id(void *mnt) {
     return mount_id;
 }
 
-// offsetof(struct mount, mnt_mountpoint)
-u32 __attribute__((always_inline)) get_mount_offset_of_mountpoint_dentry(void) {
-    u64 offset;
-    LOAD_CONSTANT("mount_mnt_mountpoint_dentry", offset);
-    return offset ? offset : 24;
-}
-
 struct dentry * __attribute__((always_inline)) get_mount_mountpoint_dentry(struct mount *mnt) {
     struct dentry *dentry;
-    bpf_probe_read(&dentry, sizeof(dentry), (char *)mnt + get_mount_offset_of_mountpoint_dentry());
+    bpf_probe_read(&dentry, sizeof(dentry), (char *)mnt + 24);
     return dentry;
 }
 
