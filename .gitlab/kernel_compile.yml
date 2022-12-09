@@ -56,16 +56,16 @@ fetch_custom_kernel_repo:
 compile_kernels_x64:
   extends: .compile_kernels_common 
   tags: ["runner:main"]
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/system-probe_x64:v11718385-dc0ef63
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/system-probe_x64:"v11718385-dc0ef63
   parallel:
     matrix:
-      TARGET_TAG: [v5.0.21,v5.1.21,v5.2.21,v5.3.18,v5.4.225,v5.5.19,v5.6.19,v5.7.19,v5.8.18,v5.9.16,v5.10.157,v5.11.22,v5.12.19,v5.13.19,v5.14.21,v5.15.81,v5.16.20,v5.17.15,v5.18.19,v5.19.17,v4.3.6,v4.4.302,v4.5.7,v4.6.7,v4.7.10,v4.8.17,v4.9.334,v4.10.17,v4.11.12,v4.12.14,v4.13.16,v4.14.300,v4.15.18,v4.16.18,v4.17.19,v4.18.20,v4.19.267,v4.20.17]
+      TARGET_TAG: ["v5.0.21", "v5.1.21", "v5.2.21", "v5.3.18", "v5.4.225", "v5.5.19", "v5.6.19", "v5.7.19", "v5.8.18", "v5.9.16", "v5.10.157", "v5.11.22", "v5.12.19", "v5.13.19", "v5.14.21", "v5.15.81", "v5.16.20", "v5.17.15", "v5.18.19", "v5.19.17", "v4.3.6", "v4.4.302", "v4.5.7", "v4.6.7", "v4.7.10", "v4.8.17", "v4.9.334", "v4.10.17", "v4.11.12", "v4.12.14", "v4.13.16", "v4.14.300", "v4.15.18", "v4.16.18", "v4.17.19", "v4.18.20", "v4.19.267", "v4.20.17]
 
 compile_kernels_arm64:
   extends: .compile_kernels_common 
-  tags: ["runner:docker-arm", "platform:arm64"]
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/system-probe_arm64:v11718385-dc0ef63
+  tags: ["runner:docker-arm"",  "platform:arm64"]
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/system-probe_arm64:"v11718385-dc0ef63
   parallel:
     matrix:
-      TARGET_TAG: [v5.0.21,v5.1.21,v5.2.21,v5.3.18,v5.4.225,v5.5.19,v5.6.19,v5.7.19,v5.8.18,v5.9.16,v5.10.157,v5.11.22,v5.12.19,v5.13.19,v5.14.21,v5.15.81,v5.16.20,v5.17.15,v5.18.19,v5.19.17,v4.3.6,v4.4.302,v4.5.7,v4.6.7,v4.7.10,v4.8.17,v4.9.334,v4.10.17,v4.11.12,v4.12.14,v4.13.16,v4.14.300,v4.15.18,v4.16.18,v4.17.19,v4.18.20,v4.19.267,v4.20.17]
+      TARGET_TAG: ["v5.0.21", "v5.1.21", "v5.2.21", "v5.3.18", "v5.4.225", "v5.5.19", "v5.6.19", "v5.7.19", "v5.8.18", "v5.9.16", "v5.10.157", "v5.11.22", "v5.12.19", "v5.13.19", "v5.14.21", "v5.15.81", "v5.16.20", "v5.17.15", "v5.18.19", "v5.19.17", "v4.3.6", "v4.4.302", "v4.5.7", "v4.6.7", "v4.7.10", "v4.8.17", "v4.9.334", "v4.10.17", "v4.11.12", "v4.12.14", "v4.13.16", "v4.14.300", "v4.15.18", "v4.16.18", "v4.17.19", "v4.18.20", "v4.19.267", "v4.20.17]
 
