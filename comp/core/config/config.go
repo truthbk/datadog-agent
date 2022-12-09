@@ -14,7 +14,6 @@ import (
 	"go.uber.org/fx"
 
 	sysconfig "github.com/DataDog/datadog-agent/cmd/system-probe/config"
-	"github.com/DataDog/datadog-agent/comp/core/internal"
 	"github.com/DataDog/datadog-agent/pkg/config"
 )
 
@@ -30,7 +29,7 @@ type cfg struct {
 type dependencies struct {
 	fx.In
 
-	Params internal.BundleParams
+	Params Params
 }
 
 func newConfig(deps dependencies) (Component, error) {
