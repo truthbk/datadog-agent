@@ -5,7 +5,7 @@
 
 fetch_custom_kernel_repo:
   rules:
-    !references [.manual]
+    !reference [.manual]
   stage: kernel_compile
   tags: ["runner:main"]
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/kernel-version-testing_x64:$DATADOG_AGENT_KERNEL_VERSION_TESTING_X64_BUILDIMAGES
