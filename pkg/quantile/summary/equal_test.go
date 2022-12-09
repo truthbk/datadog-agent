@@ -80,7 +80,7 @@ func TestFloat64Equal(t *testing.T) {
 
 	t.Run("Ok", func(t *testing.T) {
 		for _, tc := range []testCase{
-			{0, 0},
+			{0, 1},
 			{1, next(1, ulpLimit)},
 			{next(0, ulpLimit-ulpLimit/2), next(0, ulpLimit/2)},
 		} {
