@@ -40,34 +40,6 @@ var mountProbes = []*manager.Probe{
 			EBPFFuncName: "kprobe_clone_mnt",
 		},
 	},
-	// {
-	// 	ProbeIdentificationPair: manager.ProbeIdentificationPair{
-	// 		UID:          SecurityAgentUID,
-	// 		EBPFSection:  "tracepoint/syscalls/sys_enter_unshare",
-	// 		EBPFFuncName: "tracepoint_syscalls_sys_enter_unshare",
-	// 	},
-	// },
-	// {
-	// 	ProbeIdentificationPair: manager.ProbeIdentificationPair{
-	// 		UID:          SecurityAgentUID,
-	// 		EBPFSection:  "kprobe/attach_mnt",
-	// 		EBPFFuncName: "kprobe_attach_mnt",
-	// 	},
-	// },
-	// {
-	// 	ProbeIdentificationPair: manager.ProbeIdentificationPair{
-	// 		UID:          SecurityAgentUID,
-	// 		EBPFSection:  "kprobe/mnt_set_mountpoint",
-	// 		EBPFFuncName: "kprobe_mnt_set_mountpoint",
-	// 	},
-	// },
-	// {
-	// 	ProbeIdentificationPair: manager.ProbeIdentificationPair{
-	// 		UID:          SecurityAgentUID,
-	// 		EBPFSection:  "kprobe/copy_mnt_ns",
-	// 		EBPFFuncName: "kprobe_copy_mnt_ns",
-	// 	},
-	// },
 	{
 		ProbeIdentificationPair: manager.ProbeIdentificationPair{
 			UID:          SecurityAgentUID,

@@ -242,11 +242,6 @@ func GetSelectorsPerEventType() map[eval.EventType][]manager.ProbesSelector {
 					&manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/propagate_mnt", EBPFFuncName: "kprobe_propagate_mnt"}},
 					&manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/security_sb_umount", EBPFFuncName: "kprobe_security_sb_umount"}},
 					&manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/clone_mnt", EBPFFuncName: "kprobe_clone_mnt"}},
-					// &manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/attach_mnt", EBPFFuncName: "kprobe_attach_mnt"}},
-					// &manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/mnt_set_mountpoint", EBPFFuncName: "kprobe_mnt_set_mountpoint"}},
-					// &manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/__attach_mnt", EBPFFuncName: "kprobe___attach_mnt"}},
-					// &manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "tracepoint/syscalls/sys_enter_unshare", EBPFFuncName: "tracepoint_syscalls_sys_enter_unshare"}},
-					// &manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/copy_mnt_ns", EBPFFuncName: "kprobe_copy_mnt_ns"}},
 				}},
 				&manager.OneOf{Selectors: ExpandSyscallProbesSelector(
 					manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "mount"}, EntryAndExit, true),
@@ -254,13 +249,13 @@ func GetSelectorsPerEventType() map[eval.EventType][]manager.ProbesSelector {
 				&manager.OneOf{Selectors: ExpandSyscallProbesSelector(
 					manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "umount"}, EntryAndExit),
 				},
+				&manager.OneOf{Selectors: ExpandSyscallProbesSelector(
+					manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "unshare"}, Entry),
+				},
 				&manager.OneOf{Selectors: []manager.ProbesSelector{
 					&manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/__attach_mnt", EBPFFuncName: "kprobe___attach_mnt"}},
 					&manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/attach_mnt", EBPFFuncName: "kprobe_attach_mnt"}},
 				}},
-				&manager.OneOf{Selectors: ExpandSyscallProbesSelector(
-					manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "unshare"}, Entry),
-				},
 
 				// Rename probes
 				&manager.AllOf{Selectors: []manager.ProbesSelector{

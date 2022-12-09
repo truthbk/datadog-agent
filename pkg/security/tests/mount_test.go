@@ -495,29 +495,6 @@ func TestMountEvent(t *testing.T) {
 		})
 	})
 
-	// wrapperTruePositive.Run(t, "mount-in-container-root", func(t *testing.T, kind wrapperType, cmdFunc func(cmd string, args []string, envs []string) *exec.Cmd) {
-	// 	// wrapper.Run triggers the signal
-	// 	test.WaitSignal(t, func() error {
-	// 		args := []string{"-al", "/host_root"}
-	// 		envs := []string{"LD_LIBRARY_PATH=/tmp/lib"}
-	// 		cmd := cmdFunc("ls", args, envs)
-	// 		output, err := cmd.CombinedOutput()
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 		fmt.Println(string(output))
-	// 		return nil
-	// 	}, func(event *sprobe.Event, rule *rules.Rule) {
-	// 		assertTriggeredRule(t, rule, "test_mount_in_container_root")
-	// 		assertFieldEqual(t, event, "mount.mountpoint.path", "/host_root")
-	// 		assertFieldEqual(t, event, "mount.source.path", "/")
-	// 		if !validateMountSchema(t, event) {
-	// 			t.Error(event.String())
-	// 		}
-	// 	})
-	// })
-	// wrapperTruePositive.stop()
-
 	legitimateSourcePath := testDrive.Path("legitimate_source")
 	if err = os.Mkdir(legitimateSourcePath, 0755); err != nil {
 		t.Fatal(err)
@@ -526,29 +503,6 @@ func TestMountEvent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// testing false-positives
-	// wrapperFalsePositive.Run(t, "mount-in-container-legitimate", func(t *testing.T, kind wrapperType, cmdFunc func(cmd string, args []string, envs []string) *exec.Cmd) {
-	// 	err = test.GetSignal(t, func() error {
-	// 		args := []string{"-al", "/host_root"}
-	// 		envs := []string{"LD_LIBRARY_PATH=/tmp/lib"}
-	// 		cmd := cmdFunc("ls", args, envs)
-	// 		output, err := cmd.CombinedOutput()
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 		fmt.Println(string(output))
-	// 		return nil
-	// 	}, func(event *sprobe.Event, rule *rules.Rule) {
-	// 		t.Errorf("shouldn't get an event: event %s matched rule %s", event, rule.Expression)
-	// 	})
-	// 	if err == nil {
-	// 		t.Error("shouldn't get an event")
-	// 	} else if otherErr, ok := err.(ErrTimeout); !ok {
-	// 		t.Fatal(otherErr)
-	// 	}
-	// })
-	// wrapperFalsePositive.stop()
 
 	t.Run("mount-in-container-legitimate", func(t *testing.T) {
 		err = test.GetSignal(t, func() error {

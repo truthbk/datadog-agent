@@ -41,47 +41,6 @@ SYSCALL_COMPAT_KPROBE3(mount, const char*, source, const char*, target, const ch
     return 0;
 }
 
-// struct tracepoint_syscalls_sys_enter_unshare_t {
-//     unsigned short common_type;
-//     unsigned char common_flags;
-//     unsigned char common_preempt_count;
-//     int common_pid;
-
-//     int nr;
-//     unsigned long unshare_flags;
-// };
-
-// SEC("tracepoint/syscalls/sys_enter_unshare")
-// int tracepoint_syscalls_sys_enter_unshare(struct tracepoint_syscalls_sys_enter_unshare_t *args) {
-//     struct syscall_cache_t syscall = {
-//         .type = EVENT_UNSHARE_MNTNS,
-//         .unshare_mntns = {
-//             .flags = args->unshare_flags,
-//         }
-//     };
-
-//     // unshare is only used to mount namespace copies to the mount resolver
-//     if (!(syscall.unshare_mntns.flags & CLONE_NEWNS)) {
-//         return 0;
-//     }
-
-//     cache_syscall(&syscall);
-//     return 0;
-// }
-
-// SEC("kprobe/copy_mnt_ns")
-// int kprobe_copy_mnt_ns(struct pt_regs *ctx) {
-//     struct syscall_cache_t syscall = {
-//         .type = EVENT_UNSHARE_MNTNS,
-//         .unshare_mntns = {
-//             .flags = (unsigned long)PT_REGS_PARM1(ctx),
-//         }
-//     };
-
-//     cache_syscall(&syscall);
-//     return 0;
-// }
-
 SYSCALL_KPROBE1(unshare, unsigned long, flags) {
     struct syscall_cache_t syscall = {
         .type = EVENT_UNSHARE_MNTNS,
@@ -90,7 +49,7 @@ SYSCALL_KPROBE1(unshare, unsigned long, flags) {
         },
     };
 
-    // unshare is only used to mount namespace copies to the mount resolver
+    // unshare is only used to propagate mounts created when a mount namespace is copied
     if (!(syscall.unshare_mntns.flags & CLONE_NEWNS)) {
         return 0;
     }
