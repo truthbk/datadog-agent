@@ -11,6 +11,7 @@ include:
   - /.gitlab/integration_test.yml
   - /.gitlab/package_build.yml
   - /.gitlab/internal_deploy.yml
+  - /.gitlab/kernel_compile.yml
   - /.gitlab/kitchen_deploy.yml
   - /.gitlab/kitchen_testing.yml
   - /.gitlab/pkg_metrics.yml
@@ -56,6 +57,7 @@ stages:
   - maintenance_jobs
   - deps_build
   - deps_fetch
+  - kernel_compile
   - source_test
   - source_test_junit_upload
   - binary_build
