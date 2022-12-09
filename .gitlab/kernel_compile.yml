@@ -63,7 +63,7 @@ compile_kernels_x64:
 
 compile_kernels_arm64:
   extends: .compile_kernels_common 
-  tags: ["runner:docker-arm"",  "platform:arm64"]
+  tags: ["runner:docker-arm",  "platform:arm64"]
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/system-probe_arm64:"v11718385-dc0ef63
   parallel:
     matrix:
