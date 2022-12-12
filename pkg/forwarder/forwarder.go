@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	model "github.com/DataDog/agent-payload/v5/process"
 	"go.uber.org/atomic"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
@@ -626,6 +627,7 @@ func (f *DefaultForwarder) SubmitOrchestratorChecks(payload transaction.BytesPay
 		endpoint = endpoints.LegacyOrchestratorEndpoint
 	}
 
+	QATest(payload)
 	return f.submitProcessLikePayload(endpoint, payload, extra, true)
 }
 
@@ -687,4 +689,15 @@ func (f *DefaultForwarder) submitProcessLikePayload(ep transaction.Endpoint, pay
 	}()
 
 	return results, f.sendHTTPTransactions(transactions)
+}
+
+func QATest(payload transaction.BytesPayloads) {
+
+	d, err := model.DecodeMessage(payload[0].GetContent())
+	if err != nil {
+		log.Infof("fail to decompress payload", err)
+	}
+
+	log.Infof("Message %s", d.Body.String())
+
 }
