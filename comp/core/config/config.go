@@ -33,23 +33,23 @@ type dependencies struct {
 }
 
 func newConfig(deps dependencies) (Component, error) {
-	if deps.Params.ConfigLoadSecurityAgent {
-		warnings, err := MergeConfigurationFiles("datadog", deps.Params.SecurityAgentConfigFilePaths, true)
+	if deps.Params.configLoadSecurityAgent {
+		warnings, err := MergeConfigurationFiles("datadog", deps.Params.securityAgentConfigFilePaths, true)
 		return &cfg{warnings}, err
 	}
 
 	warnings, err := setupConfig(
-		deps.Params.ConfFilePath,
-		deps.Params.ConfigName,
-		!deps.Params.ConfigLoadSecrets,
-		!deps.Params.ConfigMissingOK,
-		deps.Params.DefaultConfPath)
+		deps.Params.confFilePath,
+		deps.Params.configName,
+		!deps.Params.configLoadSecrets,
+		!deps.Params.configMissingOK,
+		deps.Params.defaultConfPath)
 	if err != nil {
 		return nil, err
 	}
 
-	if deps.Params.ConfigLoadSysProbe {
-		_, err := sysconfig.Merge(deps.Params.SysProbeConfFilePath)
+	if deps.Params.configLoadSysProbe {
+		_, err := sysconfig.Merge(deps.Params.sysProbeConfFilePath)
 		if err != nil {
 			return nil, err
 		}
