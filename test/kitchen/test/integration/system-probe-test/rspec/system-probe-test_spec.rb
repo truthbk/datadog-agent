@@ -65,8 +65,10 @@ shared_examples "passes" do |bundle, env, filter, filter_inclusive|
           "--junitfile", xmlpath,
           "--jsonfile", "/tmp/pkgjson/#{bundle}/#{pkg.gsub("/","-")}.json",
           "--raw-command", "--",
-          "/go/bin/test2json", "-t", "-p", pkg, f, "-test.v", "-test.count=1"
+          "capsh", "--caps=cap_sys_admin,cap_sys_resource,cap_net_admin,cap_net_broadcast,cap_net_raw,cap_ipc_lock,cap_chown", "--", "-c",
+          "\"/go/bin/test2json -t -p #{pkg} #{f} -test.v -test.count=1\""
         ]
+#           "/go/bin/test2json", "-t", "-p", pkg, f, "-test.v", "-test.count=1"
 
         final_env = base_env.merge(env)
         Open3.popen2e(final_env, *cmd) do |_, output, wait_thr|
