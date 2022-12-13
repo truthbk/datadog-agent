@@ -149,7 +149,7 @@ set +o pipefail
 test_suites=".*"
 # This for loop retries kitchen tests failing because of infrastructure/networking issues
 for attempt in $(seq 0 "${KITCHEN_INFRASTRUCTURE_FLAKES_RETRY:-2}"); do
-  bundle exec kitchen verify "$test_suites" -c -d always 2>&1 | tee "/tmp/runlog${attempt}"
+  bundle exec kitchen verify "$test_suites" -c -d always --log-level debug 2>&1 | tee "/tmp/runlog${attempt}"
   result=${PIPESTATUS[0]}
   # Before destroying the kitchen machines, get the list of failed suites,
   # as their status will be reset to non-failing once they're destroyed.
