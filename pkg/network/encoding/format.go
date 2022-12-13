@@ -61,7 +61,6 @@ func FormatConnection(
 	c.Family = formatFamily(conn.Family)
 	c.Type = formatType(conn.Type)
 	c.IsLocalPortEphemeral = formatEphemeralType(conn.SPortIsEphemeral)
-	c.PidCreateTime = 0
 	c.LastBytesSent = conn.Last.SentBytes
 	c.LastBytesReceived = conn.Last.RecvBytes
 	c.LastPacketsSent = conn.Last.SentPackets
@@ -117,6 +116,18 @@ func FormatConnectionTelemetry(tel map[network.ConnTelemetryType]int64) map[stri
 	ret := make(map[string]int64)
 	for k, v := range tel {
 		ret[string(k)] = v
+	}
+	return ret
+}
+
+func FormatCORETelemetry(telByAsset map[string]int32) map[string]model.COREResult {
+	if telByAsset == nil {
+		return nil
+	}
+
+	ret := make(map[string]model.COREResult)
+	for asset, tel := range telByAsset {
+		ret[asset] = model.COREResult(tel)
 	}
 	return ret
 }
@@ -266,14 +277,15 @@ func unsafeStringSlice(key string) []byte {
 
 // formatProtocol converts a single protocol into a protobuf representation of protocol stack.
 // i.e: the input is ProtocolHTTP2 and the output should be:
-// &model.ProtocolStack{
-//		Stack: []model.ProtocolType{
-//			model.ProtocolType_protocolHTTP2,
-//		},
-//	}
+//
+//	&model.ProtocolStack{
+//			Stack: []model.ProtocolType{
+//				model.ProtocolType_protocolHTTP2,
+//			},
+//		}
 func formatProtocol(protocol network.ProtocolType) *model.ProtocolStack {
 	if protocol == network.ProtocolUnclassified {
-		return nil
+		protocol = network.ProtocolUnknown
 	}
 
 	return &model.ProtocolStack{

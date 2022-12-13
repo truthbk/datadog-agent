@@ -15,10 +15,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DataDog/go-tuf/data"
+	tufutil "github.com/DataDog/go-tuf/util"
 	"github.com/benbjohnson/clock"
 	"github.com/secure-systems-lab/go-securesystemslib/cjson"
-	"github.com/theupdateframework/go-tuf/data"
-	tufutil "github.com/theupdateframework/go-tuf/util"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -27,6 +27,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/remote/api"
 	rdata "github.com/DataDog/datadog-agent/pkg/config/remote/data"
+	"github.com/DataDog/datadog-agent/pkg/config/remote/meta"
 	"github.com/DataDog/datadog-agent/pkg/config/remote/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/config/remote/uptane"
 	"github.com/DataDog/datadog-agent/pkg/proto/pbgo"
@@ -63,7 +64,6 @@ type Service struct {
 	// The number of errors we're currently tracking within the context of our backoff policy
 	backoffErrorCount int
 
-	ctx           context.Context
 	clock         clock.Clock
 	hostname      string
 	traceAgentEnv string
@@ -142,7 +142,10 @@ func NewService() (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	http := api.NewHTTPClient(authKeys.apiAuth())
+	http, err := api.NewHTTPClient(authKeys.apiAuth())
+	if err != nil {
+		return nil, err
+	}
 	hname, err := hostname.Get(context.Background())
 	if err != nil {
 		return nil, err
@@ -152,13 +155,17 @@ func NewService() (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	apiKeyHash := sha256.Sum256([]byte(apiKey))
-	cacheKey := fmt.Sprintf("%s/", apiKeyHash)
+	cacheKey := generateCacheKey(apiKey)
 	opt := []uptane.ClientOption{}
 	if authKeys.rcKeySet {
 		opt = append(opt, uptane.WithOrgIDCheck(authKeys.rcKey.OrgID))
 	}
-	uptaneClient, err := uptane.NewClient(db, cacheKey, opt...)
+	uptaneClient, err := uptane.NewClient(
+		db,
+		cacheKey,
+		newRCBackendOrgUUIDProvider(http),
+		opt...,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -169,8 +176,8 @@ func NewService() (*Service, error) {
 		clientsTTL = defaultClientsTTL
 	}
 	clock := clock.New()
+
 	return &Service{
-		ctx:                            context.Background(),
 		firstUpdate:                    true,
 		defaultRefreshInterval:         refreshInterval,
 		refreshIntervalOverrideAllowed: refreshIntervalOverrideAllowed,
@@ -191,6 +198,14 @@ func NewService() (*Service, error) {
 			until:    time.Now().UTC(),
 		},
 	}, nil
+}
+
+func newRCBackendOrgUUIDProvider(http api.API) uptane.OrgUUIDProvider {
+	return func() (string, error) {
+		// XXX: We may want to tune the context timeout here
+		resp, err := http.FetchOrgData(context.Background())
+		return resp.GetUuid(), err
+	}
 }
 
 // Start the remote configuration management service
@@ -254,7 +269,8 @@ func (s *Service) refresh() error {
 	}
 	request := buildLatestConfigsRequest(s.hostname, s.traceAgentEnv, previousState, activeClients, s.products, s.newProducts, s.lastUpdateErr, clientState)
 	s.Unlock()
-	response, err := s.api.Fetch(s.ctx, request)
+	ctx := context.Background()
+	response, err := s.api.Fetch(ctx, request)
 	s.Lock()
 	defer s.Unlock()
 	s.lastUpdateErr = nil
@@ -337,7 +353,7 @@ func (s *Service) getRefreshInterval() (time.Duration, error) {
 }
 
 // ClientGetConfigs is the polling API called by tracers and agents to get the latest configurations
-func (s *Service) ClientGetConfigs(request *pbgo.ClientGetConfigsRequest) (*pbgo.ClientGetConfigsResponse, error) {
+func (s *Service) ClientGetConfigs(ctx context.Context, request *pbgo.ClientGetConfigsRequest) (*pbgo.ClientGetConfigsResponse, error) {
 	s.Lock()
 	defer s.Unlock()
 	err := validateRequest(request)
@@ -603,4 +619,21 @@ func enforceCanonicalJSON(raw []byte) ([]byte, error) {
 	}
 
 	return canonical, nil
+}
+
+func generateCacheKey(apiKey string) string {
+	h := sha256.New()
+	h.Write([]byte(apiKey))
+
+	// Hash the API Key with the initial root. This prevents the agent from being locked
+	// to a root chain if a developer accidentally forgets to use the development roots
+	// in a testing environment
+	embeddedRoots := meta.RootsConfig()
+	if r, ok := embeddedRoots[1]; ok {
+		h.Write(r)
+	}
+
+	hash := h.Sum(nil)
+
+	return fmt.Sprintf("%x/", hash)
 }
