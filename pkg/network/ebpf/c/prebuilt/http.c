@@ -532,6 +532,9 @@ static __always_inline int fill_path_safe(lib_path_t *path, char *path_argument)
 static __always_inline int do_sys_open_helper_enter(struct pt_regs* ctx) {
     char *path_argument = (char *)PT_REGS_PARM2(ctx);
     lib_path_t path = {0};
+//    bool dotsofound = false;
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+
     if (bpf_probe_read_user_with_telemetry(path.buf, sizeof(path.buf), path_argument) >= 0) {
 // Find the null character and clean up the garbage following it
 #pragma unroll
@@ -550,12 +553,33 @@ static __always_inline int do_sys_open_helper_enter(struct pt_regs* ctx) {
     if (!path.len) {
         return 0;
     }
-    // if the regex doesn't match, nothing to do
-    if (regex_libtls(path.buf, path.len) == 0) {
+
+/* #pragma unroll */
+/*     for (int i = (LIB_PATH_MAX_SIZE)-1; i > 13; i--) { // '/libcrypto.so' = 13 */
+/*         if (path.buf[i-2] == '.' && path.buf[i-1] == 's' && path.buf[i] == 'o') { */
+/*             dotsofound = true; */
+/*             break; */
+/*         } */
+/*     } */
+/*     if (!dotsofound) { */
+/*         return 0; */
+/*     } */
+    int b = -1;
+#pragma unroll
+    for (int i = (LIB_PATH_MAX_SIZE)-1; i > 13; i--) { // '/libcrypto.so' = 13
+        if (path.buf[i] == '/') {
+            b = i;
+            break;
+        }
+    }
+    if (b == -1) {
         return 0;
     }
 
-    u64 pid_tgid = bpf_get_current_pid_tgid();
+    if (regex_libtls(&path.buf[b], 13) == 0) {
+        return 0;
+    }
+
     path.pid = pid_tgid >> 32;
     bpf_map_update_with_telemetry(open_at_args, &pid_tgid, &path, BPF_ANY);
     return 0;
@@ -578,17 +602,35 @@ static __always_inline int do_sys_open_helper_exit(struct pt_regs* ctx) {
         goto cleanup;
     }
 
-    lib_path_t *path = bpf_map_lookup_elem(&open_at_args, &pid_tgid);
-    if (path == NULL) {
+    lib_path_t *map_path = bpf_map_lookup_elem(&open_at_args, &pid_tgid);
+    if (map_path == NULL) {
         return 0; // we don't have interest in this opened file (doesn't match the regex)
     }
 
     // Copy map value into eBPF stack
-    lib_path_t lib_path;
-    bpf_memcpy(&lib_path, path, sizeof(lib_path));
+    lib_path_t path;
+    bpf_memcpy(&path, map_path, sizeof(path));
 
+/*     int begin = -1; */
+/* #pragma unroll */
+/*     for (int i = LIB_PATH_MAX_SIZE-1; i > 13; i--) { // '/libcrypto.so' = 13 */
+/*         if (path.buf[i] == '/') { */
+/*             begin = i; */
+/*             break; */
+/*         } */
+/*     } */
+/*     if (begin == -1) { */
+/*         goto cleanup; */
+/*     } */
+// if the regex doesn't match, nothing to do
+//    int begin = 0;
+    /* if (regex_libtls("/libssl.so"/\* &path.buf[0] *\/, 13) == 0) { */
+    /*     goto cleanup; */
+    /* } */
+
+    
     u32 cpu = bpf_get_smp_processor_id();
-    bpf_perf_event_output_with_telemetry(ctx, &shared_libraries, cpu, &lib_path, sizeof(lib_path));
+    bpf_perf_event_output_with_telemetry(ctx, &shared_libraries, cpu, &path, sizeof(path));
 cleanup:
     bpf_map_delete_elem(&open_at_args, &pid_tgid);
     return 0;

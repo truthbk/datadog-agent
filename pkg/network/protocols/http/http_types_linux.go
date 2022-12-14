@@ -52,7 +52,7 @@ type httpBatchKey struct {
 type libPath struct {
 	Pid uint32
 	Len uint32
-	Buf [120]byte
+	Buf [104]byte
 }
 
 type ProtocolType uint8
@@ -70,7 +70,7 @@ const (
 	HTTPBatchPages = 0x3
 	HTTPBufferSize = 0xa0
 
-	libPathMaxSize = 0x78
+	libPathMaxSize = 0x68
 )
 
 type ConnTag = uint64

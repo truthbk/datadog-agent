@@ -23,9 +23,9 @@ static __always_inline int regex_libtls(const char *str, unsigned int len) {
         digit = [0-9];
         alpha = [a-zA-Z];
 
-        libs = "/lib"("ssl"|"crypto"|"gnutls")".so" ([._+-] | digit | alpha)*;
+        libs = "/lib"("ssl"|"crypto"|"gnutls")".so";
 
-        *    { continue; }
+//        *    { continue; }
         $    { return count; }
         end  { return count; }
         libs { return 1; }

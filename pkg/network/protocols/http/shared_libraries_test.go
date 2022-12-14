@@ -33,24 +33,25 @@ import (
 
 func TestSharedLibraryDetection(t *testing.T) {
 	perfHandler, doneFn := initEBPFProgram(t)
-	fpath := filepath.Join(t.TempDir(), "foo.so")
+	fpath := filepath.Join(t.TempDir(), "libssl.so")
 	t.Cleanup(doneFn)
 
 	var (
 		mux          sync.Mutex
-		pathDetected string
+		pathDetected []string
 	)
 
 	callback := func(path string) error {
 		mux.Lock()
 		defer mux.Unlock()
-		pathDetected = path
+		t.Log(path)
+		pathDetected = append(pathDetected, path)
 		return nil
 	}
 
 	watcher := newSOWatcher("/proc", perfHandler,
 		soRule{
-			re:         regexp.MustCompile(`foo.so`),
+			re:         regexp.MustCompile(`libssl.so`),
 			registerCB: callback,
 		},
 	)
@@ -60,6 +61,9 @@ func TestSharedLibraryDetection(t *testing.T) {
 	simulateOpenAt(fpath)
 	time.Sleep(10 * time.Millisecond)
 
+	for _, p := range pathDetected {
+		t.Log(p)
+	}
 	// assert that soWatcher detected foo.so being opened and triggered the callback
 	assert.Equal(t, fpath, pathDetected)
 }
@@ -86,7 +90,7 @@ func TestSameInodeRegression(t *testing.T) {
 
 	watcher := newSOWatcher("/proc", perfHandler,
 		soRule{
-			re:         regexp.MustCompile(`foo.so`),
+			re:         regexp.MustCompile(`libssl.so`),
 			registerCB: callback,
 		},
 	)
