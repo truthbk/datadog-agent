@@ -564,21 +564,34 @@ static __always_inline int do_sys_open_helper_enter(struct pt_regs* ctx) {
 /*     if (!dotsofound) { */
 /*         return 0; */
 /*     } */
-    int b = -1;
+    unsigned int b = LIB_PATH_MAX_SIZE-1;
 #pragma unroll
-    for (int i = (LIB_PATH_MAX_SIZE)-1; i > 13; i--) { // '/libcrypto.so' = 13
-        if (path.buf[i] == '/') {
-            b = i;
+    for (; b > 16; b--) { // '/libcrypto.so' = 13
+        if (path.buf[b] == '/') {
             break;
         }
     }
-    if (b == -1) {
+    if (b >= LIB_PATH_MAX_SIZE) {
         return 0;
     }
 
-    if (regex_libtls(&path.buf[b], 13) == 0) {
+    char t[32];
+    bpf_memset(t, 0, 32);
+    bpf_memcpy(t, ((unsigned char*)&path) + b, 16);
+    t[15]=0;
+    char s[8] = {0x6c, 0x69, 0x62, 0x73, 0x73, 0x6c, 0x2e, 0x73};
+    if (bpf_memcmp( ((unsigned char*)&path) + b, s, 8) != 0) {
         return 0;
     }
+/* #pragma unroll */
+/*     for(int i=0;i<sizeof(s);i++ ) { */
+/*         if (s[i] != t[i]) { */
+/*             return 0; */
+/*         } */
+/*     } */
+    /* if (regex_libtls(&path.buf[b], 13) == 0) { */
+    /*     return 0; */
+    /* } */
 
     path.pid = pid_tgid >> 32;
     bpf_map_update_with_telemetry(open_at_args, &pid_tgid, &path, BPF_ANY);

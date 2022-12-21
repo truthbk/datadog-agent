@@ -70,8 +70,8 @@ func TestSharedLibraryDetection(t *testing.T) {
 
 func TestSameInodeRegression(t *testing.T) {
 	perfHandler, doneFn := initEBPFProgram(t)
-	fpath1 := filepath.Join(t.TempDir(), "a-foo.so")
-	fpath2 := filepath.Join(t.TempDir(), "b-foo.so")
+	fpath1 := filepath.Join(t.TempDir(), "libssl.so.a")
+	fpath2 := filepath.Join(t.TempDir(), "libssl.so.b")
 	t.Cleanup(doneFn)
 
 	f, err := os.Create(fpath1)
