@@ -11,15 +11,22 @@ package kafka
 import (
 	"context"
 	"fmt"
+	"github.com/twmb/franz-go/pkg/kadm"
+	"github.com/twmb/franz-go/pkg/kerr"
+	"github.com/twmb/franz-go/pkg/kgo"
+	"net"
+	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/network/config"
+	"github.com/DataDog/datadog-agent/pkg/network/http/testutil"
+	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 	"github.com/segmentio/kafka-go"
 	"github.com/stretchr/testify/require"
-
-	"github.com/DataDog/datadog-agent/pkg/network/config"
-	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 )
 
 func skipTestIfKernelNotSupported(t *testing.T) {
@@ -28,6 +35,63 @@ func skipTestIfKernelNotSupported(t *testing.T) {
 	if currKernelVersion < MinimumKernelVersion {
 		t.Skip(fmt.Sprintf("Kafka feature not available on pre %s kernels", MinimumKernelVersion.String()))
 	}
+}
+
+func setUpKafkaDocker(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		return
+	}
+
+	envs := []string{
+		fmt.Sprintf("KAFKA_ADDR=%s", "127.0.0.1"),
+		"KAFKA_PORT=9092",
+	}
+	dir, _ := testutil.CurDir()
+	cmd := exec.Command("docker", "compose", "-f", dir+"/testdata/docker-compose.yml", "up")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stdout
+	cmd.Env = append(cmd.Env, envs...)
+	go func() {
+		if err := cmd.Run(); err != nil {
+			fmt.Println("error", err)
+		}
+	}()
+
+	t.Cleanup(func() {
+		c := exec.Command("docker-compose", "-f", dir+"/testdata/docker-compose.yml", "down", "--remove-orphans")
+		c.Stdout = os.Stdout
+		c.Stderr = os.Stdout
+		c.Env = append(c.Env, envs...)
+		_ = c.Run()
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	require.NoError(t, waitForKafka(ctx, fmt.Sprintf("%s:9092", "127.0.0.1")))
+	cancel()
+}
+
+func waitForKafka(ctx context.Context, zookeeperAddr string) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			if tryConnectingKafka(zookeeperAddr) {
+				return nil
+			}
+			time.Sleep(time.Second)
+			continue
+		}
+	}
+}
+
+func tryConnectingKafka(addr string) bool {
+	conn, err := net.DialTimeout("tcp", addr, time.Second)
+	if err != nil {
+		return false
+	}
+	defer conn.Close()
+
+	return true
 }
 
 // This test loads the Kafka binary, produce and fetch kafka messages and verifies that we capture them
@@ -119,4 +183,116 @@ func TestLoadKafkaDebugBinary(t *testing.T) {
 	err = monitor.Start()
 	require.NoError(t, err)
 	defer monitor.Stop()
+}
+
+func TestVersionsFranz(t *testing.T) {
+	skipTestIfKernelNotSupported(t)
+
+	//setUpKafkaDocker(t)
+
+	topicName := "franz-kafka"
+	seeds := []string{"localhost:9092"}
+	// One client can both produce and consume!
+	// Consuming can either be direct (no consumer group), or through a group. Below, we use a group.
+	client, err := kgo.NewClient(
+		kgo.SeedBrokers(seeds...),
+		kgo.ConsumerGroup("my-group-identifier"),
+		kgo.ConsumeTopics(topicName),
+		kgo.TransactionalID("abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd"),
+		kgo.DefaultProduceTopic(topicName),
+	)
+	require.NoError(t, err)
+	defer client.Close()
+
+	ctx := context.Background()
+
+	// Create the topic
+	adminClient := kadm.NewClient(client)
+	_, err = adminClient.CreateTopics(ctx, 1, 1, nil, topicName)
+	require.NoError(t, err)
+
+	// 1.) Producing a message
+
+	//record := &kgo.Record{Topic: topicName, Value: []byte("HelloKafka!")}
+	//if err := client.ProduceSync(ctx, record).FirstErr(); err != nil {
+	//	fmt.Printf("record had a produce error while synchronously producing: %v\n", err)
+	//}
+
+	require.NoError(t, client.BeginTransaction())
+
+	// Write some messages in the transaction.
+	if err := produceRecords(ctx, client, 0); err != nil {
+		rollback(ctx, client)
+		require.NoError(t, err, "error producing message: %v", err)
+	}
+
+	// Flush all of the buffered messages.
+	//
+	// Flush only returns an error if the context was canceled, and
+	// it is highly not recommended to cancel the context.
+	require.NoError(t, client.Flush(ctx), "flush was killed due to context cancelation")
+
+	// Attempt to commit the transaction and explicitly abort if the
+	// commit was not attempted.
+	switch err := client.EndTransaction(ctx, kgo.TryCommit); err {
+	case nil:
+	case kerr.OperationNotAttempted:
+		rollback(ctx, client)
+	default:
+		fmt.Printf("error committing transaction: %v\n", err)
+	}
+
+	// 2.) Consuming messages from a topic
+	for {
+		fetches := client.PollFetches(ctx)
+		if errs := fetches.Errors(); len(errs) > 0 {
+			// All errors are retried internally when fetching, but non-retriable errors are
+			// returned from polls so that users can notice and take action.
+			panic(fmt.Sprint(errs))
+		}
+
+		// We can iterate through a record iterator...
+		iter := fetches.RecordIter()
+		for !iter.Done() {
+			record := iter.Next()
+			fmt.Println(string(record.Value), "from an iterator!")
+		}
+
+		// or a callback function.
+		fetches.EachPartition(func(p kgo.FetchTopicPartition) {
+			for _, record := range p.Records {
+				fmt.Println(string(record.Value), "from range inside a callback!")
+			}
+
+			// We can even use a second callback!
+			p.EachRecord(func(record *kgo.Record) {
+				fmt.Println(string(record.Value), "from a second callback!")
+			})
+		})
+	}
+}
+
+// Records are produced synchronously in order to demonstrate that a consumer
+// using the ReadCommitted isolation level will not consume any records until
+// the transaction is committed.
+func produceRecords(ctx context.Context, client *kgo.Client, batch int) error {
+	for i := 0; i < 10; i++ {
+		message := fmt.Sprintf("batch %d record %d\n", batch, i)
+		if err := client.ProduceSync(ctx, kgo.StringRecord(message)).FirstErr(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func rollback(ctx context.Context, client *kgo.Client) {
+	if err := client.AbortBufferedRecords(ctx); err != nil {
+		fmt.Printf("error aborting buffered records: %v\n", err) // this only happens if ctx is canceled
+		return
+	}
+	if err := client.EndTransaction(ctx, kgo.TryAbort); err != nil {
+		fmt.Printf("error rolling back transaction: %v\n", err)
+		return
+	}
+	fmt.Println("transaction rolled back")
 }

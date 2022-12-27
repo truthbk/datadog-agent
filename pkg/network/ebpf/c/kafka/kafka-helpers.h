@@ -8,6 +8,13 @@ static __always_inline bool try_parse_produce_request(kafka_transaction_t *kafka
 static __always_inline bool try_parse_fetch_request(kafka_transaction_t *kafka_transaction);
 static __always_inline bool extract_and_set_first_topic_name(kafka_transaction_t *kafka_transaction);
 
+// Perform bound validation against the current offset in the Kafka message, so the verifier won't complain
+#define VALIDATE_KAFKA_OFFSET(kafka_transaction, current_offset) \
+    if (current_offset < kafka_transaction->request_fragment || \
+        current_offset > (kafka_transaction->request_fragment + KAFKA_BUFFER_SIZE)) { \
+            return false; \
+    }
+
 static __inline int32_t read_big_endian_int32(const char* buf) {
     int32_t *val = (int32_t*)buf;
     return bpf_ntohl(*val);
@@ -23,9 +30,7 @@ static __inline bool kafka_read_big_endian_int32(kafka_transaction_t *kafka_tran
     // If we don't use it here, the verifier will classify registers with false type and fail to load the program
     barrier();
     char* current_offset = kafka_transaction->request_fragment + kafka_transaction->base.current_offset_in_request_fragment;
-    if (current_offset < kafka_transaction->request_fragment || current_offset > kafka_transaction->request_fragment + KAFKA_BUFFER_SIZE) {
-        return false;
-    }
+    VALIDATE_KAFKA_OFFSET(kafka_transaction, current_offset);
     *result = read_big_endian_int32(current_offset);
     kafka_transaction->base.current_offset_in_request_fragment += 4;
     return true;
@@ -36,9 +41,7 @@ static __inline bool kafka_read_big_endian_int16(kafka_transaction_t *kafka_tran
     // If we don't use it here, the verifier will classify registers with false type and fail to load the program
     barrier();
     char* current_offset = kafka_transaction->request_fragment + kafka_transaction->base.current_offset_in_request_fragment;
-    if (current_offset < kafka_transaction->request_fragment || current_offset > kafka_transaction->request_fragment + KAFKA_BUFFER_SIZE) {
-        return false;
-    }
+    VALIDATE_KAFKA_OFFSET(kafka_transaction, current_offset);
     *result = read_big_endian_int16(current_offset);
     kafka_transaction->base.current_offset_in_request_fragment += 2;
     return true;
@@ -135,14 +138,66 @@ static __always_inline bool try_parse_request(kafka_transaction_t *kafka_transac
     }
 }
 
-static __always_inline bool try_parse_produce_request(kafka_transaction_t *kafka_transaction) {
-    log_debug("kafka: trying to parse produce request");
-    if (kafka_transaction->base.request_api_version >= 9) {
-        log_debug("kafka: Produce request version 9 and above is not supported: %d", kafka_transaction->base.request_api_version);
+static __always_inline bool isMSBSet(uint8_t byte) {
+    return (byte & 0x80) != 0;
+}
+
+// Based on: https://stackoverflow.com/questions/19758270/read-varint-from-linux-sockets
+// The specification for Kafka Unsigned Varints can be found here:
+// https://cwiki.apache.org/confluence/display/KAFKA/KIP-482%3A+The+Kafka+Protocol+should+Support+Optional+Tagged+Fields
+static __always_inline bool decode_unsigned_varint(kafka_transaction_t *kafka_transaction, uint64_t *decoded_value, uint32_t *decoded_bytes)
+{
+    uint32_t shift_amount = 0;
+    uint64_t decoded_value_in_the_making = 0;
+
+    uint32_t i = 0;
+    uint8_t* current_offset = (kafka_transaction->request_fragment + kafka_transaction->base.current_offset_in_request_fragment);
+    if (current_offset > kafka_transaction->request_fragment + KAFKA_BUFFER_SIZE) {
         return false;
     }
 
-    if (kafka_transaction->base.request_api_version >= 3) {
+    #pragma unroll(sizeof(uint64_t))
+    for (; i < sizeof(uint64_t); i++) {
+        uint8_t current_byte = current_offset[i];
+        decoded_value_in_the_making |= (uint64_t)(current_byte & 0x7F) << shift_amount;
+        shift_amount += 7;
+
+        if (!isMSBSet(current_offset[i])) {
+            break;
+        }
+    }
+
+    if ((i == sizeof(uint64_t) - 1) && isMSBSet(current_offset[i])) {
+        // the last byte in the unsigned varint contains a continuation bit, this shouldn't happen
+        return false;
+    }
+
+    *decoded_bytes = i;
+    *decoded_value = decoded_value_in_the_making;
+    return true;
+}
+
+static __always_inline bool try_parse_produce_request(kafka_transaction_t *kafka_transaction) {
+    log_debug("kafka: trying to parse produce request");
+    if (kafka_transaction->base.request_api_version >= 10) {
+        log_debug("kafka: Produce request version 10 and above is not supported: %d", kafka_transaction->base.request_api_version);
+        return false;
+    }
+
+    if (kafka_transaction->base.request_api_version >= MINIMUM_PRODUCE_API_VERSION_FOR_TAGGED_FIELDS) {
+        barrier();
+        char* current_offset = kafka_transaction->request_fragment + kafka_transaction->base.current_offset_in_request_fragment;
+        VALIDATE_KAFKA_OFFSET(kafka_transaction, current_offset);
+        if (*current_offset != 0) {
+            // We don't support tagged fields
+            return false;
+        }
+        // Skip tagged fields
+        kafka_transaction->base.current_offset_in_request_fragment += 1;
+    }
+
+    if (kafka_transaction->base.request_api_version >= 3 && kafka_transaction->base.request_api_key < 9) {
+        // transactional_id is of type NULLABLE_STRING, meaning its size is represented as int16
         int16_t transactional_id_size = 0;
         if (!kafka_read_big_endian_int16(kafka_transaction, &transactional_id_size)) {
             return false;
@@ -151,14 +206,31 @@ static __always_inline bool try_parse_produce_request(kafka_transaction_t *kafka
         if (transactional_id_size > 0) {
             kafka_transaction->base.current_offset_in_request_fragment += transactional_id_size;
         }
+    } else if (kafka_transaction->base.request_api_key >= 9) {
+        // transactional_id is of type COMPACT_NULLABLE_STRING, meaning its size is represented as UNSIGNED_VARINT
+        uint32_t number_of_decoded_bytes = 0;
+        uint64_t transactional_id_size = 0;
+
+        if (!decode_unsigned_varint(kafka_transaction, &transactional_id_size, &number_of_decoded_bytes)) {
+            return false;
+        }
+        kafka_transaction->base.current_offset_in_request_fragment += number_of_decoded_bytes;
+        if (transactional_id_size >= 2) {
+            // transactional_id_size == 1 -> empty string
+
+            // From COMPACT_NULLABLE_STRING docs: "First the length N + 1 is given as an UNSIGNED_VARINT", so we need to subtract 1 from the real size
+            transactional_id_size -= 1;
+            log_debug("kafka: transactional_id_size: %d", transactional_id_size);
+            kafka_transaction->base.current_offset_in_request_fragment += transactional_id_size;
+        }
     }
 
-    int16_t acs = 0;
-    if (!kafka_read_big_endian_int16(kafka_transaction, &acs)) {
+    int16_t acks = 0;
+    if (!kafka_read_big_endian_int16(kafka_transaction, &acks)) {
         return false;
     }
 
-    if (acs > 1 || acs < -1) {
+    if (acks > 1 || acks < -1) {
         // The number of acknowledgments the producer requires the leader to have received before considering a request
         // complete. Allowed values: 0 for no acknowledgments, 1 for only the leader and -1 for the full ISR.
         return false;
@@ -220,15 +292,33 @@ static __always_inline bool extract_and_set_first_topic_name(kafka_transaction_t
     }
 
     int16_t topic_name_size = 0;
-    if (!kafka_read_big_endian_int16(kafka_transaction, &topic_name_size)) {
-        return false;
+    if (kafka_transaction->base.request_api_version >= 9) {
+        // topic_name_size is of type COMPACT_STRING, meaning its size is represented as UNSIGNED_VARINT
+        uint64_t topic_name_size = 0;
+        uint32_t number_of_decoded_bytes = 0;
+
+        if (!decode_unsigned_varint(kafka_transaction, &topic_name_size, &number_of_decoded_bytes)) {
+            return false;
+        }
+        kafka_transaction->base.current_offset_in_request_fragment += number_of_decoded_bytes;
+        if (topic_name_size == 0) {
+            // size field in a COMPACT_STRING cannot be 0
+            return false;
+        }
+        if (topic_name_size < 2) {
+            // topic_name_size == 0 -> isn't possible in COMPACT_STRING type
+            // topic_name_size == 1 -> empty topic name
+            return false;
+        }
+        // From COMPACT_STRING docs: "First the length N + 1 is given as an UNSIGNED_VARINT", so we need to subtract 1 from the real size
+        topic_name_size -= 1;
+    } else {
+        if (!kafka_read_big_endian_int16(kafka_transaction, &topic_name_size)) {
+                return false;
+        }
     }
     log_debug("kafka: topic_name_size: %d", topic_name_size);
-    if (topic_name_size <= 0) {
-        return false;
-    }
-
-    if (topic_name_size > TOPIC_NAME_MAX_STRING_SIZE) {
+    if (topic_name_size <= 0 || topic_name_size > TOPIC_NAME_MAX_STRING_SIZE) {
         return false;
     }
 

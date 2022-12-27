@@ -29,6 +29,8 @@
 
 #define KAFKA_PROG 0
 
+#define MINIMUM_PRODUCE_API_VERSION_FOR_TAGGED_FIELDS 9
+
 typedef enum
 {
     KAFKA_PRODUCE = 0,
