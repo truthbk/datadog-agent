@@ -198,7 +198,7 @@ func TestVersionsFranz(t *testing.T) {
 		kgo.SeedBrokers(seeds...),
 		kgo.ConsumerGroup("my-group-identifier"),
 		kgo.ConsumeTopics(topicName),
-		kgo.TransactionalID("abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd"),
+		kgo.TransactionalID("CoolTransactionalID"),
 		kgo.DefaultProduceTopic(topicName),
 	)
 	require.NoError(t, err)

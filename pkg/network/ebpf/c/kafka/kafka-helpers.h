@@ -293,25 +293,30 @@ static __always_inline bool extract_and_set_first_topic_name(kafka_transaction_t
 
     int16_t topic_name_size = 0;
     if (kafka_transaction->base.request_api_version >= 9) {
-        // topic_name_size is of type COMPACT_STRING, meaning its size is represented as UNSIGNED_VARINT
-        uint64_t topic_name_size = 0;
+        barrier();
         uint32_t number_of_decoded_bytes = 0;
+        // topic_name_size is of type COMPACT_STRING, meaning its size is represented as UNSIGNED_VARINT
+        uint64_t varint_topic_name_size = 0;
 
-        if (!decode_unsigned_varint(kafka_transaction, &topic_name_size, &number_of_decoded_bytes)) {
+        if (!decode_unsigned_varint(kafka_transaction, &varint_topic_name_size, &number_of_decoded_bytes)) {
             return false;
         }
         kafka_transaction->base.current_offset_in_request_fragment += number_of_decoded_bytes;
-        if (topic_name_size == 0) {
+        if (varint_topic_name_size == 0) {
             // size field in a COMPACT_STRING cannot be 0
             return false;
         }
-        if (topic_name_size < 2) {
+        if (varint_topic_name_size < 2) {
             // topic_name_size == 0 -> isn't possible in COMPACT_STRING type
             // topic_name_size == 1 -> empty topic name
             return false;
         }
         // From COMPACT_STRING docs: "First the length N + 1 is given as an UNSIGNED_VARINT", so we need to subtract 1 from the real size
-        topic_name_size -= 1;
+        varint_topic_name_size -= 1;
+        if (varint_topic_name_size > TOPIC_NAME_MAX_STRING_SIZE) {
+            return false;
+        }
+        topic_name_size = (int16_t)varint_topic_name_size;
     } else {
         if (!kafka_read_big_endian_int16(kafka_transaction, &topic_name_size)) {
                 return false;
