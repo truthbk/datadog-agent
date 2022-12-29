@@ -464,6 +464,7 @@ func (t *Tracer) getRuntimeCompilationTelemetry() map[string]network.RuntimeComp
 		"oomKill":         runtime.OomKill.GetTelemetry(),
 		"runtimeSecurity": runtime.RuntimeSecurity.GetTelemetry(),
 		"tcpQueueLength":  runtime.TcpQueueLength.GetTelemetry(),
+		// TODO: Add Kafka
 	}
 
 	result := make(map[string]network.RuntimeCompilationTelemetry)

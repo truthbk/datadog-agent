@@ -119,27 +119,32 @@ func (e *kafkaEncoder) buildAggregations(payload *network.Connections) {
 		}
 
 		if aggregation == nil {
+			maxAPIVersionProduce := 9
+			maxAPIVersionFetch := 13
 			aggregation = &kafkaAggregationWrapper{
 				DataStreamsAggregations: &model.DataStreamsAggregations{
 					KafkaProduceAggregations: &model.DataStreamsAggregations_KafkaProduceAggregations{
-						Stats: make([]*model.DataStreamsAggregations_TopicStats, 0, produceAggrSize[key.KeyTuple]),
+						Stats:               make([]*model.DataStreamsAggregations_TopicStats, 0, produceAggrSize[key.KeyTuple]),
+						ApiVersionHistogram: make([]uint64, maxAPIVersionProduce),
 					},
 					KafkaFetchAggregations: &model.DataStreamsAggregations_KafkaFetchAggregations{
-						Stats: make([]*model.DataStreamsAggregations_TopicStats, 0, fetchAggrSize[key.KeyTuple]),
+						Stats:               make([]*model.DataStreamsAggregations_TopicStats, 0, fetchAggrSize[key.KeyTuple]),
+						ApiVersionHistogram: make([]uint64, maxAPIVersionFetch),
 					},
 				},
 			}
 			e.aggregations[key.KeyTuple] = aggregation
 		}
 
-		if stats.Data[0] != nil && stats.Data[0].Count > 0 {
+		if stats.Data[model.DataStreamsAggregations_Produce] != nil && stats.Data[model.DataStreamsAggregations_Produce].Count > 0 {
 			aggregation.KafkaProduceAggregations.Stats = append(aggregation.KafkaProduceAggregations.Stats, &model.DataStreamsAggregations_TopicStats{
 				Topic: key.TopicName,
-				Count: uint32(stats.Data[0].Count),
+				Count: uint32(stats.Data[model.DataStreamsAggregations_Produce].Count),
 			})
+			aggregation.KafkaProduceAggregations.ApiVersionHistogram[model.DataStreamsAggregations_Produce] += stats.Data[model.DataStreamsAggregations_Produce].ApiVersion
 		}
 
-		if stats.Data[1] != nil && stats.Data[1].Count > 0 {
+		if stats.Data[model.DataStreamsAggregations_Fetch] != nil && stats.Data[model.DataStreamsAggregations_Fetch].Count > 0 {
 			aggregation.KafkaFetchAggregations.Stats = append(aggregation.KafkaFetchAggregations.Stats, &model.DataStreamsAggregations_TopicStats{
 				Topic: key.TopicName,
 				Count: uint32(stats.Data[1].Count),

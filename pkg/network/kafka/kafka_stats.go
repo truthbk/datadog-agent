@@ -55,14 +55,15 @@ func NewKeyTuple(saddr, daddr util.Address, sport, dport uint16) KeyTuple {
 
 const NumOfAPIKeys = 2
 
-// RequestStats stores stats for KAFKA requests to a particular path
+// RequestStats stores stats for Kafka requests
 type RequestStats struct {
 	Data [NumOfAPIKeys]*RequestStat
 }
 
-// RequestStat stores stats for Kafka requests to a particular path
+// RequestStat stores stats for Kafka request
 type RequestStat struct {
-	Count int
+	Count      int
+	ApiVersion uint32
 }
 
 // CombineWith merges the data in 2 RequestStats objects
