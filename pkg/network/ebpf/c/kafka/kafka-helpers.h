@@ -352,6 +352,16 @@ static __always_inline bool extract_and_set_first_topic_name(kafka_transaction_t
     }
 
     __builtin_memcpy(kafka_transaction->base.topic_name, topic_name_beginning_offset, TOPIC_NAME_MAX_STRING_SIZE);
+    if (kafka_transaction->base.request_api_version >= 9) {
+        // In version +9 the topic name is a COMPACT_STRING, so it has no null character at the end.
+        // As a quick hack, we set the last byte to be a null byte
+        barrier();
+        char* byte_to_be_nulled = kafka_transaction->base.topic_name + topic_name_size;
+        if (byte_to_be_nulled >= kafka_transaction->base.topic_name + TOPIC_NAME_MAX_STRING_SIZE) {
+            return false;
+        }
+        *byte_to_be_nulled = 0;
+    }
 
     // Making sure the topic name is a-z, A-Z, 0-9, dot, dash or underscore.
 #pragma unroll(TOPIC_NAME_MAX_STRING_SIZE)
