@@ -58,7 +58,7 @@ static __always_inline bool try_parse_request_header(kafka_transaction_t *kafka_
     if (!kafka_read_big_endian_int32(kafka_transaction, &message_size)) {
         return false;
     }
-    log_debug("kafka: message_size: %d", message_size);
+    log_debug("kafka: message_size: %d\n", message_size);
     if (message_size <= 0) {
         return false;
     }
@@ -67,7 +67,7 @@ static __always_inline bool try_parse_request_header(kafka_transaction_t *kafka_
     if (!kafka_read_big_endian_int16(kafka_transaction, &request_api_key)) {
         return false;
     }
-    log_debug("kafka: request_api_key: %d", request_api_key);
+    log_debug("kafka: request_api_key: %d\n", request_api_key);
     if (request_api_key != KAFKA_FETCH && request_api_key != KAFKA_PRODUCE) {
         // We are only interested in fetch and produce requests
         return false;
@@ -78,7 +78,7 @@ static __always_inline bool try_parse_request_header(kafka_transaction_t *kafka_
     if (!kafka_read_big_endian_int16(kafka_transaction, &request_api_version)) {
         return false;
     }
-    log_debug("kafka: request_api_version: %d", request_api_version);
+    log_debug("kafka: request_api_version: %d\n", request_api_version);
     if (request_api_version < 0 || request_api_version > KAFKA_MAX_SUPPORTED_REQUEST_API_VERSION) {
         return false;
     }
@@ -93,7 +93,7 @@ static __always_inline bool try_parse_request_header(kafka_transaction_t *kafka_
     if (!kafka_read_big_endian_int32(kafka_transaction, &correlation_id)) {
         return false;
     }
-    log_debug("kafka: correlation_id: %d", correlation_id);
+    log_debug("kafka: correlation_id: %d\n", correlation_id);
     if (correlation_id < 0) {
         return false;
     }
@@ -109,7 +109,7 @@ static __always_inline bool try_parse_request_header(kafka_transaction_t *kafka_
             return false;
         }
         kafka_transaction->base.current_offset_in_request_fragment += client_id_size;
-        log_debug("kafka: client_id_size: %d", client_id_size);
+        log_debug("kafka: client_id_size: %d\n", client_id_size);
     }
     return true;
 }
@@ -120,7 +120,7 @@ static __always_inline bool try_parse_request(kafka_transaction_t *kafka_transac
         return false;
     }
 
-    log_debug("kafka: current_offset: %d", kafka_transaction->base.current_offset_in_request_fragment);
+    log_debug("kafka: current_offset: %d\n", kafka_transaction->base.current_offset_in_request_fragment);
     if (kafka_transaction->base.current_offset_in_request_fragment > sizeof(kafka_transaction->request_fragment)) {
         return false;
     }
@@ -133,7 +133,7 @@ static __always_inline bool try_parse_request(kafka_transaction_t *kafka_transac
             return try_parse_fetch_request(kafka_transaction);
             break;
         default:
-            log_debug("kafka: got unsupported request_api_key: %d", kafka_transaction->base.request_api_key);
+            log_debug("kafka: got unsupported request_api_key: %d\n", kafka_transaction->base.request_api_key);
             return false;
     }
 }
@@ -178,9 +178,9 @@ static __always_inline bool decode_unsigned_varint(kafka_transaction_t *kafka_tr
 }
 
 static __always_inline bool try_parse_produce_request(kafka_transaction_t *kafka_transaction) {
-    log_debug("kafka: trying to parse produce request");
+    log_debug("kafka: trying to parse produce request\n");
     if (kafka_transaction->base.request_api_version >= 10) {
-        log_debug("kafka: Produce request version 10 and above is not supported: %d", kafka_transaction->base.request_api_version);
+        log_debug("kafka: Produce request version 10 and above is not supported: %d\n", kafka_transaction->base.request_api_version);
         return false;
     }
 
@@ -202,7 +202,7 @@ static __always_inline bool try_parse_produce_request(kafka_transaction_t *kafka
         if (!kafka_read_big_endian_int16(kafka_transaction, &transactional_id_size)) {
             return false;
         }
-        log_debug("kafka: transactional_id_size: %d", transactional_id_size);
+        log_debug("kafka: transactional_id_size: %d\n", transactional_id_size);
         if (transactional_id_size > 0) {
             kafka_transaction->base.current_offset_in_request_fragment += transactional_id_size;
         }
@@ -220,7 +220,7 @@ static __always_inline bool try_parse_produce_request(kafka_transaction_t *kafka
 
             // From COMPACT_NULLABLE_STRING docs: "First the length N + 1 is given as an UNSIGNED_VARINT", so we need to subtract 1 from the real size
             transactional_id_size -= 1;
-            log_debug("kafka: transactional_id_size: %d", transactional_id_size);
+            log_debug("kafka: transactional_id_size: %d\n", transactional_id_size);
             kafka_transaction->base.current_offset_in_request_fragment += transactional_id_size;
         }
     }
@@ -250,9 +250,9 @@ static __always_inline bool try_parse_produce_request(kafka_transaction_t *kafka
 }
 
 static __always_inline bool try_parse_fetch_request(kafka_transaction_t *kafka_transaction) {
-    log_debug("kafka: trying to parse fetch request");
+    log_debug("kafka: trying to parse fetch request\n");
     if (kafka_transaction->base.request_api_version >= 12) {
-        log_debug("kafka: fetch request version 12 and above is not supported: %d", kafka_transaction->base.request_api_version);
+        log_debug("kafka: fetch request version 12 and above is not supported: %d\n", kafka_transaction->base.request_api_version);
         return false;
     }
 
@@ -287,7 +287,7 @@ static __always_inline bool extract_and_set_first_topic_name(kafka_transaction_t
     kafka_transaction->base.current_offset_in_request_fragment += 4;
 
     if (kafka_transaction->base.current_offset_in_request_fragment > sizeof(kafka_transaction->request_fragment)) {
-        log_debug("kafka: Current offset is above the request fragment size");
+        log_debug("kafka: Current offset is above the request fragment size\n");
         return false;
     }
 
@@ -322,7 +322,7 @@ static __always_inline bool extract_and_set_first_topic_name(kafka_transaction_t
                 return false;
         }
     }
-    log_debug("kafka: topic_name_size: %d", topic_name_size);
+    log_debug("kafka: topic_name_size: %d\n", topic_name_size);
     if (topic_name_size <= 0 || topic_name_size > TOPIC_NAME_MAX_STRING_SIZE) {
         return false;
     }
@@ -346,7 +346,7 @@ static __always_inline bool extract_and_set_first_topic_name(kafka_transaction_t
         char ch = kafka_transaction->base.topic_name[i];
         if (ch == 0) {
             if (i < 3) {
-                 log_debug("kafka: warning: topic name is %s (shorter than 3 letters), this could be a false positive", kafka_transaction->base.topic_name);
+                 log_debug("kafka: warning: topic name is %s (shorter than 3 letters), this could be a false positive\n", kafka_transaction->base.topic_name);
             }
             return i == topic_name_size;
         }

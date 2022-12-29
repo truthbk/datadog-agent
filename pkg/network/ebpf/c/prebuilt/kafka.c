@@ -19,8 +19,6 @@ int socket__kafka_filter_entry(struct __sk_buff *skb) {
 
 SEC("socket/kafka_filter")
 int socket__kafka_filter(struct __sk_buff* skb) {
-    char ____fmt[] = "abc";
-    bpf_trace_printk(____fmt, sizeof(____fmt));
     skb_info_t skb_info;
     u32 zero = 0;
     kafka_transaction_t *kafka = bpf_map_lookup_elem(&kafka_heap, &zero);
