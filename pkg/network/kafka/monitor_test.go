@@ -12,7 +12,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/twmb/franz-go/pkg/kadm"
-	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"net"
 	"os"
@@ -198,7 +197,7 @@ func TestVersionsFranz(t *testing.T) {
 		kgo.SeedBrokers(seeds...),
 		kgo.ConsumerGroup("my-group-identifier"),
 		kgo.ConsumeTopics(topicName),
-		kgo.TransactionalID("CoolTransactionalID"),
+		//kgo.TransactionalID("CoolTransactionalID"),
 		kgo.DefaultProduceTopic(topicName),
 	)
 	require.NoError(t, err)
@@ -213,63 +212,63 @@ func TestVersionsFranz(t *testing.T) {
 
 	// 1.) Producing a message
 
-	//record := &kgo.Record{Topic: topicName, Value: []byte("HelloKafka!")}
-	//if err := client.ProduceSync(ctx, record).FirstErr(); err != nil {
-	//	fmt.Printf("record had a produce error while synchronously producing: %v\n", err)
-	//}
-
-	require.NoError(t, client.BeginTransaction())
-
-	// Write some messages in the transaction.
-	if err := produceRecords(ctx, client, 0); err != nil {
-		rollback(ctx, client)
-		require.NoError(t, err, "error producing message: %v", err)
+	record := &kgo.Record{Topic: topicName, Value: []byte("HelloKafka!")}
+	if err := client.ProduceSync(ctx, record).FirstErr(); err != nil {
+		fmt.Printf("record had a produce error while synchronously producing: %v\n", err)
 	}
+
+	//require.NoError(t, client.BeginTransaction())
+	//
+	//// Write some messages in the transaction.
+	//if err := produceRecords(ctx, client, 0); err != nil {
+	//	rollback(ctx, client)
+	//	require.NoError(t, err, "error producing message: %v", err)
+	//}
 
 	// Flush all of the buffered messages.
 	//
 	// Flush only returns an error if the context was canceled, and
 	// it is highly not recommended to cancel the context.
-	require.NoError(t, client.Flush(ctx), "flush was killed due to context cancelation")
+	//require.NoError(t, client.Flush(ctx), "flush was killed due to context cancelation")
 
 	// Attempt to commit the transaction and explicitly abort if the
 	// commit was not attempted.
-	switch err := client.EndTransaction(ctx, kgo.TryCommit); err {
-	case nil:
-	case kerr.OperationNotAttempted:
-		rollback(ctx, client)
-	default:
-		fmt.Printf("error committing transaction: %v\n", err)
-	}
+	//switch err := client.EndTransaction(ctx, kgo.TryCommit); err {
+	//case nil:
+	//case kerr.OperationNotAttempted:
+	//	rollback(ctx, client)
+	//default:
+	//	fmt.Printf("error committing transaction: %v\n", err)
+	//}
 
 	// 2.) Consuming messages from a topic
-	for {
-		fetches := client.PollFetches(ctx)
-		if errs := fetches.Errors(); len(errs) > 0 {
-			// All errors are retried internally when fetching, but non-retriable errors are
-			// returned from polls so that users can notice and take action.
-			panic(fmt.Sprint(errs))
-		}
-
-		// We can iterate through a record iterator...
-		iter := fetches.RecordIter()
-		for !iter.Done() {
-			record := iter.Next()
-			fmt.Println(string(record.Value), "from an iterator!")
-		}
-
-		// or a callback function.
-		fetches.EachPartition(func(p kgo.FetchTopicPartition) {
-			for _, record := range p.Records {
-				fmt.Println(string(record.Value), "from range inside a callback!")
-			}
-
-			// We can even use a second callback!
-			p.EachRecord(func(record *kgo.Record) {
-				fmt.Println(string(record.Value), "from a second callback!")
-			})
-		})
-	}
+	//for {
+	//	fetches := client.PollFetches(ctx)
+	//	if errs := fetches.Errors(); len(errs) > 0 {
+	//		// All errors are retried internally when fetching, but non-retriable errors are
+	//		// returned from polls so that users can notice and take action.
+	//		panic(fmt.Sprint(errs))
+	//	}
+	//
+	//	// We can iterate through a record iterator...
+	//	iter := fetches.RecordIter()
+	//	for !iter.Done() {
+	//		record := iter.Next()
+	//		fmt.Println(string(record.Value), "from an iterator!")
+	//	}
+	//
+	//	// or a callback function.
+	//	fetches.EachPartition(func(p kgo.FetchTopicPartition) {
+	//		for _, record := range p.Records {
+	//			fmt.Println(string(record.Value), "from range inside a callback!")
+	//		}
+	//
+	//		// We can even use a second callback!
+	//		p.EachRecord(func(record *kgo.Record) {
+	//			fmt.Println(string(record.Value), "from a second callback!")
+	//		})
+	//	})
+	//}
 }
 
 // Records are produced synchronously in order to demonstrate that a consumer

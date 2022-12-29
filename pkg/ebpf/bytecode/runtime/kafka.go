@@ -4,4 +4,4 @@
 
 package runtime
 
-var Kafka = NewAsset("kafka.c", "84f94898bf2893441eea5b869d84d5713a065ba7bc3b4b3101d2c226a11b732a")
+var Kafka = NewAsset("kafka.c", "3bb8b6200a02e2d76e66d4ddc4541138efd39d3ba15915d43fce1bd1405e4d12")

@@ -172,7 +172,7 @@ static __always_inline bool decode_unsigned_varint(kafka_transaction_t *kafka_tr
         return false;
     }
 
-    *decoded_bytes = i;
+    *decoded_bytes = i + 1;
     *decoded_value = decoded_value_in_the_making;
     return true;
 }
@@ -196,7 +196,7 @@ static __always_inline bool try_parse_produce_request(kafka_transaction_t *kafka
         kafka_transaction->base.current_offset_in_request_fragment += 1;
     }
 
-    if (kafka_transaction->base.request_api_version >= 3 && kafka_transaction->base.request_api_key < 9) {
+    if (kafka_transaction->base.request_api_version >= 3 && kafka_transaction->base.request_api_version < 9) {
         // transactional_id is of type NULLABLE_STRING, meaning its size is represented as int16
         int16_t transactional_id_size = 0;
         if (!kafka_read_big_endian_int16(kafka_transaction, &transactional_id_size)) {
@@ -206,7 +206,7 @@ static __always_inline bool try_parse_produce_request(kafka_transaction_t *kafka
         if (transactional_id_size > 0) {
             kafka_transaction->base.current_offset_in_request_fragment += transactional_id_size;
         }
-    } else if (kafka_transaction->base.request_api_key >= 9) {
+    } else if (kafka_transaction->base.request_api_version >= 9) {
         // transactional_id is of type COMPACT_NULLABLE_STRING, meaning its size is represented as UNSIGNED_VARINT
         uint32_t number_of_decoded_bytes = 0;
         uint64_t transactional_id_size = 0;
@@ -220,6 +220,7 @@ static __always_inline bool try_parse_produce_request(kafka_transaction_t *kafka
 
             // From COMPACT_NULLABLE_STRING docs: "First the length N + 1 is given as an UNSIGNED_VARINT", so we need to subtract 1 from the real size
             transactional_id_size -= 1;
+            log_debug("kafka: number_of_decoded_bytes: %d\n", number_of_decoded_bytes);
             log_debug("kafka: transactional_id_size: %d\n", transactional_id_size);
             kafka_transaction->base.current_offset_in_request_fragment += transactional_id_size;
         }
@@ -241,6 +242,7 @@ static __always_inline bool try_parse_produce_request(kafka_transaction_t *kafka
         return false;
     }
 
+    log_debug("kafka: timeout_ms: %d\n", timeout_ms);
     if (timeout_ms < 0) {
         // timeout_ms cannot be negative.
         return false;
@@ -284,7 +286,18 @@ static __always_inline bool try_parse_fetch_request(kafka_transaction_t *kafka_t
 
 static __always_inline bool extract_and_set_first_topic_name(kafka_transaction_t *kafka_transaction) {
     // Skipping number of entries for now
-    kafka_transaction->base.current_offset_in_request_fragment += 4;
+    if (kafka_transaction->base.request_api_version >= 9) {
+        // number_of_entries is of type unsigned varint
+        uint32_t number_of_decoded_bytes = 0;
+        uint64_t number_of_entries = 0;
+
+        if (!decode_unsigned_varint(kafka_transaction, &number_of_entries, &number_of_decoded_bytes)) {
+            return false;
+        }
+        kafka_transaction->base.current_offset_in_request_fragment += number_of_decoded_bytes;
+    } else {
+        kafka_transaction->base.current_offset_in_request_fragment += 4;
+    }
 
     if (kafka_transaction->base.current_offset_in_request_fragment > sizeof(kafka_transaction->request_fragment)) {
         log_debug("kafka: Current offset is above the request fragment size\n");
@@ -344,6 +357,7 @@ static __always_inline bool extract_and_set_first_topic_name(kafka_transaction_t
 #pragma unroll(TOPIC_NAME_MAX_STRING_SIZE)
     for (int i = 0; i < TOPIC_NAME_MAX_STRING_SIZE; i++) {
         char ch = kafka_transaction->base.topic_name[i];
+        log_debug("kafka: ch = %d\n", ch);
         if (ch == 0) {
             if (i < 3) {
                  log_debug("kafka: warning: topic name is %s (shorter than 3 letters), this could be a false positive\n", kafka_transaction->base.topic_name);
