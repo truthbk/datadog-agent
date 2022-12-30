@@ -156,30 +156,23 @@ all_functions=("${metric_functions[@]}" "${log_functions[@]}" "${trace_functions
 # This should only be used temporarily while we investigate and fix the test
 functions_to_skip=()
 
-echo "Invoking functions for the first time..."
 set +e # Don't exit this script if an invocation fails or there's a diff
-for function_name in "${all_functions[@]}"; do
-    serverless invoke --stage "${stage}" -f "${function_name}" &>/dev/null &
+
+SECONDS_BETWEEN_INVOCATIONS=2
+for i in {1..3}; do
+    echo "Invoking functions time number $i..."
+    for function_name in "${all_functions[@]}"; do
+        serverless invoke --stage "${stage}" -f "${function_name}" -d '{"body": "testing request payload"}' &>/dev/null &
+    done
+    wait
+
+    # wait to make sure metrics aren't merged into a single metric
+    echo "Waiting $SECONDS_BETWEEN_INVOCATIONS seconds..."
+    sleep $SECONDS_BETWEEN_INVOCATIONS
 done
-wait
-
-# wait to make sure metrics aren't merged into a single metric
-SECONDS_BETWEEN_INVOCATIONS=30
-echo "Waiting $SECONDS_BETWEEN_INVOCATIONS seconds before invoking functions for the second time..."
-sleep $SECONDS_BETWEEN_INVOCATIONS
-
-# two invocations are needed since enhanced metrics are computed with the REPORT log line (which is created at the end of the first invocation)
-echo "Invoking functions for the second time..."
-for function_name in "${all_functions[@]}"; do
-    serverless invoke --stage "${stage}" -f "${function_name}" -d '{"body": "testing request payload"}' &>/dev/null &
-done
-wait
-
-LOGS_WAIT_MINUTES=8
-END_OF_WAIT_TIME=$(date --date="+"$LOGS_WAIT_MINUTES" minutes" +"%r")
-echo "Waiting $LOGS_WAIT_MINUTES minutes for logs to flush..."
-echo "This will be done at $END_OF_WAIT_TIME"
-sleep "$LOGS_WAIT_MINUTES"m
+EXTRA_WAIT=30
+echo "Waiting another $EXTRA_WAIT seconds for logs to flush..."
+sleep $EXTRA_WAIT
 
 failed_functions=()
 
