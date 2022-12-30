@@ -107,6 +107,12 @@ func (m *MockSender) GetSenderStats() check.SenderStats {
 	return check.NewSenderStats()
 }
 
+//GetSenderRecentSample enables the get metric stats mock call.
+func (m *MockSender) GetSenderRecentSample() check.SenderSample {
+	m.Called()
+	return check.NewSenderSample()
+}
+
 // OrchestratorMetadata submit orchestrator metadata messages
 func (m *MockSender) OrchestratorMetadata(msgs []serializer.ProcessMessageBody, clusterID string, nodeType int) {
 	m.Called(msgs, clusterID, nodeType)

@@ -82,6 +82,11 @@ func (c *CheckWrapper) GetSenderStats() (check.SenderStats, error) {
 	return c.inner.GetSenderStats()
 }
 
+// GetSenderRecentSample implements Check#GetSenderRecentSample
+func (c *CheckWrapper) GetSenderRecentSample() (check.SenderSample, error) {
+	return c.inner.GetSenderRecentSample()
+}
+
 // Version implements Check#Version
 func (c *CheckWrapper) Version() string {
 	return c.inner.Version()

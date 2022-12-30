@@ -260,3 +260,12 @@ func (c *CheckBase) GetSenderStats() (check.SenderStats, error) {
 	}
 	return sender.GetSenderStats(), nil
 }
+
+// GetSenderRecentSample returns a recent sample of collected metrics
+func (c *CheckBase) GetSenderRecentSample() (check.SenderSample, error) {
+	sender, err := c.GetSender()
+	if err != nil {
+		return check.SenderSample{}, fmt.Errorf("failed to retrieve a sender: %v", err)
+	}
+	return sender.GetSenderRecentSample(), nil
+}

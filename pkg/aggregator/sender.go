@@ -34,6 +34,7 @@ type Sender interface {
 	Event(e metrics.Event)
 	EventPlatformEvent(rawEvent string, eventType string)
 	GetSenderStats() check.SenderStats
+	GetSenderRecentSample() check.SenderSample
 	DisableDefaultHostname(disable bool)
 	SetCheckCustomTags(tags []string)
 	SetCheckService(service string)
@@ -57,6 +58,8 @@ type checkSender struct {
 	defaultHostnameDisabled bool
 	metricStats             check.SenderStats
 	priormetricStats        check.SenderStats
+	metricSample            check.SenderSample
+	priormetricSample       check.SenderSample
 	statsLock               sync.RWMutex
 	itemsOut                chan<- senderItem
 	serviceCheckOut         chan<- metrics.ServiceCheck
@@ -139,6 +142,8 @@ func newCheckSender(
 		eventOut:                eventOut,
 		metricStats:             check.NewSenderStats(),
 		priormetricStats:        check.NewSenderStats(),
+		metricSample:            check.NewSenderSample(),
+		priormetricSample:       check.NewSenderSample(),
 		orchestratorMetadataOut: orchestratorMetadataOut,
 		orchestratorManifestOut: orchestratorManifestOut,
 		eventPlatformOut:        eventPlatformOut,
@@ -222,11 +227,20 @@ func (s *checkSender) GetSenderStats() (metricStats check.SenderStats) {
 	return s.priormetricStats.Copy()
 }
 
+func (s *checkSender) GetSenderRecentSample() (sample check.SenderSample) {
+	s.statsLock.RLock()
+	defer s.statsLock.RUnlock()
+	return s.priormetricSample.Copy()
+}
+
 func (s *checkSender) cyclemetricStats() {
 	s.statsLock.Lock()
 	defer s.statsLock.Unlock()
 	s.priormetricStats = s.metricStats.Copy()
 	s.metricStats = check.NewSenderStats()
+
+	s.priormetricSample = s.metricSample.Copy()
+	s.metricSample = check.NewSenderSample()
 }
 
 // SendRawMetricSample sends the raw sample
@@ -267,6 +281,7 @@ func (s *checkSender) sendMetricSample(
 
 	s.statsLock.Lock()
 	s.metricStats.MetricSamples++
+	s.metricSample.MetricSamples = append(s.metricSample.MetricSamples, metricSample)
 	s.statsLock.Unlock()
 }
 

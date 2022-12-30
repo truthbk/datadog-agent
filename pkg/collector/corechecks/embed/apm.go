@@ -222,6 +222,11 @@ func (c *APMCheck) GetSenderStats() (check.SenderStats, error) {
 	return check.NewSenderStats(), nil
 }
 
+// GetSenderRecentSample returns the samples from the last run of the check, but there aren't any
+func (c *APMCheck) GetSenderRecentSample() (check.SenderSample, error) {
+	return check.NewSenderSample(), nil
+}
+
 // InitConfig returns the initConfig for the APM check
 func (c *APMCheck) InitConfig() string {
 	return c.initConfig

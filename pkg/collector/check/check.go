@@ -33,6 +33,8 @@ type Check interface {
 	GetWarnings() []error
 	// GetSenderStats returns the stats from the last run of the check.
 	GetSenderStats() (SenderStats, error)
+	// GetSenderRecentSample returns the metric samples that were sent in the last run of the check.
+	GetSenderRecentSample() (SenderSample, error)
 	// Version returns the version of the check if available
 	Version() string
 	// ConfigSource returns the configuration source of the check

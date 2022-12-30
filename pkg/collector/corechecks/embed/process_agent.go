@@ -225,6 +225,11 @@ func (c *ProcessAgentCheck) GetSenderStats() (check.SenderStats, error) {
 	return check.NewSenderStats(), nil
 }
 
+// GetSenderRecentSample returns the samples from the last run of the check, but there aren't any yet
+func (c *ProcessAgentCheck) GetSenderRecentSample() (check.SenderSample, error) {
+	return check.NewSenderSample(), nil
+}
+
 func init() {
 	factory := func() check.Check {
 		return &ProcessAgentCheck{

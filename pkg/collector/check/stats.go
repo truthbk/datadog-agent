@@ -11,6 +11,7 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 
+	"github.com/DataDog/datadog-agent/pkg/metrics"
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	telemetry_utils "github.com/DataDog/datadog-agent/pkg/telemetry/utils"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -56,6 +57,30 @@ type SenderStats struct {
 	HistogramBuckets int64
 	// EventPlatformEvents tracks the number of events submitted for each eventType
 	EventPlatformEvents map[string]int64
+}
+
+// SenderSample contains a sample of recent submissions
+type SenderSample struct {
+	MetricSamples []*metrics.MetricSample
+	// TODO implement things other than metrics
+	// Events           int64
+	// ServiceChecks    int64
+	// HistogramBuckets int64
+	// EventPlatformEvents tracks the number of events submitted for each eventType
+	// EventPlatformEvents map[string]int64
+}
+
+// NewSenderSample creates a new SenderSample
+func NewSenderSample() SenderSample {
+	return SenderSample{}
+}
+
+// Copy creates a copy of the current SenderStats
+func (s SenderSample) Copy() (result SenderSample) {
+	result = s
+	result.MetricSamples = make([]*metrics.MetricSample, len(s.MetricSamples))
+	copy(result.MetricSamples, s.MetricSamples)
+	return result
 }
 
 // NewSenderStats creates a new SenderStats

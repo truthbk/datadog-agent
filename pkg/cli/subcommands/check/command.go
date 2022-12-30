@@ -500,6 +500,9 @@ func runCheck(cliParams *cliParams, c check.Check, demux aggregator.Demultiplexe
 		err := c.Run()
 		warnings := c.GetWarnings()
 		sStats, _ := c.GetSenderStats()
+		// TODO add GetSenderGetRecentSample
+		sSample, _ := c.GetSenderRecentSample()
+		fmt.Println("Sender Recent Sample for check", c.String(), sSample)
 		s.Add(time.Since(t0), err, warnings, sStats)
 		if pause > 0 && i < times-1 {
 			time.Sleep(time.Duration(pause) * time.Millisecond)

@@ -320,6 +320,15 @@ func (c *PythonCheck) GetSenderStats() (check.SenderStats, error) {
 	return sender.GetSenderStats(), nil
 }
 
+// GetSenderRecentSample returns the samples from the last run of the check
+func (c *PythonCheck) GetSenderRecentSample() (check.SenderSample, error) {
+	sender, err := aggregator.GetSender(c.ID())
+	if err != nil {
+		return check.SenderSample{}, fmt.Errorf("Failed to retrieve a Sender instance: %v", err)
+	}
+	return sender.GetSenderRecentSample(), nil
+}
+
 // Interval returns the scheduling time for the check
 func (c *PythonCheck) Interval() time.Duration {
 	return c.interval

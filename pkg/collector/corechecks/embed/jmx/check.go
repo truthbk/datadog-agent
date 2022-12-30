@@ -127,3 +127,8 @@ func (c *JMXCheck) GetWarnings() []error {
 func (c *JMXCheck) GetSenderStats() (check.SenderStats, error) {
 	return check.NewSenderStats(), nil
 }
+
+// GetSenderRecentSample TODO <agent-core> : IML-199
+func (c *JMXCheck) GetSenderRecentSample() (check.SenderSample, error) {
+	return check.NewSenderSample(), nil
+}
