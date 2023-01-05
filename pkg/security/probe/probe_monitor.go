@@ -160,7 +160,7 @@ func (m *Monitor) ProcessEvent(event *model.Event) {
 	if err := event.PathResolutionError; err != nil {
 		if !errors.Is(err, &ErrPathResolutionNotCritical{}) {
 			m.probe.DispatchCustomEvent(
-				NewAbnormalPathEvent(event, m.probe.resolvers, err),
+				NewAbnormalPathEvent(event, m.probe, err),
 			)
 		}
 	} else {
