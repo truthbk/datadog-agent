@@ -60,6 +60,9 @@ type EventHandler interface {
 	HandleCustomEvent(rule *rules.Rule, event *events.CustomEvent)
 }
 
+// EventFilter represents a filter for the events received through an EventStream
+type EventFilter func(*model.Event) bool
+
 // EventStream describes the interface implemented by reordered perf maps or ring buffers
 type EventStream interface {
 	Init(*manager.Manager, *config.Config) error
@@ -88,6 +91,7 @@ type Probe struct {
 	wg             sync.WaitGroup
 	// Events section
 	handlers       [model.MaxAllEventType][]EventHandler
+	filters        [model.MaxAllEventType]EventFilter
 	monitor        *Monitor
 	resolvers      *Resolvers
 	event          *model.Event
@@ -314,6 +318,11 @@ func (p *Probe) AddEventHandler(eventType model.EventType, handler EventHandler)
 	p.handlers[eventType] = append(p.handlers[eventType], handler)
 }
 
+// AddEventFilter adds an eventfilter to the probe
+func (p *Probe) SetEventFilter(eventType model.EventType, filter EventFilter) {
+	p.filters[eventType] = filter
+}
+
 // DispatchEvent sends an event to the probe event handler
 func (p *Probe) DispatchEvent(event *model.Event) {
 	seclog.TraceTagf(event.GetEventType(), "Dispatching event %s", event)
@@ -410,6 +419,10 @@ func (p *Probe) UnmarshalProcessCacheEntry(ev *model.Event, data []byte) (int, e
 	return n, nil
 }
 
+func (p *Probe) filterEvent(event *model.Event) bool {
+	return p.filters[event.GetEventType()] != nil && p.filters[event.GetEventType()](event)
+}
+
 func (p *Probe) handleEvent(CPU int, data []byte) {
 	offset := 0
 	event := p.zeroEvent()
@@ -433,6 +446,9 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 			seclog.Errorf("failed to decode mount released event: %s (offset %d, len %d)", err, offset, dataLen)
 			return
 		}
+		if p.filterEvent(event) {
+			return
+		}
 
 		// Remove all dentry entries belonging to the mountID
 		p.resolvers.DentryResolver.DelCacheEntries(event.MountReleased.MountID)
@@ -447,6 +463,9 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 			seclog.Errorf("failed to decode invalidate dentry event: %s (offset %d, len %d)", err, offset, dataLen)
 			return
 		}
+		if p.filterEvent(event) {
+			return
+		}
 
 		p.invalidateDentry(event.InvalidateDentry.MountID, event.InvalidateDentry.Inode)
 
@@ -454,6 +473,9 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 	case model.ArgsEnvsEventType:
 		if _, err = event.ArgsEnvs.UnmarshalBinary(data[offset:]); err != nil {
 			seclog.Errorf("failed to decode args envs event: %s (offset %d, len %d)", err, offset, dataLen)
+			return
+		}
+		if p.filterEvent(event) {
 			return
 		}
 
@@ -470,6 +492,9 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 			seclog.Errorf("failed to decode cgroup tracing event: %s (offset %d, len %d)", err, offset, dataLen)
 			return
 		}
+		if p.filterEvent(event) {
+			return
+		}
 
 		p.monitor.activityDumpManager.HandleCgroupTracingEvent(&event.CgroupTracing)
 		return
@@ -478,6 +503,10 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 			seclog.Errorf("failed to decode unshare mnt ns event: %s (offset %d, len %d)", err, offset, dataLen)
 			return
 		}
+		if p.filterEvent(event) {
+			return
+		}
+
 		if err := p.handleNewMount(event, &event.UnshareMountNS.Mount); err != nil {
 			seclog.Debugf("failed to handle new mount from unshare mnt ns event: %s", err)
 		}
@@ -490,10 +519,6 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 		return
 	}
 	offset += read
-
-	// save netns handle if applicable
-	nsPath := utils.NetNSPathFromPid(event.PIDContext.Pid)
-	_, _ = p.resolvers.NamespaceResolver.SaveNetworkNamespaceHandle(event.PIDContext.NetNS, nsPath)
 
 	if model.GetEventTypeCategory(eventType.String()) == model.NetworkCategory {
 		if read, err = event.NetworkContext.UnmarshalBinary(data[offset:]); err != nil {
@@ -508,38 +533,11 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 			seclog.Errorf("failed to decode mount event: %s (offset %d, len %d)", err, offset, dataLen)
 			return
 		}
-		if err := p.handleNewMount(event, &event.Mount.Mount); err != nil {
-			seclog.Debugf("failed to handle new mount from mount event: %s\n", err)
-			return
-		}
-
-		// TODO: this should be moved in the resolver itself in order to handle the fallbacks
-		if event.Mount.GetFSType() == "nsfs" {
-			nsid := uint32(event.Mount.RootInode)
-			mountPath, err := p.resolvers.MountResolver.ResolveMountPath(event.Mount.MountID, event.PIDContext.Pid, event.ContainerContext.ID)
-			if err != nil {
-				seclog.Debugf("failed to get mount path: %v", err)
-			} else {
-				mountNetNSPath := utils.NetNSPathFromPath(mountPath)
-				_, _ = p.resolvers.NamespaceResolver.SaveNetworkNamespaceHandle(nsid, mountNetNSPath)
-			}
-		}
-
 	case model.FileUmountEventType:
 		if _, err = event.Umount.UnmarshalBinary(data[offset:]); err != nil {
 			seclog.Errorf("failed to decode umount event: %s (offset %d, len %d)", err, offset, dataLen)
 			return
 		}
-
-		// we can skip this error as this is for the umount only and there is no impact on the filepath resolution
-		mount, _ := p.resolvers.MountResolver.ResolveMount(event.Umount.MountID, event.PIDContext.Pid, event.ContainerContext.ID)
-		if mount != nil && mount.GetFSType() == "nsfs" {
-			nsid := uint32(mount.RootInode)
-			if namespace := p.resolvers.NamespaceResolver.ResolveNetworkNamespace(nsid); namespace != nil {
-				p.FlushNetworkNamespace(namespace)
-			}
-		}
-
 	case model.FileOpenEventType:
 		if _, err = event.Open.UnmarshalBinary(data[offset:]); err != nil {
 			seclog.Errorf("failed to decode open event: %s (offset %d, len %d)", err, offset, dataLen)
@@ -555,30 +553,15 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 			seclog.Errorf("failed to decode rmdir event: %s (offset %d, len %d)", err, offset, dataLen)
 			return
 		}
-
-		if event.Rmdir.Retval >= 0 {
-			// defer it do ensure that it will be done after the dispatch that could re-add it
-			defer p.invalidateDentry(event.Rmdir.File.MountID, event.Rmdir.File.Inode)
-		}
 	case model.FileUnlinkEventType:
 		if _, err = event.Unlink.UnmarshalBinary(data[offset:]); err != nil {
 			seclog.Errorf("failed to decode unlink event: %s (offset %d, len %d)", err, offset, dataLen)
 			return
 		}
-
-		if event.Unlink.Retval >= 0 {
-			// defer it do ensure that it will be done after the dispatch that could re-add it
-			defer p.invalidateDentry(event.Unlink.File.MountID, event.Unlink.File.Inode)
-		}
 	case model.FileRenameEventType:
 		if _, err = event.Rename.UnmarshalBinary(data[offset:]); err != nil {
 			seclog.Errorf("failed to decode rename event: %s (offset %d, len %d)", err, offset, dataLen)
 			return
-		}
-
-		if event.Rename.Retval >= 0 {
-			// defer it do ensure that it will be done after the dispatch that could re-add it
-			defer p.invalidateDentry(event.Rename.New.MountID, event.Rename.New.Inode)
 		}
 	case model.FileChmodEventType:
 		if _, err = event.Chmod.UnmarshalBinary(data[offset:]); err != nil {
@@ -599,12 +582,6 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 		if _, err = event.Link.UnmarshalBinary(data[offset:]); err != nil {
 			seclog.Errorf("failed to decode link event: %s (offset %d, len %d)", err, offset, dataLen)
 			return
-		}
-
-		// need to invalidate as now nlink > 1
-		if event.Link.Retval >= 0 {
-			// defer it do ensure that it will be done after the dispatch that could re-add it
-			defer p.invalidateDentry(event.Link.Source.MountID, event.Link.Source.Inode)
 		}
 	case model.FileSetXAttrEventType:
 		if _, err = event.SetXAttr.UnmarshalBinary(data[offset:]); err != nil {
@@ -628,8 +605,6 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 
 		p.resolvers.ProcessResolver.ApplyBootTime(event.ProcessCacheEntry)
 		event.ProcessCacheEntry.SetSpan(event.SpanContext.SpanID, event.SpanContext.TraceID)
-
-		p.resolvers.ProcessResolver.AddForkEntry(event.ProcessCacheEntry)
 	case model.ExecEventType:
 		// unmarshal and fill event.processCacheEntry
 		if _, err = p.UnmarshalProcessCacheEntry(event, data[offset:]); err != nil {
@@ -644,10 +619,6 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 				event.SetPathResolutionError(&event.ProcessCacheEntry.FileEvent, err)
 			}
 		}
-
-		p.resolvers.ProcessResolver.AddExecEntry(event.ProcessCacheEntry)
-
-		event.Exec.Process = &event.ProcessCacheEntry.Process
 	case model.ExitEventType:
 		if _, err = event.Exit.UnmarshalBinary(data[offset:]); err != nil {
 			seclog.Errorf("failed to decode exit event: %s (offset %d, len %d)", err, offset, len(data))
@@ -671,19 +642,16 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 			seclog.Errorf("failed to decode setuid event: %s (offset %d, len %d)", err, offset, len(data))
 			return
 		}
-		defer p.resolvers.ProcessResolver.UpdateUID(event.PIDContext.Pid, event)
 	case model.SetgidEventType:
 		if _, err = event.SetGID.UnmarshalBinary(data[offset:]); err != nil {
 			seclog.Errorf("failed to decode setgid event: %s (offset %d, len %d)", err, offset, len(data))
 			return
 		}
-		defer p.resolvers.ProcessResolver.UpdateGID(event.PIDContext.Pid, event)
 	case model.CapsetEventType:
 		if _, err = event.Capset.UnmarshalBinary(data[offset:]); err != nil {
 			seclog.Errorf("failed to decode capset event: %s (offset %d, len %d)", err, offset, len(data))
 			return
 		}
-		defer p.resolvers.ProcessResolver.UpdateCapset(event.PIDContext.Pid, event)
 	case model.SELinuxEventType:
 		if _, err = event.SELinux.UnmarshalBinary(data[offset:]); err != nil {
 			seclog.Errorf("failed to decode selinux event: %s (offset %d, len %d)", err, offset, len(data))
@@ -755,13 +723,11 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 			seclog.Errorf("failed to decode net_device event: %s (offset %d, len %d)", err, offset, len(data))
 			return
 		}
-		_ = p.setupNewTCClassifier(event.NetDevice.Device)
 	case model.VethPairEventType:
 		if _, err = event.VethPair.UnmarshalBinary(data[offset:]); err != nil {
 			seclog.Errorf("failed to decode veth_pair event: %s (offset %d, len %d)", err, offset, len(data))
 			return
 		}
-		_ = p.setupNewTCClassifier(event.VethPair.PeerDevice)
 	case model.DNSEventType:
 		if _, err = event.DNS.UnmarshalBinary(data[offset:]); err != nil {
 			if errors.Is(err, model.ErrDNSNamePointerNotSupported) {
@@ -785,6 +751,79 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 	default:
 		seclog.Errorf("unsupported event type %d", eventType)
 		return
+	}
+
+	if p.filterEvent(event) {
+		return
+	}
+
+	// save netns handle if applicable
+	nsPath := utils.NetNSPathFromPid(event.PIDContext.Pid)
+	_, _ = p.resolvers.NamespaceResolver.SaveNetworkNamespaceHandle(event.PIDContext.NetNS, nsPath)
+
+	switch eventType {
+	case model.FileMountEventType:
+		if err := p.handleNewMount(event, &event.Mount.Mount); err != nil {
+			seclog.Debugf("failed to handle new mount from mount event: %s\n", err)
+			return
+		}
+
+		// TODO: this should be moved in the resolver itself in order to handle the fallbacks
+		if event.Mount.GetFSType() == "nsfs" {
+			nsid := uint32(event.Mount.RootInode)
+			mountPath, err := p.resolvers.MountResolver.ResolveMountPath(event.Mount.MountID, event.PIDContext.Pid, event.ContainerContext.ID)
+			if err != nil {
+				seclog.Debugf("failed to get mount path: %v", err)
+			} else {
+				mountNetNSPath := utils.NetNSPathFromPath(mountPath)
+				_, _ = p.resolvers.NamespaceResolver.SaveNetworkNamespaceHandle(nsid, mountNetNSPath)
+			}
+		}
+	case model.FileUmountEventType:
+		// we can skip this error as this is for the umount only and there is no impact on the filepath resolution
+		mount, _ := p.resolvers.MountResolver.ResolveMount(event.Umount.MountID, event.PIDContext.Pid, event.ContainerContext.ID)
+		if mount != nil && mount.GetFSType() == "nsfs" {
+			nsid := uint32(mount.RootInode)
+			if namespace := p.resolvers.NamespaceResolver.ResolveNetworkNamespace(nsid); namespace != nil {
+				p.FlushNetworkNamespace(namespace)
+			}
+		}
+	case model.FileRmdirEventType:
+		if event.Rmdir.Retval >= 0 {
+			// defer it do ensure that it will be done after the dispatch that could re-add it
+			defer p.invalidateDentry(event.Rmdir.File.MountID, event.Rmdir.File.Inode)
+		}
+	case model.FileUnlinkEventType:
+		if event.Unlink.Retval >= 0 {
+			// defer it do ensure that it will be done after the dispatch that could re-add it
+			defer p.invalidateDentry(event.Unlink.File.MountID, event.Unlink.File.Inode)
+		}
+	case model.FileRenameEventType:
+		if event.Rename.Retval >= 0 {
+			// defer it do ensure that it will be done after the dispatch that could re-add it
+			defer p.invalidateDentry(event.Rename.New.MountID, event.Rename.New.Inode)
+		}
+	case model.FileLinkEventType:
+		// need to invalidate as now nlink > 1
+		if event.Link.Retval >= 0 {
+			// defer it do ensure that it will be done after the dispatch that could re-add it
+			defer p.invalidateDentry(event.Link.Source.MountID, event.Link.Source.Inode)
+		}
+	case model.ForkEventType:
+		p.resolvers.ProcessResolver.AddForkEntry(event.ProcessCacheEntry)
+	case model.ExecEventType:
+		p.resolvers.ProcessResolver.AddExecEntry(event.ProcessCacheEntry)
+		event.Exec.Process = &event.ProcessCacheEntry.Process
+	case model.SetuidEventType:
+		defer p.resolvers.ProcessResolver.UpdateUID(event.PIDContext.Pid, event)
+	case model.SetgidEventType:
+		defer p.resolvers.ProcessResolver.UpdateGID(event.PIDContext.Pid, event)
+	case model.CapsetEventType:
+		defer p.resolvers.ProcessResolver.UpdateCapset(event.PIDContext.Pid, event)
+	case model.NetDeviceEventType:
+		_ = p.setupNewTCClassifier(event.NetDevice.Device)
+	case model.VethPairEventType:
+		_ = p.setupNewTCClassifier(event.VethPair.PeerDevice)
 	}
 
 	// resolve the process cache entry

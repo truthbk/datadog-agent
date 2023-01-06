@@ -197,6 +197,7 @@ type testOpts struct {
 	disableMapDentryResolution          bool
 	envsWithValue                       []string
 	disableAbnormalPathCheck            bool
+	eventFilters                        map[model.EventType]sprobe.EventFilter
 }
 
 func (s *stringSlice) String() string {
@@ -804,6 +805,10 @@ func newTestModule(t testing.TB, macroDefs []*rules.MacroDefinition, ruleDefs []
 
 	testMod.probe.AddEventHandler(model.UnknownEventType, testMod)
 	testMod.probe.AddNewNotifyDiscarderPushedCallback(testMod.NotifyDiscarderPushedCallback)
+
+	for eventType, filter := range opts.eventFilters {
+		testMod.probe.SetEventFilter(eventType, filter)
+	}
 
 	if err := testMod.module.Init(); err != nil {
 		return nil, fmt.Errorf("failed to init module: %w", err)

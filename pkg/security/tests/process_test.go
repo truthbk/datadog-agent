@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/security/probe"
 	"github.com/DataDog/datadog-agent/pkg/security/probe/constantfetch"
 
 	"github.com/avast/retry-go/v4"
@@ -2171,4 +2172,53 @@ func TestProcessFilelessExecution(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProcessEventFiltering(t *testing.T) {
+	executable := which(t, "touch")
+
+	ruleDef := &rules.RuleDefinition{
+		ID:         "test_rule_event_filtering",
+		Expression: fmt.Sprintf(`exec.file.path == "%s" && exec.args == "/dev/null"`, executable),
+	}
+
+	isTestEvent := func(event *model.Event) bool {
+		return event.ProcessCacheEntry.FileEvent.IsPathnameStrResolved && event.ProcessCacheEntry.FileEvent.PathnameStr == executable
+	}
+
+	opts := testOpts{
+		eventFilters: map[model.EventType]probe.EventFilter{
+			model.ExecEventType: isTestEvent,
+		},
+	}
+
+	test, err := newTestModule(t, nil, []*rules.RuleDefinition{ruleDef}, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer test.Close()
+
+	syscallTester, err := loadSyscallTester(t, test, "syscall_tester")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("filter-exec", func(t *testing.T) {
+		err := test.GetProbeEvent(func() error {
+			args := []string{"exec-in-pthread", executable, "/dev/null"}
+			cmd := exec.Command(syscallTester, args...)
+			return cmd.Run()
+		}, func(event *model.Event) bool {
+			if isTestEvent(event) {
+				t.Fatal("shouldn't get an event")
+				return true
+			}
+			return false
+		}, 3*time.Second, model.ExecEventType)
+		if err == nil {
+			t.Fatal("shouldn't get an event")
+		} else if otherErr, ok := err.(ErrTimeout); !ok {
+			t.Fatal(otherErr)
+		}
+	})
 }
