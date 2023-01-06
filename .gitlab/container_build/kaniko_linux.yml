@@ -1,0 +1,52 @@
+---
+.kaniko_build_job_definition:
+  stage: container_build
+  script:
+    # Hardcoding pipeline 12445039 id (from a recent main run)
+    - aws s3 sync --only-show-errors s3://dd-ci-artefacts-build-stable/$CI_PROJECT_NAME/12445039 $BUILD_CONTEXT
+    - TAG_SUFFIX=${TAG_SUFFIX:-}
+    - BUILD_ARG=${BUILD_ARG:-}
+    - ECR_RELEASE_SUFFIX=${CI_COMMIT_TAG+-release}
+    - TARGET_TAG=${IMAGE}${ECR_RELEASE_SUFFIX}:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}$TAG_SUFFIX-$ARCH
+    # DockerHub login for build to limit rate limit when pulling base images
+    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
+    # Build image
+    - set -x; /kaniko/executor --log-timestamp=true --cache=false --single-snapshot --push-retry=2 --context=dir://$BUILD_CONTEXT --dockerfile=$BUILD_CONTEXT/Dockerfile --destination=${TARGET_TAG} --build-arg="CIBUILD=true" --build-arg="TARGETARCH=$ARCH" --build-arg="GENERAL_ARTIFACTS_CACHE_BUCKET_URL=${GENERAL_ARTIFACTS_CACHE_BUCKET_URL}" $BUILD_ARG
+    # Squash image, test, and push to ECR
+    #- test "$TEST_IMG" && docker run -v `pwd`/$BUILD_CONTEXT:/tmp/build ${TARGET_TAG} python /tmp/build/test_image_contents.py4
+  # Workaround for temporary network failures
+  retry: 2
+
+.kaniko_build_job_definition_amd64:
+  extends: .kaniko_build_job_definition
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v12448259-375381a-kaniko-1.9
+  tags: ["arch:amd64"]
+  variables:
+    ARCH: amd64
+
+.kaniko_build_job_definition_arm64:
+  extends: .kaniko_build_job_definition
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v12448259-375381a-kaniko-1.9
+  tags: ["arch:arm64"]
+  variables:
+    ARCH: arm64
+
+# build agent7 jmx image
+docker_build_agent7_jmx:
+  extends: .kaniko_build_job_definition_amd64
+  variables:
+    IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent/agent
+    BUILD_CONTEXT: Dockerfiles/agent
+    TAG_SUFFIX: -7-jmx
+    TEST_IMG: "true"
+    BUILD_ARG: --target=release --build-arg=WITH_JMX=true --build-arg=PYTHON_VERSION=3 --build-arg=DD_AGENT_ARTIFACT=datadog-agent_7*_amd64.deb
+
+docker_build_agent7_jmx_arm64:
+  extends: .kaniko_build_job_definition_arm64
+  variables:
+    IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent/agent
+    BUILD_CONTEXT: Dockerfiles/agent
+    TAG_SUFFIX: -7-jmx
+    TEST_IMG: "true"
+    BUILD_ARG: --target=release --build-arg=WITH_JMX=true --build-arg=PYTHON_VERSION=3 --build-arg=DD_AGENT_ARTIFACT=datadog-agent_7*_arm64.deb
