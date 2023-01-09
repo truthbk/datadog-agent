@@ -186,26 +186,14 @@ int kprobe__ip_make_skb(struct pt_regs* ctx) {
     return 0;
 }
 
-SEC("kprobe/ip6_make_skb")
-int kprobe__ip6_make_skb(struct pt_regs* ctx) {
+SEC("kprobe/udp_v6_send_skb")
+int kprobe__udp_v6_send_skb(struct pt_regs* ctx) {
     u64 zero = 0;
     tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);
     if (status == NULL || is_sk_buff_event(status->what)) {
         return 0;
     }
-    struct flowi6* fl6 = (struct flowi6*)PT_REGS_PARM7(ctx);
-    guess_offsets(status, (char*)fl6);
-    return 0;
-}
-
-SEC("kprobe/ip6_make_skb/pre_4_7_0")
-int kprobe__ip6_make_skb__pre_4_7_0(struct pt_regs* ctx) {
-    u64 zero = 0;
-    tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);
-    if (status == NULL || is_sk_buff_event(status->what)) {
-        return 0;
-    }
-    struct flowi6* fl6 = (struct flowi6*)PT_REGS_PARM9(ctx);
+    struct flowi6* fl6 = (struct flowi6*)PT_REGS_PARM2(ctx);
     guess_offsets(status, (char*)fl6);
     return 0;
 }

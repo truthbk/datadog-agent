@@ -32,7 +32,6 @@ import (
 	netebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
 	"github.com/DataDog/datadog-agent/pkg/network/tracer/connection/kprobe"
-	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/native"
 )
@@ -129,8 +128,7 @@ var offsetProbes = map[probes.ProbeName]string{
 	probes.SockGetSockOpt:     "kprobe__sock_common_getsockopt",
 	probes.TCPv6Connect:       "kprobe__tcp_v6_connect",
 	probes.IPMakeSkb:          "kprobe__ip_make_skb",
-	probes.IP6MakeSkb:         "kprobe__ip6_make_skb",
-	probes.IP6MakeSkbPre470:   "kprobe__ip6_make_skb__pre_4_7_0",
+	probes.UDPv6SendSKB:       "kprobe__udp_v6_send_skb",
 	probes.TCPv6ConnectReturn: "kretprobe__tcp_v6_connect",
 	probes.NetDevQueue:        "tracepoint__net__net_dev_queue",
 }
@@ -155,8 +153,7 @@ func newOffsetManager() *manager.Manager {
 			{ProbeIdentificationPair: idPair(probes.SockGetSockOpt)},
 			{ProbeIdentificationPair: idPair(probes.TCPv6Connect)},
 			{ProbeIdentificationPair: idPair(probes.IPMakeSkb)},
-			{ProbeIdentificationPair: idPair(probes.IP6MakeSkb)},
-			{ProbeIdentificationPair: idPair(probes.IP6MakeSkbPre470), MatchFuncName: "^ip6_make_skb$"},
+			{ProbeIdentificationPair: idPair(probes.UDPv6SendSKB)},
 			{ProbeIdentificationPair: idPair(probes.TCPv6ConnectReturn), KProbeMaxActive: 128},
 			{ProbeIdentificationPair: idPair(probes.NetDevQueue)},
 		},
@@ -277,17 +274,7 @@ func offsetGuessProbes(c *config.Config) (map[probes.ProbeName]string, error) {
 	if c.CollectIPv6Conns {
 		enableProbe(p, probes.TCPv6Connect)
 		enableProbe(p, probes.TCPv6ConnectReturn)
-
-		kv, err := kernel.HostVersion()
-		if err != nil {
-			return nil, err
-		}
-
-		if kv < kernel.VersionCode(4, 7, 0) {
-			enableProbe(p, probes.IP6MakeSkbPre470)
-		} else {
-			enableProbe(p, probes.IP6MakeSkb)
-		}
+		enableProbe(p, probes.UDPv6SendSKB)
 	}
 	return p, nil
 }
@@ -629,7 +616,9 @@ func flowi6EntryState(status *netebpf.TracerStatus) netebpf.GuessWhat {
 // possible offset and expected value of each field in a eBPF map. In kernel-space
 // we rely on two different kprobes: `tcp_getsockopt` and `tcp_connect_v6`. When they're
 // are triggered, we store the value of
-//     (struct sock *)skp + possible_offset
+//
+//	(struct sock *)skp + possible_offset
+//
 // in the eBPF map. Then, back in userspace (checkAndUpdateCurrentOffset()), we
 // check that value against the expected value of the field, advancing the
 // offset and repeating the process until we find the value we expect. Then, we

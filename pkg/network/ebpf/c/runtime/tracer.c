@@ -130,9 +130,15 @@ SEC("kprobe/ip6_make_skb")
 int kprobe__ip6_make_skb(struct pt_regs *ctx) {
     struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
     size_t len = (size_t)PT_REGS_PARM4(ctx);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0)
+    // commit: https://github.com/torvalds/linux/commit/f37a4cc6bb0ba08c2d9fd7d18a1da87161cbb7f9
+    // moved struct flowi6 *fl6 inside struct inet_cork_full *cork parameter
+    struct inet_cork_full *cork = (struct inet_cork_full *)PT_REGS_PARM9(ctx);
+    struct flowi6 *fl6 = &cork->fl.u.ip6;
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0)
     // commit: https://github.com/torvalds/linux/commit/26879da58711aa604a1b866cbeedd7e0f78f90ad
     // changed the arguments to ip6_make_skb and introduced the struct ipcm6_cookie
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0)
     struct flowi6 *fl6 = (struct flowi6 *)PT_REGS_PARM7(ctx);
 #else
     struct flowi6 *fl6 = (struct flowi6 *)PT_REGS_PARM9(ctx);
