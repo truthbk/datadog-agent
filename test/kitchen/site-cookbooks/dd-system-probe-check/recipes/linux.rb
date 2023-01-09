@@ -43,6 +43,8 @@ package 'netcat' do
     package_name 'nmap-ncat'
   when 'redhat', 'centos', 'fedora'
     package_name 'nc'
+  when 'ubuntu'
+    package_name 'netcat-openbsd'
   else
     package_name 'netcat'
   end
