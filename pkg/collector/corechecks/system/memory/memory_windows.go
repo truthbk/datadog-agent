@@ -17,11 +17,8 @@ import (
 
 // For testing purpose
 var virtualMemory = winutil.VirtualMemory
-
-var (
-	swapMemory = winutil.SwapMemory
-	pageMemory = winutil.PagefileMemory
-)
+var swapMemory = winutil.SwapMemory
+var pageMemory = winutil.PagefileMemory
 
 // Check doesn't need additional fields
 type Check struct {

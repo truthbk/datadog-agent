@@ -13,14 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
-	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	pdhtest "github.com/DataDog/datadog-agent/pkg/util/winutil/pdhutil"
 )
 
 func testGetDriveType(drive string) uintptr {
 	return DRIVE_FIXED
 }
-
 func addDefaultQueryReturnValues() {
 	pdhtest.SetQueryReturnValue("\\\\.\\LogicalDisk(_Total)\\Disk Write Bytes/sec", 1.111)
 	pdhtest.SetQueryReturnValue("\\\\.\\LogicalDisk(C:)\\Disk Write Bytes/sec", 1.222)
@@ -59,16 +57,18 @@ func addDriveDReturnValues() {
 
 	pdhtest.SetQueryReturnValue("\\\\.\\LogicalDisk(Y:)\\Current Disk Queue Length", 5.444)
 	pdhtest.SetQueryReturnValue("\\\\.\\LogicalDisk(HarddiskVolume2)\\Current Disk Queue Length", 5.555)
+
 }
 
 func TestIoCheckWindows(t *testing.T) {
+
 	pfnGetDriveType = testGetDriveType
 	pdhtest.SetupTesting("..\\testfiles\\counter_indexes_en-us.txt", "..\\testfiles\\allcounters_en-us.txt")
 
 	addDefaultQueryReturnValues()
 
 	ioCheck := new(IOCheck)
-	ioCheck.Configure(integration.FakeConfigHash, nil, nil, "test")
+	ioCheck.Configure(nil, nil, "test")
 
 	mock := mocksender.NewMockSender(ioCheck.ID())
 
@@ -93,9 +93,11 @@ func TestIoCheckWindows(t *testing.T) {
 	mock.AssertExpectations(t)
 	mock.AssertNumberOfCalls(t, "Gauge", 10)
 	mock.AssertNumberOfCalls(t, "Commit", 1)
+
 }
 
 func TestIoCheckLowercaseDeviceTag(t *testing.T) {
+
 	pfnGetDriveType = testGetDriveType
 	pdhtest.SetupTesting("..\\testfiles\\counter_indexes_en-us.txt", "..\\testfiles\\allcounters_en-us.txt")
 
@@ -105,7 +107,7 @@ func TestIoCheckLowercaseDeviceTag(t *testing.T) {
 	rawInitConfigYaml := []byte(`
 lowercase_device_tag: true
 `)
-	err := ioCheck.Configure(integration.FakeConfigHash, nil, rawInitConfigYaml, "test")
+	err := ioCheck.Configure(nil, rawInitConfigYaml, "test")
 	require.NoError(t, err)
 
 	mock := mocksender.NewMockSender(ioCheck.ID())
@@ -131,6 +133,7 @@ lowercase_device_tag: true
 	mock.AssertExpectations(t)
 	mock.AssertNumberOfCalls(t, "Gauge", 10)
 	mock.AssertNumberOfCalls(t, "Commit", 1)
+
 }
 
 func TestIoCheckInstanceAdded(t *testing.T) {
@@ -144,7 +147,7 @@ func TestIoCheckInstanceAdded(t *testing.T) {
 	addDriveDReturnValues()
 
 	ioCheck := new(IOCheck)
-	ioCheck.Configure(integration.FakeConfigHash, nil, nil, "test")
+	ioCheck.Configure(nil, nil, "test")
 
 	pdhtest.AddCounterInstance("LogicalDisk", "Y:")
 	pdhtest.AddCounterInstance("LogicalDisk", "HarddiskVolume2")
@@ -188,6 +191,7 @@ func TestIoCheckInstanceAdded(t *testing.T) {
 	mock.AssertExpectations(t)
 	mock.AssertNumberOfCalls(t, "Gauge", 30)
 	mock.AssertNumberOfCalls(t, "Commit", 2)
+
 }
 
 func TestIoCheckInstanceRemoved(t *testing.T) {
@@ -205,7 +209,7 @@ func TestIoCheckInstanceRemoved(t *testing.T) {
 	addDriveDReturnValues()
 
 	ioCheck := new(IOCheck)
-	ioCheck.Configure(integration.FakeConfigHash, nil, nil, "test")
+	ioCheck.Configure(nil, nil, "test")
 
 	mock := mocksender.NewMockSender(ioCheck.ID())
 
@@ -250,4 +254,5 @@ func TestIoCheckInstanceRemoved(t *testing.T) {
 	mock.AssertExpectations(t)
 	mock.AssertNumberOfCalls(t, "Gauge", 40)
 	mock.AssertNumberOfCalls(t, "Commit", 3)
+
 }

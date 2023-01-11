@@ -144,8 +144,8 @@ func addProcessorPdhCounter(query *pdhutil.PdhQuery, counterName string) pdhutil
 }
 
 // Configure the CPU check doesn't need configuration
-func (c *Check) Configure(integrationConfigDigest uint64, data integration.Data, initConfig integration.Data, source string) error {
-	if err := c.CommonConfigure(integrationConfigDigest, initConfig, data, source); err != nil {
+func (c *Check) Configure(data integration.Data, initConfig integration.Data, source string) error {
+	if err := c.CommonConfigure(initConfig, data, source); err != nil {
 		return err
 	}
 
