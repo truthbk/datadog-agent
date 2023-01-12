@@ -139,6 +139,9 @@ func rootCmdRun(globalParams *command.GlobalParams) {
 	}
 
 	exit := make(chan struct{})
+	if !globalParams.WinParams.Foreground {
+		fmt.Println("Process-agent is running as a service. You can run it in the foreground with --foreground")
+	}
 	// Invoke the Agent
 	runAgent(globalParams, exit)
 }
