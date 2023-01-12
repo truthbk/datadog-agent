@@ -359,6 +359,25 @@ UINT doFinalizeInstall(CustomActionData &data)
     }
 #endif
 
+    {
+        auto processAgentService = L"NT Service\\datadog-process-agent";
+        auto processAgentSid = GetSidForUser(nullptr, processAgentService);
+        if (processAgentSid.Result == ERROR_SUCCESS && processAgentSid.Sid != nullptr)
+        {
+            if (!AddPrivileges(processAgentSid.Sid.get(), hLsa, SE_DEBUG_NAME))
+            {
+                WcaLog(LOGMSG_STANDARD, "failed to add debug name right to process agent account");
+                goto LExit;
+            }
+            er = addDdUserPermsToFile(processAgentSid.Sid.get(), datadogyamlfile);
+            er = addDdUserPermsToFile(processAgentSid.Sid.get(), logdir);
+        }
+        else
+        {
+            WcaLog(LOGMSG_STANDARD, "Could not find process agent account");
+        }
+    }
+
     er = addDdUserPermsToFile(data.Sid(), programdataroot);
     WcaLog(LOGMSG_STANDARD, "%d setting programdata dir perms", er);
     er = addDdUserPermsToFile(data.Sid(), embedded2Dir);

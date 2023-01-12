@@ -763,7 +763,7 @@ int installServices(CustomActionData &data, PSID sid, const wchar_t *password)
         serviceDef(traceService.c_str(), L"Datadog Trace Agent", L"Send tracing metrics to Datadog", trace_exe.c_str(),
                    L"datadogagent\0\0", SERVICE_DEMAND_START, data.FullyQualifiedUsername().c_str(), password),
         serviceDef(processService.c_str(), L"Datadog Process Agent", L"Send process metrics to Datadog",
-                   process_exe.c_str(), L"datadogagent\0\0", SERVICE_DEMAND_START, NULL, NULL),
+                   process_exe.c_str(), L"datadogagent\0\0", SERVICE_DEMAND_START, L"NT SERVICE\\datadog-process-agent", NULL),
         serviceDef(systemProbeService.c_str(), L"Datadog System Probe", L"Send network metrics to Datadog",
                    sysprobe_exe.c_str(), data.npmPresent() ? probeDepsWithNPM : probeDepsNoNPM, SERVICE_DEMAND_START,
                    NULL, NULL)
