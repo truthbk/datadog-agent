@@ -95,10 +95,10 @@ func (c *TrivyCollector) initScannerConfig(opts flag.Options) (ScannerConfig, ty
 
 func (c *TrivyCollector) disabledAnalyzers(opts flag.Options) []analyzer.Type {
 	analyzers := opts.DisabledAnalyzers
-	analyzers = append(analyzers, analyzer.TypeLanguages...)
-	analyzers = append(analyzers, analyzer.TypeSecret)
-	analyzers = append(analyzers, analyzer.TypeConfigFiles...)
-	analyzers = append(analyzers, analyzer.TypeLicenseFile)
+	// analyzers = append(analyzers, analyzer.TypeLanguages...)
+	// analyzers = append(analyzers, analyzer.TypeSecret)
+	// analyzers = append(analyzers, analyzer.TypeConfigFiles...)
+	// analyzers = append(analyzers, analyzer.TypeLicenseFile)
 	return analyzers
 }
 
