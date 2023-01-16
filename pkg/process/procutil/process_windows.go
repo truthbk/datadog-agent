@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil/pdhutil"
+	"github.com/Microsoft/go-winio"
 )
 
 var (
@@ -534,18 +535,24 @@ func getProcessCommandParams(procHandle windows.Handle) *winutil.ProcessCommandP
 
 // OpenProcessHandle attempts to open process handle for reading process memory with fallback to query basic info
 func OpenProcessHandle(pid int32) (windows.Handle, error) {
-	// 0x1000 is PROCESS_QUERY_LIMITED_INFORMATION, but that constant isn't
-	//        defined in x/sys/windows
-	// 0x10   is PROCESS_VM_READ
-	procHandle, err := windows.OpenProcess(0x1010, false, uint32(pid))
-	if err != nil {
-		log.Debugf("Couldn't open process with PROCESS_VM_READ %v %v", pid, err)
-		procHandle, err = windows.OpenProcess(0x1000, false, uint32(pid))
+	procHandle := windows.Handle(0)
+	var err error
+	winio.RunWithPrivilege("SeDebugPrivilege", func() error {
+		// 0x1000 is PROCESS_QUERY_LIMITED_INFORMATION, but that constant isn't
+		//        defined in x/sys/windows
+		// 0x10   is PROCESS_VM_READ
+		procHandle, err = windows.OpenProcess(0x1010, false, uint32(pid))
 		if err != nil {
-			log.Debugf("Couldn't open process %v %v", pid, err)
-			return windows.Handle(0), err
+			log.Debugf("Couldn't open process with PROCESS_VM_READ %v %v", pid, err)
+			procHandle, err = windows.OpenProcess(0x1000, false, uint32(pid))
+			if err != nil {
+				log.Debugf("Couldn't open process %v %v", pid, err)
+				return err
+			}
 		}
-	}
+		return nil
+	})
+
 	return procHandle, nil
 }
 
