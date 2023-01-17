@@ -54,13 +54,16 @@ type Launcher struct {
 
 	// tailers contains the tailer for each source
 	tailers map[*sourcesPkg.LogSource]tailerfactory.Tailer
+
+	cleanUpSources chan *sourcesPkg.LogSource
 }
 
 // NewLauncher returns a new launcher
 func NewLauncher(sources *sourcesPkg.LogSources) *Launcher {
 	launcher := &Launcher{
-		sources: sources,
-		tailers: make(map[*sourcesPkg.LogSource]tailerfactory.Tailer),
+		sources:        sources,
+		tailers:        make(map[*sourcesPkg.LogSource]tailerfactory.Tailer),
+		cleanUpSources: make(chan *sourcesPkg.LogSource),
 	}
 	return launcher
 }
@@ -109,6 +112,9 @@ func (l *Launcher) loop(ctx context.Context, addedSources, removedSources chan *
 	case source := <-removedSources:
 		l.stopSource(source)
 
+	case source := <-l.cleanUpSources:
+		l.cleanUpSource(source)
+
 	case <-ctx.Done():
 		l.stop()
 		close(l.stopped)
@@ -149,6 +155,13 @@ func (l *Launcher) startSource(source *sourcesPkg.LogSource) {
 	}
 	source.AddInput(source.Config.Identifier)
 
+	// Tailers can be stopped externally (by an unschedule event) or internally by an unrecoverable failure.
+	// This goroutine lisntens for the stop event and cleans up the source tracking.
+	go func() {
+		<-tailer.OnStop()
+		l.cleanUpSources <- source
+	}()
+
 	l.tailers[source] = tailer
 }
 
@@ -156,6 +169,12 @@ func (l *Launcher) startSource(source *sourcesPkg.LogSource) {
 func (l *Launcher) stopSource(source *sourcesPkg.LogSource) {
 	if tailer, exists := l.tailers[source]; exists {
 		tailer.Stop()
+	}
+}
+
+func (l *Launcher) cleanUpSource(source *sourcesPkg.LogSource) {
+	if _, exists := l.tailers[source]; exists {
+		source.RemoveInput(source.Config.Identifier)
 		delete(l.tailers, source)
 	}
 }

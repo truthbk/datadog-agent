@@ -54,6 +54,8 @@ type DockerSocketTailer struct {
 
 	// stopped is closed when the run loop finishes
 	stopped chan struct{}
+
+	onStopChan chan struct{}
 }
 
 // NewDockerSocketTailer Creates a new docker socket tailer
@@ -68,6 +70,7 @@ func NewDockerSocketTailer(dockerutil *dockerutilPkg.DockerUtil, containerID str
 		ctx:         nil,
 		cancel:      nil,
 		stopped:     nil,
+		onStopChan:  make(chan struct{}),
 	}
 }
 
@@ -116,13 +119,21 @@ func (t *DockerSocketTailer) Stop() {
 	<-t.stopped
 }
 
+// OnStop implements Tailer#OnStop.
+func (t *DockerSocketTailer) OnStop() <-chan struct{} {
+	return t.onStopChan
+}
+
 // run implements a loop to monitor the tailer and re-create it if it fails.  It takes
 // pointers to tryStartTailer and stopTailer to support testing.
 func (t *DockerSocketTailer) run(
 	tryStartTailer func() (*dockerTailerPkg.Tailer, chan string, error),
 	stopTailer func(*dockerTailerPkg.Tailer),
 ) {
-	defer close(t.stopped)
+	defer func() {
+		close(t.stopped)
+		close(t.onStopChan)
+	}()
 
 	backoffDuration := backoffInitialDuration
 
