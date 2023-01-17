@@ -20,6 +20,8 @@ type WrappedSource struct {
 
 	// Sources is the container in which Source is added or removed.
 	Sources *sources.LogSources
+
+	onStopChan chan struct{}
 }
 
 // Start implements Tailer#Start.
@@ -31,7 +33,10 @@ func (t *WrappedSource) Start() error {
 	// delivered to the container launcher.  As a workaround, add the source
 	// in a temporary goroutine.  The long-term fix is that launchers should
 	// not be adding sources.
-	go t.Sources.AddSource(t.Source)
+	go func() {
+		t.onStopChan = make(chan struct{})
+		t.Sources.AddSource(t.Source)
+	}()
 
 	return nil
 }
@@ -39,5 +44,13 @@ func (t *WrappedSource) Start() error {
 // Stop implements Tailer#Stop.
 func (t *WrappedSource) Stop() {
 	// (see comment in Start())
-	go t.Sources.RemoveSource(t.Source)
+	go func() {
+		t.Sources.RemoveSource(t.Source)
+		close(t.onStopChan)
+	}()
+}
+
+// TODO
+func (t *WrappedSource) OnStop() <-chan struct{} {
+	return t.onStopChan
 }

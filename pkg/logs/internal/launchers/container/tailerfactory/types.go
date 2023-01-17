@@ -13,4 +13,7 @@ type Tailer interface {
 
 	// Stop stops the tailer, waiting for the operations to finish.
 	Stop()
+
+	// OnStop retruns a channel that is signaled when the tailer has fully stopped
+	OnStop() <-chan struct{}
 }
