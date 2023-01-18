@@ -8,7 +8,9 @@ package clusteragent
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/clusterchecks/types"
 )
@@ -37,6 +39,20 @@ func (c *DCAClient) GetClusterCheckConfigs(ctx context.Context, identifier strin
 	var configs types.ConfigResponse
 
 	// https://host:port/api/v1/clusterchecks/configs/{identifier}
-	err := c.doJSONQueryToLeader(ctx, dcaClusterChecksConfigsPath+"/"+identifier, "GET", nil, &configs)
+	respBody, err := c.doQuery(ctx, dcaClusterChecksConfigsPath+"/"+identifier, "GET", nil, true, true)
+	if err != nil {
+		return configs, err
+	}
+
+	err = json.Unmarshal(respBody, &configs)
+	if err != nil {
+		return configs, fmt.Errorf("failed to unmarshal JSON from URL: %s, err: %w", dcaClusterChecksConfigsPath+"/"+identifier, err)
+	}
+
+	respHasher := sha256.New()
+	respHasher.Write(respBody)
+	respHash := respHasher.Sum(nil)
+	configs.Hash = string(respHash)
+
 	return configs, err
 }

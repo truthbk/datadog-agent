@@ -7,6 +7,7 @@ package autodiscovery
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -195,7 +196,6 @@ func (cp *configPoller) collectOnce(ctx context.Context, provider providers.Coll
 		changes := ac.processNewConfig(config)
 		ac.applyChanges(changes)
 	}
-
 }
 
 // collect is just a convenient wrapper to fetch configurations from a provider and
@@ -231,13 +231,21 @@ func (cp *configPoller) storeAndDiffConfigs(configs []integration.Config) ([]int
 		if _, found := cp.configs[cHash]; found {
 			delete(cp.configs, cHash)
 		} else {
+			log.Infof("VBDEBUG Adding config digest: %d, check: %s, source: %s", cHash, c.Name, c.Source)
 			newConf = append(newConf, c)
 		}
 	}
 
-	for _, c := range cp.configs {
+	for digest, c := range cp.configs {
+		log.Infof("VBDEBUG Removing config digest: %d, check: %s, source: %s", digest, c.Name, c.Source)
 		removedConf = append(removedConf, c)
 	}
+
+	newConfigs, _ := json.Marshal(fetchedMap)
+	log.Infof("VBDEBUG NEW configs: %s", string(newConfigs))
+	oldConfigs, _ := json.Marshal(cp.configs)
+	log.Infof("VBDEBUG OLD configs: %s", string(oldConfigs))
+
 	cp.configs = fetchedMap
 
 	return newConf, removedConf

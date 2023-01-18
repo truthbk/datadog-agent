@@ -33,6 +33,7 @@ type RebalanceResponse struct {
 
 // ConfigResponse holds the DCA response for a config query
 type ConfigResponse struct {
+	Hash       string               `json:"-"`
 	LastChange int64                `json:"last_change"`
 	Configs    []integration.Config `json:"configs"`
 }

@@ -139,13 +139,19 @@ func (c *ClusterChecksConfigProvider) Collect(ctx context.Context) ([]integratio
 
 	reply, err := c.dcaClient.GetClusterCheckConfigs(ctx, c.identifier)
 	if err != nil {
+		log.Infof("VBDEBUG got configs from DCA with error, err: %v", err)
+
 		if (errors.IsRemoteService(err) || errors.IsTimeout(err)) && c.withinDegradedModePeriod() {
+			log.Info("VBDEBUG got configs from DCA degraded mode period")
+
 			// Degraded mode: return the error to keep the configs scheduled
 			// during a Cluster Agent / network outage
 			return nil, err
 		}
 
 		if !c.flushedConfigs {
+			log.Infof("VBDEBUG flushed configs")
+
 			// On first error after grace period, mask the error once
 			// to delete the configurations and de-schedule the checks
 			// Returning nil, nil here unschedules the checks when the grace period
@@ -155,6 +161,11 @@ func (c *ClusterChecksConfigProvider) Collect(ctx context.Context) ([]integratio
 		}
 
 		return nil, err
+	}
+
+	log.Infof("VBDEBUG Got configs from Cluster Agents, version: %d, sha256: %s", reply.LastChange, reply.Hash)
+	for _, config := range reply.Configs {
+		log.Infof("VBDEBUG Got config for check: %s source: %s", config.Name, config.Source)
 	}
 
 	c.flushedConfigs = false
