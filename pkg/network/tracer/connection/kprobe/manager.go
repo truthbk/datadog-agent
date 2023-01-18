@@ -48,7 +48,6 @@ var mainProbes = map[probes.ProbeName]string{
 	probes.UDPv6RecvMsg:                   "kprobe__udpv6_recvmsg",
 	probes.UDPv6RecvMsgReturn:             "kretprobe__udpv6_recvmsg",
 	probes.TCPRetransmit:                  "kprobe__tcp_retransmit_skb",
-	probes.TCPRetransmitRet:               "kretprobe__tcp_retransmit_skb",
 	probes.InetCskAcceptReturn:            "kretprobe__inet_csk_accept",
 	probes.InetCskListenStop:              "kprobe__inet_csk_listen_stop",
 	probes.UDPDestroySock:                 "kprobe__udp_destroy_sock",
@@ -73,6 +72,7 @@ var altProbes = map[probes.ProbeName]string{
 	probes.SKBConsumeUDP:                    "kprobe__skb_consume_udp",
 	probes.SKBFreeDatagramLocked:            "kprobe__skb_free_datagram_locked",
 	probes.UnderscoredSKBFreeDatagramLocked: "kprobe____skb_free_datagram_locked",
+	probes.TCPRetransmitRet:                 "kretprobe__tcp_retransmit_skb",
 }
 
 func newManager(config *config.Config, closedHandler *ebpf.PerfHandler, runtimeTracer bool) *manager.Manager {
@@ -131,6 +131,7 @@ func newManager(config *config.Config, closedHandler *ebpf.PerfHandler, runtimeT
 			&manager.Probe{ProbeIdentificationPair: manager.ProbeIdentificationPair{EBPFSection: string(probes.SKBFreeDatagramLocked), EBPFFuncName: altProbes[probes.SKBFreeDatagramLocked], UID: probeUID}},
 			&manager.Probe{ProbeIdentificationPair: manager.ProbeIdentificationPair{EBPFSection: string(probes.UnderscoredSKBFreeDatagramLocked), EBPFFuncName: altProbes[probes.UnderscoredSKBFreeDatagramLocked], UID: probeUID}},
 			&manager.Probe{ProbeIdentificationPair: manager.ProbeIdentificationPair{EBPFSection: string(probes.SKBConsumeUDP), EBPFFuncName: altProbes[probes.SKBConsumeUDP], UID: probeUID}},
+			&manager.Probe{ProbeIdentificationPair: manager.ProbeIdentificationPair{EBPFSection: string(probes.TCPRetransmitRet), EBPFFuncName: altProbes[probes.TCPRetransmitRet], UID: probeUID}, KProbeMaxActive: maxActive},
 		)
 	} else {
 		// the runtime compiled tracer has no need for separate probes targeting specific kernel versions, since it can
