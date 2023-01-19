@@ -131,7 +131,8 @@ func (c *collector) Start(ctx context.Context, store workloadmeta.Store) error {
 
 	if sbomCollectionIsEnabled() {
 		var err error
-		trivyConfiguration, err := trivy.DefaultCollectorConfig()
+		enabledAnalyzers := config.Datadog.GetStringSlice("workloadmeta.image_metadata_collection.collect_sboms_analyzers")
+		trivyConfiguration, err := trivy.DefaultCollectorConfig(enabledAnalyzers)
 		if err != nil {
 			return fmt.Errorf("error initializing trivy client: %w", err)
 		}
