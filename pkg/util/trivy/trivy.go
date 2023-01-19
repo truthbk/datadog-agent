@@ -73,7 +73,7 @@ func DefaultCollectorConfig(enabledAnalyzers []string) (CollectorConfig, error) 
 		return CollectorConfig{}, err
 	}
 
-	return CollectorConfig{
+	collectorConfig := CollectorConfig{
 		ArtifactCache:      cache,
 		LocalArtifactCache: cache,
 		ArtifactOption: artifact.Option{
@@ -84,7 +84,13 @@ func DefaultCollectorConfig(enabledAnalyzers []string) (CollectorConfig, error) 
 			SBOMSources:       []string{},
 			DisabledHandlers:  DefaultDisabledHandlers(),
 		},
-	}, nil
+	}
+
+	if len(enabledAnalyzers) == 1 && enabledAnalyzers[0] == OSAnalyzers {
+		collectorConfig.ArtifactOption.OnlyDirs = []string{"/etc", "/var/lib/dpkg", "/var/lib/rpm", "/lib/apk"}
+	}
+
+	return collectorConfig, nil
 }
 
 func DefaultDisabledCollectors(enabledAnalyzers []string) []analyzer.Type {
