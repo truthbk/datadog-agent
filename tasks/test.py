@@ -5,6 +5,7 @@ High level testing tasks
 # Recent versions of Python should be able to use dict and list directly in type hints,
 # so we only need to check that we don't run this code with old Python versions.
 
+import datetime
 import json
 import operator
 import os
@@ -133,6 +134,9 @@ def lint_flavor(
     """
     Runs linters for given flavor, build tags, and modules.
     """
+
+    lint_timings = []
+
     print(f"--- Flavor {flavor.name}: golangci_lint")
     for module in modules:
         print(f"----- Module '{module.full_path()}'")
@@ -140,8 +144,16 @@ def lint_flavor(
             print("----- Skipped")
             continue
 
+        start_time = datetime.datetime.now()
+
         with ctx.cd(module.full_path()):
             golangci_lint(ctx, targets=module.targets, rtloader_root=rtloader_root, build_tags=build_tags, arch=arch)
+
+        end_time = datetime.datetime.now()
+        elapsed_time = end_time - start_time
+
+        lint_timings.append((f"Lint ({flavor.name} flavor) {module.full_path()}", elapsed_time))
+    return lint_timings
 
 
 class ModuleTestResult:
@@ -150,6 +162,8 @@ class ModuleTestResult:
         self.path = path
         # Whether the gotestsum command failed for that module
         self.failed = False
+        # Duration of the go test command on the module
+        self.duration = None
         # Path to the result.json file output by gotestsum (should always be present)
         self.result_json_path = None
         # Path to the junit file output by gotestsum (only present if specified in inv test)
@@ -174,6 +188,7 @@ def test_flavor(
     print(f"--- Flavor {flavor.name}: unit tests")
 
     modules_test_results = []
+    test_timings = []
 
     args["go_build_tags"] = " ".join(build_tags)
 
@@ -191,6 +206,7 @@ def test_flavor(
             print("----- Skipped")
             continue
 
+        start_time = datetime.datetime.now()
         with ctx.cd(module.full_path()):
             res = ctx.run(
                 cmd.format(
@@ -200,6 +216,10 @@ def test_flavor(
                 out_stream=test_profiler,
                 warn=True,
             )
+        end_time = datetime.datetime.now()
+        elapsed_time = end_time - start_time
+
+        test_timings.append((f"Test ({flavor.name} flavor) {module.full_path()}", elapsed_time))
 
         module_test_result.result_json_path = os.path.join(module.full_path(), GO_TEST_RESULT_TMP_JSON)
 
@@ -218,7 +238,7 @@ def test_flavor(
 
         modules_test_results.append(module_test_result)
 
-    return modules_test_results
+    return modules_test_results, test_timings
 
 
 def coverage_flavor(
@@ -361,15 +381,20 @@ def test(
 
     timeout = int(timeout)
 
+    # Set up timing recorder
+
+    timings = []
+
     # Lint
 
     if skip_linters:
         print("--- [skipping Go linters]")
     else:
         for flavor, build_tags in linter_tags.items():
-            lint_flavor(
+            lint_timings = lint_flavor(
                 ctx, modules=modules, flavor=flavor, build_tags=build_tags, arch=arch, rtloader_root=rtloader_root
             )
+            timings.extend(lint_timings)
 
     ldflags, gcflags, env = get_build_flags(
         ctx,
@@ -447,7 +472,7 @@ def test(
     # Test
     modules_test_results_per_flavor = {}
     for flavor, build_tags in unit_tests_tags.items():
-        modules_test_results_per_flavor[flavor] = test_flavor(
+        modules_test_results_per_flavor[flavor], test_timings = test_flavor(
             ctx,
             flavor=flavor,
             build_tags=build_tags,
@@ -459,6 +484,7 @@ def test(
             save_result_json=save_result_json,
             test_profiler=test_profiler,
         )
+        timings.extend(test_timings)
 
     # Output
     if junit_tar:
@@ -480,6 +506,12 @@ def test(
         # print("\n--- Top 15 packages sorted by run time:")
         test_profiler.print_sorted(15)
 
+    # Print timing information
+    print("Test steps duration:")
+    for timing in timings:
+        print(f"- {timing[0]}: {timing[1]}")
+
+    # Print failure summary
     should_fail = False
     for flavor in flavors:
         for module_test_result in modules_test_results_per_flavor[flavor]:
