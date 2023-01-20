@@ -87,6 +87,7 @@ shared_examples "passes" do |bundle, env, filter, filter_inclusive|
           "/go/bin/test2json", "-t", "-p", pkg, f, "-test.v", "-test.count=1", "-test.timeout=#{get_timeout(pkg)}"
         ]
 
+        KernelOut.format("starting #{pkg} at #{Time.now}")
         final_env = base_env.merge(env)
         Open3.popen2e(final_env, *cmd) do |_, output, wait_thr|
           output.each_line do |line|

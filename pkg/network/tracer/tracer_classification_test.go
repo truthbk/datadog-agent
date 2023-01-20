@@ -54,6 +54,9 @@ type testContext struct {
 }
 
 func setupTracer(t *testing.T, cfg *config.Config) *Tracer {
+	deadline, ok := t.Deadline()
+	fmt.Println("calling", t.Name(), ": now", time.Now(), "deadline", deadline, "ok", ok)
+
 	tr, err := NewTracer(cfg)
 	if err != nil {
 		t.Fatal(err)
