@@ -72,6 +72,8 @@ func (f *FallbackConstantFetcher) appendRequest(id string) {
 		value = getPIDNumbersOffset(f.kernelVersion)
 	case SizeOfUPID:
 		value = getSizeOfUpid(f.kernelVersion)
+	case OffsetNameTaskStructPIDStruct:
+		value = getTaskStructPIDStruct(f.kernelVersion)
 	case OffsetNameDentryStructDSB:
 		value = getDentrySuperBlockOffset(f.kernelVersion)
 	case OffsetNamePipeInodeInfoStructBufs:
@@ -787,4 +789,8 @@ func getLinuxBinPrmEnvcOffset(kv *kernel.Version) uint64 {
 	}
 
 	return offset
+}
+
+func getTaskStructPIDStruct(kv *kernel.Version) uint64 {
+	return ErrorSentinel
 }

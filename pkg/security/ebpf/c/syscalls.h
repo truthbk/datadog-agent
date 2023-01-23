@@ -175,9 +175,8 @@ struct syscall_cache_t {
 
         struct {
             u32 request;
-            u32 namespaced_pid;
+            u32 pid;
             u64 addr;
-            u32 root_ns_pid;
         } ptrace;
 
         struct {
@@ -208,8 +207,7 @@ struct syscall_cache_t {
         } delete_module;
 
         struct {
-            u32 namespaced_pid;
-            u32 root_ns_pid;
+            u32 pid;
             u32 type;
         } signal;
 

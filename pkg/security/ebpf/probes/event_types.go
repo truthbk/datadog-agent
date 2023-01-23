@@ -510,7 +510,7 @@ func GetSelectorsPerEventType() map[eval.EventType][]manager.ProbesSelector {
 					manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "ptrace"}, EntryAndExit),
 				},
 				&manager.AllOf{Selectors: []manager.ProbesSelector{
-					&manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/pid_task", EBPFFuncName: "kprobe_pid_task"}},
+					&manager.ProbeSelector{ProbeIdentificationPair: manager.ProbeIdentificationPair{UID: SecurityAgentUID, EBPFSection: "kprobe/ptrace_check_attach", EBPFFuncName: "kprobe_ptrace_check_attach"}},
 				}},
 			},
 
