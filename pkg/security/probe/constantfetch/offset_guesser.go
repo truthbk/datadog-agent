@@ -9,8 +9,11 @@
 package constantfetch
 
 import (
+	"errors"
+	"fmt"
 	"math"
 	"os"
+	"os/exec"
 
 	manager "github.com/DataDog/ebpf-manager"
 	"golang.org/x/sys/unix"
@@ -25,14 +28,20 @@ const offsetGuesserUID = "security-og"
 
 var (
 	offsetGuesserMaps = []*manager.Map{
-		{Name: "pid_offset"},
+		{Name: "guessed_offsets"},
 	}
 
 	offsetGuesserProbes = []*manager.Probe{
 		{
 			ProbeIdentificationPair: manager.ProbeIdentificationPair{
 				UID:          offsetGuesserUID,
-				EBPFFuncName: "kprobe_get_pid_task",
+				EBPFFuncName: "kprobe_get_pid_task_numbers",
+			},
+		},
+		{
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				UID:          offsetGuesserUID + "_a",
+				EBPFFuncName: "kprobe_get_pid_task_offset",
 			},
 		},
 	}
@@ -65,12 +74,38 @@ func (og *OffsetGuesser) guessPidNumbersOfsset() (uint64, error) {
 	if _, err := os.ReadFile(utils.StatusPath(int32(utils.Getpid()))); err != nil {
 		return ErrorSentinel, err
 	}
-	offsetMap, _, err := og.manager.GetMap("pid_offset")
-	if err != nil || offsetMap == nil {
+	offsetMap, found, err := og.manager.GetMap("guessed_offsets")
+	if err != nil {
+		return ErrorSentinel, err
+	} else if !found || offsetMap == nil {
+		return ErrorSentinel, errors.New("map not found")
+	}
+
+	var offset uint32
+	key := uint32(0)
+	if err := offsetMap.Lookup(key, &offset); err != nil {
 		return ErrorSentinel, err
 	}
 
-	var key, offset uint32
+	return uint64(offset), nil
+}
+
+func (og *OffsetGuesser) guessTaskStructPidStructOffset() (uint64, error) {
+	catPath, err := exec.LookPath("cat")
+	if err != nil {
+		return ErrorSentinel, err
+	}
+	_ = exec.Command(catPath, "/proc/self/fdinfo/1").Run()
+
+	offsetMap, found, err := og.manager.GetMap("guessed_offsets")
+	if err != nil {
+		return ErrorSentinel, err
+	} else if !found || offsetMap == nil {
+		return ErrorSentinel, errors.New("map not found")
+	}
+
+	var offset uint32
+	key := uint32(1)
 	if err := offsetMap.Lookup(key, &offset); err != nil {
 		return ErrorSentinel, err
 	}
@@ -86,17 +121,24 @@ func (og *OffsetGuesser) guess(id string) error {
 			return err
 		}
 		og.res[id] = offset
+	case OffsetNameTaskStructPIDStruct:
+		offset, err := og.guessTaskStructPidStructOffset()
+		fmt.Printf(">>>> pid struct offset is: %d\n", offset)
+		if err != nil {
+			return err
+		}
+		og.res[id] = offset
 	}
 
 	return nil
 }
 
 // AppendSizeofRequest appends a sizeof request
-func (og *OffsetGuesser) AppendSizeofRequest(id, typeName, headerName string) {
+func (og *OffsetGuesser) AppendSizeofRequest(id, typeName string, headers ...string) {
 }
 
 // AppendOffsetofRequest appends an offset request
-func (og *OffsetGuesser) AppendOffsetofRequest(id, typeName, fieldName, headerName string) {
+func (og *OffsetGuesser) AppendOffsetofRequest(id, typeName, fieldName string, headers ...string) {
 	og.res[id] = ErrorSentinel
 }
 

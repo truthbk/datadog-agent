@@ -23,7 +23,7 @@ SYSCALL_KPROBE3(ptrace, u32, request, pid_t, pid, void *, addr) {
         .type = EVENT_PTRACE,
         .ptrace = {
             .request = request,
-            .namespaced_pid = pid, // keep the namespaced pid for now
+            .pid = 0, // 0 in case the root ns pid resolution failed
             .addr = (u64)addr,
         }
     };
@@ -32,18 +32,18 @@ SYSCALL_KPROBE3(ptrace, u32, request, pid_t, pid, void *, addr) {
     return 0;
 }
 
-SEC("kprobe/pid_task")
-int kprobe_pid_task(struct pt_regs *ctx) {
+SEC("kprobe/ptrace_check_attach")
+int kprobe_ptrace_check_attach(struct pt_regs *ctx) {
     struct syscall_cache_t *syscall = peek_syscall(EVENT_PTRACE);
-    if (!syscall || syscall->ptrace.root_ns_pid) {
+    if (!syscall) {
         return 0;
     }
 
-    struct pid *pid = (struct pid *)PT_REGS_PARM1(ctx);
-    if (!pid) {
+    struct task_struct *child = (struct task_struct *)PT_REGS_PARM1(ctx);
+    if (!child) {
         return 0;
     }
-    syscall->ptrace.root_ns_pid = get_pid_from_root_pidns(pid);
+    syscall->ptrace.pid = get_root_nr_from_task_struct(child);
 
     return 0;
 }
@@ -54,19 +54,11 @@ int __attribute__((always_inline)) sys_ptrace_ret(void *ctx, int retval) {
         return 0;
     }
 
-    u32 pid = syscall->ptrace.root_ns_pid;
-    if (!pid) {
-        pid = get_root_nr(syscall->ptrace.namespaced_pid);
-        if (!pid) {
-            pid = syscall->ptrace.namespaced_pid;
-        }
-    }
-
     struct ptrace_event_t event = {
         .syscall.retval = retval,
         .event.async = 0,
         .request = syscall->ptrace.request,
-        .pid = pid,
+        .pid = syscall->ptrace.pid,
         .addr = syscall->ptrace.addr,
     };
 

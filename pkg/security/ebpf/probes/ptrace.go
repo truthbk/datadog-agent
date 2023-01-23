@@ -23,8 +23,8 @@ func getPTraceProbes() []*manager.Probe {
 	ptraceProbes = append(ptraceProbes, &manager.Probe{
 		ProbeIdentificationPair: manager.ProbeIdentificationPair{
 			UID:          SecurityAgentUID,
-			EBPFSection:  "kprobe/pid_task",
-			EBPFFuncName: "kprobe_pid_task",
+			EBPFSection:  "kprobe/ptrace_check_attach",
+			EBPFFuncName: "kprobe_ptrace_check_attach",
 		},
 	})
 	return ptraceProbes

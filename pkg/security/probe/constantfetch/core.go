@@ -88,7 +88,7 @@ func (f *BTFConstantFetcher) runRequest(r constantRequest) {
 }
 
 // AppendSizeofRequest appends a sizeof request
-func (f *BTFConstantFetcher) AppendSizeofRequest(id, typeName, headerName string) {
+func (f *BTFConstantFetcher) AppendSizeofRequest(id, typeName string, headers ...string) {
 	f.runRequest(constantRequest{
 		id:       id,
 		sizeof:   true,
@@ -97,7 +97,7 @@ func (f *BTFConstantFetcher) AppendSizeofRequest(id, typeName, headerName string
 }
 
 // AppendOffsetofRequest appends an offset request
-func (f *BTFConstantFetcher) AppendOffsetofRequest(id, typeName, fieldName, headerName string) {
+func (f *BTFConstantFetcher) AppendOffsetofRequest(id, typeName, fieldName string, headers ...string) {
 	f.runRequest(constantRequest{
 		id:        id,
 		sizeof:    false,

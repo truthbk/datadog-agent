@@ -36,9 +36,10 @@ const (
 	OffsetNameBPFProgAuxStructName            = "bpf_prog_aux_name_offset"
 
 	// namespace nr offsets
-	OffsetNamePIDStructLevel   = "pid_level_offset"
-	OffsetNamePIDStructNumbers = "pid_numbers_offset"
-	OffsetNameDentryStructDSB  = "dentry_sb_offset"
+	OffsetNamePIDStructLevel      = "pid_level_offset"
+	OffsetNamePIDStructNumbers    = "pid_numbers_offset"
+	OffsetNameDentryStructDSB     = "dentry_sb_offset"
+	OffsetNameTaskStructPIDStruct = "task_struct_pid_struct_offset"
 
 	// splice event
 	OffsetNamePipeInodeInfoStructBufs = "pipe_inode_info_bufs_offset"
