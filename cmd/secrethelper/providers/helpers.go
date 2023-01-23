@@ -34,7 +34,9 @@ type SigningData struct {
 const (
 	// IamServerIDHeader is the header we use to make sure the request was intended to the correct DC
 	IamServerIDHeader = "X-DDOG-AWS-IAM-Server-ID"
-	defaultRegion     = "us-east-1"
+	// SecretNameHeader is the header we use to specify the name of the org we request a key for
+	SecretNameHeader = "X-DDOG-AWS-SecretName"
+	defaultRegion    = "us-east-1"
 )
 
 // GetCallerIdentityResponse is used to parse the response of the GetCallerIdentity API call by AWS
@@ -61,7 +63,7 @@ type ValidatorResponse struct {
 	Key     string `json:"key"`
 }
 
-func generateAwsAuthData(creds *credentials.Credentials, serverID, configuredRegion string) (*SigningData, error) {
+func generateAwsAuthData(creds *credentials.Credentials, serverID, configuredRegion, requestedValue string) (*SigningData, error) {
 	// This method follows the AWS Auth method as used and advertised by Vault
 	// https://github.com/hashicorp/go-secure-stdlib/blob/bf6d78ef5b727b83b2f8f41b473eb9764b446df4/awsutil/generate_credentials.go
 	// https://www.vaultproject.io/docs/auth/aws
@@ -85,10 +87,17 @@ func generateAwsAuthData(creds *credentials.Credentials, serverID, configuredReg
 	svc := sts.New(stsSession)
 	stsRequest, _ := svc.GetCallerIdentityRequest(params)
 
-	// Inject the required auth header value, if supplied, and then sign the request including that header
+	// Inject the required auth header value, if supplied
 	if serverID != "" {
 		stsRequest.HTTPRequest.Header.Add(IamServerIDHeader, serverID)
 	}
+
+	// Inject the requestedValue auth header
+	if requestedValue != "" {
+		stsRequest.HTTPRequest.Header.Add(SecretNameHeader, requestedValue)
+	}
+
+	// Sign the request including the two additionally provided header
 	err = stsRequest.Sign()
 	if err != nil {
 		return nil, err

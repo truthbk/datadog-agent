@@ -14,19 +14,24 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/hashicorp/go-secure-stdlib/awsutil"
 	"github.com/pkg/errors"
 )
 
 // AwsCloudAuth is fetching a Datadog API Key for the requested org using an AWS based proof
-func AwsCloudAuth() (value string, err error) {
+func AwsCloudAuth(secretValue string) (value string, err error) {
+	// The value is ProviderName@SecretName so we keep the part after the @
+	secretName := strings.Split(secretValue, "@")[1]
+
 	credsConfig := awsutil.CredentialsConfig{}
 	creds, err := credsConfig.GenerateCredentialChain()
 	if err != nil {
 		return "", errors.Wrap(err, "unable to generate the credential chain")
 	}
-	data, err := generateAwsAuthData(creds, "us1.prod.dog", "us-east-1")
+
+	data, err := generateAwsAuthData(creds, "us1.prod.dog", "us-east-1", secretName)
 
 	if err != nil {
 		return "", errors.Wrap(err, "unable to generate the AWS Auth Data")

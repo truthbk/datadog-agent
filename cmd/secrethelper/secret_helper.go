@@ -186,7 +186,7 @@ func readSecretsUsingPrefixes(secrets []string, rootPath string, newKubeClientFu
 				res[secretID] = providers.ReadKubernetesSecret(kubeClient, id)
 			}
 		case awsCloudProviderAuthPrefix:
-			value, err := providers.AwsCloudAuth()
+			value, err := providers.AwsCloudAuth(secretID)
 			if err != nil {
 				res[secretID] = s.Secret{Value: "", ErrorMsg: err.Error()}
 			} else {
