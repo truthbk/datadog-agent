@@ -133,6 +133,8 @@ kitchen_windows_installer_npm_install_scenarios-a7:
   extends:
     - .kitchen_scenario_windows_a7
     - .kitchen_test_windows_installer_npm
+  variables:
+    CHEF_VERSION: 13.12.14
 
 kitchen_windows_installer_npm_driver-a7:
   # Run NPM driver installer test on branches, on a reduced number of platforms
