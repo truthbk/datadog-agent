@@ -41,6 +41,18 @@ Dir.glob('/tmp/system-probe-tests/pkg/ebpf/bytecode/build/co-re/*.o').each do |f
   FileUtils.chmod 0644, f, :verbose => true
 end
 
+
+puts arch
+puts release
+puts osr
+puts platform
+puts "================"
+puts `pwd`.strip
+puts `ls -l`.strip
+puts "================"
+puts `ls -l /tmp/system-probe-tests/`.strip
+exit(0)
+
 shared_examples "passes" do |bundle, env, filter, filter_inclusive|
   after :context do
     print KernelOut.format(`find "/tmp/pkgjson/#{bundle}" -maxdepth 1 -type f -path "*.json" -exec cat >"/tmp/testjson/#{bundle}.json" {} +`)
