@@ -1,0 +1,8 @@
+suites:
+- name: java-test
+  run_list:
+    - recipe[dd-system-probe-check]
+  attributes:
+    apt:
+      unattended_upgrades:
+        enable: false
