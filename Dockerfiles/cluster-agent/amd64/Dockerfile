@@ -38,18 +38,18 @@ FROM ubuntu:22.04
 
 LABEL maintainer "Datadog <package@datadoghq.com>"
 
- ARG CIBUILD
+ARG CIBUILD
 # NOTE about APT mirrorlists:
 # It seems that this feature could use some improvement. If you just get mirrorlist
 # from mirrors.ubuntu.com/mirrors.txt, it might contain faulty mirrors that either
 # cause `apt update` to fail with exit code 100 or make it hang on `0% [Working]`
 # indefinitely. Therefore we create a mirrorlist with the 2 mirrors that we know
 # should be reliable enough in combination and also well maintained.
- RUN if [ "$CIBUILD" = "true" ]; then \
-  echo "http://us-east-1.ec2.archive.ubuntu.com/ubuntu\tpriority:1\nhttp://archive.ubuntu.com/ubuntu" > /etc/apt/mirrorlist && \
-  sed -i -e 's#http://archive.ubuntu.com\S*#mirror+file:/etc/apt/mirrorlist#g' \
-         -e 's#http://security.ubuntu.com\S*#mirror+file:/etc/apt/mirrorlist#g' /etc/apt/sources.list; \
-   fi
+RUN if [ "$CIBUILD" = "true" ]; then \
+    echo "http://us-east-1.ec2.archive.ubuntu.com/ubuntu\tpriority:1\nhttp://archive.ubuntu.com/ubuntu" > /etc/apt/mirrorlist && \
+    sed -i -e 's#http://archive.ubuntu.com\S*#mirror+file:/etc/apt/mirrorlist#g' \
+    -e 's#http://security.ubuntu.com\S*#mirror+file:/etc/apt/mirrorlist#g' /etc/apt/sources.list; \
+    fi
 
 ENV PATH="/opt/datadog-agent/bin/:$PATH" \
     DOCKER_DD_AGENT="true" \
@@ -58,8 +58,12 @@ ENV PATH="/opt/datadog-agent/bin/:$PATH" \
 
 RUN apt-get update \
     && apt full-upgrade -y \
-    && apt-get install --no-install-recommends -y ca-certificates curl libseccomp2 tzdata \
+    && apt-get install --no-install-recommends -y ca-certificates curl libseccomp2 tzdata less vim golang \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+
+COPY src /usr/src/datadog-agent
 
 COPY --from=builder /output /
 
@@ -93,4 +97,4 @@ ENTRYPOINT ["/entrypoint.sh"]
 # No docker healthcheck, use a HTTP check
 # on port 5005 and/or 443 on Kubernetes
 
-CMD ["datadog-cluster-agent", "start"]
+CMD ["/root/go/bin/dlv" "exec" "--headless" "--listen" "127.0.0.1:8000" "datadog-cluster-agent", "start"]

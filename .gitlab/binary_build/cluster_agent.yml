@@ -2,6 +2,8 @@
 .cluster_agent-build_common:
   stage: binary_build
   needs: ["go_mod_tidy_check"]
+  variables:
+    DELVE: 1
   script:
     - inv check-go-version
     - inv -e cluster-agent.build --release-version "$RELEASE_VERSION_7"

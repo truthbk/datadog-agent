@@ -195,6 +195,7 @@ docker_build_cluster_agent_amd64:
     BUILD_CONTEXT: Dockerfiles/cluster-agent
   before_script:
     - cp -Rvf Dockerfiles/agent/nosys-seccomp Dockerfiles/cluster-agent/
+    - find . -type f -name \*.go | while read -r f; do mkdir -p "Dockerfiles/cluster-agent/src/$f"; cp "$f" "Dockerfiles/cluster-agent/src/$f"
 
 docker_build_cluster_agent_arm64:
   extends: .docker_build_job_definition_arm64
@@ -208,6 +209,7 @@ docker_build_cluster_agent_arm64:
     BUILD_CONTEXT: Dockerfiles/cluster-agent
   before_script:
     - cp -Rvf Dockerfiles/agent/nosys-seccomp Dockerfiles/cluster-agent/
+    - find . -type f -name \*.go | while read -r f; do mkdir -p "Dockerfiles/cluster-agent/src/$f"; cp "$f" "Dockerfiles/cluster-agent/src/$f"; done
 
 # build the dogstatsd image
 docker_build_dogstatsd_amd64:
