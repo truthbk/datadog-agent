@@ -176,7 +176,11 @@ func (cm *reconcilingConfigManager) processNewConfig(config integration.Config) 
 	defer cm.m.Unlock()
 
 	digest := config.Digest()
+	log.Infof("VBDEBUG adding active config name: %s, digest: %s, source: %s", config.Name, digest, config.Source)
+
 	if _, found := cm.activeConfigs[digest]; found {
+		log.Infof("VBDEBUG config already present in active config: %s, digest: %s, source: %s", config.Name, digest, config.Source)
+
 		log.Debugf("Config %s (digest %s) is already tracked by autodiscovery", config.Name, config.Digest())
 		return integration.ConfigChanges{}
 	}
@@ -220,10 +224,14 @@ func (cm *reconcilingConfigManager) processDelConfigs(configs []integration.Conf
 	cm.m.Lock()
 	defer cm.m.Unlock()
 
+	log.Infof("VBDEBUG received %d configs to remove", len(configs))
+
 	var allChanges integration.ConfigChanges
 	for _, config := range configs {
 		digest := config.Digest()
+		log.Infof("VBDEBUG removing config name: %s, digest: %s, source: %s", config.Name, digest, config.Source)
 		if _, found := cm.activeConfigs[digest]; !found {
+			log.Infof("VBDEBUG config not tracked name: %s, digest: %s, source: %s", config.Name, digest, config.Source)
 			log.Debug("Config %v is not tracked by autodiscovery", config.Name)
 			continue
 		}
@@ -235,6 +243,8 @@ func (cm *reconcilingConfigManager) processDelConfigs(configs []integration.Conf
 
 		var changes integration.ConfigChanges
 		if config.IsTemplate() {
+			log.Infof("VBDEBUG config is template name: %s, digest: %s, source: %s", config.Name, digest, config.Source)
+
 			//  2. update templatesByADID or servicesByADID to match
 			matchingServices := map[string]struct{}{}
 			for _, adID := range config.ADIdentifiers {
@@ -256,6 +266,7 @@ func (cm *reconcilingConfigManager) processDelConfigs(configs []integration.Conf
 				log.Errorf("Unable to resolve secrets for config '%s', check may not be unscheduled properly, err: %s", config.Name, err.Error())
 			}
 
+			log.Infof("VBDEBUG adding config to unschedule: %s, digest: %s, source: %s", config.Name, digest, config.Source)
 			changes.UnscheduleConfig(config)
 		}
 

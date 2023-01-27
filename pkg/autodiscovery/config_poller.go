@@ -7,7 +7,6 @@ package autodiscovery
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -240,11 +239,6 @@ func (cp *configPoller) storeAndDiffConfigs(configs []integration.Config) ([]int
 		log.Infof("VBDEBUG Removing config digest: %d, check: %s, source: %s", digest, c.Name, c.Source)
 		removedConf = append(removedConf, c)
 	}
-
-	newConfigs, _ := json.Marshal(fetchedMap)
-	log.Infof("VBDEBUG NEW configs: %s", string(newConfigs))
-	oldConfigs, _ := json.Marshal(cp.configs)
-	log.Infof("VBDEBUG OLD configs: %s", string(oldConfigs))
 
 	cp.configs = fetchedMap
 
