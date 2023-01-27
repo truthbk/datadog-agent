@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-agent/comp/core/config"
+	logComponent "github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
@@ -19,7 +20,7 @@ func TestStartCommand(t *testing.T) {
 		[]*cobra.Command{MakeCommand("defaultLogFile")},
 		[]string{"start", "--cfgpath", "PATH"},
 		start,
-		func(cliParams *CLIParams, _ config.Params) {
+		func(cliParams *CLIParams, _ config.Params, _ logComponent.Component) {
 			require.Equal(t, "PATH", cliParams.confPath)
 		})
 }
