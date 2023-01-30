@@ -4,8 +4,12 @@ services:
   postgres:
    image: postgres:15-alpine
    restart: always
+   command: -c ssl=on -c ssl_cert_file=/var/lib/postgresql/server.crt -c ssl_key_file=/var/lib/postgresql/server.key
    ports:
      - ${POSTGRES_ADDR:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432
+   volumes:
+     - ./cert.pem.0:/var/lib/postgresql/server.crt
+     - ./server.key:/var/lib/postgresql/server.key
    environment:
      POSTGRES_USER: admin
      POSTGRES_PASSWORD: password

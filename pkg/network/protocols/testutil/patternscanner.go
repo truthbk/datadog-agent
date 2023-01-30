@@ -6,6 +6,7 @@
 package testutil
 
 import (
+	"fmt"
 	"regexp"
 	"sync"
 )
@@ -37,6 +38,7 @@ func (ps *PatternScanner) Write(p []byte) (n int, err error) {
 	err = nil
 
 	if !ps.stopped && ps.pattern.Match(p) {
+		fmt.Println(string(p))
 		ps.stopOnce.Do(func() {
 			ps.DoneChan <- struct{}{}
 			ps.stopped = true

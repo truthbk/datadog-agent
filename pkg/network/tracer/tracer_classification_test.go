@@ -51,6 +51,7 @@ type testContext struct {
 	targetAddress string
 	// A dynamic map that allows extending the context easily between phases of the test.
 	extras map[string]interface{}
+	tls    bool
 }
 
 // protocolClassificationAttributes holds all attributes a single protocol classification test should have.
@@ -128,10 +129,10 @@ const (
 	http2Port    = "9090"
 )
 
-func testProtocolClassification(t *testing.T, cfg *config.Config, clientHost, targetHost, serverHost string) {
+func testProtocolClassification(t *testing.T, cfg *config.Config, clientHost, targetHost, serverHost string, tls bool) {
 	tests := []struct {
 		name     string
-		testFunc func(t *testing.T, cfg *config.Config, clientHost, targetHost, serverHost string)
+		testFunc func(t *testing.T, cfg *config.Config, clientHost, targetHost, serverHost string, tls bool)
 	}{
 		{
 			name:     "postgres",
@@ -164,20 +165,21 @@ func testProtocolClassification(t *testing.T, cfg *config.Config, clientHost, ta
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.testFunc(t, cfg, clientHost, targetHost, serverHost)
+			tt.testFunc(t, cfg, clientHost, targetHost, serverHost, tls)
 		})
 	}
 }
 
-func testPostgresProtocolClassification(t *testing.T, cfg *config.Config, clientHost, targetHost, serverHost string) {
+func testPostgresProtocolClassification(t *testing.T, cfg *config.Config, clientHost, targetHost, serverHost string, tls bool) {
 	skipFunc := composeSkips(skipIfNotLinux, skipIfUsingNAT)
 	skipFunc(t, testContext{
 		serverAddress: serverHost,
 		serverPort:    postgresPort,
 		targetAddress: targetHost,
+		tls:           tls,
 	})
 
-	if clientHost != "127.0.0.1" {
+	if clientHost != "127.0.0.1" && clientHost != "localhost" {
 		t.Skip("postgres tests are not supported DNat")
 	}
 
@@ -191,7 +193,7 @@ func testPostgresProtocolClassification(t *testing.T, cfg *config.Config, client
 	// Setting one instance of postgres server for all tests.
 	serverAddress := net.JoinHostPort(serverHost, postgresPort)
 	targetAddress := net.JoinHostPort(targetHost, postgresPort)
-	pgutils.RunPostgresServer(t, serverHost, postgresPort)
+	pgutils.RunPostgresServer(t, serverHost, postgresPort, tls)
 
 	tests := []protocolClassificationAttributes{
 		{
@@ -203,7 +205,7 @@ func testPostgresProtocolClassification(t *testing.T, cfg *config.Config, client
 				extras:        make(map[string]interface{}),
 			},
 			postTracerSetup: func(t *testing.T, ctx testContext) {
-				pg := pgutils.GetPGHandle(t, ctx.serverAddress)
+				pg := pgutils.GetPGHandle(t, ctx.serverAddress, tls)
 				conn, err := pg.Conn(context.Background())
 				require.NoError(t, err)
 				defer conn.Close()
@@ -220,7 +222,7 @@ func testPostgresProtocolClassification(t *testing.T, cfg *config.Config, client
 				extras:        make(map[string]interface{}),
 			},
 			preTracerSetup: func(t *testing.T, ctx testContext) {
-				pgutils.ConnectAndGetDB(t, ctx.serverAddress, ctx.extras)
+				pgutils.ConnectAndGetDB(t, ctx.serverAddress, tls, ctx.extras)
 				pgutils.RunCreateQuery(t, ctx.extras)
 			},
 			postTracerSetup: func(t *testing.T, ctx testContext) {
@@ -238,7 +240,7 @@ func testPostgresProtocolClassification(t *testing.T, cfg *config.Config, client
 				extras:        make(map[string]interface{}),
 			},
 			preTracerSetup: func(t *testing.T, ctx testContext) {
-				pgutils.ConnectAndGetDB(t, ctx.serverAddress, ctx.extras)
+				pgutils.ConnectAndGetDB(t, ctx.serverAddress, tls, ctx.extras)
 				pgutils.RunCreateQuery(t, ctx.extras)
 				pgutils.RunInsertQuery(t, 1, ctx.extras)
 			},
@@ -257,7 +259,7 @@ func testPostgresProtocolClassification(t *testing.T, cfg *config.Config, client
 				extras:        make(map[string]interface{}),
 			},
 			preTracerSetup: func(t *testing.T, ctx testContext) {
-				pgutils.ConnectAndGetDB(t, ctx.serverAddress, ctx.extras)
+				pgutils.ConnectAndGetDB(t, ctx.serverAddress, tls, ctx.extras)
 				pgutils.RunCreateQuery(t, ctx.extras)
 			},
 			postTracerSetup: func(t *testing.T, ctx testContext) {
@@ -275,7 +277,7 @@ func testPostgresProtocolClassification(t *testing.T, cfg *config.Config, client
 				extras:        make(map[string]interface{}),
 			},
 			preTracerSetup: func(t *testing.T, ctx testContext) {
-				pgutils.ConnectAndGetDB(t, ctx.serverAddress, ctx.extras)
+				pgutils.ConnectAndGetDB(t, ctx.serverAddress, tls, ctx.extras)
 				pgutils.RunCreateQuery(t, ctx.extras)
 				pgutils.RunInsertQuery(t, 1, ctx.extras)
 			},
@@ -294,7 +296,7 @@ func testPostgresProtocolClassification(t *testing.T, cfg *config.Config, client
 				extras:        make(map[string]interface{}),
 			},
 			preTracerSetup: func(t *testing.T, ctx testContext) {
-				pgutils.ConnectAndGetDB(t, ctx.serverAddress, ctx.extras)
+				pgutils.ConnectAndGetDB(t, ctx.serverAddress, tls, ctx.extras)
 				pgutils.RunCreateQuery(t, ctx.extras)
 				pgutils.RunInsertQuery(t, 1, ctx.extras)
 			},
@@ -313,7 +315,7 @@ func testPostgresProtocolClassification(t *testing.T, cfg *config.Config, client
 				extras:        make(map[string]interface{}),
 			},
 			preTracerSetup: func(t *testing.T, ctx testContext) {
-				pgutils.ConnectAndGetDB(t, ctx.serverAddress, ctx.extras)
+				pgutils.ConnectAndGetDB(t, ctx.serverAddress, tls, ctx.extras)
 				pgutils.RunCreateQuery(t, ctx.extras)
 			},
 			postTracerSetup: func(t *testing.T, ctx testContext) {
@@ -333,7 +335,7 @@ func testPostgresProtocolClassification(t *testing.T, cfg *config.Config, client
 				extras:        make(map[string]interface{}),
 			},
 			preTracerSetup: func(t *testing.T, ctx testContext) {
-				pgutils.ConnectAndGetDB(t, ctx.serverAddress, ctx.extras)
+				pgutils.ConnectAndGetDB(t, ctx.serverAddress, tls, ctx.extras)
 				pgutils.RunCreateQuery(t, ctx.extras)
 			},
 			postTracerSetup: func(t *testing.T, ctx testContext) {
@@ -357,7 +359,7 @@ func testPostgresProtocolClassification(t *testing.T, cfg *config.Config, client
 				extras:        make(map[string]interface{}),
 			},
 			preTracerSetup: func(t *testing.T, ctx testContext) {
-				pgutils.ConnectAndGetDB(t, ctx.serverAddress, ctx.extras)
+				pgutils.ConnectAndGetDB(t, ctx.serverAddress, tls, ctx.extras)
 				pgutils.RunCreateQuery(t, ctx.extras)
 				for i := int64(1); i < 200; i++ {
 					pgutils.RunInsertQuery(t, i, ctx.extras)
@@ -377,7 +379,7 @@ func testPostgresProtocolClassification(t *testing.T, cfg *config.Config, client
 	}
 }
 
-func testMongoProtocolClassification(t *testing.T, cfg *config.Config, clientHost, targetHost, serverHost string) {
+func testMongoProtocolClassification(t *testing.T, cfg *config.Config, clientHost, targetHost, serverHost string, tls bool) {
 	skipFunc := composeSkips(skipIfNotLinux, skipIfUsingNAT)
 	skipFunc(t, testContext{
 		serverAddress: serverHost,
@@ -528,7 +530,7 @@ func testMongoProtocolClassification(t *testing.T, cfg *config.Config, clientHos
 	}
 }
 
-func testRedisProtocolClassification(t *testing.T, cfg *config.Config, clientHost, targetHost, serverHost string) {
+func testRedisProtocolClassification(t *testing.T, cfg *config.Config, clientHost, targetHost, serverHost string, tls bool) {
 	skipFunc := composeSkips(skipIfNotLinux, skipIfUsingNAT)
 	skipFunc(t, testContext{
 		serverAddress: serverHost,
@@ -683,7 +685,7 @@ func testRedisProtocolClassification(t *testing.T, cfg *config.Config, clientHos
 	}
 }
 
-func testAMQPProtocolClassification(t *testing.T, cfg *config.Config, clientHost, targetHost, serverHost string) {
+func testAMQPProtocolClassification(t *testing.T, cfg *config.Config, clientHost, targetHost, serverHost string, tls bool) {
 	skipFunc := composeSkips(skipIfNotLinux, skipIfUsingNAT)
 	skipFunc(t, testContext{
 		serverAddress: serverHost,
@@ -812,7 +814,7 @@ func testAMQPProtocolClassification(t *testing.T, cfg *config.Config, clientHost
 	}
 }
 
-func testHTTPProtocolClassification(t *testing.T, cfg *config.Config, clientHost, targetHost, serverHost string) {
+func testHTTPProtocolClassification(t *testing.T, cfg *config.Config, clientHost, targetHost, serverHost string, tls bool) {
 	defaultDialer := &net.Dialer{
 		LocalAddr: &net.TCPAddr{
 			IP: net.ParseIP(clientHost),
@@ -877,7 +879,7 @@ func testHTTPProtocolClassification(t *testing.T, cfg *config.Config, clientHost
 	}
 }
 
-func testHTTP2ProtocolClassification(t *testing.T, cfg *config.Config, clientHost, targetHost, serverHost string) {
+func testHTTP2ProtocolClassification(t *testing.T, cfg *config.Config, clientHost, targetHost, serverHost string, tls bool) {
 	defaultDialer := &net.Dialer{
 		LocalAddr: &net.TCPAddr{
 			IP:   net.ParseIP(clientHost),
@@ -940,7 +942,7 @@ func testHTTP2ProtocolClassification(t *testing.T, cfg *config.Config, clientHos
 	}
 }
 
-func testEdgeCasesProtocolClassification(t *testing.T, cfg *config.Config, clientHost, targetHost, serverHost string) {
+func testEdgeCasesProtocolClassification(t *testing.T, cfg *config.Config, clientHost, targetHost, serverHost string, tls bool) {
 	defaultDialer := &net.Dialer{
 		LocalAddr: &net.TCPAddr{
 			IP: net.ParseIP(clientHost),
