@@ -19,13 +19,12 @@ import (
 // - dockerPath is the path for the docker-compose.
 // - env is any environment variable required for running the server.
 // - serverStartRegex is a regex to be matched on the server logs to ensure it started correctly.
-func RunDockerServer(t *testing.T, serverName, dir, dockerPath string, env []string, serverStartRegex *regexp.Regexp) {
+func RunDockerServer(t *testing.T, serverName, dockerPath string, env []string, serverStartRegex *regexp.Regexp) {
 	t.Helper()
 
 	cmd := exec.Command("docker-compose", "-f", dockerPath, "up")
 	patternScanner := NewScanner(serverStartRegex, make(chan struct{}, 1))
 
-	cmd.Dir = dir
 	cmd.Stdout = patternScanner
 	cmd.Stderr = patternScanner
 	cmd.Env = append(cmd.Env, env...)

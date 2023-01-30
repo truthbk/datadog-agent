@@ -21,8 +21,10 @@ func RunPostgresServer(t *testing.T, serverAddr, serverPort string, tls bool) {
 	env := []string{
 		"POSTGRES_ADDR=" + serverAddr,
 		"POSTGRES_PORT=" + serverPort,
-		"CWD=" + dir + "/testdata",
+	}
+	if tls {
+		env = append(env, "TLS=on")
 	}
 
-	protocolsUtils.RunDockerServer(t, "postgres", dir+"/testdata", "docker-compose.yml", env, regexp.MustCompile(".*\\[1].*database system is ready to accept connections"))
+	protocolsUtils.RunDockerServer(t, "postgres", dir+"/testdata/docker-compose.yml", env, regexp.MustCompile(".*\\[1].*database system is ready to accept connections"))
 }

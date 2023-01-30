@@ -4,6 +4,9 @@ services:
     image: 'mongo:5.0.14'
     ports:
       - ${MONGO_ADDR:-127.0.0.1}:${MONGO_PORT:-27017}:27017
+    volumes:
+      - ./cert.pem.0:/var/lib/certs/server.crt
+      - ./server.key:/var/lib/certs/server.key
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER:-root}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD:-password}

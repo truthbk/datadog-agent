@@ -119,6 +119,14 @@ func composeSkips(skippers ...func(t *testing.T, ctx testContext)) func(t *testi
 	}
 }
 
+func tlsTestName(tls bool) string {
+	mode := "on"
+	if !tls {
+		mode = "off"
+	}
+	return "-tls-" + mode
+}
+
 const (
 	postgresPort = "5432"
 	mongoPort    = "27017"
@@ -164,7 +172,7 @@ func testProtocolClassification(t *testing.T, cfg *config.Config, clientHost, ta
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name+tlsTestName(tls), func(t *testing.T) {
 			tt.testFunc(t, cfg, clientHost, targetHost, serverHost, tls)
 		})
 	}
@@ -211,7 +219,6 @@ func testPostgresProtocolClassification(t *testing.T, cfg *config.Config, client
 				defer conn.Close()
 			},
 			validation: validateProtocolConnection(network.ProtocolPostgres),
-			teardown:   postgresTeardown,
 		},
 		{
 			name: "postgres - insert",
@@ -372,6 +379,7 @@ func testPostgresProtocolClassification(t *testing.T, cfg *config.Config, client
 			teardown:   postgresTeardown,
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			testProtocolClassificationInner(t, tt, cfg)
