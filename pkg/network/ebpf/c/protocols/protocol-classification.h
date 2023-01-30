@@ -43,22 +43,32 @@ static __always_inline void classify_protocol(protocol_t *protocol, conn_tuple_t
 
 // A shared implementation for the runtime & prebuilt socket filter that classifies the protocols of the connections.
 static __always_inline void protocol_classifier_entrypoint(struct __sk_buff *skb) {
+    const u32 key = 0;
+    struct classification_buffer *cb = bpf_map_lookup_elem(&classification_buf, &key);
+    if (cb == NULL) {
+        return;
+    }
+    if (cb->recursion != 0) {
+        log_debug("assert cb->recusion == 0 failed\n");
+    }
+    __sync_fetch_and_add(&cb->recursion, 1);
+
     skb_info_t skb_info = {0};
     conn_tuple_t skb_tup = {0};
 
     // Exporting the conn tuple from the skb, alongside couple of relevant fields from the skb.
     if (!read_conn_tuple_skb(skb, &skb_info, &skb_tup)) {
-        return;
+        goto exit;
     }
 
     // We support non empty TCP payloads for classification at the moment.
     if (!is_tcp(&skb_tup) || is_payload_empty(skb, &skb_info)) {
-        return;
+        goto exit;
     }
 
     protocol_t *cur_fragment_protocol_ptr = bpf_map_lookup_elem(&connection_protocol, &skb_tup);
     if (cur_fragment_protocol_ptr) {
-        return;
+        goto exit;
     }
 
     protocol_t cur_fragment_protocol = PROTOCOL_UNKNOWN;
@@ -66,12 +76,7 @@ static __always_inline void protocol_classifier_entrypoint(struct __sk_buff *skb
     // Get the buffer the fragment will be read into from a per-cpu array map.
     // This will avoid doing unaligned stack access while parsing the protocols,
     // which is forbidden and will make the verifier fail.
-    const u32 key = 0;
-    char *request_fragment = bpf_map_lookup_elem(&classification_buf, &key);
-    if (request_fragment == NULL) {
-        log_debug("could not get classification buffer from map");
-        return;
-    }
+    char *request_fragment = cb->buffer;
 
     bpf_memset(request_fragment, 0, sizeof(request_fragment));
     read_into_buffer_for_classification((char *)request_fragment, skb, &skb_info);
@@ -85,6 +90,16 @@ static __always_inline void protocol_classifier_entrypoint(struct __sk_buff *skb
         flip_tuple(&inverse_skb_conn_tup);
         bpf_map_update_with_telemetry(connection_protocol, &inverse_skb_conn_tup, &cur_fragment_protocol, BPF_NOEXIST);
     }
+
+exit:
+    if (cb == NULL)
+        return;
+
+    if (cb->recursion != 1) {
+        log_debug("assert: cb->recursion == 1 failed\n")
+    }
+    __sync_fetch_and_add(&cb->recursion, -1);
+    return;
 }
 
 #endif

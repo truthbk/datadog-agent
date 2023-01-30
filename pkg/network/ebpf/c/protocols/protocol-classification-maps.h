@@ -13,7 +13,13 @@
 // requires us to read at offset that are not aligned. Such reads are forbidden
 // if done on the stack and will make the verifier complain about it, but they
 // are allowed on map elements, hence the need for this map.
-BPF_PERCPU_ARRAY_MAP(classification_buf, __u32, char [CLASSIFICATION_MAX_BUFFER], 1)
+
+struct classification_buffer {
+    u32 recursion;
+    char buffer[CLASSIFICATION_MAX_BUFFER];
+};
+
+BPF_PERCPU_ARRAY_MAP(classification_buf, __u32, struct classification_buffer, 1)
 #else
 BPF_ARRAY_MAP(classification_buf, __u8, 1)
 #endif
