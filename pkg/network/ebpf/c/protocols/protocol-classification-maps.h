@@ -28,4 +28,6 @@ BPF_ARRAY_MAP(classification_buf, __u8, 1)
 // mark if we've seen a specific mongo request, so we can eliminate false-positive classification on responses.
 BPF_HASH_MAP(mongo_request_id, mongo_key, bool, 1024)
 
+BPF_HASH_MAP(socket_filter_nesting, u32, u32, 1)
+
 #endif

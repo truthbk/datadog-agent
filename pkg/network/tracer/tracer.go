@@ -608,6 +608,7 @@ const (
 	tracerStats
 	bpfMapStats
 	bpfHelperStats
+	ebpfProgramRecursion
 )
 
 var allStats = []statsComp{
@@ -620,6 +621,7 @@ var allStats = []statsComp{
 	tracerStats,
 	bpfHelperStats,
 	bpfMapStats,
+	ebpfProgramRecursion,
 }
 
 func (t *Tracer) getStats(comps ...statsComp) (map[string]interface{}, error) {
@@ -654,6 +656,8 @@ func (t *Tracer) getStats(comps ...statsComp) (map[string]interface{}, error) {
 			ret["map_ops"] = t.bpfTelemetry.GetMapsTelemetry()
 		case bpfHelperStats:
 			ret["ebpf_helpers"] = t.bpfTelemetry.GetHelperTelemetry()
+		case ebpfProgramRecursion:
+			ret["ebpf_prog_recursion"] = getRecursionCount(t)
 		}
 	}
 
@@ -663,6 +667,19 @@ func (t *Tracer) getStats(comps ...statsComp) (map[string]interface{}, error) {
 	}
 
 	return ret, nil
+}
+
+func getRecursionCount(t *Tracer) int {
+	var count int
+
+	m := t.ebpfTracer.GetMap(string(probes.SocketFilterNesting))
+	if m == nil {
+		return 0
+	}
+
+	key := 0
+	m.Lookup(&key, &count)
+	return count
 }
 
 // GetStats returns a map of statistics about the current tracer's internal state

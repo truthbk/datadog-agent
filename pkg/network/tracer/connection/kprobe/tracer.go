@@ -309,6 +309,7 @@ func (t *kprobeTracer) GetMap(name string) *ebpf.Map {
 	case string(probes.SockByPidFDMap):
 	case string(probes.MapErrTelemetryMap):
 	case string(probes.HelperErrTelemetryMap):
+	case string(probes.SocketFilterNesting):
 	default:
 		return nil
 	}

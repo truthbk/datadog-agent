@@ -182,6 +182,7 @@ const (
 	ProtocolClassificationBufMap      BPFMapName = "classification_buf"
 	ConnectionProtocolMap             BPFMapName = "connection_protocol"
 	ConnectionTupleToSocketSKBConnMap BPFMapName = "conn_tuple_to_socket_skb_conn_tuple"
+	SocketFilterNesting               BPFMapName = "socket_filter_nesting"
 )
 
 // SectionName returns the SectionName for the given BPF map
