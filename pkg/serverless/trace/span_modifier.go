@@ -41,4 +41,7 @@ func (s *spanModifier) ModifySpan(span *pb.Span) {
 			span.Meta = spanMetadataTags
 		}
 	}
+
+	// add _dd.origin tag to all customer otel spans
+	span.Meta["_dd.origin"] = "vercel"
 }
