@@ -11,6 +11,7 @@ package agent
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"sort"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config"
 	settingshttp "github.com/DataDog/datadog-agent/pkg/config/settings/http"
 	"github.com/DataDog/datadog-agent/pkg/flare"
+	pkgflare "github.com/DataDog/datadog-agent/pkg/flare"
 	"github.com/DataDog/datadog-agent/pkg/status"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 	"github.com/DataDog/datadog-agent/pkg/util/hostname"
@@ -119,13 +121,30 @@ func getHostname(w http.ResponseWriter, r *http.Request) {
 }
 
 func makeFlare(w http.ResponseWriter, r *http.Request) {
+	var profile pkgflare.ProfileDataDCA
+
+	if r.Body != http.NoBody {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, log.Errorf("Error while reading HTTP request body: %s", err).Error(), 500)
+			return
+		}
+
+		if err := json.Unmarshal(body, &profile); err != nil {
+			http.Error(w, log.Errorf("Error while unmarshaling JSON from request body: %s", err).Error(), 500)
+			return
+		}
+	}
+
 	log.Infof("Making a flare")
 	w.Header().Set("Content-Type", "application/json")
 	logFile := config.Datadog.GetString("log_file")
 	if logFile == "" {
 		logFile = common.DefaultDCALogFile
 	}
-	filePath, err := flare.CreateDCAArchive(false, common.GetDistPath(), logFile)
+
+	log.Debugf("Hello: profile in makeFlare: %s", profile)
+	filePath, err := flare.CreateDCAArchive(false, common.GetDistPath(), logFile, profile)
 	if err != nil || filePath == "" {
 		if err != nil {
 			log.Errorf("The flare failed to be created: %s", err)
