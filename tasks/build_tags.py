@@ -39,7 +39,7 @@ ALL_TAGS = {
     "python",
     "secrets",
     "systemd",
-    "trivy",
+    # "trivy",
     "zk",
     "zlib",
     "test",  # used for unit-tests
@@ -69,7 +69,7 @@ AGENT_TAGS = {
     "python",
     "secrets",
     "systemd",
-    "trivy",
+    # "trivy",
     "zk",
     "zlib",
 }
@@ -87,7 +87,7 @@ AGENT_HEROKU_TAGS = AGENT_TAGS.difference(
         "orchestrator",
         "podman",
         "systemd",
-        "trivy",
+        # "trivy",
     }
 )
 
@@ -105,7 +105,7 @@ IOT_AGENT_TAGS = {"jetson", "otlp", "systemd", "zlib"}
 
 # PROCESS_AGENT_TAGS lists the tags necessary to build the process-agent
 PROCESS_AGENT_TAGS = AGENT_TAGS.union({"clusterchecks", "fargateprocess", "orchestrator"}).difference(
-    {"otlp", "python", "trivy"}
+    {"otlp", "python"}
 )
 
 # PROCESS_AGENT_HEROKU_TAGS lists the tags necessary to build the process-agent for Heroku
@@ -140,7 +140,7 @@ AGENT_TEST_TAGS = AGENT_TAGS.union({"clusterchecks"})
 ### Tag exclusion lists
 
 # List of tags to always remove when not building on Linux
-LINUX_ONLY_TAGS = {"netcgo", "systemd", "jetson", "linux_bpf", "podman", "trivy"}
+LINUX_ONLY_TAGS = {"netcgo", "systemd", "jetson", "linux_bpf", "podman"}
 
 # List of tags to always remove when building on Windows
 WINDOWS_EXCLUDE_TAGS = {"linux_bpf"}
