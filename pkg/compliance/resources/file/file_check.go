@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/compliance/eval"
 	"github.com/DataDog/datadog-agent/pkg/compliance/resources"
 	fileutils "github.com/DataDog/datadog-agent/pkg/compliance/utils/file"
+	processutils "github.com/DataDog/datadog-agent/pkg/compliance/utils/process"
 	"github.com/DataDog/datadog-agent/pkg/util/jsonquery"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	yamlv2 "gopkg.in/yaml.v2"
@@ -50,9 +51,25 @@ func resolve(_ context.Context, e env.Env, ruleID string, res compliance.Resourc
 		return nil, err
 	}
 
-	path := file.Path
-	if file.Glob != "" {
+	var path string
+	if fromProcess := file.FromProcess; fromProcess != nil {
+		matchedProcesses, err := processutils.FindProcessesByName(fromProcess.ProcessName)
+		if err != nil {
+			return nil, err
+		}
+		if len(matchedProcesses) == 0 {
+			return nil, fmt.Errorf("failed to find process for file path: %s", fromProcess.ProcessName)
+		}
+		flagValues := matchedProcesses[0].CmdlineFlags()
+		flag, ok := flagValues[fromProcess.ProcessFlag]
+		if !ok {
+			return nil, fmt.Errorf("failed to find process flag for file path: %s %s", fromProcess.ProcessName, fromProcess.ProcessFlag)
+		}
+		path = flag
+	} else if file.Glob != "" {
 		path = file.Glob
+	} else {
+		path = file.Path
 	}
 
 	path, err = fileutils.ResolvePath(e, path)

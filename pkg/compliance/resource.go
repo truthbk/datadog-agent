@@ -109,11 +109,19 @@ const (
 	FileFuncRegexp = "file.regexp"
 )
 
+// FileFromProcess describe a file path that should be retrived
+// from a running process flag argument.
+type FileFromProcess struct {
+	ProcessName string `yaml:"name"`
+	ProcessFlag string `yaml:"flag"`
+}
+
 // File describes a file resource
 type File struct {
-	Path   string `yaml:"path"`
-	Glob   string `yaml:"glob"`
-	Parser string `yaml:"parser,omitempty"`
+	Path        string           `yaml:"path"`
+	FromProcess *FileFromProcess `yaml:"fromProcess,omitempty"`
+	Glob        string           `yaml:"glob"`
+	Parser      string           `yaml:"parser,omitempty"`
 }
 
 // Fields & functions available for Process
