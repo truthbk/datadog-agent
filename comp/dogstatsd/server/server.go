@@ -175,6 +175,11 @@ func initTelemetry() {
 	packets.InitTelemetry(get("telemetry.dogstatsd.listeners_channel_latency_buckets"))
 }
 
+// TODO: (components) - remove once serverless is an FX app
+func NewServerlessServer() Component {
+	return &server{server: dogstatsd.NewServer(true)}
+}
+
 func newServer(deps dependencies) Component {
 	log := deps.Log
 
@@ -830,4 +835,8 @@ func (s *server) parseServiceCheckMessage(parser *parser, message []byte, origin
 	dogstatsdServiceCheckPackets.Add(1)
 	tlmProcessed.Inc("service_checks", "ok", "")
 	return serviceCheck, nil
+}
+
+func (s *server) ServerlessFlush() {
+	s.server.ServerlessFlush()
 }
