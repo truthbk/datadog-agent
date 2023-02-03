@@ -9,8 +9,6 @@ import (
 	"bytes"
 	"fmt"
 	"strconv"
-
-	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 type serviceCheckStatus int

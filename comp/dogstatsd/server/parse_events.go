@@ -9,8 +9,6 @@ import (
 	"bytes"
 	"fmt"
 	"math"
-
-	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 type eventPriority int

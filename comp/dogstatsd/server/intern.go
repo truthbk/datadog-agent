@@ -7,7 +7,6 @@ package server
 
 import (
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
 
 	telemetry_utils "github.com/DataDog/datadog-agent/pkg/telemetry/utils"
 )
