@@ -176,8 +176,8 @@ func initTelemetry() {
 }
 
 // TODO: (components) - remove once serverless is an FX app
-func NewServerlessServer() Component {
-	return &server{server: dogstatsd.NewServer(true)}
+func NewServerlessServer(deps dependencies) Component {
+	return newServer(deps)
 }
 
 func newServer(deps dependencies) Component {
@@ -835,8 +835,4 @@ func (s *server) parseServiceCheckMessage(parser *parser, message []byte, origin
 	dogstatsdServiceCheckPackets.Add(1)
 	tlmProcessed.Inc("service_checks", "ok", "")
 	return serviceCheck, nil
-}
-
-func (s *server) ServerlessFlush() {
-	s.server.ServerlessFlush()
 }

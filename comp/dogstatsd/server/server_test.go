@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package dogstatsd
+package server
 
 import (
 	"encoding/json"
@@ -56,7 +56,7 @@ func TestNewServer(t *testing.T) {
 
 	demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
 	defer demux.Stop(false)
-	s := NewServer(false)
+	s := newServer(false)
 	_ = s.Start(demux)
 	require.NoError(t, err, "cannot start DSD")
 	assert.NotNil(t, s)

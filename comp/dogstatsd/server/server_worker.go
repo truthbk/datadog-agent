@@ -55,11 +55,11 @@ func (w *worker) run() {
 		case <-w.server.health.C:
 		case <-w.server.serverlessFlushChan:
 			w.batcher.flush()
-			// case packets := <-w.server.packetsIn:
-			// 	w.samples = w.samples[0:0]
+		case packets := <-w.server.packetsIn:
+			w.samples = w.samples[0:0]
 			// we return the samples in case the slice was extended
 			// when parsing the packets
-			// w.samples = w.server.parsePackets(w.batcher, w.parser, packets, w.samples)
+			w.samples = w.server.parsePackets(w.batcher, w.parser, packets, w.samples)
 		}
 
 	}
