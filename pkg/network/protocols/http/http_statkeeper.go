@@ -101,9 +101,9 @@ func (h *httpStatKeeper) add(tx httpTX) {
 	if latency <= 0 {
 		h.telemetry.malformed.Add(1)
 		if h.oversizedLogLimit.ShouldLog() {
-			log.Warnf("latency should never be equal to 0 %f : %s", latency, tx.String())
+			log.Warnf("latency should never be equal to 0: %s", tx.String())
 		}
-		//		return
+		return
 	}
 
 	key := h.newKey(tx, path, fullPath)
