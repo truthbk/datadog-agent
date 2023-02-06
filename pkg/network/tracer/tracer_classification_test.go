@@ -138,6 +138,18 @@ const (
 )
 
 func testProtocolClassification(t *testing.T, cfg *config.Config, clientHost, targetHost, serverHost string, tls bool) {
+	if tls && !cfg.EnableHTTPSMonitoring {
+		cfg.EnableHTTPSMonitoring = true
+		cfg.EnableGoTLSSupport = true
+		defer func() {
+			cfg.EnableHTTPSMonitoring = false
+			cfg.EnableGoTLSSupport = false
+		}()
+	}
+
+	cfg.EnableHTTPMonitoring = true
+	cfg.BPFDebug = true
+
 	tests := []struct {
 		name     string
 		testFunc func(t *testing.T, cfg *config.Config, clientHost, targetHost, serverHost string, tls bool)

@@ -7,6 +7,9 @@ services:
    command: -c ssl=${TLS:-off} -c ssl_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem -c ssl_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
    ports:
      - ${POSTGRES_ADDR:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432
+   volumes:
+     - ./ssl-cert-snakeoil.key:/etc/ssl/private/ssl-cert-snakeoil.key
+     - ./ssl-cert-snakeoil.pem.0:/etc/ssl/certs/ssl-cert-snakeoil.pem
    environment:
      POSTGRES_USER: admin
      POSTGRES_PASSWORD: password
