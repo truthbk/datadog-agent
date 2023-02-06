@@ -341,7 +341,7 @@ int uprobe__SSL_shutdown(struct pt_regs* ctx) {
         return 0;
     }
 
-    https_finish(t);
+    https_finish(ctx, t);
     bpf_map_delete_elem(&ssl_sock_by_ctx, &ssl_ctx);
     return 0;
 }
@@ -488,7 +488,7 @@ cleanup:
     return 0;
 }
 
-static __always_inline void gnutls_goodbye(void *ssl_session) {
+static __always_inline void gnutls_goodbye(struct pt_regs *ctx, void *ssl_session) {
     u64 pid_tgid = bpf_get_current_pid_tgid();
     log_debug("gnutls_goodbye: pid=%llu ctx=%llx\n", pid_tgid, ssl_session);
     conn_tuple_t *t = tup_from_ssl_ctx(ssl_session, pid_tgid);
@@ -496,7 +496,7 @@ static __always_inline void gnutls_goodbye(void *ssl_session) {
         return;
     }
 
-    https_finish(t);
+    https_finish(ctx, t);
     bpf_map_delete_elem(&ssl_sock_by_ctx, &ssl_session);
 }
 
@@ -504,7 +504,7 @@ static __always_inline void gnutls_goodbye(void *ssl_session) {
 SEC("uprobe/gnutls_bye")
 int uprobe__gnutls_bye(struct pt_regs *ctx) {
     void *ssl_session = (void *)PT_REGS_PARM1(ctx);
-    gnutls_goodbye(ssl_session);
+    gnutls_goodbye(ctx, ssl_session);
     return 0;
 }
 
@@ -512,7 +512,7 @@ int uprobe__gnutls_bye(struct pt_regs *ctx) {
 SEC("uprobe/gnutls_deinit")
 int uprobe__gnutls_deinit(struct pt_regs *ctx) {
     void *ssl_session = (void *)PT_REGS_PARM1(ctx);
-    gnutls_goodbye(ssl_session);
+    gnutls_goodbye(ctx, ssl_session);
     return 0;
 }
 
