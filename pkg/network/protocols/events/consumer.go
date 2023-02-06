@@ -108,6 +108,7 @@ func (c *Consumer) Start() {
 	c.eventLoopWG.Add(1)
 	go func() {
 		defer c.eventLoopWG.Done()
+		cpumapev := make(map[int]uint64)
 		for {
 			select {
 			case dataEvent, ok := <-c.handler.DataChannel:
@@ -116,6 +117,9 @@ func (c *Consumer) Start() {
 				}
 
 				b := batchFromEventData(dataEvent.Data)
+
+				cpumapev[dataEvent.CPU] = cpumapev[dataEvent.CPU] + 1
+
 				c.process(dataEvent.CPU, b, false)
 				dataEvent.Done()
 			case _, ok := <-c.handler.LostChannel:
@@ -130,6 +134,11 @@ func (c *Consumer) Start() {
 					return
 				}
 
+				for i := 0; i < 64; i++ {
+					if n, found := cpumapev[i]; found {
+						log.Debugf("perf %s cpu %d hit %d", c.proto, i, n)
+					}
+				}
 				c.batchReader.ReadAll(func(cpu int, b *batch) {
 					c.process(cpu, b, true)
 				})
