@@ -30,7 +30,7 @@
             return;                                                                     \
         }                                                                               \
                                                                                         \
-        batch_key_t key = get_batch_key_rand_cpu(batch_state->idx_to_flush);            \
+        batch_key_t key = get_batch_key(batch_state->idx_to_flush);                     \
         batch_data_t *batch = bpf_map_lookup_elem(&name##_batches, &key);               \
         if (!batch) {                                                                   \
             return;                                                                     \
@@ -95,15 +95,6 @@
 static __always_inline batch_key_t get_batch_key(u64 batch_idx) {
     batch_key_t key = { 0 };
     key.cpu = bpf_get_smp_processor_id();
-    key.page_num = batch_idx % BATCH_PAGES_PER_CPU;
-    return key;
-}
-
-static __always_inline batch_key_t get_batch_key_rand_cpu(u64 batch_idx) {
-    batch_key_t key = { 0 };
-    u32 rand = bpf_get_prandom_u32();
-#define CPUS_fromconst 32
-    key.cpu = rand % CPUS_fromconst;
     key.page_num = batch_idx % BATCH_PAGES_PER_CPU;
     return key;
 }
