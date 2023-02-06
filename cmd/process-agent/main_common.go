@@ -38,6 +38,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/process/statsd"
 	"github.com/DataDog/datadog-agent/pkg/process/status"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
+	"github.com/DataDog/datadog-agent/pkg/runtime"
 	"github.com/DataDog/datadog-agent/pkg/tagger"
 	"github.com/DataDog/datadog-agent/pkg/tagger/local"
 	"github.com/DataDog/datadog-agent/pkg/tagger/remote"
@@ -218,6 +219,14 @@ type miscDeps struct {
 // Todo: (Components) WorkloadMeta, remoteTagger, telemetry Server, expvars, api server
 func initMisc(deps miscDeps) error {
 	initRuntimeSettings()
+
+	// Set memory limit
+	go func() {
+		err := runtime.RunMemoryLimiter(context.TODO())
+		if err != nil {
+			log.Infof("Running memory limiter failed with: %v", err)
+		}
+	}()
 
 	if err := statsd.Configure(ddconfig.GetBindHost(), deps.Config.GetInt("dogstatsd_port")); err != nil {
 		_ = log.Criticalf("Error configuring statsd: %s", err)

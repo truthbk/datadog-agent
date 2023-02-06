@@ -162,13 +162,11 @@ func run(log log.Component,
 	server dogstatsdServer.Component,
 	capture replay.Component,
 	serverDebug dogstatsdDebug.Component,
-	cliParams *cliParams) error {
+	cliParams *cliParams,
+) error {
 	defer func() {
 		stopAgent(cliParams, server)
 	}()
-
-	// prepare go runtime
-	ddruntime.SetMaxProcs()
 
 	// Setup a channel to catch OS signals
 	signalCh := make(chan os.Signal, 1)
@@ -241,7 +239,6 @@ func StartAgentWithDefaults() (dogstatsdServer.Component, error) {
 		}),
 		dogstatsd.Bundle,
 	)
-
 	if err != nil {
 		return nil, err
 	}
@@ -255,12 +252,21 @@ func startAgent(
 	sysprobeconfig sysprobeconfig.Component,
 	server dogstatsdServer.Component,
 	capture replay.Component,
-	serverDebug dogstatsdDebug.Component) error {
-
+	serverDebug dogstatsdDebug.Component,
+) error {
 	var err error
 
 	// Main context passed to components
 	common.MainCtx, common.MainCtxCancel = context.WithCancel(context.Background())
+
+	// prepare go runtime (procs, memory)
+	ddruntime.SetMaxProcs()
+	go func() {
+		err := ddruntime.RunMemoryLimiter(common.MainCtx)
+		if err != nil {
+			pkglog.Infof("Running memory limiter failed with: %v", err)
+		}
+	}()
 
 	// Setup logger
 	syslogURI := pkgconfig.GetSyslogURI()

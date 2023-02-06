@@ -286,6 +286,8 @@ func InitConfig(config Config) {
 	config.BindEnvAndSetDefault("allow_arbitrary_tags", false)
 	config.BindEnvAndSetDefault("use_proxy_for_cloud_metadata", false)
 	config.BindEnvAndSetDefault("remote_tagger_timeout_seconds", 30)
+	config.BindEnvAndSetDefault("go_memlimit_pct", 0.98)
+	config.BindEnvAndSetDefault("go_dynamic_memlimit_interval_seconds", 1)
 
 	// Fips
 	config.BindEnvAndSetDefault("fips.enabled", false)
@@ -2148,4 +2150,9 @@ func GetTraceAgentDefaultEnv() string {
 	}
 
 	return defaultEnv
+}
+
+// IsPythonMemoryMonitoringEnabled returns if python memory monitoring is enabled
+func IsPythonMemoryMonitoringEnabled() bool {
+	return Datadog.GetBool("telemetry.enabled") && Datadog.GetBool("telemetry.python_memory")
 }

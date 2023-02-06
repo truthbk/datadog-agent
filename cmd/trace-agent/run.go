@@ -22,6 +22,7 @@ import (
 	coreconfig "github.com/DataDog/datadog-agent/pkg/config"
 	rc "github.com/DataDog/datadog-agent/pkg/config/remote"
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
+	ddruntime "github.com/DataDog/datadog-agent/pkg/runtime"
 	"github.com/DataDog/datadog-agent/pkg/tagger"
 	"github.com/DataDog/datadog-agent/pkg/tagger/local"
 	"github.com/DataDog/datadog-agent/pkg/tagger/remote"
@@ -112,6 +113,14 @@ func Run(ctx context.Context) {
 		time.Sleep(5 * time.Second)
 		return
 	}
+
+	// Set memory limit
+	go func() {
+		err := ddruntime.RunMemoryLimiter(ctx)
+		if err != nil {
+			log.Infof("Running memory limiter failed with: %v", err)
+		}
+	}()
 
 	defer watchdog.LogOnPanic()
 

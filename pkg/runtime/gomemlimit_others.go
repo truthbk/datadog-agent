@@ -3,11 +3,12 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
+//go:build !linux
+
 package runtime
 
 import "context"
 
-// MemoryLimiter allows to set GOMEMLIMIT based on different scenarios
-type MemoryLimiter interface {
-	Run(ctx context.Context) error
+func RunMemoryLimiter(c context.Context) error {
+	return nil
 }

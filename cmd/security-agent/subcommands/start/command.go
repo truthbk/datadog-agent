@@ -37,6 +37,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config/settings"
 	"github.com/DataDog/datadog-agent/pkg/forwarder"
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
+	pkgruntime "github.com/DataDog/datadog-agent/pkg/runtime"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 	"github.com/DataDog/datadog-agent/pkg/tagger"
 	"github.com/DataDog/datadog-agent/pkg/tagger/remote"
@@ -138,14 +139,24 @@ var (
 	expvarServer *http.Server
 )
 
-var errAllComponentsDisabled = errors.New("all security-agent component are disabled")
-var errNoAPIKeyConfigured = errors.New("no API key configured")
+var (
+	errAllComponentsDisabled = errors.New("all security-agent component are disabled")
+	errNoAPIKeyConfigured    = errors.New("no API key configured")
+)
 
 // RunAgent initialized resources and starts API server
 func RunAgent(ctx context.Context, log log.Component, config config.Component, pidfilePath string) (err error) {
 	if err := util.SetupCoreDump(config); err != nil {
 		log.Warnf("Can't setup core dumps: %v, core dumps might not be available after a crash", err)
 	}
+
+	// Set memory limit
+	go func() {
+		err := pkgruntime.RunMemoryLimiter(ctx)
+		if err != nil {
+			log.Infof("Running memory limiter failed with: %v", err)
+		}
+	}()
 
 	if pidfilePath != "" {
 		err = pidfile.WritePID(pidfilePath)

@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
+	ddruntime "github.com/DataDog/datadog-agent/pkg/runtime"
 	"github.com/DataDog/datadog-agent/pkg/tagset"
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/cache"
@@ -416,7 +417,7 @@ func Initialize(paths ...string) error {
 		return err
 	}
 
-	if config.Datadog.GetBool("telemetry.enabled") && config.Datadog.GetBool("telemetry.python_memory") {
+	if config.IsPythonMemoryMonitoringEnabled() {
 		initPymemTelemetry()
 	}
 
@@ -491,6 +492,7 @@ func initPymemTelemetry() {
 			var s C.pymem_stats_t
 			C.get_pymem_stats(rtloader, &s)
 			inuse.Set(float64(s.inuse))
+			ddruntime.SetPythonMemoryInUse(uint64(s.inuse))
 			alloc.Add(float64(s.alloc - prevAlloc))
 			prevAlloc = s.alloc
 		}

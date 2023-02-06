@@ -32,6 +32,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config/settings"
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
 	"github.com/DataDog/datadog-agent/pkg/process/statsd"
+	"github.com/DataDog/datadog-agent/pkg/runtime"
 	ddruntime "github.com/DataDog/datadog-agent/pkg/runtime"
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util"
@@ -85,12 +86,6 @@ func run(log log.Component, config config.Component, sysprobeconfig sysprobeconf
 	defer func() {
 		stopSystemProbe(cliParams)
 	}()
-
-	// prepare go runtime
-	ddruntime.SetMaxProcs()
-	if err := ddruntime.SetGoMemLimit(ddconfig.IsContainerized()); err != nil {
-		log.Debugf("Couldn't set Go memory limit: %s", err)
-	}
 
 	// Setup a channel to catch OS signals
 	signalCh := make(chan os.Signal, 1)
@@ -164,6 +159,15 @@ func startSystemProbe(cliParams *cliParams, log log.Component, sysprobeconfig sy
 	var ctx context.Context
 	ctx, common.MainCtxCancel = context.WithCancel(context.Background())
 	cfg := sysprobeconfig.Object()
+
+	// prepare go runtime
+	ddruntime.SetMaxProcs()
+	go func() {
+		err := runtime.RunMemoryLimiter(ctx)
+		if err != nil {
+			log.Infof("Running memory limiter failed with: %v", err)
+		}
+	}()
 
 	log.Infof("starting system-probe v%v", version.AgentVersion)
 
