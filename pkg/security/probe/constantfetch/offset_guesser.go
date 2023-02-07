@@ -129,11 +129,11 @@ func (og *OffsetGuesser) guess(id string) error {
 }
 
 // AppendSizeofRequest appends a sizeof request
-func (og *OffsetGuesser) AppendSizeofRequest(id, typeName, headerName string) {
+func (og *OffsetGuesser) AppendSizeofRequest(id, typeName string, headers ...string) {
 }
 
 // AppendOffsetofRequest appends an offset request
-func (og *OffsetGuesser) AppendOffsetofRequest(id, typeName, fieldName, headerName string) {
+func (og *OffsetGuesser) AppendOffsetofRequest(id, typeName, fieldName string, headers ...string) {
 	og.res[id] = ErrorSentinel
 }
 

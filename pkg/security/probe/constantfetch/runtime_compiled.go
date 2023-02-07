@@ -50,13 +50,13 @@ func (cf *RuntimeCompilationConstantFetcher) String() string {
 }
 
 // AppendSizeofRequest appends a sizeof request
-func (cf *RuntimeCompilationConstantFetcher) AppendSizeofRequest(id, typeName, headerName string) {
+func (cf *RuntimeCompilationConstantFetcher) AppendSizeofRequest(id, typeName string, headers ...string) {
 	cf.result[id] = ErrorSentinel
-	if headerName == "" {
+	if len(headers) == 0 {
 		return
 	}
 
-	cf.headers = append(cf.headers, headerName)
+	cf.headers = append(cf.headers, headers...)
 	cf.symbolPairs = append(cf.symbolPairs, rcSymbolPair{
 		ID:        id,
 		Operation: fmt.Sprintf("sizeof(%s)", typeName),
@@ -64,13 +64,13 @@ func (cf *RuntimeCompilationConstantFetcher) AppendSizeofRequest(id, typeName, h
 }
 
 // AppendOffsetofRequest appends an offset request
-func (cf *RuntimeCompilationConstantFetcher) AppendOffsetofRequest(id, typeName, fieldName, headerName string) {
+func (cf *RuntimeCompilationConstantFetcher) AppendOffsetofRequest(id, typeName, fieldName string, headers ...string) {
 	cf.result[id] = ErrorSentinel
-	if headerName == "" {
+	if len(headers) == 0 {
 		return
 	}
 
-	cf.headers = append(cf.headers, headerName)
+	cf.headers = append(cf.headers, headers...)
 	cf.symbolPairs = append(cf.symbolPairs, rcSymbolPair{
 		ID:        id,
 		Operation: fmt.Sprintf("offsetof(%s, %s)", typeName, fieldName),
