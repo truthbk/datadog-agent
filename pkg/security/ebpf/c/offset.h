@@ -46,8 +46,8 @@ int kprobe_get_pid_task_numbers(struct pt_regs *ctx) {
 }
 
 #define PID_STRUCT_OFFSET_INDEX 1
-#define MIN_PID_STRUCT_OFFSET 0
-#define MAX_PID_STRUCT_OFFSET 5248
+#define MIN_PID_STRUCT_OFFSET 1024
+#define MAX_PID_STRUCT_OFFSET 3192
 
 SEC("kprobe/get_pid_task")
 int kprobe_get_pid_task_offset(struct pt_regs *ctx) {
