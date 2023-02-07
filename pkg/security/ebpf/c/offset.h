@@ -56,8 +56,6 @@ int kprobe_get_pid_task_offset(struct pt_regs *ctx) {
         return 0;
     }
 
-    char comm[16];
-    bpf_get_current_comm(comm, 16);
     u64 task_ptr = bpf_get_current_task();
 
     u32 success = 0;
