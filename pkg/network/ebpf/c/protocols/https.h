@@ -6,8 +6,6 @@
 #include <linux/mm_types.h>
 #include <linux/sched.h>
 
-static void http_flush_batch(struct pt_regs *ctx);
-
 #include "bpf_builtins.h"
 #include "go-tls-types.h"
 #include "http-buffer.h"
@@ -54,7 +52,7 @@ static __always_inline void https_process(conn_tuple_t *t, void *buffer, size_t 
     http_process(&http, NULL, tags);
 }
 
-static __always_inline void https_finish(struct pt_regs *ctx, conn_tuple_t *t) {
+static __always_inline void https_finish(conn_tuple_t *t) {
     http_transaction_t http;
     bpf_memset(&http, 0, sizeof(http));
     bpf_memcpy(&http.tup, t, sizeof(conn_tuple_t));
@@ -63,7 +61,6 @@ static __always_inline void https_finish(struct pt_regs *ctx, conn_tuple_t *t) {
     skb_info_t skb_info = {0};
     skb_info.tcp_flags |= TCPHDR_FIN;
     http_process(&http, &skb_info, NO_TAGS);
-    http_flush_batch(ctx);
 }
 
 static __always_inline conn_tuple_t* tup_from_ssl_ctx(void *ssl_ctx, u64 pid_tgid) {
