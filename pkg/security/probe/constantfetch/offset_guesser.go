@@ -9,6 +9,7 @@
 package constantfetch
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -29,40 +30,66 @@ var (
 	offsetGuesserMaps = []*manager.Map{
 		{Name: "guessed_offsets"},
 	}
-
-	offsetGuesserProbes = []*manager.Probe{
-		{
-			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				UID:          offsetGuesserUID,
-				EBPFFuncName: "kprobe_get_pid_task_numbers",
-			},
-		},
-		{
-			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				UID:          offsetGuesserUID,
-				EBPFFuncName: "kprobe_get_pid_task_offset",
-			},
-		},
-	}
 )
+
+type offsetGuesserStage struct {
+	probes   []*manager.Probe
+	guessers map[string]func() (uint64, error)
+}
 
 // OffsetGuesser defines an offset guesser object
 type OffsetGuesser struct {
 	config  *config.Config
 	manager *manager.Manager
 	res     map[string]uint64
+	stages  []offsetGuesserStage
 }
 
 // NewOffsetGuesserFetcher returns a new OffsetGuesserFetcher
 func NewOffsetGuesserFetcher(config *config.Config) *OffsetGuesser {
-	return &OffsetGuesser{
+	og := &OffsetGuesser{
 		config: config,
 		manager: &manager.Manager{
-			Maps:   offsetGuesserMaps,
-			Probes: offsetGuesserProbes,
+			Maps: offsetGuesserMaps,
 		},
 		res: make(map[string]uint64),
 	}
+
+	// stage 0
+	og.stages = append(og.stages, offsetGuesserStage{
+		probes: []*manager.Probe{
+			{
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					UID:          offsetGuesserUID,
+					EBPFFuncName: "kprobe_get_pid_task_numbers",
+				},
+			},
+		},
+		guessers: map[string]func() (uint64, error){
+			OffsetNamePIDStructNumbers: og.guessPidNumbersOfsset,
+		},
+	})
+
+	// stage 1
+	og.stages = append(og.stages, offsetGuesserStage{
+		probes: []*manager.Probe{
+			{
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					UID:          offsetGuesserUID,
+					EBPFFuncName: "kprobe_get_pid_task_offset",
+				},
+			},
+		},
+		guessers: map[string]func() (uint64, error){
+			OffsetNameTaskStructPIDStruct: og.guessTaskStructPidStructOffset,
+		},
+	})
+
+	for _, stage := range og.stages {
+		og.manager.Probes = append(og.manager.Probes, stage.probes...)
+	}
+
+	return og
 }
 
 func (og *OffsetGuesser) String() string {
@@ -75,7 +102,7 @@ func (og *OffsetGuesser) guessPidNumbersOfsset() (uint64, error) {
 	}
 	offsetMap, _, err := og.manager.GetMap("guessed_offsets")
 	if err != nil || offsetMap == nil {
-		return ErrorSentinel, err
+		return ErrorSentinel, errors.New("map not found")
 	}
 
 	var offset uint32
@@ -83,6 +110,7 @@ func (og *OffsetGuesser) guessPidNumbersOfsset() (uint64, error) {
 	if err := offsetMap.Lookup(key, &offset); err != nil {
 		return ErrorSentinel, err
 	}
+	fmt.Printf(">>> guessPidNumbersOfsset: %d\n", offset)
 
 	return uint64(offset), nil
 }
@@ -96,7 +124,7 @@ func (og *OffsetGuesser) guessTaskStructPidStructOffset() (uint64, error) {
 
 	offsetMap, _, err := og.manager.GetMap("guessed_offsets")
 	if err != nil || offsetMap == nil {
-		return ErrorSentinel, err
+		return ErrorSentinel, errors.New("map not found")
 	}
 
 	var offset uint32
@@ -104,28 +132,9 @@ func (og *OffsetGuesser) guessTaskStructPidStructOffset() (uint64, error) {
 	if err := offsetMap.Lookup(key, &offset); err != nil {
 		return ErrorSentinel, err
 	}
+	fmt.Printf(">>> guessTaskStructPidStructOffset: %d\n", offset)
 
 	return uint64(offset), nil
-}
-
-func (og *OffsetGuesser) guess(id string) error {
-	switch id {
-	case OffsetNamePIDStructNumbers:
-		offset, err := og.guessPidNumbersOfsset()
-		if err != nil {
-			return err
-		}
-		og.res[id] = offset
-	case OffsetNameTaskStructPIDStruct:
-		offset, err := og.guessTaskStructPidStructOffset()
-		fmt.Printf(">>>> pid struct offset is: %d\n", offset)
-		if err != nil {
-			return err
-		}
-		og.res[id] = offset
-	}
-
-	return nil
 }
 
 // AppendSizeofRequest appends a sizeof request
@@ -174,9 +183,25 @@ func (og *OffsetGuesser) FinishAndGetResults() (map[string]uint64, error) {
 		return og.res, err
 	}
 
-	for id := range og.res {
-		if err = og.guess(id); err != nil {
-			break
+outer:
+	for _, stage := range og.stages {
+		var selectors []manager.ProbesSelector
+		var allOf manager.AllOf
+		for _, probe := range stage.probes {
+			allOf.Selectors = append(allOf.Selectors, &manager.ProbeSelector{
+				ProbeIdentificationPair: probe.ProbeIdentificationPair,
+			})
+		}
+		selectors = append(selectors, &allOf)
+		og.manager.UpdateActivatedProbes(selectors)
+
+		for id, guess := range stage.guessers {
+			var offset uint64
+			offset, err = guess()
+			if err != nil {
+				break outer
+			}
+			og.res[id] = offset
 		}
 	}
 
