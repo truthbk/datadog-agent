@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cihub/seelog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
@@ -25,6 +26,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode/runtime"
 	"github.com/DataDog/datadog-agent/pkg/process/statsd"
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 const oomKilledPython = `
@@ -49,6 +51,11 @@ func writeTempFile(pattern string, content string) (*os.File, error) {
 	}
 
 	return f, nil
+}
+
+func TestMain(m *testing.M) {
+	log.SetupLogger(seelog.Default, "trace")
+	os.Exit(m.Run())
 }
 
 func TestOOMKillCompile(t *testing.T) {
