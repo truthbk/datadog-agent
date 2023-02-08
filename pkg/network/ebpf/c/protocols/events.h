@@ -67,7 +67,7 @@
         executing often enough and/or that BATCH_PAGES_PER_CPU is not large
         enough */                                                                       \
         if (name##_batch_full(batch)) {                                                 \
-            _LOG(name, "enqueue error: dropping event because batch is full. cpu %d idx %d", \
+            _LOG(name, "enqueue error: dropping event because batch is full.",          \
                  bpf_get_smp_processor_id(), batch->idx);                               \
             return;                                                                     \
         }                                                                               \
