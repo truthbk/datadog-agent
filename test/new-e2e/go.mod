@@ -4,7 +4,6 @@ go 1.18
 
 require (
 	github.com/DataDog/agent-payload/v5 v5.0.68
-	github.com/DataDog/test-infra-definitions v0.0.0-20230209133100-55293ffd4810
 	github.com/aws/aws-sdk-go-v2 v1.17.2
 	github.com/aws/aws-sdk-go-v2/config v1.18.4
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.33.2
@@ -17,6 +16,7 @@ require (
 )
 
 require (
+	github.com/DataDog/test-infra-definitions v0.0.0-20230209133100-55293ffd4810 // indirect
 	github.com/HdrHistogram/hdrhistogram-go v1.1.2 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Microsoft/go-winio v0.6.0 // indirect
