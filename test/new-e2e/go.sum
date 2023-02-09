@@ -6,6 +6,8 @@ github.com/DataDog/agent-payload/v5 v5.0.68 h1:Dqm9aBm0ELJv0DTOgWMt36Czd9S8A4Az9
 github.com/DataDog/agent-payload/v5 v5.0.68/go.mod h1:oQZi1VZp1e3QvlSUX4iphZCpJaFepUxWq0hNXxihKBM=
 github.com/DataDog/test-infra-definitions v0.0.0-20221213160310-a4b5a27ec1dd h1:NoPGW4gyLfOMlr10Eya/vv4vfw1nuaSxgqWhv4bNpuQ=
 github.com/DataDog/test-infra-definitions v0.0.0-20221213160310-a4b5a27ec1dd/go.mod h1:weTpRyRbOZYDpYk06wIROZysIkYP3o0+QYErkcSJV8U=
+github.com/DataDog/test-infra-definitions v0.0.0-20230209133100-55293ffd4810 h1:rFYUyzDmQJIjtvOrY2JsN+kdT7PwyAtliC9aWYuF8uQ=
+github.com/DataDog/test-infra-definitions v0.0.0-20230209133100-55293ffd4810/go.mod h1:COt9+XZIGjSWLlTrqO1r8nb3cvgpWgJeqmpfCj0+HeI=
 github.com/HdrHistogram/hdrhistogram-go v1.1.2 h1:5IcZpTvzydCQeHzK4Ef/D5rrSqwxob0t8PQPMybUNFM=
 github.com/HdrHistogram/hdrhistogram-go v1.1.2/go.mod h1:yDgFjdqOqDEKOvasDdhWNXYg9BVp4O+o5f6V/ehm6Oo=
 github.com/Masterminds/semver v1.5.0 h1:H65muMkzWKEuNDnfl9d70GUjFniHKHRbFPGBuZ3QEww=
@@ -233,6 +235,7 @@ github.com/pulumi/pulumi-docker/sdk/v3 v3.6.1 h1:plWLn9O6u80Vr37LoCsckyobBfcrdTU
 github.com/pulumi/pulumi-docker/sdk/v3 v3.6.1/go.mod h1:N4Yu4c49QErfucPt9Y/fGmpTryRqc0VfhyKHsGR9/g8=
 github.com/pulumi/pulumi-kubernetes/sdk/v3 v3.22.2 h1:MuiXmsQfXzlJosSH5CWqPlGMgxg4xnKMu5UwJBCzn2w=
 github.com/pulumi/pulumi-kubernetes/sdk/v3 v3.22.2/go.mod h1:fv2nZ3nS1jNk6+EMOmO2MaS5Oyj2rOXT9ZIP/7q5YGI=
+github.com/pulumi/pulumi-libvirt/sdk v0.3.0/go.mod h1:tjjyDajp6Pb1pRCdaIugknIfzxw3Prev3o/k2nade+I=
 github.com/pulumi/pulumi/sdk/v3 v3.48.0/go.mod h1:n5EPRVFDh+EFwYZ+oaZmEtwgVN1A6NnI82B7ks/bmTU=
 github.com/pulumi/pulumi/sdk/v3 v3.49.0 h1:DSIeLJVPj7H+9fWjx/LguqDclzhiz90uhxERbMiHM+A=
 github.com/pulumi/pulumi/sdk/v3 v3.49.0/go.mod h1:58NOiU6vEdA0S8KFiFt4/eqH7vKtWhDFsEGCUFRBovw=
