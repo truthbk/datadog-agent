@@ -18,6 +18,7 @@ import (
 	"math/rand"
 	"net"
 	nethttp "net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"runtime"
@@ -326,12 +327,11 @@ func TestTCPShortLived(t *testing.T) {
 
 func TestTCPOverIPv6(t *testing.T) {
 	t.SkipNow()
-	if !kernel.IsIPv6Enabled() {
-		t.Skip("IPv6 not enabled on host")
-	}
-
 	cfg := testConfig()
 	cfg.CollectIPv6Conns = true
+	if !isTestIPv6Enabled(cfg) {
+		t.Skip("IPv6 not enabled on host")
+	}
 	tr := setupTracer(t, cfg)
 
 	ln, err := net.Listen("tcp6", ":0")
@@ -476,6 +476,9 @@ func TestUDPSendAndReceive(t *testing.T) {
 
 func testUDPSendAndReceive(t *testing.T, addr string) {
 	cfg := testConfig()
+	if netip.MustParseAddrPort(addr).Addr().Is6() && !isTestIPv6Enabled(cfg) {
+		t.Skip("IPv6 disabled")
+	}
 	tr := setupTracer(t, cfg)
 
 	server := &UDPServer{
@@ -1233,12 +1236,11 @@ func TestUnconnectedUDPSendIPv4(t *testing.T) {
 }
 
 func TestConnectedUDPSendIPv6(t *testing.T) {
-	if !kernel.IsIPv6Enabled() {
-		t.Skip("IPv6 not enabled on host")
-	}
-
 	cfg := testConfig()
 	cfg.CollectIPv6Conns = true
+	if !isTestIPv6Enabled(cfg) {
+		t.Skip("IPv6 not enabled on host")
+	}
 	tr := setupTracer(t, cfg)
 
 	remotePort := rand.Int()%5000 + 15000
@@ -1447,4 +1449,18 @@ func testConfig() *config.Config {
 		cfg.ProtocolClassificationEnabled = false
 	}
 	return cfg
+}
+
+func isTestIPv6Enabled(cfg *config.Config) bool {
+	kv, err := kernel.HostVersion()
+	if err != nil {
+		return false
+	}
+	if kernel.IsIPv6Enabled() {
+		if !cfg.EnableRuntimeCompiler && !cfg.EnableCORE && kv >= kernel.VersionCode(5, 18, 0) {
+			return false
+		}
+		return true
+	}
+	return false
 }

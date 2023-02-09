@@ -42,7 +42,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/network/tracer/connection"
 	tracertest "github.com/DataDog/datadog-agent/pkg/network/tracer/testutil"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
-	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 )
 
 func doDNSQuery(t *testing.T, domain string, serverIP string) (*net.UDPAddr, *net.UDPAddr) {
@@ -490,12 +489,12 @@ func TestTranslationBindingRegression(t *testing.T) {
 }
 
 func TestUnconnectedUDPSendIPv6(t *testing.T) {
-	if !kernel.IsIPv6Enabled() {
+	cfg := testConfig()
+	cfg.CollectIPv6Conns = true
+	if !isTestIPv6Enabled(cfg) {
 		t.Skip("IPv6 not enabled on host")
 	}
 
-	cfg := testConfig()
-	cfg.CollectIPv6Conns = true
 	tr := setupTracer(t, cfg)
 	linkLocal, err := getIPv6LinkLocalAddress()
 	require.NoError(t, err)
