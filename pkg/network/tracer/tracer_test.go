@@ -39,7 +39,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/network"
 	"github.com/DataDog/datadog-agent/pkg/network/config"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
-	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
@@ -1449,18 +1448,4 @@ func testConfig() *config.Config {
 		cfg.ProtocolClassificationEnabled = false
 	}
 	return cfg
-}
-
-func isTestIPv6Enabled(cfg *config.Config) bool {
-	kv, err := kernel.HostVersion()
-	if err != nil {
-		return false
-	}
-	if kernel.IsIPv6Enabled() {
-		if !cfg.EnableRuntimeCompiler && !cfg.EnableCORE && kv >= kernel.VersionCode(5, 18, 0) {
-			return false
-		}
-		return true
-	}
-	return false
 }
