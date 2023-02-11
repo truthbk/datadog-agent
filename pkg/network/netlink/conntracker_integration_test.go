@@ -47,8 +47,10 @@ func TestConnTrackerCrossNamespaceAllNsDisabled(t *testing.T) {
 	time.Sleep(time.Second)
 
 	closer := nettestutil.StartServerTCPNs(t, net.ParseIP("2.2.2.4"), 8080, ns)
-	laddr := nettestutil.PingTCP(t, net.ParseIP("2.2.2.4"), 80).LocalAddr().(*net.TCPAddr)
 	defer closer.Close()
+	lconn := nettestutil.PingTCP(t, net.ParseIP("2.2.2.4"), 80)
+	defer lconn.Close()
+	laddr := lconn.LocalAddr().(*net.TCPAddr)
 
 	testNs, err := netns.GetFromName(ns)
 	require.NoError(t, err)
@@ -133,8 +135,10 @@ func testMessageDump(t *testing.T, f *os.File, serverIP, clientIP net.IP) {
 	defer udpServer.Close()
 
 	for i := 0; i < 100; i++ {
-		nettestutil.PingTCP(t, clientIP, natPort)
-		nettestutil.PingUDP(t, clientIP, nonNatPort)
+		tc := nettestutil.PingTCP(t, clientIP, natPort)
+		tc.Close()
+		uc := nettestutil.PingUDP(t, clientIP, nonNatPort)
+		uc.Close()
 	}
 
 	time.Sleep(time.Second)

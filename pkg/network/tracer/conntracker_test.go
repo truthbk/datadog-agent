@@ -105,7 +105,9 @@ func testConntracker(t *testing.T, serverIP, clientIP net.IP, ct netlink.Conntra
 	srv3 := nettestutil.StartServerUDP(t, serverIP, natPort)
 	defer srv3.Close()
 
-	localAddr := nettestutil.PingTCP(t, clientIP, natPort).LocalAddr().(*net.TCPAddr)
+	lconn := nettestutil.PingTCP(t, clientIP, natPort)
+	defer lconn.Close()
+	localAddr := lconn.LocalAddr().(*net.TCPAddr)
 	time.Sleep(1 * time.Second)
 
 	curNs, err := util.GetCurrentIno()
@@ -153,7 +155,9 @@ func testConntracker(t *testing.T, serverIP, clientIP net.IP, ct netlink.Conntra
 	assert.Equal(t, util.AddressFromNetIP(serverIP), trans.ReplSrcIP)
 
 	// now dial TCP directly
-	localAddr = nettestutil.PingTCP(t, serverIP, nonNatPort).LocalAddr().(*net.TCPAddr)
+	lconn = nettestutil.PingTCP(t, serverIP, nonNatPort)
+	defer lconn.Close()
+	localAddr = lconn.LocalAddr().(*net.TCPAddr)
 	time.Sleep(time.Second)
 
 	trans = ct.GetTranslationForConn(
@@ -173,8 +177,10 @@ func testConntrackerCrossNamespace(t *testing.T, ct netlink.Conntracker) {
 	ns := netlinktestutil.SetupCrossNsDNAT(t)
 
 	closer := nettestutil.StartServerTCPNs(t, net.ParseIP("2.2.2.4"), 8080, ns)
-	laddr := nettestutil.PingTCP(t, net.ParseIP("2.2.2.4"), 80).LocalAddr().(*net.TCPAddr)
 	defer closer.Close()
+	lconn := nettestutil.PingTCP(t, net.ParseIP("2.2.2.4"), 80)
+	defer lconn.Close()
+	laddr := lconn.LocalAddr().(*net.TCPAddr)
 
 	testNs, err := netns.GetFromName(ns)
 	require.NoError(t, err)
@@ -212,6 +218,7 @@ func testConntrackerCrossNamespaceNATonRoot(t *testing.T, ct netlink.Conntracker
 	defer srv.Close()
 
 	// Now switch to the test namespace and make a request to the root namespace server
+	var lconn net.Conn
 	var laddr *net.TCPAddr
 	var testIno uint32
 	done := make(chan struct{})
@@ -232,9 +239,11 @@ func testConntrackerCrossNamespaceNATonRoot(t *testing.T, ct netlink.Conntracker
 		defer netns.Set(originalNS)
 		defer close(done)
 		netns.Set(testNS)
-		laddr = nettestutil.PingTCP(t, net.ParseIP("3.3.3.3"), 80).LocalAddr().(*net.TCPAddr)
+		lconn = nettestutil.PingTCP(t, net.ParseIP("3.3.3.3"), 80)
+		laddr = lconn.LocalAddr().(*net.TCPAddr)
 	}()
 	<-done
+	defer lconn.Close()
 
 	require.NotNil(t, laddr)
 
