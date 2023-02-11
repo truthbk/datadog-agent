@@ -57,4 +57,27 @@ func initManager(mgr *manager.Manager, config *config.Config, closedHandler *ebp
 		}
 		mgr.Probes = append(mgr.Probes, p)
 	}
+	mgr.Probes = append(mgr.Probes,
+		&manager.Probe{
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				EBPFFuncName: tcpRecvMsgPre5190Return,
+				UID:          probeUID,
+			},
+			MatchFuncName: "^tcp_recvmsg$",
+		},
+		&manager.Probe{
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				EBPFFuncName: udpRecvMsgPre5190Return,
+				UID:          probeUID,
+			},
+			MatchFuncName: "^udp_recvmsg$",
+		},
+		&manager.Probe{
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				EBPFFuncName: udpv6RecvMsgPre5190Return,
+				UID:          probeUID,
+			},
+			MatchFuncName: "^udpv6_recvmsg$",
+		},
+	)
 }
