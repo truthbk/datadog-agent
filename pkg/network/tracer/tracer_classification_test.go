@@ -172,9 +172,10 @@ func testMySQLProtocolClassification(t *testing.T, cfg *config.Config, clientHos
 	}
 
 	mysqlTeardown := func(t *testing.T, ctx testContext) {
-		client := ctx.extras["conn"].(*mysql.Client)
-		defer client.DB.Close()
-		client.DropDB()
+		if client, ok := ctx.extras["conn"].(*mysql.Client); ok {
+			defer client.DB.Close()
+			client.DropDB()
+		}
 	}
 
 	// Setting one instance of postgres server for all tests.
@@ -483,10 +484,12 @@ func testPostgresProtocolClassification(t *testing.T, cfg *config.Config, client
 	}
 
 	postgresTeardown := func(t *testing.T, ctx testContext) {
-		db := ctx.extras["db"].(*bun.DB)
-		defer db.Close()
-		taskCtx := ctx.extras["ctx"].(context.Context)
-		_, _ = db.NewDropTable().Model((*pgutils.DummyTable)(nil)).Exec(taskCtx)
+		if db, ok := ctx.extras["db"].(*bun.DB); ok {
+			defer db.Close()
+			if taskCtx, ok := ctx.extras["ctx"].(context.Context); ok {
+				_, _ = db.NewDropTable().Model((*pgutils.DummyTable)(nil)).Exec(taskCtx)
+			}
+		}
 	}
 
 	// Setting one instance of postgres server for all tests.
@@ -693,9 +696,10 @@ func testMongoProtocolClassification(t *testing.T, cfg *config.Config, clientHos
 	}
 
 	mongoTeardown := func(t *testing.T, ctx testContext) {
-		client := ctx.extras["client"].(*protocolsmongo.Client)
-		require.NoError(t, client.DeleteDatabases())
-		defer client.Stop()
+		if client, ok := ctx.extras["client"].(*protocolsmongo.Client); ok {
+			require.NoError(t, client.DeleteDatabases())
+			defer client.Stop()
+		}
 	}
 
 	// Setting one instance of mongo server for all tests.
