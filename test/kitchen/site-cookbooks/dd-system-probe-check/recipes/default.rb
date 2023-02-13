@@ -7,6 +7,7 @@
 
 if !platform?('windows')
   include_recipe "::linux_use_azure_mnt"
+  include_recipe "::fedora_use_mnt"
 end
 
 # This will copy the whole file tree from COOKBOOK_NAME/files/default/tests
