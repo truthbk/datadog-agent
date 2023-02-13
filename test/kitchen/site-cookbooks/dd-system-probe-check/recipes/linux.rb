@@ -79,6 +79,11 @@ end
 
 package 'iptables'
 
+case node[:platform]
+  when 'fedora'
+    package 'libxcrypt-compat'
+end
+
 # Enable IPv6 support
 kernel_module 'ipv6' do
   action :load
