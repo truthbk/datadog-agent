@@ -43,6 +43,16 @@
             }
         }
     },
+    "fedora": {
+        "ec2": {
+            "arm64": {
+                "fedora-37": "ami-0e9221491fc51fca6"
+            },
+            "x86_64": {
+                "fedora-37": "ami-023fb534213ca41da"
+            }
+        }
+    },
     "suse": {
         "azure": {
             "x86_64": {
