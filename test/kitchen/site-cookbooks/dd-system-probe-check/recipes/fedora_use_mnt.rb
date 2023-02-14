@@ -1,4 +1,4 @@
-return unless platform?('fedora') && !Chef::SystemProbeHelpers::azure?(node)
+return unless (platform?('fedora') || platform?('ubuntu')) && !Chef::SystemProbeHelpers::azure?(node)
 
 script 'use mnt' do
   interpreter "bash"
