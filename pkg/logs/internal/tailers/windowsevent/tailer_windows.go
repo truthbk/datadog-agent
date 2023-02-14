@@ -45,7 +45,10 @@ func (t *Tailer) tail() {
 	t.context = &eventContext{
 		id: indexForTailer(t),
 	}
-	t.sub = eventlog.NewQuerySubscription(t.config.ChannelPath, t.config.Query)
+	t.sub = eventlog.NewQuerySubscription(
+		t.config.ChannelPath,
+		t.config.Query,
+		eventlog.WithEventLoopWaitMs(50))
 	err := t.sub.Start()
 	if err != nil {
 		err = fmt.Errorf("Failed to start subscription: %v", err)

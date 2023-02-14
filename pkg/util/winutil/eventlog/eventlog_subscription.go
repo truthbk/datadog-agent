@@ -19,19 +19,22 @@ import (
 const (
 	// Timeout on pull event handle in milliseconds
 	// Controls how often the poll goroutine will check for Stop()
-	GET_EVENT_LOOP_WAIT_MS = 50
+	DEFAULT_GET_EVENT_LOOP_WAIT_MS = 50
 
 	// How many events to fetch per EvtNext call
-	EVENT_BATCH_COUNT = 64
+	DEFAULT_EVENT_BATCH_COUNT = 64
 
 	// Break EvtNext loop and return to mainLoop after this many events
-	MAX_EVENT_LOOP_COUNT = 1000
+	DEFAULT_MAX_EVENT_LOOP_COUNT = 1000
 )
 
 type QuerySubscription struct {
 	// Configuration
 	ChannelPath string
 	Query string
+	EventLoopWaitMs uint32
+	EventBatchCount uint
+	MaxEventLoopCount uint
 
 	// User gets EventRecords from this channel
 	EventRecords chan *EventRecord
@@ -62,16 +65,42 @@ func newSubscriptionWaitEvent() (WaitEventHandle, error) {
 }
 
 //func NewQuerySubscription(log log.Component) *QuerySubscription {
-func NewQuerySubscription(ChannelPath, Query string) *QuerySubscription {
+func NewQuerySubscription(ChannelPath, Query string, options ...func(*QuerySubscription)) *QuerySubscription {
 	var q QuerySubscription
 	q.subscriptionHandle = EventResultSetHandle(0)
 	q.waitEventHandle = WaitEventHandle(0)
+
+	q.EventLoopWaitMs = DEFAULT_GET_EVENT_LOOP_WAIT_MS
+	q.EventBatchCount = DEFAULT_EVENT_BATCH_COUNT
+	q.MaxEventLoopCount = DEFAULT_MAX_EVENT_LOOP_COUNT
 
 	q.ChannelPath = ChannelPath
 	q.Query = Query
 	// q.log = log
 
+	for _, o := range options {
+		o(&q)
+	}
+
 	return &q
+}
+
+func WithEventLoopWaitMs(ms uint32) func(*QuerySubscription) {
+	return func (q *QuerySubscription) {
+		q.EventLoopWaitMs = ms
+	}
+}
+
+func WithEventBatchCount(ms uint) func(*QuerySubscription) {
+	return func (q *QuerySubscription) {
+		q.EventBatchCount = ms
+	}
+}
+
+func WithMaxEventLoopCount(ms uint) func(*QuerySubscription) {
+	return func (q *QuerySubscription) {
+		q.MaxEventLoopCount = ms
+	}
 }
 
 func (q *QuerySubscription) Start() (error) {
@@ -98,7 +127,7 @@ func (q *QuerySubscription) Start() (error) {
 	}
 
 	// alloc reusable storage for EvtNext output
-	q.evtNextStorage = make([]EventRecordHandle, EVENT_BATCH_COUNT)
+	q.evtNextStorage = make([]EventRecordHandle, q.EventBatchCount)
 
 	// Query loop management
 	q.stopQueryLoop = make(chan bool)
@@ -132,7 +161,7 @@ func (q *QuerySubscription) queryLoop() {
 
 func (q *QuerySubscription) eventsAvailable() bool {
 	// Windows sets waitEventHandle when event records are available
-	dwWait, err := windows.WaitForSingleObject(windows.Handle(q.waitEventHandle), GET_EVENT_LOOP_WAIT_MS)
+	dwWait, err := windows.WaitForSingleObject(windows.Handle(q.waitEventHandle), q.EventLoopWaitMs)
 	if err != nil {
 		// WAIT_FAILED
 		pkglog.Errorf("WaitForSingleObject failed: %d %#x", err)
@@ -161,7 +190,7 @@ func (q *QuerySubscription) eventsAvailable() bool {
 
 func (q *QuerySubscription) collectEvents() error {
 
-	eventCount := 0
+	eventCount := uint(0)
 	for {
 		// TODO: should we use infinite or a small value?
 		//       it shouldn't block or timeout because we had out event set?
@@ -170,7 +199,7 @@ func (q *QuerySubscription) collectEvents() error {
 			// got events, process them and send them to the channel
 			eventRecords := q.parseEventRecordHandles(eventRecordHandles)
 			q.sendEventsToChannel(eventRecords)
-			eventCount += len(eventRecordHandles)
+			eventCount += uint(len(eventRecordHandles))
 		} else if err == windows.ERROR_TIMEOUT {
 			// no more events
 			// TODO: Should we reset the handle? MS example says no
@@ -185,7 +214,7 @@ func (q *QuerySubscription) collectEvents() error {
 		}
 
 		// Check max so we can return and check for Stop()
-		if eventCount >= MAX_EVENT_LOOP_COUNT {
+		if eventCount >= q.MaxEventLoopCount {
 			break
 		}
 	}
