@@ -15,6 +15,7 @@ package windowsevent
 import "C"
 
 import (
+	"fmt"
 	"unicode/utf16"
 	"unsafe"
 
@@ -22,6 +23,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog"
 )
 
 // Start starts tailing the event log.
@@ -33,6 +35,7 @@ func (t *Tailer) Start() {
 // Stop stops the tailer
 func (t *Tailer) Stop() {
 	log.Info("Stop tailing windows event log")
+	t.sub.Stop()
 	t.stop <- struct{}{}
 	<-t.done
 }
@@ -42,17 +45,27 @@ func (t *Tailer) tail() {
 	t.context = &eventContext{
 		id: indexForTailer(t),
 	}
-	C.startEventSubscribe(
-		C.CString(t.config.ChannelPath),
-		C.CString(t.config.Query),
-		C.ULONGLONG(0),
-		C.int(EvtSubscribeToFutureEvents),
-		C.PVOID(uintptr(unsafe.Pointer(t.context))),
-	)
+	t.sub = eventlog.NewQuerySubscription()
+	err := t.sub.Start(t.config.ChannelPath, t.config.Query)
+	if err != nil {
+		err = fmt.Errorf("Failed to start subscription: %v", err)
+		log.Errorf("%v", err)
+		t.source.Status.Error(err)
+		return
+	}
 	t.source.Status.Success()
 
 	// wait for stop signal
-	<-t.stop
+	eventLoop:
+		for {
+			select {
+			case <-t.stop:
+				break eventLoop
+			case eventRecord := <-t.sub.EventRecords:
+				goNotificationCallback(C.ULONGLONG(uintptr(eventRecord.EventRecordHandle)), C.PVOID(uintptr(unsafe.Pointer(t.context))))
+
+			}
+		}
 	t.done <- struct{}{}
 	return
 }

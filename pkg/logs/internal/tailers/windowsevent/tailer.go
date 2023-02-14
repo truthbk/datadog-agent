@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
 	"github.com/DataDog/datadog-agent/pkg/logs/sources"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog"
 )
 
 const (
@@ -60,6 +61,7 @@ type Tailer struct {
 	done       chan struct{}
 
 	context *eventContext
+	sub *eventlog.QuerySubscription
 }
 
 // NewTailer returns a new tailer.
