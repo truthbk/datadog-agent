@@ -18,12 +18,15 @@ import (
 	"github.com/benbjohnson/clock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/fx"
 
+	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/ckey"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
 	"github.com/DataDog/datadog-agent/pkg/tagset"
+	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
 // getAvailableUDPPort requests a random port number and makes sure it is available
@@ -46,54 +49,66 @@ func getAvailableUDPPort() (int, error) {
 	return portInt, nil
 }
 
+func runWithComponenet(t testing.TB, test func(Component)) {
+	fxutil.Test(t, fx.Options(
+		core.MockBundle,
+		fx.Supply(Params{Serverless: false}),
+		Module,
+	), test)
+}
+
 func TestNewServer(t *testing.T) {
-	config.SetDetectedFeatures(config.FeatureMap{})
-	defer config.SetDetectedFeatures(nil)
+	runWithComponenet(t, func(s Component) {
+		config.SetDetectedFeatures(config.FeatureMap{})
+		defer config.SetDetectedFeatures(nil)
 
-	port, err := getAvailableUDPPort()
-	require.NoError(t, err)
-	config.Datadog.SetDefault("dogstatsd_port", port)
+		port, err := getAvailableUDPPort()
+		require.NoError(t, err)
+		config.Datadog.SetDefault("dogstatsd_port", port)
 
-	demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
-	defer demux.Stop(false)
-	s := NewServer(false)
-	err = s.Start(demux)
+		demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
+		defer demux.Stop(false)
+		s := NewServer(false)
+		err = s.Start(demux)
 
-	require.NoError(t, err, "cannot start DSD")
-	assert.NotNil(t, s)
-	assert.True(t, s.Started)
+		require.NoError(t, err, "cannot start DSD")
+		assert.NotNil(t, s)
+		assert.True(t, s.Started)
 
-	s.Stop()
+		s.Stop()
+	})
 }
 
 func TestStopServer(t *testing.T) {
-	config.SetDetectedFeatures(config.FeatureMap{})
-	defer config.SetDetectedFeatures(nil)
+	runWithComponenet(t, func(s Component) {
+		config.SetDetectedFeatures(config.FeatureMap{})
+		defer config.SetDetectedFeatures(nil)
 
-	port, err := getAvailableUDPPort()
-	require.NoError(t, err)
-	config.Datadog.SetDefault("dogstatsd_port", port)
+		port, err := getAvailableUDPPort()
+		require.NoError(t, err)
+		config.Datadog.SetDefault("dogstatsd_port", port)
 
-	demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
-	defer demux.Stop(false)
-	s := NewServer(false)
-	err = s.Start(demux)
-	require.NoError(t, err, "cannot start DSD")
-	s.Stop()
+		demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
+		defer demux.Stop(false)
+		s := NewServer(false)
+		err = s.Start(demux)
+		require.NoError(t, err, "cannot start DSD")
+		s.Stop()
 
-	// check that the port can be bound, try for 100 ms
-	address, err := net.ResolveUDPAddr("udp", fmt.Sprintf("127.0.0.1:%d", port))
-	require.NoError(t, err, "cannot resolve address")
-	for i := 0; i < 10; i++ {
-		var conn net.Conn
-		conn, err = net.ListenUDP("udp", address)
-		if err == nil {
-			conn.Close()
-			break
+		// check that the port can be bound, try for 100 ms
+		address, err := net.ResolveUDPAddr("udp", fmt.Sprintf("127.0.0.1:%d", port))
+		require.NoError(t, err, "cannot resolve address")
+		for i := 0; i < 10; i++ {
+			var conn net.Conn
+			conn, err = net.ListenUDP("udp", address)
+			if err == nil {
+				conn.Close()
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
 		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	require.NoError(t, err, "port is not available, it should be")
+		require.NoError(t, err, "port is not available, it should be")
+	})
 }
 
 // This test is proving that no data race occurred on the `cachedTlmOriginIds` map.
@@ -103,7 +118,7 @@ func TestStopServer(t *testing.T) {
 // introducing a data race.
 func TestNoRaceOriginTagMaps(t *testing.T) {
 	const N = 100
-	s := &Server{cachedOriginCounters: make(map[string]cachedOriginCounter)}
+	s := &server{cachedOriginCounters: make(map[string]cachedOriginCounter)}
 	sync := make(chan struct{})
 	done := make(chan struct{}, N)
 	for i := 0; i < N; i++ {
@@ -121,378 +136,384 @@ func TestNoRaceOriginTagMaps(t *testing.T) {
 }
 
 func TestUDPReceive(t *testing.T) {
-	config.SetDetectedFeatures(config.FeatureMap{})
-	defer config.SetDetectedFeatures(nil)
+	runWithComponenet(t, func(s Component) {
+		config.SetDetectedFeatures(config.FeatureMap{})
+		defer config.SetDetectedFeatures(nil)
 
-	port, err := getAvailableUDPPort()
-	require.NoError(t, err)
-	config.Datadog.SetDefault("dogstatsd_port", port)
-	config.Datadog.Set("dogstatsd_no_aggregation_pipeline", true) // another test may have turned it off
+		port, err := getAvailableUDPPort()
+		require.NoError(t, err)
+		config.Datadog.SetDefault("dogstatsd_port", port)
+		config.Datadog.Set("dogstatsd_no_aggregation_pipeline", true) // another test may have turned it off
 
-	opts := aggregator.DefaultAgentDemultiplexerOptions(nil)
-	opts.FlushInterval = 10 * time.Millisecond
-	opts.DontStartForwarders = true
-	opts.UseNoopEventPlatformForwarder = true
-	opts.EnableNoAggregationPipeline = true
+		opts := aggregator.DefaultAgentDemultiplexerOptions(nil)
+		opts.FlushInterval = 10 * time.Millisecond
+		opts.DontStartForwarders = true
+		opts.UseNoopEventPlatformForwarder = true
+		opts.EnableNoAggregationPipeline = true
 
-	demux := aggregator.InitTestAgentDemultiplexerWithOpts(opts)
-	defer demux.Stop(false)
-	s := NewServer(false)
-	err = s.Start(demux)
-	require.NoError(t, err, "cannot start DSD")
-	defer s.Stop()
+		demux := aggregator.InitTestAgentDemultiplexerWithOpts(opts)
+		defer demux.Stop(false)
+		s := NewServer(false)
+		err = s.Start(demux)
+		require.NoError(t, err, "cannot start DSD")
+		defer s.Stop()
 
-	url := fmt.Sprintf("127.0.0.1:%d", config.Datadog.GetInt("dogstatsd_port"))
-	conn, err := net.Dial("udp", url)
-	require.NoError(t, err, "cannot connect to DSD socket")
-	defer conn.Close()
+		url := fmt.Sprintf("127.0.0.1:%d", config.Datadog.GetInt("dogstatsd_port"))
+		conn, err := net.Dial("udp", url)
+		require.NoError(t, err, "cannot connect to DSD socket")
+		defer conn.Close()
 
-	// Test metric
-	conn.Write([]byte("daemon:666|g|#sometag1:somevalue1,sometag2:somevalue2"))
-	samples, timedSamples := demux.WaitForSamples(time.Second * 2)
-	require.Len(t, samples, 1)
-	require.Len(t, timedSamples, 0)
-	sample := samples[0]
-	assert.NotNil(t, sample)
-	assert.Equal(t, sample.Name, "daemon")
-	assert.EqualValues(t, sample.Value, 666.0)
-	assert.Equal(t, sample.Mtype, metrics.GaugeType)
-	assert.ElementsMatch(t, sample.Tags, []string{"sometag1:somevalue1", "sometag2:somevalue2"})
-	demux.Reset()
+		// Test metric
+		conn.Write([]byte("daemon:666|g|#sometag1:somevalue1,sometag2:somevalue2"))
+		samples, timedSamples := demux.WaitForSamples(time.Second * 2)
+		require.Len(t, samples, 1)
+		require.Len(t, timedSamples, 0)
+		sample := samples[0]
+		assert.NotNil(t, sample)
+		assert.Equal(t, sample.Name, "daemon")
+		assert.EqualValues(t, sample.Value, 666.0)
+		assert.Equal(t, sample.Mtype, metrics.GaugeType)
+		assert.ElementsMatch(t, sample.Tags, []string{"sometag1:somevalue1", "sometag2:somevalue2"})
+		demux.Reset()
 
-	conn.Write([]byte("daemon:666|c|@0.5|#sometag1:somevalue1,sometag2:somevalue2"))
-	samples, timedSamples = demux.WaitForSamples(time.Second * 2)
-	require.Len(t, samples, 1)
-	require.Len(t, timedSamples, 0)
-	sample = samples[0]
-	assert.NotNil(t, sample)
-	assert.Equal(t, sample.Name, "daemon")
-	assert.EqualValues(t, sample.Value, 666.0)
-	assert.Equal(t, metrics.CounterType, sample.Mtype)
-	assert.Equal(t, 0.5, sample.SampleRate)
-	demux.Reset()
+		conn.Write([]byte("daemon:666|c|@0.5|#sometag1:somevalue1,sometag2:somevalue2"))
+		samples, timedSamples = demux.WaitForSamples(time.Second * 2)
+		require.Len(t, samples, 1)
+		require.Len(t, timedSamples, 0)
+		sample = samples[0]
+		assert.NotNil(t, sample)
+		assert.Equal(t, sample.Name, "daemon")
+		assert.EqualValues(t, sample.Value, 666.0)
+		assert.Equal(t, metrics.CounterType, sample.Mtype)
+		assert.Equal(t, 0.5, sample.SampleRate)
+		demux.Reset()
 
-	conn.Write([]byte("daemon:666|h|@0.5|#sometag1:somevalue1,sometag2:somevalue2"))
-	samples, timedSamples = demux.WaitForSamples(time.Second * 2)
-	require.Len(t, samples, 1)
-	require.Len(t, timedSamples, 0)
-	sample = samples[0]
-	assert.NotNil(t, sample)
-	assert.Equal(t, sample.Name, "daemon")
-	assert.EqualValues(t, sample.Value, 666.0)
-	assert.Equal(t, metrics.HistogramType, sample.Mtype)
-	assert.Equal(t, 0.5, sample.SampleRate)
-	demux.Reset()
+		conn.Write([]byte("daemon:666|h|@0.5|#sometag1:somevalue1,sometag2:somevalue2"))
+		samples, timedSamples = demux.WaitForSamples(time.Second * 2)
+		require.Len(t, samples, 1)
+		require.Len(t, timedSamples, 0)
+		sample = samples[0]
+		assert.NotNil(t, sample)
+		assert.Equal(t, sample.Name, "daemon")
+		assert.EqualValues(t, sample.Value, 666.0)
+		assert.Equal(t, metrics.HistogramType, sample.Mtype)
+		assert.Equal(t, 0.5, sample.SampleRate)
+		demux.Reset()
 
-	conn.Write([]byte("daemon:666|ms|@0.5|#sometag1:somevalue1,sometag2:somevalue2"))
-	samples, timedSamples = demux.WaitForSamples(time.Second * 2)
-	require.Len(t, samples, 1)
-	require.Len(t, timedSamples, 0)
-	sample = samples[0]
-	assert.NotNil(t, sample)
-	assert.Equal(t, sample.Name, "daemon")
-	assert.EqualValues(t, sample.Value, 666.0)
-	assert.Equal(t, metrics.HistogramType, sample.Mtype)
-	assert.Equal(t, 0.5, sample.SampleRate)
-	demux.Reset()
+		conn.Write([]byte("daemon:666|ms|@0.5|#sometag1:somevalue1,sometag2:somevalue2"))
+		samples, timedSamples = demux.WaitForSamples(time.Second * 2)
+		require.Len(t, samples, 1)
+		require.Len(t, timedSamples, 0)
+		sample = samples[0]
+		assert.NotNil(t, sample)
+		assert.Equal(t, sample.Name, "daemon")
+		assert.EqualValues(t, sample.Value, 666.0)
+		assert.Equal(t, metrics.HistogramType, sample.Mtype)
+		assert.Equal(t, 0.5, sample.SampleRate)
+		demux.Reset()
 
-	conn.Write([]byte("daemon_set:abc|s|#sometag1:somevalue1,sometag2:somevalue2"))
-	samples, timedSamples = demux.WaitForSamples(time.Second * 2)
-	require.Len(t, samples, 1)
-	require.Len(t, timedSamples, 0)
-	sample = samples[0]
-	assert.NotNil(t, sample)
-	assert.Equal(t, sample.Name, "daemon_set")
-	assert.Equal(t, sample.RawValue, "abc")
-	assert.Equal(t, sample.Mtype, metrics.SetType)
-	demux.Reset()
+		conn.Write([]byte("daemon_set:abc|s|#sometag1:somevalue1,sometag2:somevalue2"))
+		samples, timedSamples = demux.WaitForSamples(time.Second * 2)
+		require.Len(t, samples, 1)
+		require.Len(t, timedSamples, 0)
+		sample = samples[0]
+		assert.NotNil(t, sample)
+		assert.Equal(t, sample.Name, "daemon_set")
+		assert.Equal(t, sample.RawValue, "abc")
+		assert.Equal(t, sample.Mtype, metrics.SetType)
+		demux.Reset()
 
-	// multi-metric packet
-	conn.Write([]byte("daemon1:666|c\ndaemon2:1000|c"))
-	samples, timedSamples = demux.WaitForSamples(time.Second * 2)
-	require.Len(t, samples, 2)
-	require.Len(t, timedSamples, 0)
-	sample1 := samples[0]
-	assert.NotNil(t, sample1)
-	assert.Equal(t, sample1.Name, "daemon1")
-	assert.EqualValues(t, sample1.Value, 666.0)
-	assert.Equal(t, sample1.Mtype, metrics.CounterType)
-	sample2 := samples[1]
-	assert.NotNil(t, sample2)
-	assert.Equal(t, sample2.Name, "daemon2")
-	assert.EqualValues(t, sample2.Value, 1000.0)
-	assert.Equal(t, sample2.Mtype, metrics.CounterType)
-	demux.Reset()
+		// multi-metric packet
+		conn.Write([]byte("daemon1:666|c\ndaemon2:1000|c"))
+		samples, timedSamples = demux.WaitForSamples(time.Second * 2)
+		require.Len(t, samples, 2)
+		require.Len(t, timedSamples, 0)
+		sample1 := samples[0]
+		assert.NotNil(t, sample1)
+		assert.Equal(t, sample1.Name, "daemon1")
+		assert.EqualValues(t, sample1.Value, 666.0)
+		assert.Equal(t, sample1.Mtype, metrics.CounterType)
+		sample2 := samples[1]
+		assert.NotNil(t, sample2)
+		assert.Equal(t, sample2.Name, "daemon2")
+		assert.EqualValues(t, sample2.Value, 1000.0)
+		assert.Equal(t, sample2.Mtype, metrics.CounterType)
+		demux.Reset()
 
-	// multi-value packet
-	conn.Write([]byte("daemon1:666:123|c\ndaemon2:1000|c"))
-	samples, timedSamples = demux.WaitForSamples(time.Second * 2)
-	require.Len(t, samples, 3)
-	require.Len(t, timedSamples, 0)
-	sample1 = samples[0]
-	assert.NotNil(t, sample1)
-	assert.Equal(t, sample1.Name, "daemon1")
-	assert.EqualValues(t, sample1.Value, 666.0)
-	assert.Equal(t, sample1.Mtype, metrics.CounterType)
-	sample2 = samples[1]
-	assert.NotNil(t, sample2)
-	assert.Equal(t, sample2.Name, "daemon1")
-	assert.EqualValues(t, sample2.Value, 123.0)
-	assert.Equal(t, sample2.Mtype, metrics.CounterType)
-	sample3 := samples[2]
-	assert.NotNil(t, sample3)
-	assert.Equal(t, sample3.Name, "daemon2")
-	assert.EqualValues(t, sample3.Value, 1000.0)
-	assert.Equal(t, sample3.Mtype, metrics.CounterType)
-	demux.Reset()
+		// multi-value packet
+		conn.Write([]byte("daemon1:666:123|c\ndaemon2:1000|c"))
+		samples, timedSamples = demux.WaitForSamples(time.Second * 2)
+		require.Len(t, samples, 3)
+		require.Len(t, timedSamples, 0)
+		sample1 = samples[0]
+		assert.NotNil(t, sample1)
+		assert.Equal(t, sample1.Name, "daemon1")
+		assert.EqualValues(t, sample1.Value, 666.0)
+		assert.Equal(t, sample1.Mtype, metrics.CounterType)
+		sample2 = samples[1]
+		assert.NotNil(t, sample2)
+		assert.Equal(t, sample2.Name, "daemon1")
+		assert.EqualValues(t, sample2.Value, 123.0)
+		assert.Equal(t, sample2.Mtype, metrics.CounterType)
+		sample3 := samples[2]
+		assert.NotNil(t, sample3)
+		assert.Equal(t, sample3.Name, "daemon2")
+		assert.EqualValues(t, sample3.Value, 1000.0)
+		assert.Equal(t, sample3.Mtype, metrics.CounterType)
+		demux.Reset()
 
-	// multi-value packet with skip empty
-	conn.Write([]byte("daemon1::666::123::::|c\ndaemon2:1000|c"))
-	samples, timedSamples = demux.WaitForSamples(time.Second * 2)
-	require.Len(t, samples, 3)
-	require.Len(t, timedSamples, 0)
-	sample1 = samples[0]
-	assert.NotNil(t, sample1)
-	assert.Equal(t, sample1.Name, "daemon1")
-	assert.EqualValues(t, sample1.Value, 666.0)
-	assert.Equal(t, sample1.Mtype, metrics.CounterType)
-	sample2 = samples[1]
-	assert.NotNil(t, sample2)
-	assert.Equal(t, sample2.Name, "daemon1")
-	assert.EqualValues(t, sample2.Value, 123.0)
-	assert.Equal(t, sample2.Mtype, metrics.CounterType)
-	sample3 = samples[2]
-	assert.NotNil(t, sample3)
-	assert.Equal(t, sample3.Name, "daemon2")
-	assert.EqualValues(t, sample3.Value, 1000.0)
-	assert.Equal(t, sample3.Mtype, metrics.CounterType)
-	demux.Reset()
+		// multi-value packet with skip empty
+		conn.Write([]byte("daemon1::666::123::::|c\ndaemon2:1000|c"))
+		samples, timedSamples = demux.WaitForSamples(time.Second * 2)
+		require.Len(t, samples, 3)
+		require.Len(t, timedSamples, 0)
+		sample1 = samples[0]
+		assert.NotNil(t, sample1)
+		assert.Equal(t, sample1.Name, "daemon1")
+		assert.EqualValues(t, sample1.Value, 666.0)
+		assert.Equal(t, sample1.Mtype, metrics.CounterType)
+		sample2 = samples[1]
+		assert.NotNil(t, sample2)
+		assert.Equal(t, sample2.Name, "daemon1")
+		assert.EqualValues(t, sample2.Value, 123.0)
+		assert.Equal(t, sample2.Mtype, metrics.CounterType)
+		sample3 = samples[2]
+		assert.NotNil(t, sample3)
+		assert.Equal(t, sample3.Name, "daemon2")
+		assert.EqualValues(t, sample3.Value, 1000.0)
+		assert.Equal(t, sample3.Mtype, metrics.CounterType)
+		demux.Reset()
 
-	//	// slightly malformed multi-metric packet, should still be parsed in whole
-	conn.Write([]byte("daemon1:666|c\n\ndaemon2:1000|c\n"))
-	samples, timedSamples = demux.WaitForSamples(time.Second * 2)
-	require.Len(t, samples, 2)
-	require.Len(t, timedSamples, 0)
-	sample1 = samples[0]
-	assert.NotNil(t, sample1)
-	assert.Equal(t, sample1.Name, "daemon1")
-	assert.EqualValues(t, sample1.Value, 666.0)
-	assert.Equal(t, sample1.Mtype, metrics.CounterType)
-	sample2 = samples[1]
-	assert.NotNil(t, sample2)
-	assert.Equal(t, sample2.Name, "daemon2")
-	assert.EqualValues(t, sample2.Value, 1000.0)
-	assert.Equal(t, sample2.Mtype, metrics.CounterType)
-	demux.Reset()
+		//	// slightly malformed multi-metric packet, should still be parsed in whole
+		conn.Write([]byte("daemon1:666|c\n\ndaemon2:1000|c\n"))
+		samples, timedSamples = demux.WaitForSamples(time.Second * 2)
+		require.Len(t, samples, 2)
+		require.Len(t, timedSamples, 0)
+		sample1 = samples[0]
+		assert.NotNil(t, sample1)
+		assert.Equal(t, sample1.Name, "daemon1")
+		assert.EqualValues(t, sample1.Value, 666.0)
+		assert.Equal(t, sample1.Mtype, metrics.CounterType)
+		sample2 = samples[1]
+		assert.NotNil(t, sample2)
+		assert.Equal(t, sample2.Name, "daemon2")
+		assert.EqualValues(t, sample2.Value, 1000.0)
+		assert.Equal(t, sample2.Mtype, metrics.CounterType)
+		demux.Reset()
 
-	// Test erroneous metric
-	conn.Write([]byte("daemon1:666a|g\ndaemon2:666|g|#sometag1:somevalue1,sometag2:somevalue2"))
-	samples, timedSamples = demux.WaitForSamples(time.Second * 2)
-	require.Len(t, samples, 1)
-	require.Len(t, timedSamples, 0)
-	sample = samples[0]
-	assert.NotNil(t, sample)
-	assert.Equal(t, sample.Name, "daemon2")
-	demux.Reset()
+		// Test erroneous metric
+		conn.Write([]byte("daemon1:666a|g\ndaemon2:666|g|#sometag1:somevalue1,sometag2:somevalue2"))
+		samples, timedSamples = demux.WaitForSamples(time.Second * 2)
+		require.Len(t, samples, 1)
+		require.Len(t, timedSamples, 0)
+		sample = samples[0]
+		assert.NotNil(t, sample)
+		assert.Equal(t, sample.Name, "daemon2")
+		demux.Reset()
 
-	// Test empty metric
-	conn.Write([]byte("daemon1:|g\ndaemon2:666|g|#sometag1:somevalue1,sometag2:somevalue2\ndaemon3: :1:|g"))
-	samples, timedSamples = demux.WaitForSamples(time.Second * 2)
-	require.Len(t, samples, 1)
-	require.Len(t, timedSamples, 0)
-	sample = samples[0]
-	assert.NotNil(t, sample)
-	assert.Equal(t, sample.Name, "daemon2")
-	demux.Reset()
+		// Test empty metric
+		conn.Write([]byte("daemon1:|g\ndaemon2:666|g|#sometag1:somevalue1,sometag2:somevalue2\ndaemon3: :1:|g"))
+		samples, timedSamples = demux.WaitForSamples(time.Second * 2)
+		require.Len(t, samples, 1)
+		require.Len(t, timedSamples, 0)
+		sample = samples[0]
+		assert.NotNil(t, sample)
+		assert.Equal(t, sample.Name, "daemon2")
+		demux.Reset()
 
-	// Late gauge
-	conn.Write([]byte("daemon:666|g|#sometag1:somevalue1,sometag2:somevalue2|T1658328888"))
-	samples, timedSamples = demux.WaitForSamples(time.Second * 2)
-	require.Len(t, samples, 0)
-	require.Len(t, timedSamples, 1)
-	sample = timedSamples[0]
-	require.NotNil(t, sample)
-	assert.Equal(t, sample.Mtype, metrics.GaugeType)
-	assert.Equal(t, sample.Name, "daemon")
-	assert.Equal(t, sample.Timestamp, float64(1658328888))
-	demux.Reset()
+		// Late gauge
+		conn.Write([]byte("daemon:666|g|#sometag1:somevalue1,sometag2:somevalue2|T1658328888"))
+		samples, timedSamples = demux.WaitForSamples(time.Second * 2)
+		require.Len(t, samples, 0)
+		require.Len(t, timedSamples, 1)
+		sample = timedSamples[0]
+		require.NotNil(t, sample)
+		assert.Equal(t, sample.Mtype, metrics.GaugeType)
+		assert.Equal(t, sample.Name, "daemon")
+		assert.Equal(t, sample.Timestamp, float64(1658328888))
+		demux.Reset()
 
-	// Late count
-	conn.Write([]byte("daemon:666|c|#sometag1:somevalue1,sometag2:somevalue2|T1658328888"))
-	samples, timedSamples = demux.WaitForSamples(time.Second * 2)
-	require.Len(t, samples, 0)
-	require.Len(t, timedSamples, 1)
-	sample = timedSamples[0]
-	require.NotNil(t, sample)
-	assert.Equal(t, sample.Mtype, metrics.CounterType)
-	assert.Equal(t, sample.Name, "daemon")
-	assert.Equal(t, sample.Timestamp, float64(1658328888))
-	demux.Reset()
+		// Late count
+		conn.Write([]byte("daemon:666|c|#sometag1:somevalue1,sometag2:somevalue2|T1658328888"))
+		samples, timedSamples = demux.WaitForSamples(time.Second * 2)
+		require.Len(t, samples, 0)
+		require.Len(t, timedSamples, 1)
+		sample = timedSamples[0]
+		require.NotNil(t, sample)
+		assert.Equal(t, sample.Mtype, metrics.CounterType)
+		assert.Equal(t, sample.Name, "daemon")
+		assert.Equal(t, sample.Timestamp, float64(1658328888))
+		demux.Reset()
 
-	// Late metric and a normal one
-	conn.Write([]byte("daemon:666|g|#sometag1:somevalue1,sometag2:somevalue2|T1658328888\ndaemon2:666|c"))
-	samples, timedSamples = demux.WaitForSamples(time.Second * 2)
-	require.Len(t, samples, 1)
-	require.Len(t, timedSamples, 1)
-	sample = timedSamples[0]
-	require.NotNil(t, sample)
-	assert.Equal(t, sample.Name, "daemon")
-	assert.Equal(t, sample.Mtype, metrics.GaugeType)
-	assert.Equal(t, sample.Timestamp, float64(1658328888))
-	sample = samples[0]
-	require.NotNil(t, sample)
-	assert.Equal(t, sample.Name, "daemon2")
-	demux.Reset()
+		// Late metric and a normal one
+		conn.Write([]byte("daemon:666|g|#sometag1:somevalue1,sometag2:somevalue2|T1658328888\ndaemon2:666|c"))
+		samples, timedSamples = demux.WaitForSamples(time.Second * 2)
+		require.Len(t, samples, 1)
+		require.Len(t, timedSamples, 1)
+		sample = timedSamples[0]
+		require.NotNil(t, sample)
+		assert.Equal(t, sample.Name, "daemon")
+		assert.Equal(t, sample.Mtype, metrics.GaugeType)
+		assert.Equal(t, sample.Timestamp, float64(1658328888))
+		sample = samples[0]
+		require.NotNil(t, sample)
+		assert.Equal(t, sample.Name, "daemon2")
+		demux.Reset()
 
-	// Test Service Check
-	// ------------------
+		// Test Service Check
+		// ------------------
 
-	eventOut, serviceOut := demux.GetEventsAndServiceChecksChannels()
+		eventOut, serviceOut := demux.GetEventsAndServiceChecksChannels()
 
-	conn.Write([]byte("_sc|agent.up|0|d:12345|h:localhost|m:this is fine|#sometag1:somevalyyue1,sometag2:somevalue2"))
-	select {
-	case res := <-serviceOut:
-		assert.NotNil(t, res)
-	case <-time.After(2 * time.Second):
-		assert.FailNow(t, "Timeout on receive channel")
-	}
+		conn.Write([]byte("_sc|agent.up|0|d:12345|h:localhost|m:this is fine|#sometag1:somevalyyue1,sometag2:somevalue2"))
+		select {
+		case res := <-serviceOut:
+			assert.NotNil(t, res)
+		case <-time.After(2 * time.Second):
+			assert.FailNow(t, "Timeout on receive channel")
+		}
 
-	// Test erroneous Service Check
-	conn.Write([]byte("_sc|agen.down\n_sc|agent.up|0|d:12345|h:localhost|m:this is fine|#sometag1:somevalyyue1,sometag2:somevalue2"))
-	select {
-	case res := <-serviceOut:
-		assert.Equal(t, 1, len(res))
-		serviceCheck := res[0]
-		assert.NotNil(t, serviceCheck)
-		assert.Equal(t, serviceCheck.CheckName, "agent.up")
-	case <-time.After(2 * time.Second):
-		assert.FailNow(t, "Timeout on receive channel")
-	}
+		// Test erroneous Service Check
+		conn.Write([]byte("_sc|agen.down\n_sc|agent.up|0|d:12345|h:localhost|m:this is fine|#sometag1:somevalyyue1,sometag2:somevalue2"))
+		select {
+		case res := <-serviceOut:
+			assert.Equal(t, 1, len(res))
+			serviceCheck := res[0]
+			assert.NotNil(t, serviceCheck)
+			assert.Equal(t, serviceCheck.CheckName, "agent.up")
+		case <-time.After(2 * time.Second):
+			assert.FailNow(t, "Timeout on receive channel")
+		}
 
-	// Test Event
-	// ----------
+		// Test Event
+		// ----------
 
-	conn.Write([]byte("_e{10,10}:test title|test\\ntext|t:warning|d:12345|p:low|h:some.host|k:aggKey|s:source test|#tag1,tag2:test"))
-	select {
-	case res := <-eventOut:
-		event := res[0]
-		assert.NotNil(t, event)
-		assert.ElementsMatch(t, event.Tags, []string{"tag1", "tag2:test"})
-	case <-time.After(2 * time.Second):
-		assert.FailNow(t, "Timeout on receive channel")
-	}
+		conn.Write([]byte("_e{10,10}:test title|test\\ntext|t:warning|d:12345|p:low|h:some.host|k:aggKey|s:source test|#tag1,tag2:test"))
+		select {
+		case res := <-eventOut:
+			event := res[0]
+			assert.NotNil(t, event)
+			assert.ElementsMatch(t, event.Tags, []string{"tag1", "tag2:test"})
+		case <-time.After(2 * time.Second):
+			assert.FailNow(t, "Timeout on receive channel")
+		}
 
-	// Test erroneous Events
-	conn.Write(
-		[]byte("_e{0,9}:|test text\n" +
-			"_e{-5,2}:abc\n" +
-			"_e{11,10}:test title2|test\\ntext|" +
-			"t:warning|d:12345|p:low|h:some.host|k:aggKey|s:source test|#tag1,tag2:test",
-		),
-	)
-	select {
-	case res := <-eventOut:
-		assert.Equal(t, 1, len(res))
-		event := res[0]
-		assert.NotNil(t, event)
-		assert.Equal(t, event.Title, "test title2")
-	case <-time.After(2 * time.Second):
-		assert.FailNow(t, "Timeout on receive channel")
-	}
+		// Test erroneous Events
+		conn.Write(
+			[]byte("_e{0,9}:|test text\n" +
+				"_e{-5,2}:abc\n" +
+				"_e{11,10}:test title2|test\\ntext|" +
+				"t:warning|d:12345|p:low|h:some.host|k:aggKey|s:source test|#tag1,tag2:test",
+			),
+		)
+		select {
+		case res := <-eventOut:
+			assert.Equal(t, 1, len(res))
+			event := res[0]
+			assert.NotNil(t, event)
+			assert.Equal(t, event.Title, "test title2")
+		case <-time.After(2 * time.Second):
+			assert.FailNow(t, "Timeout on receive channel")
+		}
+	})
 }
 
 func TestUDPForward(t *testing.T) {
-	config.SetDetectedFeatures(config.FeatureMap{})
-	defer config.SetDetectedFeatures(nil)
+	runWithComponenet(t, func(s Component) {
+		config.SetDetectedFeatures(config.FeatureMap{})
+		defer config.SetDetectedFeatures(nil)
 
-	fport, err := getAvailableUDPPort()
-	require.NoError(t, err)
+		fport, err := getAvailableUDPPort()
+		require.NoError(t, err)
 
-	// Setup UDP server to forward to
-	config.Datadog.SetDefault("statsd_forward_port", fport)
-	config.Datadog.SetDefault("statsd_forward_host", "127.0.0.1")
+		// Setup UDP server to forward to
+		config.Datadog.SetDefault("statsd_forward_port", fport)
+		config.Datadog.SetDefault("statsd_forward_host", "127.0.0.1")
 
-	addr := fmt.Sprintf("127.0.0.1:%d", fport)
-	pc, err := net.ListenPacket("udp", addr)
-	require.NoError(t, err)
+		addr := fmt.Sprintf("127.0.0.1:%d", fport)
+		pc, err := net.ListenPacket("udp", addr)
+		require.NoError(t, err)
 
-	defer pc.Close()
+		defer pc.Close()
 
-	// Setup dogstatsd server
-	port, err := getAvailableUDPPort()
-	require.NoError(t, err)
-	config.Datadog.SetDefault("dogstatsd_port", port)
+		// Setup dogstatsd server
+		port, err := getAvailableUDPPort()
+		require.NoError(t, err)
+		config.Datadog.SetDefault("dogstatsd_port", port)
 
-	demux := mockDemultiplexer()
-	defer demux.Stop(false)
-	s := NewServer(false)
-	err = s.Start(demux)
-	require.NoError(t, err, "cannot start DSD")
-	defer s.Stop()
+		demux := mockDemultiplexer()
+		defer demux.Stop(false)
+		s := NewServer(false)
+		err = s.Start(demux)
+		require.NoError(t, err, "cannot start DSD")
+		defer s.Stop()
 
-	url := fmt.Sprintf("127.0.0.1:%d", config.Datadog.GetInt("dogstatsd_port"))
-	conn, err := net.Dial("udp", url)
-	require.NoError(t, err, "cannot connect to DSD socket")
-	defer conn.Close()
+		url := fmt.Sprintf("127.0.0.1:%d", config.Datadog.GetInt("dogstatsd_port"))
+		conn, err := net.Dial("udp", url)
+		require.NoError(t, err, "cannot connect to DSD socket")
+		defer conn.Close()
 
-	// Check if message is forwarded
-	message := []byte("daemon:666|g|#sometag1:somevalue1,sometag2:somevalue2")
+		// Check if message is forwarded
+		message := []byte("daemon:666|g|#sometag1:somevalue1,sometag2:somevalue2")
 
-	conn.Write(message)
+		conn.Write(message)
 
-	pc.SetReadDeadline(time.Now().Add(2 * time.Second))
+		pc.SetReadDeadline(time.Now().Add(2 * time.Second))
 
-	buffer := make([]byte, len(message))
-	_, _, err = pc.ReadFrom(buffer)
-	require.NoError(t, err)
+		buffer := make([]byte, len(message))
+		_, _, err = pc.ReadFrom(buffer)
+		require.NoError(t, err)
 
-	assert.Equal(t, message, buffer)
+		assert.Equal(t, message, buffer)
+	})
 }
 
 func TestHistToDist(t *testing.T) {
-	config.SetDetectedFeatures(config.FeatureMap{})
-	defer config.SetDetectedFeatures(nil)
+	runWithComponenet(t, func(s Component) {
+		config.SetDetectedFeatures(config.FeatureMap{})
+		defer config.SetDetectedFeatures(nil)
 
-	port, err := getAvailableUDPPort()
-	require.NoError(t, err)
-	defaultPort := config.Datadog.GetInt("dogstatsd_port")
-	config.Datadog.SetDefault("dogstatsd_port", port)
-	defer config.Datadog.SetDefault("dogstatsd_port", defaultPort)
-	config.Datadog.SetDefault("histogram_copy_to_distribution", true)
-	defer config.Datadog.SetDefault("histogram_copy_to_distribution", false)
-	config.Datadog.SetDefault("histogram_copy_to_distribution_prefix", "dist.")
-	defer config.Datadog.SetDefault("histogram_copy_to_distribution_prefix", "")
+		port, err := getAvailableUDPPort()
+		require.NoError(t, err)
+		defaultPort := config.Datadog.GetInt("dogstatsd_port")
+		config.Datadog.SetDefault("dogstatsd_port", port)
+		defer config.Datadog.SetDefault("dogstatsd_port", defaultPort)
+		config.Datadog.SetDefault("histogram_copy_to_distribution", true)
+		defer config.Datadog.SetDefault("histogram_copy_to_distribution", false)
+		config.Datadog.SetDefault("histogram_copy_to_distribution_prefix", "dist.")
+		defer config.Datadog.SetDefault("histogram_copy_to_distribution_prefix", "")
 
-	demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
-	defer demux.Stop(false)
-	s := NewServer(false)
-	err = s.Start(demux)
-	require.NoError(t, err, "cannot start DSD")
-	defer s.Stop()
+		demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
+		defer demux.Stop(false)
+		s := NewServer(false)
+		err = s.Start(demux)
+		require.NoError(t, err, "cannot start DSD")
+		defer s.Stop()
 
-	url := fmt.Sprintf("127.0.0.1:%d", config.Datadog.GetInt("dogstatsd_port"))
-	conn, err := net.Dial("udp", url)
-	require.NoError(t, err, "cannot connect to DSD socket")
-	defer conn.Close()
+		url := fmt.Sprintf("127.0.0.1:%d", config.Datadog.GetInt("dogstatsd_port"))
+		conn, err := net.Dial("udp", url)
+		require.NoError(t, err, "cannot connect to DSD socket")
+		defer conn.Close()
 
-	// Test metric
-	conn.Write([]byte("daemon:666|h|#sometag1:somevalue1,sometag2:somevalue2"))
-	time.Sleep(time.Millisecond * 200) // give some time to the socket write/read
-	samples, timedSamples := demux.WaitForSamples(time.Second * 2)
-	require.Equal(t, 2, len(samples))
-	require.Equal(t, 0, len(timedSamples))
-	histMetric := samples[0]
-	distMetric := samples[1]
-	assert.NotNil(t, histMetric)
-	assert.Equal(t, histMetric.Name, "daemon")
-	assert.EqualValues(t, histMetric.Value, 666.0)
-	assert.Equal(t, metrics.HistogramType, histMetric.Mtype)
+		// Test metric
+		conn.Write([]byte("daemon:666|h|#sometag1:somevalue1,sometag2:somevalue2"))
+		time.Sleep(time.Millisecond * 200) // give some time to the socket write/read
+		samples, timedSamples := demux.WaitForSamples(time.Second * 2)
+		require.Equal(t, 2, len(samples))
+		require.Equal(t, 0, len(timedSamples))
+		histMetric := samples[0]
+		distMetric := samples[1]
+		assert.NotNil(t, histMetric)
+		assert.Equal(t, histMetric.Name, "daemon")
+		assert.EqualValues(t, histMetric.Value, 666.0)
+		assert.Equal(t, metrics.HistogramType, histMetric.Mtype)
 
-	assert.NotNil(t, distMetric)
-	assert.Equal(t, distMetric.Name, "dist.daemon")
-	assert.EqualValues(t, distMetric.Value, 666.0)
-	assert.Equal(t, metrics.DistributionType, distMetric.Mtype)
-	demux.Reset()
+		assert.NotNil(t, distMetric)
+		assert.Equal(t, distMetric.Name, "dist.daemon")
+		assert.EqualValues(t, distMetric.Value, 666.0)
+		assert.Equal(t, metrics.DistributionType, distMetric.Mtype)
+		demux.Reset()
+	})
 }
 
 func TestScanLines(t *testing.T) {
@@ -552,296 +573,306 @@ func TestEOLParsing(t *testing.T) {
 }
 
 func TestE2EParsing(t *testing.T) {
-	config.SetDetectedFeatures(config.FeatureMap{})
-	defer config.SetDetectedFeatures(nil)
-
-	port, err := getAvailableUDPPort()
-	require.NoError(t, err)
-	config.Datadog.SetDefault("dogstatsd_port", port)
-
-	demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
-	s := NewServer(false)
-	require.NoError(t, err, "cannot start DSD")
-	_ = s.Start(demux)
-
 	url := fmt.Sprintf("127.0.0.1:%d", config.Datadog.GetInt("dogstatsd_port"))
 	conn, err := net.Dial("udp", url)
 	require.NoError(t, err, "cannot connect to DSD socket")
 	defer conn.Close()
 
-	// Test metric
-	conn.Write([]byte("daemon:666|g|#foo:bar\ndaemon:666|g|#foo:bar"))
-	samples, timedSamples := demux.WaitForSamples(time.Second * 2)
-	assert.Equal(t, 2, len(samples))
-	assert.Equal(t, 0, len(timedSamples))
-	demux.Reset()
-	demux.Stop(false)
-	s.Stop()
+	runWithComponenet(t, func(s Component) {
+		config.SetDetectedFeatures(config.FeatureMap{})
+		defer config.SetDetectedFeatures(nil)
 
-	// EOL enabled
-	config.Datadog.SetDefault("dogstatsd_eol_required", []string{"udp"})
-	// reset to default
-	defer config.Datadog.SetDefault("dogstatsd_eol_required", []string{})
+		port, err := getAvailableUDPPort()
+		require.NoError(t, err)
+		config.Datadog.SetDefault("dogstatsd_port", port)
 
-	demux = aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
-	s = NewServer(false)
-	require.NoError(t, err, "cannot start DSD")
-	_ = s.Start(demux)
+		demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
+		require.NoError(t, err, "cannot start DSD")
+		_ = s.Start(demux)
 
-	// Test metric expecting an EOL
-	conn.Write([]byte("daemon:666|g|#foo:bar\ndaemon:666|g|#foo:bar"))
-	samples, timedSamples = demux.WaitForSamples(time.Second * 2)
-	require.Equal(t, 1, len(samples))
-	assert.Equal(t, 0, len(timedSamples))
-	s.Stop()
-	demux.Reset()
-	demux.Stop(false)
+		// Test metric
+		conn.Write([]byte("daemon:666|g|#foo:bar\ndaemon:666|g|#foo:bar"))
+		samples, timedSamples := demux.WaitForSamples(time.Second * 2)
+		assert.Equal(t, 2, len(samples))
+		assert.Equal(t, 0, len(timedSamples))
+		demux.Reset()
+		demux.Stop(false)
+		s.Stop()
+	})
+	runWithComponenet(t, func(s Component) {
+		// EOL enabled
+		config.Datadog.SetDefault("dogstatsd_eol_required", []string{"udp"})
+		// reset to default
+		defer config.Datadog.SetDefault("dogstatsd_eol_required", []string{})
+
+		demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
+		require.NoError(t, err, "cannot start DSD")
+		_ = s.Start(demux)
+
+		// Test metric expecting an EOL
+		conn.Write([]byte("daemon:666|g|#foo:bar\ndaemon:666|g|#foo:bar"))
+		samples, timedSamples := demux.WaitForSamples(time.Second * 2)
+		require.Equal(t, 1, len(samples))
+		assert.Equal(t, 0, len(timedSamples))
+		s.Stop()
+		demux.Reset()
+		demux.Stop(false)
+	})
 }
 
 func TestExtraTags(t *testing.T) {
-	config.SetDetectedFeatures(config.FeatureMap{})
-	defer config.SetDetectedFeatures(nil)
+	runWithComponenet(t, func(s Component) {
+		config.SetDetectedFeatures(config.FeatureMap{})
+		defer config.SetDetectedFeatures(nil)
 
-	port, err := getAvailableUDPPort()
-	require.NoError(t, err)
-	config.Datadog.SetDefault("dogstatsd_port", port)
-	config.Datadog.SetDefault("dogstatsd_tags", []string{"sometag3:somevalue3"})
-	defer config.Datadog.SetDefault("dogstatsd_tags", []string{})
+		port, err := getAvailableUDPPort()
+		require.NoError(t, err)
+		config.Datadog.SetDefault("dogstatsd_port", port)
+		config.Datadog.SetDefault("dogstatsd_tags", []string{"sometag3:somevalue3"})
+		defer config.Datadog.SetDefault("dogstatsd_tags", []string{})
 
-	demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
-	s := NewServer(false)
-	require.NoError(t, err, "cannot start DSD")
-	_ = s.Start(demux)
-	defer s.Stop()
+		demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
+		require.NoError(t, err, "cannot start DSD")
+		_ = s.Start(demux)
+		defer s.Stop()
 
-	url := fmt.Sprintf("127.0.0.1:%d", config.Datadog.GetInt("dogstatsd_port"))
-	conn, err := net.Dial("udp", url)
-	require.NoError(t, err, "cannot connect to DSD socket")
-	defer conn.Close()
+		url := fmt.Sprintf("127.0.0.1:%d", config.Datadog.GetInt("dogstatsd_port"))
+		conn, err := net.Dial("udp", url)
+		require.NoError(t, err, "cannot connect to DSD socket")
+		defer conn.Close()
 
-	// Test metric
-	conn.Write([]byte("daemon:666|g|#sometag1:somevalue1,sometag2:somevalue2"))
-	samples, timedSamples := demux.WaitForSamples(time.Second * 2)
-	require.Equal(t, 1, len(samples))
-	require.Equal(t, 0, len(timedSamples))
-	sample := samples[0]
-	assert.NotNil(t, sample)
-	assert.Equal(t, sample.Name, "daemon")
-	assert.EqualValues(t, sample.Value, 666.0)
-	assert.Equal(t, sample.Mtype, metrics.GaugeType)
-	assert.ElementsMatch(t, sample.Tags, []string{"sometag1:somevalue1", "sometag2:somevalue2", "sometag3:somevalue3"})
+		// Test metric
+		conn.Write([]byte("daemon:666|g|#sometag1:somevalue1,sometag2:somevalue2"))
+		samples, timedSamples := demux.WaitForSamples(time.Second * 2)
+		require.Equal(t, 1, len(samples))
+		require.Equal(t, 0, len(timedSamples))
+		sample := samples[0]
+		assert.NotNil(t, sample)
+		assert.Equal(t, sample.Name, "daemon")
+		assert.EqualValues(t, sample.Value, 666.0)
+		assert.Equal(t, sample.Mtype, metrics.GaugeType)
+		assert.ElementsMatch(t, sample.Tags, []string{"sometag1:somevalue1", "sometag2:somevalue2", "sometag3:somevalue3"})
+	})
 }
 
 func TestStaticTags(t *testing.T) {
-	port, err := getAvailableUDPPort()
-	require.NoError(t, err)
-	config.Datadog.SetDefault("dogstatsd_port", port)
-	config.Datadog.SetDefault("dogstatsd_tags", []string{"sometag3:somevalue3"})
-	config.Datadog.SetDefault("tags", []string{"from:dd_tags"})
-	defer config.Datadog.SetDefault("dogstatsd_tags", []string{})
+	runWithComponenet(t, func(s Component) {
+		port, err := getAvailableUDPPort()
+		require.NoError(t, err)
+		config.Datadog.SetDefault("dogstatsd_port", port)
+		config.Datadog.SetDefault("dogstatsd_tags", []string{"sometag3:somevalue3"})
+		config.Datadog.SetDefault("tags", []string{"from:dd_tags"})
+		defer config.Datadog.SetDefault("dogstatsd_tags", []string{})
 
-	config.SetDetectedFeatures(config.FeatureMap{config.EKSFargate: struct{}{}})
-	defer config.SetDetectedFeatures(nil)
+		config.SetDetectedFeatures(config.FeatureMap{config.EKSFargate: struct{}{}})
+		defer config.SetDetectedFeatures(nil)
 
-	demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
-	s := NewServer(false)
-	require.NoError(t, err, "cannot start DSD")
-	_ = s.Start(demux)
-	defer s.Stop()
+		demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
+		require.NoError(t, err, "cannot start DSD")
+		_ = s.Start(demux)
+		defer s.Stop()
 
-	url := fmt.Sprintf("127.0.0.1:%d", config.Datadog.GetInt("dogstatsd_port"))
-	conn, err := net.Dial("udp", url)
-	require.NoError(t, err, "cannot connect to DSD socket")
-	defer conn.Close()
+		url := fmt.Sprintf("127.0.0.1:%d", config.Datadog.GetInt("dogstatsd_port"))
+		conn, err := net.Dial("udp", url)
+		require.NoError(t, err, "cannot connect to DSD socket")
+		defer conn.Close()
 
-	// Test metric
-	conn.Write([]byte("daemon:666|g|#sometag1:somevalue1,sometag2:somevalue2"))
-	samples, timedSamples := demux.WaitForSamples(time.Second * 2)
-	require.Equal(t, 1, len(samples))
-	require.Equal(t, 0, len(timedSamples))
-	sample := samples[0]
-	assert.NotNil(t, sample)
-	assert.Equal(t, sample.Name, "daemon")
-	assert.EqualValues(t, sample.Value, 666.0)
-	assert.Equal(t, sample.Mtype, metrics.GaugeType)
-	assert.ElementsMatch(t, sample.Tags, []string{
-		"sometag1:somevalue1",
-		"sometag2:somevalue2",
-		"sometag3:somevalue3",
-		"from:dd_tags",
+		// Test metric
+		conn.Write([]byte("daemon:666|g|#sometag1:somevalue1,sometag2:somevalue2"))
+		samples, timedSamples := demux.WaitForSamples(time.Second * 2)
+		require.Equal(t, 1, len(samples))
+		require.Equal(t, 0, len(timedSamples))
+		sample := samples[0]
+		assert.NotNil(t, sample)
+		assert.Equal(t, sample.Name, "daemon")
+		assert.EqualValues(t, sample.Value, 666.0)
+		assert.Equal(t, sample.Mtype, metrics.GaugeType)
+		assert.ElementsMatch(t, sample.Tags, []string{
+			"sometag1:somevalue1",
+			"sometag2:somevalue2",
+			"sometag3:somevalue3",
+			"from:dd_tags",
+		})
 	})
 }
 
 func TestDebugStatsSpike(t *testing.T) {
-	config.SetDetectedFeatures(config.FeatureMap{})
-	defer config.SetDetectedFeatures(nil)
+	runWithComponenet(t, func(c Component) {
+		s := c.(*server)
 
-	assert := assert.New(t)
-	demux := mockDemultiplexer()
-	defer demux.Stop(false)
+		config.SetDetectedFeatures(config.FeatureMap{})
+		defer config.SetDetectedFeatures(nil)
 
-	s := NewServer(false)
-	err := s.Start(demux)
-	require.NoError(t, err, "cannot start DSD")
+		assert := assert.New(t)
+		demux := mockDemultiplexer()
+		defer demux.Stop(false)
 
-	clk := clock.NewMock()
-	s.Debug = newDSDServerDebugWithClock(clk)
+		err := s.Start(demux)
+		require.NoError(t, err, "cannot start DSD")
 
-	defer s.Stop()
+		clk := clock.NewMock()
+		s.Debug = newDSDServerDebugWithClock(clk)
 
-	s.EnableMetricsStats()
-	sample := metrics.MetricSample{Name: "some.metric1", Tags: make([]string, 0)}
+		defer s.Stop()
 
-	send := func(count int) {
-		for i := 0; i < count; i++ {
-			s.storeMetricStats(sample)
+		s.EnableMetricsStats()
+		sample := metrics.MetricSample{Name: "some.metric1", Tags: make([]string, 0)}
+
+		send := func(count int) {
+			for i := 0; i < count; i++ {
+				s.Debug.storeMetricStats(sample)
+			}
 		}
-	}
 
-	send(10)
+		send(10)
 
-	clk.Add(1050 * time.Millisecond)
-	send(10)
+		clk.Add(1050 * time.Millisecond)
+		send(10)
 
-	clk.Add(1050 * time.Millisecond)
-	send(10)
+		clk.Add(1050 * time.Millisecond)
+		send(10)
 
-	clk.Add(1050 * time.Millisecond)
-	send(10)
+		clk.Add(1050 * time.Millisecond)
+		send(10)
 
-	clk.Add(1050 * time.Millisecond)
-	send(500)
+		clk.Add(1050 * time.Millisecond)
+		send(500)
 
-	// stop the debug loop to avoid data race
-	s.DisableMetricsStats()
-	time.Sleep(500 * time.Millisecond)
+		// stop the debug loop to avoid data race
+		s.DisableMetricsStats()
+		time.Sleep(500 * time.Millisecond)
 
-	assert.True(s.hasSpike())
+		assert.True(s.hasSpike())
 
-	s.EnableMetricsStats()
-	// This sleep is necessary as we need to wait for the goroutine function within 'EnableMetricsStats' to start.
-	// If we remove the sleep, the debug loop ticker will not be triggered by the clk.Add() call and the 500 samples
-	// added with 'send(500)' will be considered as if they had been added in the same second as the previous 500 samples.
-	// This will lead to a spike because we have 1000 samples in 1 second instead of having 500 and 500 in 2 different seconds.
-	time.Sleep(1050 * time.Millisecond)
+		s.EnableMetricsStats()
+		// This sleep is necessary as we need to wait for the goroutine function within 'EnableMetricsStats' to start.
+		// If we remove the sleep, the debug loop ticker will not be triggered by the clk.Add() call and the 500 samples
+		// added with 'send(500)' will be considered as if they had been added in the same second as the previous 500 samples.
+		// This will lead to a spike because we have 1000 samples in 1 second instead of having 500 and 500 in 2 different seconds.
+		time.Sleep(1050 * time.Millisecond)
 
-	clk.Add(1050 * time.Millisecond)
-	send(500)
+		clk.Add(1050 * time.Millisecond)
+		send(500)
 
-	// stop the debug loop to avoid data race
-	s.DisableMetricsStats()
-	time.Sleep(500 * time.Millisecond)
+		// stop the debug loop to avoid data race
+		s.DisableMetricsStats()
+		time.Sleep(500 * time.Millisecond)
 
-	// it is no more considered a spike because we had another second with 500 metrics
-	assert.False(s.hasSpike())
+		// it is no more considered a spike because we had another second with 500 metrics
+		assert.False(s.hasSpike())
+	})
 }
 
 func TestDebugStats(t *testing.T) {
-	config.SetDetectedFeatures(config.FeatureMap{})
-	defer config.SetDetectedFeatures(nil)
+	runWithComponenet(t, func(c Component) {
+		s := c.(*server)
+		config.SetDetectedFeatures(config.FeatureMap{})
+		defer config.SetDetectedFeatures(nil)
 
-	demux := mockDemultiplexer()
-	defer demux.Stop(false)
-	s := NewServer(false)
-	err := s.Start(demux)
-	require.NoError(t, err, "cannot start DSD")
-	clk := clock.NewMock()
-	s.Debug = newDSDServerDebugWithClock(clk)
-	defer s.Stop()
+		demux := mockDemultiplexer()
+		defer demux.Stop(false)
+		err := s.Start(demux)
+		require.NoError(t, err, "cannot start DSD")
+		clk := clock.NewMock()
+		s.Debug = newDSDServerDebugWithClock(clk)
+		defer s.Stop()
 
-	s.EnableMetricsStats()
+		s.EnableMetricsStats()
 
-	keygen := ckey.NewKeyGenerator()
+		keygen := ckey.NewKeyGenerator()
 
-	// data
-	sample1 := metrics.MetricSample{Name: "some.metric1", Tags: make([]string, 0)}
-	sample2 := metrics.MetricSample{Name: "some.metric2", Tags: []string{"a"}}
-	sample3 := metrics.MetricSample{Name: "some.metric3", Tags: make([]string, 0)}
-	sample4 := metrics.MetricSample{Name: "some.metric4", Tags: []string{"b", "c"}}
-	sample5 := metrics.MetricSample{Name: "some.metric4", Tags: []string{"c", "b"}}
-	hash1 := keygen.Generate(sample1.Name, "", tagset.NewHashingTagsAccumulatorWithTags(sample1.Tags))
-	hash2 := keygen.Generate(sample2.Name, "", tagset.NewHashingTagsAccumulatorWithTags(sample2.Tags))
-	hash3 := keygen.Generate(sample3.Name, "", tagset.NewHashingTagsAccumulatorWithTags(sample3.Tags))
-	hash4 := keygen.Generate(sample4.Name, "", tagset.NewHashingTagsAccumulatorWithTags(sample4.Tags))
-	hash5 := keygen.Generate(sample5.Name, "", tagset.NewHashingTagsAccumulatorWithTags(sample5.Tags))
+		// data
+		sample1 := metrics.MetricSample{Name: "some.metric1", Tags: make([]string, 0)}
+		sample2 := metrics.MetricSample{Name: "some.metric2", Tags: []string{"a"}}
+		sample3 := metrics.MetricSample{Name: "some.metric3", Tags: make([]string, 0)}
+		sample4 := metrics.MetricSample{Name: "some.metric4", Tags: []string{"b", "c"}}
+		sample5 := metrics.MetricSample{Name: "some.metric4", Tags: []string{"c", "b"}}
+		hash1 := keygen.Generate(sample1.Name, "", tagset.NewHashingTagsAccumulatorWithTags(sample1.Tags))
+		hash2 := keygen.Generate(sample2.Name, "", tagset.NewHashingTagsAccumulatorWithTags(sample2.Tags))
+		hash3 := keygen.Generate(sample3.Name, "", tagset.NewHashingTagsAccumulatorWithTags(sample3.Tags))
+		hash4 := keygen.Generate(sample4.Name, "", tagset.NewHashingTagsAccumulatorWithTags(sample4.Tags))
+		hash5 := keygen.Generate(sample5.Name, "", tagset.NewHashingTagsAccumulatorWithTags(sample5.Tags))
 
-	// test ingestion and ingestion time
-	s.storeMetricStats(sample1)
-	s.storeMetricStats(sample2)
-	clk.Add(10 * time.Millisecond)
-	s.storeMetricStats(sample1)
+		// test ingestion and ingestion time
+		s.Debug.storeMetricStats(sample1)
+		s.Debug.storeMetricStats(sample2)
+		clk.Add(10 * time.Millisecond)
+		s.Debug.storeMetricStats(sample1)
 
-	data, err := s.GetJSONDebugStats()
-	require.NoError(t, err, "cannot get debug stats")
-	require.NotNil(t, data)
-	require.NotEmpty(t, data)
+		data, err := s.GetJSONDebugStats()
+		require.NoError(t, err, "cannot get debug stats")
+		require.NotNil(t, data)
+		require.NotEmpty(t, data)
 
-	var stats map[ckey.ContextKey]metricStat
-	err = json.Unmarshal(data, &stats)
-	require.NoError(t, err, "data is not valid")
-	require.Len(t, stats, 2, "two metrics should have been captured")
+		var stats map[ckey.ContextKey]metricStat
+		err = json.Unmarshal(data, &stats)
+		require.NoError(t, err, "data is not valid")
+		require.Len(t, stats, 2, "two metrics should have been captured")
 
-	require.True(t, stats[hash1].LastSeen.After(stats[hash2].LastSeen), "some.metric1 should have appeared again after some.metric2")
+		require.True(t, stats[hash1].LastSeen.After(stats[hash2].LastSeen), "some.metric1 should have appeared again after some.metric2")
 
-	s.storeMetricStats(sample3)
-	clk.Add(10 * time.Millisecond)
-	s.storeMetricStats(sample1)
+		s.Debug.storeMetricStats(sample3)
+		clk.Add(10 * time.Millisecond)
+		s.Debug.storeMetricStats(sample1)
 
-	s.storeMetricStats(sample4)
-	s.storeMetricStats(sample5)
-	data, _ = s.GetJSONDebugStats()
-	err = json.Unmarshal(data, &stats)
-	require.NoError(t, err, "data is not valid")
-	require.Len(t, stats, 4, "4 metrics should have been captured")
+		s.Debug.storeMetricStats(sample4)
+		s.Debug.storeMetricStats(sample5)
+		data, _ = s.GetJSONDebugStats()
+		err = json.Unmarshal(data, &stats)
+		require.NoError(t, err, "data is not valid")
+		require.Len(t, stats, 4, "4 metrics should have been captured")
 
-	// test stats array
-	metric1 := stats[hash1]
-	metric2 := stats[hash2]
-	metric3 := stats[hash3]
-	metric4 := stats[hash4]
-	metric5 := stats[hash5]
+		// test stats array
+		metric1 := stats[hash1]
+		metric2 := stats[hash2]
+		metric3 := stats[hash3]
+		metric4 := stats[hash4]
+		metric5 := stats[hash5]
 
-	require.True(t, metric1.LastSeen.After(metric2.LastSeen), "some.metric1 should have appeared again after some.metric2")
-	require.True(t, metric1.LastSeen.After(metric3.LastSeen), "some.metric1 should have appeared again after some.metric3")
-	require.True(t, metric3.LastSeen.After(metric2.LastSeen), "some.metric3 should have appeared again after some.metric2")
+		require.True(t, metric1.LastSeen.After(metric2.LastSeen), "some.metric1 should have appeared again after some.metric2")
+		require.True(t, metric1.LastSeen.After(metric3.LastSeen), "some.metric1 should have appeared again after some.metric3")
+		require.True(t, metric3.LastSeen.After(metric2.LastSeen), "some.metric3 should have appeared again after some.metric2")
 
-	require.Equal(t, metric1.Count, uint64(3))
-	require.Equal(t, metric2.Count, uint64(1))
-	require.Equal(t, metric3.Count, uint64(1))
+		require.Equal(t, metric1.Count, uint64(3))
+		require.Equal(t, metric2.Count, uint64(1))
+		require.Equal(t, metric3.Count, uint64(1))
 
-	// test context correctness
-	require.Equal(t, metric4.Tags, "c b")
-	require.Equal(t, metric5.Tags, "c b")
-	require.Equal(t, hash4, hash5)
+		// test context correctness
+		require.Equal(t, metric4.Tags, "c b")
+		require.Equal(t, metric5.Tags, "c b")
+		require.Equal(t, hash4, hash5)
+	})
 }
 
 func TestNoMappingsConfig(t *testing.T) {
-	config.SetDetectedFeatures(config.FeatureMap{})
-	defer config.SetDetectedFeatures(nil)
+	runWithComponenet(t, func(c Component) {
+		s := c.(*server)
+		config.SetDetectedFeatures(config.FeatureMap{})
+		defer config.SetDetectedFeatures(nil)
 
-	datadogYaml := ``
-	samples := []metrics.MetricSample{}
+		datadogYaml := ``
+		samples := []metrics.MetricSample{}
 
-	port, err := getAvailableUDPPort()
-	require.NoError(t, err)
-	config.Datadog.SetDefault("dogstatsd_port", port)
+		port, err := getAvailableUDPPort()
+		require.NoError(t, err)
+		config.Datadog.SetDefault("dogstatsd_port", port)
 
-	config.Datadog.SetConfigType("yaml")
-	err = config.Datadog.ReadConfig(strings.NewReader(datadogYaml))
-	require.NoError(t, err)
+		config.Datadog.SetConfigType("yaml")
+		err = config.Datadog.ReadConfig(strings.NewReader(datadogYaml))
+		require.NoError(t, err)
 
-	demux := mockDemultiplexer()
-	defer demux.Stop(false)
-	s := NewServer(false)
-	require.NoError(t, err, "cannot start DSD")
-	_ = s.Start(demux)
+		demux := mockDemultiplexer()
+		defer demux.Stop(false)
+		require.NoError(t, err, "cannot start DSD")
+		_ = s.Start(demux)
 
-	assert.Nil(t, s.mapper)
+		assert.Nil(t, s.mapper)
 
-	parser := newParser(newFloat64ListPool())
-	samples, err = s.parseMetricMessage(samples, parser, []byte("test.metric:666|g"), "", false)
-	assert.NoError(t, err)
-	assert.Len(t, samples, 1)
+		parser := newParser(newFloat64ListPool())
+		samples, err = s.parseMetricMessage(samples, parser, []byte("test.metric:666|g"), "", false)
+		assert.NoError(t, err)
+		assert.Len(t, samples, 1)
+	})
 }
 
 type MetricSample struct {
@@ -937,42 +968,44 @@ dogstatsd_mapper_profiles:
 	samples := []metrics.MetricSample{}
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
-			config.SetDetectedFeatures(config.FeatureMap{})
-			defer config.SetDetectedFeatures(nil)
+			runWithComponenet(t, func(c Component) {
+				s := c.(*server)
+				config.SetDetectedFeatures(config.FeatureMap{})
+				defer config.SetDetectedFeatures(nil)
 
-			config.Datadog.SetConfigType("yaml")
-			err := config.Datadog.ReadConfig(strings.NewReader(scenario.config))
-			assert.NoError(t, err, "Case `%s` failed. ReadConfig should not return error %v", scenario.name, err)
+				config.Datadog.SetConfigType("yaml")
+				err := config.Datadog.ReadConfig(strings.NewReader(scenario.config))
+				assert.NoError(t, err, "Case `%s` failed. ReadConfig should not return error %v", scenario.name, err)
 
-			port, err := getAvailableUDPPort()
-			require.NoError(t, err, "Case `%s` failed. getAvailableUDPPort should not return error %v", scenario.name, err)
-			config.Datadog.SetDefault("dogstatsd_port", port)
+				port, err := getAvailableUDPPort()
+				require.NoError(t, err, "Case `%s` failed. getAvailableUDPPort should not return error %v", scenario.name, err)
+				config.Datadog.SetDefault("dogstatsd_port", port)
 
-			demux := mockDemultiplexer()
-			defer demux.Stop(false)
-			s := NewServer(false)
-			require.NoError(t, err, "Case `%s` failed. NewServer should not return error %v", scenario.name, err)
-			_ = s.Start(demux)
+				demux := mockDemultiplexer()
+				defer demux.Stop(false)
+				require.NoError(t, err, "Case `%s` failed. NewServer should not return error %v", scenario.name, err)
+				_ = s.Start(demux)
 
-			assert.Equal(t, config.Datadog.Get("dogstatsd_mapper_cache_size"), scenario.expectedCacheSize, "Case `%s` failed. cache_size `%s` should be `%s`", scenario.name, config.Datadog.Get("dogstatsd_mapper_cache_size"), scenario.expectedCacheSize)
+				assert.Equal(t, config.Datadog.Get("dogstatsd_mapper_cache_size"), scenario.expectedCacheSize, "Case `%s` failed. cache_size `%s` should be `%s`", scenario.name, config.Datadog.Get("dogstatsd_mapper_cache_size"), scenario.expectedCacheSize)
 
-			var actualSamples []MetricSample
-			for _, p := range scenario.packets {
-				parser := newParser(newFloat64ListPool())
-				samples, err := s.parseMetricMessage(samples, parser, []byte(p), "", false)
-				assert.NoError(t, err, "Case `%s` failed. parseMetricMessage should not return error %v", err)
-				for _, sample := range samples {
-					actualSamples = append(actualSamples, MetricSample{Name: sample.Name, Tags: sample.Tags, Mtype: sample.Mtype, Value: sample.Value})
+				var actualSamples []MetricSample
+				for _, p := range scenario.packets {
+					parser := newParser(newFloat64ListPool())
+					samples, err := s.parseMetricMessage(samples, parser, []byte(p), "", false)
+					assert.NoError(t, err, "Case `%s` failed. parseMetricMessage should not return error %v", err)
+					for _, sample := range samples {
+						actualSamples = append(actualSamples, MetricSample{Name: sample.Name, Tags: sample.Tags, Mtype: sample.Mtype, Value: sample.Value})
+					}
 				}
-			}
-			for _, sample := range scenario.expectedSamples {
-				sort.Strings(sample.Tags)
-			}
-			for _, sample := range actualSamples {
-				sort.Strings(sample.Tags)
-			}
-			assert.Equal(t, scenario.expectedSamples, actualSamples, "Case `%s` failed. `%s` should be `%s`", scenario.name, actualSamples, scenario.expectedSamples)
-			s.Stop()
+				for _, sample := range scenario.expectedSamples {
+					sort.Strings(sample.Tags)
+				}
+				for _, sample := range actualSamples {
+					sort.Strings(sample.Tags)
+				}
+				assert.Equal(t, scenario.expectedSamples, actualSamples, "Case `%s` failed. `%s` should be `%s`", scenario.name, actualSamples, scenario.expectedSamples)
+				s.Stop()
+			})
 		})
 	}
 }
@@ -992,115 +1025,125 @@ func TestNewServerExtraTags(t *testing.T) {
 	require.NoError(err)
 	config.Datadog.SetDefault("dogstatsd_port", port)
 
-	demux := mockDemultiplexer()
-	s := NewServer(false)
-	require.NoError(err, "starting the DogStatsD server shouldn't fail")
-	_ = s.Start(demux)
-	require.Len(s.extraTags, 0, "no tags should have been read")
-	s.Stop()
-	demux.Stop(false)
+	runWithComponenet(t, func(c Component) {
+		s := c.(*server)
+		demux := mockDemultiplexer()
+		require.NoError(err, "starting the DogStatsD server shouldn't fail")
+		_ = s.Start(demux)
+		require.Len(s.extraTags, 0, "no tags should have been read")
+		s.Stop()
+		demux.Stop(false)
+	})
 
 	// when the extraTags parameter isn't used, the DogStatsD server is not reading this env var
 	t.Setenv("DD_TAGS", "hello:world")
-	demux = mockDemultiplexer()
-	s = NewServer(false)
-	require.NoError(err, "starting the DogStatsD server shouldn't fail")
-	_ = s.Start(demux)
-	require.Len(s.extraTags, 0, "no tags should have been read")
-	s.Stop()
-	demux.Stop(false)
+
+	runWithComponenet(t, func(c Component) {
+		s := c.(*server)
+		demux := mockDemultiplexer()
+		require.NoError(err, "starting the DogStatsD server shouldn't fail")
+		_ = s.Start(demux)
+		require.Len(s.extraTags, 0, "no tags should have been read")
+		s.Stop()
+		demux.Stop(false)
+	})
 
 	// when the extraTags parameter isn't used, the DogStatsD server is automatically reading this env var for extra tags
 	t.Setenv("DD_DOGSTATSD_TAGS", "hello:world extra:tags")
-	demux = mockDemultiplexer()
-	s = NewServer(false)
-	require.NoError(err, "starting the DogStatsD server shouldn't fail")
-	_ = s.Start(demux)
-	require.Len(s.extraTags, 2, "two tags should have been read")
-	require.Equal(s.extraTags[0], "extra:tags", "the tag extra:tags should be set")
-	require.Equal(s.extraTags[1], "hello:world", "the tag hello:world should be set")
-	s.Stop()
-	demux.Stop(false)
+
+	runWithComponenet(t, func(c Component) {
+		s := c.(*server)
+		demux := mockDemultiplexer()
+		require.NoError(err, "starting the DogStatsD server shouldn't fail")
+		_ = s.Start(demux)
+		require.Len(s.extraTags, 2, "two tags should have been read")
+		require.Equal(s.extraTags[0], "extra:tags", "the tag extra:tags should be set")
+		require.Equal(s.extraTags[1], "hello:world", "the tag hello:world should be set")
+		s.Stop()
+		demux.Stop(false)
+	})
 }
 
 func testProcessedMetricsOrigin(t *testing.T) {
-	assert := assert.New(t)
+	runWithComponenet(t, func(c Component) {
+		s := c.(*server)
+		assert := assert.New(t)
 
-	demux := mockDemultiplexer()
-	defer demux.Stop(false)
-	s := NewServer(false)
-	err := s.Start(demux)
-	assert.NoError(err, "starting the DogStatsD server shouldn't fail")
+		demux := mockDemultiplexer()
+		defer demux.Stop(false)
+		err := s.Start(demux)
+		assert.NoError(err, "starting the DogStatsD server shouldn't fail")
 
-	s.Stop()
+		s.Stop()
 
-	assert.Len(s.cachedOriginCounters, 0, "this cache must be empty")
-	assert.Len(s.cachedOrder, 0, "this cache list must be empty")
+		assert.Len(s.cachedOriginCounters, 0, "this cache must be empty")
+		assert.Len(s.cachedOrder, 0, "this cache list must be empty")
 
-	parser := newParser(newFloat64ListPool())
-	samples := []metrics.MetricSample{}
-	samples, err = s.parseMetricMessage(samples, parser, []byte("test.metric:666|g"), "container_id://test_container", false)
-	assert.NoError(err)
-	assert.Len(samples, 1)
+		parser := newParser(newFloat64ListPool())
+		samples := []metrics.MetricSample{}
+		samples, err = s.parseMetricMessage(samples, parser, []byte("test.metric:666|g"), "container_id://test_container", false)
+		assert.NoError(err)
+		assert.Len(samples, 1)
 
-	// one thing should have been stored when we parse a metric
-	samples, err = s.parseMetricMessage(samples, parser, []byte("test.metric:555|g"), "container_id://test_container", true)
-	assert.NoError(err)
-	assert.Len(samples, 2)
-	assert.Len(s.cachedOriginCounters, 1, "one entry should have been cached")
-	assert.Len(s.cachedOrder, 1, "one entry should have been cached")
-	assert.Equal(s.cachedOrder[0].origin, "container_id://test_container")
+		// one thing should have been stored when we parse a metric
+		samples, err = s.parseMetricMessage(samples, parser, []byte("test.metric:555|g"), "container_id://test_container", true)
+		assert.NoError(err)
+		assert.Len(samples, 2)
+		assert.Len(s.cachedOriginCounters, 1, "one entry should have been cached")
+		assert.Len(s.cachedOrder, 1, "one entry should have been cached")
+		assert.Equal(s.cachedOrder[0].origin, "container_id://test_container")
 
-	// when we parse another metric (different value) with same origin, cache should contain only one entry
-	samples, err = s.parseMetricMessage(samples, parser, []byte("test.second_metric:525|g"), "container_id://test_container", true)
-	assert.NoError(err)
-	assert.Len(samples, 3)
-	assert.Len(s.cachedOriginCounters, 1, "one entry should have been cached")
-	assert.Len(s.cachedOrder, 1, "one entry should have been cached")
-	assert.Equal(s.cachedOrder[0].origin, "container_id://test_container")
-	assert.Equal(s.cachedOrder[0].ok, map[string]string{"message_type": "metrics", "state": "ok", "origin": "container_id://test_container"})
-	assert.Equal(s.cachedOrder[0].err, map[string]string{"message_type": "metrics", "state": "error", "origin": "container_id://test_container"})
+		// when we parse another metric (different value) with same origin, cache should contain only one entry
+		samples, err = s.parseMetricMessage(samples, parser, []byte("test.second_metric:525|g"), "container_id://test_container", true)
+		assert.NoError(err)
+		assert.Len(samples, 3)
+		assert.Len(s.cachedOriginCounters, 1, "one entry should have been cached")
+		assert.Len(s.cachedOrder, 1, "one entry should have been cached")
+		assert.Equal(s.cachedOrder[0].origin, "container_id://test_container")
+		assert.Equal(s.cachedOrder[0].ok, map[string]string{"message_type": "metrics", "state": "ok", "origin": "container_id://test_container"})
+		assert.Equal(s.cachedOrder[0].err, map[string]string{"message_type": "metrics", "state": "error", "origin": "container_id://test_container"})
 
-	// when we parse another metric (different value) but with a different origin, we should store a new entry
-	samples, err = s.parseMetricMessage(samples, parser, []byte("test.second_metric:525|g"), "container_id://another_container", true)
-	assert.NoError(err)
-	assert.Len(samples, 4)
-	assert.Len(s.cachedOriginCounters, 2, "two entries should have been cached")
-	assert.Len(s.cachedOrder, 2, "two entries should have been cached")
-	assert.Equal(s.cachedOrder[0].origin, "container_id://test_container")
-	assert.Equal(s.cachedOrder[0].ok, map[string]string{"message_type": "metrics", "state": "ok", "origin": "container_id://test_container"})
-	assert.Equal(s.cachedOrder[0].err, map[string]string{"message_type": "metrics", "state": "error", "origin": "container_id://test_container"})
-	assert.Equal(s.cachedOrder[1].origin, "container_id://another_container")
-	assert.Equal(s.cachedOrder[1].ok, map[string]string{"message_type": "metrics", "state": "ok", "origin": "container_id://another_container"})
-	assert.Equal(s.cachedOrder[1].err, map[string]string{"message_type": "metrics", "state": "error", "origin": "container_id://another_container"})
+		// when we parse another metric (different value) but with a different origin, we should store a new entry
+		samples, err = s.parseMetricMessage(samples, parser, []byte("test.second_metric:525|g"), "container_id://another_container", true)
+		assert.NoError(err)
+		assert.Len(samples, 4)
+		assert.Len(s.cachedOriginCounters, 2, "two entries should have been cached")
+		assert.Len(s.cachedOrder, 2, "two entries should have been cached")
+		assert.Equal(s.cachedOrder[0].origin, "container_id://test_container")
+		assert.Equal(s.cachedOrder[0].ok, map[string]string{"message_type": "metrics", "state": "ok", "origin": "container_id://test_container"})
+		assert.Equal(s.cachedOrder[0].err, map[string]string{"message_type": "metrics", "state": "error", "origin": "container_id://test_container"})
+		assert.Equal(s.cachedOrder[1].origin, "container_id://another_container")
+		assert.Equal(s.cachedOrder[1].ok, map[string]string{"message_type": "metrics", "state": "ok", "origin": "container_id://another_container"})
+		assert.Equal(s.cachedOrder[1].err, map[string]string{"message_type": "metrics", "state": "error", "origin": "container_id://another_container"})
 
-	// oldest one should be removed once we reach the limit of the cache
-	maxOriginCounters = 2
-	samples, err = s.parseMetricMessage(samples, parser, []byte("yetanothermetric:525|g"), "third_origin", true)
-	assert.NoError(err)
-	assert.Len(samples, 5)
-	assert.Len(s.cachedOriginCounters, 2, "two entries should have been cached, one has been evicted already")
-	assert.Len(s.cachedOrder, 2, "two entries should have been cached, one has been evicted already")
-	assert.Equal(s.cachedOrder[0].origin, "container_id://another_container")
-	assert.Equal(s.cachedOrder[0].ok, map[string]string{"message_type": "metrics", "state": "ok", "origin": "container_id://another_container"})
-	assert.Equal(s.cachedOrder[0].err, map[string]string{"message_type": "metrics", "state": "error", "origin": "container_id://another_container"})
-	assert.Equal(s.cachedOrder[1].origin, "third_origin")
-	assert.Equal(s.cachedOrder[1].ok, map[string]string{"message_type": "metrics", "state": "ok", "origin": "third_origin"})
-	assert.Equal(s.cachedOrder[1].err, map[string]string{"message_type": "metrics", "state": "error", "origin": "third_origin"})
+		// oldest one should be removed once we reach the limit of the cache
+		maxOriginCounters = 2
+		samples, err = s.parseMetricMessage(samples, parser, []byte("yetanothermetric:525|g"), "third_origin", true)
+		assert.NoError(err)
+		assert.Len(samples, 5)
+		assert.Len(s.cachedOriginCounters, 2, "two entries should have been cached, one has been evicted already")
+		assert.Len(s.cachedOrder, 2, "two entries should have been cached, one has been evicted already")
+		assert.Equal(s.cachedOrder[0].origin, "container_id://another_container")
+		assert.Equal(s.cachedOrder[0].ok, map[string]string{"message_type": "metrics", "state": "ok", "origin": "container_id://another_container"})
+		assert.Equal(s.cachedOrder[0].err, map[string]string{"message_type": "metrics", "state": "error", "origin": "container_id://another_container"})
+		assert.Equal(s.cachedOrder[1].origin, "third_origin")
+		assert.Equal(s.cachedOrder[1].ok, map[string]string{"message_type": "metrics", "state": "ok", "origin": "third_origin"})
+		assert.Equal(s.cachedOrder[1].err, map[string]string{"message_type": "metrics", "state": "error", "origin": "third_origin"})
 
-	// oldest one should be removed once we reach the limit of the cache
-	maxOriginCounters = 2
-	samples, err = s.parseMetricMessage(samples, parser, []byte("blablabla:555|g"), "fourth_origin", true)
-	assert.NoError(err)
-	assert.Len(samples, 6)
-	assert.Len(s.cachedOriginCounters, 2, "two entries should have been cached, two have been evicted already")
-	assert.Len(s.cachedOrder, 2, "two entries should have been cached, two have been evicted already")
-	assert.Equal(s.cachedOrder[0].origin, "third_origin")
-	assert.Equal(s.cachedOrder[0].ok, map[string]string{"message_type": "metrics", "state": "ok", "origin": "third_origin"})
-	assert.Equal(s.cachedOrder[0].err, map[string]string{"message_type": "metrics", "state": "error", "origin": "third_origin"})
-	assert.Equal(s.cachedOrder[1].origin, "fourth_origin")
-	assert.Equal(s.cachedOrder[1].ok, map[string]string{"message_type": "metrics", "state": "ok", "origin": "fourth_origin"})
-	assert.Equal(s.cachedOrder[1].err, map[string]string{"message_type": "metrics", "state": "error", "origin": "fourth_origin"})
+		// oldest one should be removed once we reach the limit of the cache
+		maxOriginCounters = 2
+		samples, err = s.parseMetricMessage(samples, parser, []byte("blablabla:555|g"), "fourth_origin", true)
+		assert.NoError(err)
+		assert.Len(samples, 6)
+		assert.Len(s.cachedOriginCounters, 2, "two entries should have been cached, two have been evicted already")
+		assert.Len(s.cachedOrder, 2, "two entries should have been cached, two have been evicted already")
+		assert.Equal(s.cachedOrder[0].origin, "third_origin")
+		assert.Equal(s.cachedOrder[0].ok, map[string]string{"message_type": "metrics", "state": "ok", "origin": "third_origin"})
+		assert.Equal(s.cachedOrder[0].err, map[string]string{"message_type": "metrics", "state": "error", "origin": "third_origin"})
+		assert.Equal(s.cachedOrder[1].origin, "fourth_origin")
+		assert.Equal(s.cachedOrder[1].ok, map[string]string{"message_type": "metrics", "state": "ok", "origin": "fourth_origin"})
+		assert.Equal(s.cachedOrder[1].err, map[string]string{"message_type": "metrics", "state": "error", "origin": "fourth_origin"})
+	})
 }
 
 func TestProcessedMetricsOrigin(t *testing.T) {
@@ -1116,33 +1159,35 @@ func TestProcessedMetricsOrigin(t *testing.T) {
 }
 
 func testContainerIDParsing(t *testing.T) {
-	assert := assert.New(t)
+	runWithComponenet(t, func(c Component) {
+		s := c.(*server)
+		assert := assert.New(t)
 
-	s := NewServer(false)
-	err := s.Start(mockDemultiplexer())
-	assert.NoError(err, "starting the DogStatsD server shouldn't fail")
-	s.Stop()
+		err := s.Start(mockDemultiplexer())
+		assert.NoError(err, "starting the DogStatsD server shouldn't fail")
+		s.Stop()
 
-	parser := newParser(newFloat64ListPool())
-	parser.dsdOriginEnabled = true
+		parser := newParser(newFloat64ListPool())
+		parser.dsdOriginEnabled = true
 
-	// Metric
-	metrics, err := s.parseMetricMessage(nil, parser, []byte("metric.name:123|g|c:metric-container"), "", false)
-	assert.NoError(err)
-	assert.Len(metrics, 1)
-	assert.Equal("container_id://metric-container", metrics[0].OriginFromClient)
+		// Metric
+		metrics, err := s.parseMetricMessage(nil, parser, []byte("metric.name:123|g|c:metric-container"), "", false)
+		assert.NoError(err)
+		assert.Len(metrics, 1)
+		assert.Equal("container_id://metric-container", metrics[0].OriginFromClient)
 
-	// Event
-	event, err := s.parseEventMessage(parser, []byte("_e{10,10}:event title|test\\ntext|c:event-container"), "")
-	assert.NoError(err)
-	assert.NotNil(event)
-	assert.Equal("container_id://event-container", event.OriginFromClient)
+		// Event
+		event, err := s.parseEventMessage(parser, []byte("_e{10,10}:event title|test\\ntext|c:event-container"), "")
+		assert.NoError(err)
+		assert.NotNil(event)
+		assert.Equal("container_id://event-container", event.OriginFromClient)
 
-	// Service check
-	serviceCheck, err := s.parseServiceCheckMessage(parser, []byte("_sc|service-check.name|0|c:service-check-container"), "")
-	assert.NoError(err)
-	assert.NotNil(serviceCheck)
-	assert.Equal("container_id://service-check-container", serviceCheck.OriginFromClient)
+		// Service check
+		serviceCheck, err := s.parseServiceCheckMessage(parser, []byte("_sc|service-check.name|0|c:service-check-container"), "")
+		assert.NoError(err)
+		assert.NotNil(serviceCheck)
+		assert.Equal("container_id://service-check-container", serviceCheck.OriginFromClient)
+	})
 }
 
 func TestContainerIDParsing(t *testing.T) {
@@ -1158,45 +1203,47 @@ func TestContainerIDParsing(t *testing.T) {
 }
 
 func testOriginOptout(t *testing.T, enabled bool) {
-	assert := assert.New(t)
+	runWithComponenet(t, func(c Component) {
+		s := c.(*server)
+		assert := assert.New(t)
 
-	s := NewServer(false)
-	err := s.Start(mockDemultiplexer())
-	assert.NoError(err, "starting the DogStatsD server shouldn't fail")
-	s.Stop()
+		err := s.Start(mockDemultiplexer())
+		assert.NoError(err, "starting the DogStatsD server shouldn't fail")
+		s.Stop()
 
-	parser := newParser(newFloat64ListPool())
-	parser.dsdOriginEnabled = true
+		parser := newParser(newFloat64ListPool())
+		parser.dsdOriginEnabled = true
 
-	// Metric
-	metrics, err := s.parseMetricMessage(nil, parser, []byte("metric.name:123|g|c:metric-container|#dd.internal.card:none"), "", false)
-	assert.NoError(err)
-	assert.Len(metrics, 1)
-	if enabled {
-		assert.Equal("", metrics[0].OriginFromClient)
-	} else {
-		assert.Equal("container_id://metric-container", metrics[0].OriginFromClient)
-	}
+		// Metric
+		metrics, err := s.parseMetricMessage(nil, parser, []byte("metric.name:123|g|c:metric-container|#dd.internal.card:none"), "", false)
+		assert.NoError(err)
+		assert.Len(metrics, 1)
+		if enabled {
+			assert.Equal("", metrics[0].OriginFromClient)
+		} else {
+			assert.Equal("container_id://metric-container", metrics[0].OriginFromClient)
+		}
 
-	// Event
-	event, err := s.parseEventMessage(parser, []byte("_e{10,10}:event title|test\\ntext|c:event-container|#dd.internal.card:none"), "")
-	assert.NoError(err)
-	assert.NotNil(event)
-	if enabled {
-		assert.Equal("", metrics[0].OriginFromClient)
-	} else {
-		assert.Equal("container_id://event-container", event.OriginFromClient)
-	}
+		// Event
+		event, err := s.parseEventMessage(parser, []byte("_e{10,10}:event title|test\\ntext|c:event-container|#dd.internal.card:none"), "")
+		assert.NoError(err)
+		assert.NotNil(event)
+		if enabled {
+			assert.Equal("", metrics[0].OriginFromClient)
+		} else {
+			assert.Equal("container_id://event-container", event.OriginFromClient)
+		}
 
-	// Service check
-	serviceCheck, err := s.parseServiceCheckMessage(parser, []byte("_sc|service-check.name|0|c:service-check-container|#dd.internal.card:none"), "")
-	assert.NoError(err)
-	assert.NotNil(serviceCheck)
-	if enabled {
-		assert.Equal("", serviceCheck.OriginFromClient)
-	} else {
-		assert.Equal("container_id://service-check-container", serviceCheck.OriginFromClient)
-	}
+		// Service check
+		serviceCheck, err := s.parseServiceCheckMessage(parser, []byte("_sc|service-check.name|0|c:service-check-container|#dd.internal.card:none"), "")
+		assert.NoError(err)
+		assert.NotNil(serviceCheck)
+		if enabled {
+			assert.Equal("", serviceCheck.OriginFromClient)
+		} else {
+			assert.Equal("container_id://service-check-container", serviceCheck.OriginFromClient)
+		}
+	})
 }
 
 func TestOriginOptout(t *testing.T) {

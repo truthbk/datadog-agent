@@ -60,6 +60,7 @@ func newMock(deps dependencies, t testing.TB) Component {
 
 	// call InitConfig to set defaults.
 	config.InitConfig(config.Datadog)
+	config.DetectFeatures()
 
 	// Viper's `GetXxx` methods read environment variables at the time they are
 	// called, if those names were passed explicitly to BindEnv*(), so we must

@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	configComponent "github.com/DataDog/datadog-agent/comp/core/config"
 	logger "github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/config"
@@ -63,6 +64,7 @@ type dependencies struct {
 	fx.In
 
 	Log    logger.Component
+	Config configComponent.Component
 	Params Params
 }
 
@@ -181,7 +183,7 @@ func NewServerlessServer(deps dependencies) Component {
 }
 
 func newServer(deps dependencies) Component {
-	log := deps.Log
+	log = deps.Log
 
 	// This needs to be done after the configuration is loaded
 	once.Do(initTelemetry)
