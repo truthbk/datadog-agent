@@ -46,7 +46,7 @@ func buildPacketContent(numberOfMetrics int, nbValuePerMessage int) []byte {
 }
 
 func benchParsePackets(b *testing.B, rawPacket []byte) {
-	runWithComponenet(b, func(c Component) {
+	runWithComponent(b, func(c Component) {
 		s := c.(*server)
 		// our logger will log dogstatsd packet by default if nothing is setup
 		config.SetupLogger("", "off", "", "", false, true, false)
@@ -96,7 +96,7 @@ func BenchmarkParsePacketsMultiple(b *testing.B) {
 var samplesBench []metrics.MetricSample
 
 func BenchmarkPbarseMetricMessage(b *testing.B) {
-	runWithComponenet(b, func(c Component) {
+	runWithComponent(b, func(c Component) {
 		s := c.(*server)
 		// our logger will log dogstatsd packet by default if nothing is setup
 		config.SetupLogger("", "off", "", "", false, true, false)
@@ -152,7 +152,7 @@ dogstatsd_mapper_profiles:
 }
 
 func BenchmarkMapperControl(b *testing.B) {
-	runWithComponenet(b, func(c Component) {
+	runWithComponent(b, func(c Component) {
 		s := c.(*server)
 		port, err := getAvailableUDPPort()
 		require.NoError(b, err)
