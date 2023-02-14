@@ -182,7 +182,7 @@ func run() error {
 		return fmt.Errorf("conntrack err: %s", err)
 	case <-donech:
 		if found {
-			fmt.Println("SUCCESS")
+			fmt.Println("===SUCCESS")
 			return nil
 		}
 		return fmt.Errorf("connection not found")
