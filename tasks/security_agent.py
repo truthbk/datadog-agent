@@ -714,7 +714,7 @@ def kitchen_prepare(ctx, skip_linters=False):
 
     testsuite_out_path = os.path.join(cookbook_files_dir, "testsuite")
     build_functional_tests(
-        ctx, bundle_ebpf=False, race=True, output=testsuite_out_path, nikos_embedded_path=nikos_embedded_path, skip_linters=skip_linters),
+        ctx, bundle_ebpf=False, race=True, output=testsuite_out_path, nikos_embedded_path=nikos_embedded_path, skip_linters=skip_linters,
     )
     stresssuite_out_path = os.path.join(cookbook_files_dir, "stresssuite")
     build_stress_tests(ctx, output=stresssuite_out_path, skip_linters=skip_linters)
