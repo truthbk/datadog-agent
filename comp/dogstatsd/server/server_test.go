@@ -68,12 +68,11 @@ func TestNewServer(t *testing.T) {
 
 		demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
 		defer demux.Stop(false)
-		s := NewServer(false)
 		err = s.Start(demux)
 
 		require.NoError(t, err, "cannot start DSD")
 		assert.NotNil(t, s)
-		assert.True(t, s.Started)
+		assert.True(t, s.IsRunning())
 
 		s.Stop()
 	})
@@ -90,7 +89,6 @@ func TestStopServer(t *testing.T) {
 
 		demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
 		defer demux.Stop(false)
-		s := NewServer(false)
 		err = s.Start(demux)
 		require.NoError(t, err, "cannot start DSD")
 		s.Stop()
@@ -153,7 +151,6 @@ func TestUDPReceive(t *testing.T) {
 
 		demux := aggregator.InitTestAgentDemultiplexerWithOpts(opts)
 		defer demux.Stop(false)
-		s := NewServer(false)
 		err = s.Start(demux)
 		require.NoError(t, err, "cannot start DSD")
 		defer s.Stop()
@@ -443,7 +440,6 @@ func TestUDPForward(t *testing.T) {
 
 		demux := mockDemultiplexer()
 		defer demux.Stop(false)
-		s := NewServer(false)
 		err = s.Start(demux)
 		require.NoError(t, err, "cannot start DSD")
 		defer s.Stop()
@@ -485,7 +481,6 @@ func TestHistToDist(t *testing.T) {
 
 		demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
 		defer demux.Stop(false)
-		s := NewServer(false)
 		err = s.Start(demux)
 		require.NoError(t, err, "cannot start DSD")
 		defer s.Stop()
@@ -983,8 +978,8 @@ dogstatsd_mapper_profiles:
 
 				demux := mockDemultiplexer()
 				defer demux.Stop(false)
-				require.NoError(t, err, "Case `%s` failed. NewServer should not return error %v", scenario.name, err)
-				_ = s.Start(demux)
+				err = s.Start(demux)
+				require.NoError(t, err, "Case `%s` failed. Start should not return error %v", scenario.name, err)
 
 				assert.Equal(t, config.Datadog.Get("dogstatsd_mapper_cache_size"), scenario.expectedCacheSize, "Case `%s` failed. cache_size `%s` should be `%s`", scenario.name, config.Datadog.Get("dogstatsd_mapper_cache_size"), scenario.expectedCacheSize)
 
