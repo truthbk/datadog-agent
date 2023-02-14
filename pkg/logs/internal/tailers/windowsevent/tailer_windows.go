@@ -62,6 +62,9 @@ func (t *Tailer) tail() {
 			case <-t.stop:
 				break eventLoop
 			case eventRecord := <-t.sub.EventRecords:
+				if eventRecord == nil {
+					break
+				}
 				goNotificationCallback(C.ULONGLONG(uintptr(eventRecord.EventRecordHandle)), C.PVOID(uintptr(unsafe.Pointer(t.context))))
 
 			}
