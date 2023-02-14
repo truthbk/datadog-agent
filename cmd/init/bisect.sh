@@ -12,6 +12,7 @@ make defconfig && \
 ./scripts/config --disable CONFIG_ACPI_THERMAL && \
 ./scripts/config --disable CONFIG_ACPI_TINY_POWER_BUTTON && \
 ./scripts/config --disable CONFIG_ACPI_VIDEO && \
+./scripts/config --enable CONFIG_BRIDGE && \
 ./scripts/config --disable CONFIG_DRM && \
 ./scripts/config --disable CONFIG_EFI && \
 ./scripts/config --disable CONFIG_ETHTOOL_NETLINK && \
@@ -52,4 +53,4 @@ if [ $? -ne 0 ] ; then
 	exit 125 # build failed, skip current revision.
 fi
 
-qemu-system-aarch64 -machine virt -nographic -append console=ttyS0 -kernel arch/arm64/boot/Image.gz -initrd ./initrd.gz | grep "^SUCCESS"
+qemu-system-x86_64 -nographic -append console=ttyS0 -kernel arch/x86/boot/bzImage -initrd ./initrd.gz | grep "^SUCCESS"
