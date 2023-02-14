@@ -28,7 +28,7 @@ const (
 	DEFAULT_MAX_EVENT_LOOP_COUNT = 1000
 )
 
-type QuerySubscription struct {
+type PullSubscription struct {
 	// Configuration
 	ChannelPath string
 	Query string
@@ -64,9 +64,9 @@ func newSubscriptionWaitEvent() (WaitEventHandle, error) {
 	return WaitEventHandle(hEvent), err
 }
 
-//func NewQuerySubscription(log log.Component) *QuerySubscription {
-func NewQuerySubscription(ChannelPath, Query string, options ...func(*QuerySubscription)) *QuerySubscription {
-	var q QuerySubscription
+//func NewPullSubscription(log log.Component) *PullSubscription {
+func NewPullSubscription(ChannelPath, Query string, options ...func(*PullSubscription)) *PullSubscription {
+	var q PullSubscription
 	q.subscriptionHandle = EventResultSetHandle(0)
 	q.waitEventHandle = WaitEventHandle(0)
 
@@ -85,25 +85,25 @@ func NewQuerySubscription(ChannelPath, Query string, options ...func(*QuerySubsc
 	return &q
 }
 
-func WithEventLoopWaitMs(ms uint32) func(*QuerySubscription) {
-	return func (q *QuerySubscription) {
+func WithEventLoopWaitMs(ms uint32) func(*PullSubscription) {
+	return func (q *PullSubscription) {
 		q.EventLoopWaitMs = ms
 	}
 }
 
-func WithEventBatchCount(ms uint) func(*QuerySubscription) {
-	return func (q *QuerySubscription) {
-		q.EventBatchCount = ms
+func WithEventBatchCount(count uint) func(*PullSubscription) {
+	return func (q *PullSubscription) {
+		q.EventBatchCount = count
 	}
 }
 
-func WithMaxEventLoopCount(ms uint) func(*QuerySubscription) {
-	return func (q *QuerySubscription) {
-		q.MaxEventLoopCount = ms
+func WithMaxEventLoopCount(count uint) func(*PullSubscription) {
+	return func (q *PullSubscription) {
+		q.MaxEventLoopCount = count
 	}
 }
 
-func (q *QuerySubscription) Start() (error) {
+func (q *PullSubscription) Start() (error) {
 
 	if q.started {
 		return fmt.Errorf("Query subscription is already started")
@@ -143,7 +143,7 @@ func (q *QuerySubscription) Start() (error) {
 	return nil
 }
 
-func (q *QuerySubscription) queryLoop() {
+func (q *PullSubscription) queryLoop() {
 	defer q.queryLoopWaiter.Done()
 
 	queryLoop:
@@ -159,7 +159,7 @@ func (q *QuerySubscription) queryLoop() {
 		}
 }
 
-func (q *QuerySubscription) eventsAvailable() bool {
+func (q *PullSubscription) eventsAvailable() bool {
 	// Windows sets waitEventHandle when event records are available
 	dwWait, err := windows.WaitForSingleObject(windows.Handle(q.waitEventHandle), q.EventLoopWaitMs)
 	if err != nil {
@@ -188,7 +188,7 @@ func (q *QuerySubscription) eventsAvailable() bool {
 	return false
 }
 
-func (q *QuerySubscription) collectEvents() error {
+func (q *PullSubscription) collectEvents() error {
 
 	eventCount := uint(0)
 	for {
@@ -222,7 +222,7 @@ func (q *QuerySubscription) collectEvents() error {
 	return nil
 }
 
-func (q *QuerySubscription) parseEventRecordHandles(eventRecordHandles []EventRecordHandle) []*EventRecord {
+func (q *PullSubscription) parseEventRecordHandles(eventRecordHandles []EventRecordHandle) []*EventRecord {
 	var err error
 
 	eventRecords := make([]*EventRecord, len(eventRecordHandles))
@@ -239,21 +239,21 @@ func (q *QuerySubscription) parseEventRecordHandles(eventRecordHandles []EventRe
 	return eventRecords
 }
 
-func (q *QuerySubscription) parseEventRecordHandle(eventRecordHandle EventRecordHandle) (*EventRecord, error) {
+func (q *PullSubscription) parseEventRecordHandle(eventRecordHandle EventRecordHandle) (*EventRecord, error) {
 	var e EventRecord
 	e.EventRecordHandle = eventRecordHandle
 	// TODO: Render?
 	return &e, nil
 }
 
-func (q *QuerySubscription) sendEventsToChannel(eventRecords []*EventRecord) error {
+func (q *PullSubscription) sendEventsToChannel(eventRecords []*EventRecord) error {
 	for _, eventRecord := range eventRecords {
 		q.EventRecords <- eventRecord
 	}
 	return nil
 }
 
-func (q *QuerySubscription) Stop() {
+func (q *PullSubscription) Stop() {
 	if !q.started {
 		return
 	}

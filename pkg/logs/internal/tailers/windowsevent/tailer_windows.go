@@ -45,7 +45,7 @@ func (t *Tailer) tail() {
 	t.context = &eventContext{
 		id: indexForTailer(t),
 	}
-	t.sub = eventlog.NewQuerySubscription(
+	t.sub = eventlog.NewPullSubscription(
 		t.config.ChannelPath,
 		t.config.Query,
 		eventlog.WithEventLoopWaitMs(50))

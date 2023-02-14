@@ -61,7 +61,7 @@ type Tailer struct {
 	done       chan struct{}
 
 	context *eventContext
-	sub *eventlog.QuerySubscription
+	sub *eventlog.PullSubscription
 }
 
 // NewTailer returns a new tailer.
