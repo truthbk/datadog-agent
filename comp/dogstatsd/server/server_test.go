@@ -1043,7 +1043,7 @@ func TestNewServerExtraTags(t *testing.T) {
 	config.SetDetectedFeatures(config.FeatureMap{})
 	defer config.SetDetectedFeatures(nil)
 
-	cfg := config.NewConfig("mock", "XXXX", strings.NewReplacer())
+	cfg := config.NewConfig("mock", "DD", strings.NewReplacer())
 	config.InitConfig(cfg)
 
 	require := require.New(t)
@@ -1051,27 +1051,27 @@ func TestNewServerExtraTags(t *testing.T) {
 	require.NoError(err)
 	cfg.SetDefault("dogstatsd_port", port)
 
-	// runWithComponentAndConfig(t, cfg, func(c Component) {
-	// 	s := c.(*server)
-	// 	demux := mockDemultiplexer()
-	// 	err = s.Start(demux)
-	// 	require.NoError(err, "starting the DogStatsD server shouldn't fail")
-	// 	require.Len(s.extraTags, 0, "no tags should have been read")
-	// 	s.Stop()
-	// 	demux.Stop(false)
-	// })
+	runWithComponentAndConfig(t, cfg, func(c Component) {
+		s := c.(*server)
+		demux := mockDemultiplexer()
+		err = s.Start(demux)
+		require.NoError(err, "starting the DogStatsD server shouldn't fail")
+		require.Len(s.extraTags, 0, "no tags should have been read")
+		s.Stop()
+		demux.Stop(false)
+	})
 
-	// // when the extraTags parameter isn't used, the DogStatsD server is not reading this env var
-	// t.Setenv("DD_TAGS", "hello:world")
-	// runWithComponentAndConfig(t, cfg, func(c Component) {
-	// 	s := c.(*server)
-	// 	demux := mockDemultiplexer()
-	// 	err = s.Start(demux)
-	// 	require.NoError(err, "starting the DogStatsD server shouldn't fail")
-	// 	require.Len(s.extraTags, 0, "no tags should have been read")
-	// 	s.Stop()
-	// 	demux.Stop(false)
-	// })
+	// when the extraTags parameter isn't used, the DogStatsD server is not reading this env var
+	t.Setenv("DD_TAGS", "hello:world")
+	runWithComponentAndConfig(t, cfg, func(c Component) {
+		s := c.(*server)
+		demux := mockDemultiplexer()
+		err = s.Start(demux)
+		require.NoError(err, "starting the DogStatsD server shouldn't fail")
+		require.Len(s.extraTags, 0, "no tags should have been read")
+		s.Stop()
+		demux.Stop(false)
+	})
 
 	// when the extraTags parameter isn't used, the DogStatsD server is automatically reading this env var for extra tags
 	t.Setenv("DD_DOGSTATSD_TAGS", "hello:world extra:tags")
