@@ -80,11 +80,10 @@ func EvtSubscribe(
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtnext
 func EvtNext(
 	Session EventResultSetHandle,
+	EventsArray []EventRecordHandle,
 	EventsSize uint,
 	Timeout uint) ([]EventRecordHandle, error) {
 
-	// Allocate space for result
-	EventsArray := make([]EventRecordHandle, EventsSize)
 	var Returned uint32
 	Returned = 0
 

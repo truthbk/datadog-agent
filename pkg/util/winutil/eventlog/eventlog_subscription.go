@@ -29,6 +29,10 @@ const (
 )
 
 type QuerySubscription struct {
+	// Configuration
+	ChannelPath string
+	Query string
+
 	// User gets EventRecords from this channel
 	EventRecords chan *EventRecord
 
@@ -38,6 +42,7 @@ type QuerySubscription struct {
 	// Windows API
 	subscriptionHandle EventResultSetHandle
 	waitEventHandle WaitEventHandle
+	evtNextStorage []EventRecordHandle
 
 	// Query loop management
 	started bool
@@ -57,16 +62,19 @@ func newSubscriptionWaitEvent() (WaitEventHandle, error) {
 }
 
 //func NewQuerySubscription(log log.Component) *QuerySubscription {
-func NewQuerySubscription() *QuerySubscription {
+func NewQuerySubscription(ChannelPath, Query string) *QuerySubscription {
 	var q QuerySubscription
 	q.subscriptionHandle = EventResultSetHandle(0)
 	q.waitEventHandle = WaitEventHandle(0)
+
+	q.ChannelPath = ChannelPath
+	q.Query = Query
 	// q.log = log
 
 	return &q
 }
 
-func (q *QuerySubscription) Start(ChannelPath, Query string) (error) {
+func (q *QuerySubscription) Start() (error) {
 
 	if q.started {
 		return fmt.Errorf("Query subscription is already started")
@@ -81,14 +89,18 @@ func (q *QuerySubscription) Start(ChannelPath, Query string) (error) {
 	// create subscription
 	hSub, err := EvtSubscribe(
 		hWait,
-		ChannelPath,
-		Query,
+		q.ChannelPath,
+		q.Query,
 		EvtSubscribeToFutureEvents)
 	if err != nil {
 		safeCloseNullHandle(windows.Handle(hWait))
 		return err
 	}
 
+	// alloc reusable storage for EvtNext output
+	q.evtNextStorage = make([]EventRecordHandle, EVENT_BATCH_COUNT)
+
+	// Query loop management
 	q.stopQueryLoop = make(chan bool)
 	q.EventRecords = make(chan *EventRecord)
 	q.waitEventHandle = hWait
@@ -153,7 +165,7 @@ func (q *QuerySubscription) collectEvents() error {
 	for {
 		// TODO: should we use infinite or a small value?
 		//       it shouldn't block or timeout because we had out event set?
-		eventRecordHandles, err := EvtNext(q.subscriptionHandle, EVENT_BATCH_COUNT, windows.INFINITE)
+		eventRecordHandles, err := EvtNext(q.subscriptionHandle, q.evtNextStorage, uint(len(q.evtNextStorage)), windows.INFINITE)
 		if err == nil {
 			// got events, process them and send them to the channel
 			eventRecords := q.parseEventRecordHandles(eventRecordHandles)
@@ -213,6 +225,10 @@ func (q *QuerySubscription) sendEventsToChannel(eventRecords []*EventRecord) err
 }
 
 func (q *QuerySubscription) Stop() {
+	if !q.started {
+		return
+	}
+
 	// Wait for queryLoop to stop
 	q.stopQueryLoop <- true
 	q.queryLoopWaiter.Wait()
