@@ -64,7 +64,7 @@ func NewCollectorBundle(chk *OrchestratorCheck) *CollectorBundle {
 		check:              chk,
 		inventory:          inventory.NewCollectorInventory(),
 		runCfg: &collectors.CollectorRunConfig{
-			APIClient:   chk.ApiClient,
+			APIClient:   chk.apiClient,
 			ClusterID:   chk.clusterID,
 			Config:      chk.orchestratorConfig,
 			MsgGroupRef: chk.groupID,
@@ -319,27 +319,27 @@ func (cb *CollectorBundle) initialize() error {
 
 func (cb *CollectorBundle) ReGetInformerFactory() error {
 	var err error
-	cb.check.ApiClient.InformerFactory, err = apiserver.GetInformerFactory()
+	cb.check.apiClient.InformerFactory, err = apiserver.GetInformerFactory()
 	if err != nil {
 		return err
 	}
-	cb.check.ApiClient.UnassignedPodInformerFactory, err = apiserver.GetUnassignedPodInformerFactory()
+	cb.check.apiClient.UnassignedPodInformerFactory, err = apiserver.GetUnassignedPodInformerFactory()
 	if err != nil {
 		return err
 	}
 
-	cb.runCfg.APIClient = cb.check.ApiClient
+	cb.runCfg.APIClient = cb.check.apiClient
 	return nil
 }
 
 func (cb *CollectorBundle) ReGetInformerFactoryWithClient(client kubernetes.Interface) {
-	cb.check.ApiClient.InformerFactory = informers.NewSharedInformerFactory(client, 0)
+	cb.check.apiClient.InformerFactory = informers.NewSharedInformerFactory(client, 0)
 	tweakListOptions := func(options *metav1.ListOptions) {
 		options.FieldSelector = fields.OneTermEqualSelector("spec.nodeName", "").String()
 	}
-	cb.check.ApiClient.UnassignedPodInformerFactory = informers.NewSharedInformerFactoryWithOptions(client, 0, informers.WithTweakListOptions(tweakListOptions))
+	cb.check.apiClient.UnassignedPodInformerFactory = informers.NewSharedInformerFactoryWithOptions(client, 0, informers.WithTweakListOptions(tweakListOptions))
 
-	cb.runCfg.APIClient = cb.check.ApiClient
+	cb.runCfg.APIClient = cb.check.apiClient
 }
 
 // Run is used to sequentially run all collectors in the bundle.

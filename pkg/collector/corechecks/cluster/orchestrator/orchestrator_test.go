@@ -35,7 +35,7 @@ func TestOrchestratorCheckSafeReSchedule(t *testing.T) {
 	informerFactory := informers.NewSharedInformerFactory(client, 0)
 	cl := &apiserver.APIClient{Cl: client, InformerFactory: informerFactory, UnassignedPodInformerFactory: informerFactory}
 	orchCheck := OrchestratorFactory().(*OrchestratorCheck)
-	orchCheck.ApiClient = cl
+	orchCheck.apiClient = cl
 
 	bundle := NewCollectorBundle(orchCheck)
 	err := bundle.InitializeWithClient(client)
