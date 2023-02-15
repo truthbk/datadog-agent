@@ -17,7 +17,7 @@ import (
 	"time"
 
 	configComponent "github.com/DataDog/datadog-agent/comp/core/config"
-	"github.com/DataDog/datadog-agent/comp/core/log"
+	logComponent "github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/dogstatsd/listeners"
@@ -62,7 +62,7 @@ var (
 type dependencies struct {
 	fx.In
 
-	Log    log.Component
+	Log    logComponent.Component
 	Config configComponent.Component
 	Params Params
 }
@@ -79,7 +79,8 @@ type cachedOriginCounter struct {
 
 // Server represent a Dogstatsd server
 type server struct {
-	log log.Component
+	log    logComponent.Component
+	config config.ConfigReader
 	// listeners are the instantiated socket listener (UDS or UDP or both)
 	listeners []listeners.StatsdListener
 
@@ -135,7 +136,7 @@ type server struct {
 	enrichConfig enrichConfig
 }
 
-func initTelemetry(logger log.Component) {
+func initTelemetry(cfg config.ConfigReader, logger logComponent.Component) {
 	dogstatsdExpvars.Set("ServiceCheckParseErrors", &dogstatsdServiceCheckParseErrors)
 	dogstatsdExpvars.Set("ServiceCheckPackets", &dogstatsdServiceCheckPackets)
 	dogstatsdExpvars.Set("EventParseErrors", &dogstatsdEventParseErrors)
@@ -145,11 +146,11 @@ func initTelemetry(logger log.Component) {
 	dogstatsdExpvars.Set("UnterminatedMetricErrors", &dogstatsdUnterminatedMetricErrors)
 
 	get := func(option string) []float64 {
-		if !config.Datadog.IsSet(option) {
+		if !cfg.IsSet(option) {
 			return nil
 		}
 
-		buckets, err := config.Datadog.GetFloat64SliceE(option)
+		buckets, err := cfg.GetFloat64SliceE(option)
 		if err != nil {
 			logger.Errorf("%s, falling back to default values", err)
 			return nil
@@ -178,43 +179,48 @@ func initTelemetry(logger log.Component) {
 }
 
 // TODO: (components) - remove once serverless is an FX app
-func NewServerlessServer(deps dependencies) Component {
-	return newServer(deps)
+func NewServerlessServer() Component {
+	return newServerCompat(config.Datadog, logComponent.NewTemporaryLogger(), true)
 }
 
+// TODO: (components) - merge with newServerCompat once NewServerlessServer is removed
 func newServer(deps dependencies) Component {
+	return newServerCompat(deps.Config, deps.Log, deps.Params.Serverless)
+}
+
+func newServerCompat(cfg config.ConfigReader, log logComponent.Component, serverless bool) Component {
 	// This needs to be done after the configuration is loaded
-	once.Do(func() { initTelemetry(deps.Log) })
+	once.Do(func() { initTelemetry(cfg, log) })
 
 	var stats *util.Stats
-	if config.Datadog.GetBool("dogstatsd_stats_enable") {
-		buff := config.Datadog.GetInt("dogstatsd_stats_buffer")
+	if cfg.GetBool("dogstatsd_stats_enable") {
+		buff := cfg.GetInt("dogstatsd_stats_buffer")
 		s, err := util.NewStats(uint32(buff))
 		if err != nil {
-			deps.Log.Errorf("Dogstatsd: unable to start statistics facilities")
+			log.Errorf("Dogstatsd: unable to start statistics facilities")
 		}
 		stats = s
 		dogstatsdExpvars.Set("PacketsLastSecond", &dogstatsdPacketsLastSec)
 	}
 
 	// check configuration for custom namespace
-	metricPrefix := config.Datadog.GetString("statsd_metric_namespace")
+	metricPrefix := cfg.GetString("statsd_metric_namespace")
 	if metricPrefix != "" && !strings.HasSuffix(metricPrefix, ".") {
 		metricPrefix = metricPrefix + "."
 	}
 
-	metricPrefixBlacklist := config.Datadog.GetStringSlice("statsd_metric_namespace_blacklist")
-	metricBlocklist := config.Datadog.GetStringSlice("statsd_metric_blocklist")
+	metricPrefixBlacklist := cfg.GetStringSlice("statsd_metric_namespace_blacklist")
+	metricBlocklist := cfg.GetStringSlice("statsd_metric_blocklist")
 
 	defaultHostname, err := hostname.Get(context.TODO())
 	if err != nil {
-		deps.Log.Errorf("Dogstatsd: unable to determine default hostname: %s", err.Error())
+		log.Errorf("Dogstatsd: unable to determine default hostname: %s", err.Error())
 	}
 
-	histToDist := config.Datadog.GetBool("histogram_copy_to_distribution")
-	histToDistPrefix := config.Datadog.GetString("histogram_copy_to_distribution_prefix")
+	histToDist := cfg.GetBool("histogram_copy_to_distribution")
+	histToDistPrefix := cfg.GetString("histogram_copy_to_distribution_prefix")
 
-	extraTags := config.Datadog.GetStringSlice("dogstatsd_tags")
+	extraTags := cfg.GetStringSlice("dogstatsd_tags")
 
 	// if the server is running in a context where static tags are required, add those
 	// to extraTags.
@@ -223,13 +229,13 @@ func newServer(deps dependencies) Component {
 	}
 	util.SortUniqInPlace(extraTags)
 
-	entityIDPrecedenceEnabled := config.Datadog.GetBool("dogstatsd_entity_id_precedence")
+	entityIDPrecedenceEnabled := cfg.GetBool("dogstatsd_entity_id_precedence")
 
 	eolTerminationUDP := false
 	eolTerminationUDS := false
 	eolTerminationNamedPipe := false
 
-	for _, v := range config.Datadog.GetStringSlice("dogstatsd_eol_required") {
+	for _, v := range cfg.GetStringSlice("dogstatsd_eol_required") {
 		switch v {
 		case "udp":
 			eolTerminationUDP = true
@@ -238,12 +244,13 @@ func newServer(deps dependencies) Component {
 		case "named_pipe":
 			eolTerminationNamedPipe = true
 		default:
-			deps.Log.Errorf("Invalid dogstatsd_eol_required value: %s", v)
+			log.Errorf("Invalid dogstatsd_eol_required value: %s", v)
 		}
 	}
 
 	s := &server{
-		log:                     deps.Log,
+		log:                     log,
+		config:                  cfg,
 		Started:                 false,
 		Statistics:              stats,
 		packetsIn:               nil,
@@ -262,22 +269,22 @@ func newServer(deps dependencies) Component {
 		eolTerminationUDP:       eolTerminationUDP,
 		eolTerminationUDS:       eolTerminationUDS,
 		eolTerminationNamedPipe: eolTerminationNamedPipe,
-		disableVerboseLogs:      config.Datadog.GetBool("dogstatsd_disable_verbose_logs"),
+		disableVerboseLogs:      cfg.GetBool("dogstatsd_disable_verbose_logs"),
 		Debug:                   newDSDServerDebug(),
-		originTelemetry: config.Datadog.GetBool("telemetry.enabled") &&
-			config.Datadog.GetBool("telemetry.dogstatsd_origin"),
+		originTelemetry: cfg.GetBool("telemetry.enabled") &&
+			cfg.GetBool("telemetry.dogstatsd_origin"),
 		TCapture:             nil,
 		udsListenerRunning:   false,
 		cachedOriginCounters: make(map[string]cachedOriginCounter),
-		ServerlessMode:       deps.Params.Serverless,
+		ServerlessMode:       serverless,
 		enrichConfig: enrichConfig{
 			metricPrefix:              metricPrefix,
 			metricPrefixBlacklist:     metricPrefixBlacklist,
 			metricBlocklist:           metricBlocklist,
 			entityIDPrecedenceEnabled: entityIDPrecedenceEnabled,
 			defaultHostname:           defaultHostname,
-			serverlessMode:            deps.Params.Serverless,
-			originOptOutEnabled:       config.Datadog.GetBool("dogstatsd_origin_optout_enabled"),
+			serverlessMode:            serverless,
+			originOptOutEnabled:       cfg.GetBool("dogstatsd_origin_optout_enabled"),
 		},
 	}
 	return s
@@ -288,7 +295,7 @@ func (s *server) Start(demultiplexer aggregator.Demultiplexer) error {
 	// TODO: (components) - DI this into Server when Demultiplexer is made into a component
 	s.demultiplexer = demultiplexer
 
-	packetsChannel := make(chan packets.Packets, config.Datadog.GetInt("dogstatsd_queue_size"))
+	packetsChannel := make(chan packets.Packets, s.config.GetInt("dogstatsd_queue_size"))
 	tmpListeners := make([]listeners.StatsdListener, 0, 2)
 	capture, err := replay.NewTrafficCapture()
 
@@ -298,12 +305,12 @@ func (s *server) Start(demultiplexer aggregator.Demultiplexer) error {
 
 	// sharedPacketPool is used by the packet assembler to retrieve already allocated
 	// buffer in order to avoid allocation. The packets are pushed back by the server.
-	sharedPacketPool := packets.NewPool(config.Datadog.GetInt("dogstatsd_buffer_size"))
+	sharedPacketPool := packets.NewPool(s.config.GetInt("dogstatsd_buffer_size"))
 	sharedPacketPoolManager := packets.NewPoolManager(sharedPacketPool)
 
 	udsListenerRunning := false
 
-	socketPath := config.Datadog.GetString("dogstatsd_socket")
+	socketPath := s.config.GetString("dogstatsd_socket")
 	if len(socketPath) > 0 {
 		unixListener, err := listeners.NewUDSListener(packetsChannel, sharedPacketPoolManager, capture)
 		if err != nil {
@@ -313,7 +320,7 @@ func (s *server) Start(demultiplexer aggregator.Demultiplexer) error {
 			udsListenerRunning = true
 		}
 	}
-	if config.Datadog.GetInt("dogstatsd_port") > 0 {
+	if s.config.GetInt("dogstatsd_port") > 0 {
 		udpListener, err := listeners.NewUDPListener(packetsChannel, sharedPacketPoolManager, capture)
 		if err != nil {
 			s.log.Errorf(err.Error())
@@ -322,7 +329,7 @@ func (s *server) Start(demultiplexer aggregator.Demultiplexer) error {
 		}
 	}
 
-	pipeName := config.Datadog.GetString("dogstatsd_pipe_name")
+	pipeName := s.config.GetString("dogstatsd_pipe_name")
 	if len(pipeName) > 0 {
 		namedPipeListener, err := listeners.NewNamedPipeListener(pipeName, packetsChannel, sharedPacketPoolManager, capture)
 		if err != nil {
@@ -347,15 +354,15 @@ func (s *server) Start(demultiplexer aggregator.Demultiplexer) error {
 	// packets forwarding
 	// ----------------------
 
-	forwardHost := config.Datadog.GetString("statsd_forward_host")
-	forwardPort := config.Datadog.GetInt("statsd_forward_port")
+	forwardHost := s.config.GetString("statsd_forward_host")
+	forwardPort := s.config.GetInt("statsd_forward_port")
 	if forwardHost != "" && forwardPort != 0 {
 		forwardAddress := fmt.Sprintf("%s:%d", forwardHost, forwardPort)
 		con, err := net.Dial("udp", forwardAddress)
 		if err != nil {
 			s.log.Warnf("Could not connect to statsd forward host : %s", err)
 		} else {
-			s.packetsIn = make(chan packets.Packets, config.Datadog.GetInt("dogstatsd_queue_size"))
+			s.packetsIn = make(chan packets.Packets, s.config.GetInt("dogstatsd_queue_size"))
 			go s.forwarder(con)
 		}
 	}
@@ -369,7 +376,7 @@ func (s *server) Start(demultiplexer aggregator.Demultiplexer) error {
 	// start the debug loop
 	// ----------------------
 
-	if config.Datadog.GetBool("dogstatsd_metrics_stats_enable") {
+	if s.config.GetBool("dogstatsd_metrics_stats_enable") {
 		s.log.Info("Dogstatsd: metrics statistics will be stored.")
 		s.EnableMetricsStats()
 	}
@@ -377,7 +384,7 @@ func (s *server) Start(demultiplexer aggregator.Demultiplexer) error {
 	// map some metric name
 	// ----------------------
 
-	cacheSize := config.Datadog.GetInt("dogstatsd_mapper_cache_size")
+	cacheSize := s.config.GetInt("dogstatsd_mapper_cache_size")
 
 	mappings, err := config.GetDogstatsdMappingProfiles()
 	if err != nil {
@@ -529,7 +536,7 @@ func (s *server) handleMessages() {
 
 	// undocumented configuration field to force the amount of dogstatsd workers
 	// mainly used for benchmarks or some very specific use-case.
-	if configWC := config.Datadog.GetInt("dogstatsd_workers_count"); configWC != 0 {
+	if configWC := s.config.GetInt("dogstatsd_workers_count"); configWC != 0 {
 		s.log.Debug("Forcing the amount of DogStatsD workers to:", configWC)
 		workersCount = configWC
 	}

@@ -19,12 +19,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/fx"
 
+	"github.com/DataDog/datadog-agent/comp/core"
 	dogstatsdServer "github.com/DataDog/datadog-agent/comp/dogstatsd/server"
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/config"
-	"github.com/DataDog/datadog-agent/pkg/dogstatsd"
 	"github.com/DataDog/datadog-agent/pkg/util/cache"
+	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/hostname"
 )
 
@@ -201,33 +203,39 @@ func TestRaceFlushVersusParsePacket(t *testing.T) {
 	opts.DontStartForwarders = true
 	demux := aggregator.InitAndStartServerlessDemultiplexer(nil, time.Second*1000)
 
-	s := dogstatsd.NewServer(true)
-	err = s.Start(demux)
-	require.NoError(t, err, "cannot start DSD")
-	defer s.Stop()
+	fxutil.Test(t, fx.Options(
+		core.MockBundle,
+		fx.Supply(dogstatsdServer.Params{Serverless: true}),
+		dogstatsdServer.Module,
+	), func(s dogstatsdServer.Component) {
 
-	url := fmt.Sprintf("127.0.0.1:%d", config.Datadog.GetInt("dogstatsd_port"))
-	conn, err := net.Dial("udp", url)
-	require.NoError(t, err, "cannot connect to DSD socket")
-	defer conn.Close()
+		err = s.Start(demux)
+		require.NoError(t, err, "cannot start DSD")
+		defer s.Stop()
 
-	finish := &sync.WaitGroup{}
-	finish.Add(2)
+		url := fmt.Sprintf("127.0.0.1:%d", config.Datadog.GetInt("dogstatsd_port"))
+		conn, err := net.Dial("udp", url)
+		require.NoError(t, err, "cannot connect to DSD socket")
+		defer conn.Close()
 
-	go func(wg *sync.WaitGroup) {
-		for i := 0; i < 1000; i++ {
-			conn.Write([]byte("daemon:666|g|#sometag1:somevalue1,sometag2:somevalue2"))
-			time.Sleep(10 * time.Nanosecond)
-		}
-		finish.Done()
-	}(finish)
+		finish := &sync.WaitGroup{}
+		finish.Add(2)
 
-	go func(wg *sync.WaitGroup) {
-		for i := 0; i < 1000; i++ {
-			s.ServerlessFlush()
-		}
-		finish.Done()
-	}(finish)
+		go func(wg *sync.WaitGroup) {
+			for i := 0; i < 1000; i++ {
+				conn.Write([]byte("daemon:666|g|#sometag1:somevalue1,sometag2:somevalue2"))
+				time.Sleep(10 * time.Nanosecond)
+			}
+			finish.Done()
+		}(finish)
 
-	finish.Wait()
+		go func(wg *sync.WaitGroup) {
+			for i := 0; i < 1000; i++ {
+				s.ServerlessFlush()
+			}
+			finish.Done()
+		}(finish)
+
+		finish.Wait()
+	})
 }

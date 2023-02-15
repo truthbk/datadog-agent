@@ -7,8 +7,6 @@ package metrics
 
 import (
 	"fmt"
-
-	"github.com/DataDog/datadog-agent/pkg/dogstatsd"
 )
 
 var (
