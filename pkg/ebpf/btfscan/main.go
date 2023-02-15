@@ -9,7 +9,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -20,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/cilium/ebpf/btf"
+	"github.com/mholt/archiver/v3"
 	"github.com/pmezard/go-difflib/difflib"
 
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
@@ -51,7 +54,7 @@ func main() {
 	}
 
 	archivePath := os.Args[1]
-	searchDir := fmt.Sprintf("%s/*/*/%s/*.btf", archivePath, btfhubArch)
+	searchDir := fmt.Sprintf("%s/*/*/%s/*.btf.tar.xz", archivePath, btfhubArch)
 
 	searchType := os.Args[3]
 	switch searchType {
@@ -101,6 +104,13 @@ func searchForChanges(searchDir string, searchFunc changeFunc, fullSearch bool, 
 type changeFunc func(*btf.Spec) (string, error)
 
 func search(btfs []btfFile, searchFunc changeFunc, fullSearch bool, diff bool) {
+	tmpdir := filepath.Join(os.TempDir(), "btfsearch")
+	err := os.MkdirAll(tmpdir, 0777)
+	if err != nil {
+		log.Printf("error getting tmp dir: %s", err)
+		return
+	}
+
 	var lastSig string
 	var lastV kernel.Version
 	for _, b := range btfs {
@@ -108,7 +118,16 @@ func search(btfs []btfFile, searchFunc changeFunc, fullSearch bool, diff bool) {
 			continue
 		}
 
-		s, err := btf.LoadSpec(b.path)
+		btfFilename := strings.TrimSuffix(filepath.Base(b.path), ".tar.xz")
+		extractedFile := filepath.Join(tmpdir, btfFilename)
+		if _, err := os.Stat(extractedFile); err != nil && errors.Is(err, fs.ErrNotExist) {
+			if err := archiver.NewTarXz().Extract(b.path, btfFilename, tmpdir); err != nil {
+				log.Printf("error extracting from %s: %s", b.path, err)
+				continue
+			}
+		}
+
+		s, err := btf.LoadSpec(extractedFile)
 		if err != nil {
 			log.Printf("unable to load btf spec from %s: %s", b, err)
 			continue
