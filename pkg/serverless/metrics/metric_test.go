@@ -198,16 +198,16 @@ func TestRaceFlushVersusParsePacket(t *testing.T) {
 	require.NoError(t, err)
 	config.Datadog.SetDefault("dogstatsd_port", port)
 
-	opts := aggregator.DefaultAgentDemultiplexerOptions(nil)
-	opts.FlushInterval = 10 * time.Millisecond
-	opts.DontStartForwarders = true
-	demux := aggregator.InitAndStartServerlessDemultiplexer(nil, time.Second*1000)
-
 	fxutil.Test(t, fx.Options(
 		core.MockBundle,
 		fx.Supply(dogstatsdServer.Params{Serverless: true}),
 		dogstatsdServer.Module,
 	), func(s dogstatsdServer.Component) {
+
+		opts := aggregator.DefaultAgentDemultiplexerOptions(nil)
+		opts.FlushInterval = 10 * time.Millisecond
+		opts.DontStartForwarders = true
+		demux := aggregator.InitAndStartServerlessDemultiplexer(nil, time.Second*1000)
 
 		err = s.Start(demux)
 		require.NoError(t, err, "cannot start DSD")
