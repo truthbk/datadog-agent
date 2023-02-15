@@ -70,7 +70,7 @@ type OrchestratorCheck struct {
 	clusterID          string
 	groupID            *atomic.Int32
 	isCLCRunner        bool
-	apiClient          *apiserver.APIClient
+	ApiClient          *apiserver.APIClient
 }
 
 func newOrchestratorCheck(base core.CheckBase, instance *OrchestratorInstance) *OrchestratorCheck {
@@ -137,7 +137,7 @@ func (o *OrchestratorCheck) Configure(integrationConfigDigest uint64, config, in
 	apiCtx, apiCancel := context.WithTimeout(context.Background(), maximumWaitForAPIServer)
 	defer apiCancel()
 
-	o.apiClient, err = apiserver.WaitForAPIClient(apiCtx)
+	o.ApiClient, err = apiserver.WaitForAPIClient(apiCtx)
 	if err != nil {
 		return err
 	}

@@ -35,10 +35,10 @@ func TestOrchestratorCheckSafeReSchedule(t *testing.T) {
 	informerFactory := informers.NewSharedInformerFactory(client, 0)
 	cl := &apiserver.APIClient{Cl: client, InformerFactory: informerFactory, UnassignedPodInformerFactory: informerFactory}
 	orchCheck := OrchestratorFactory().(*OrchestratorCheck)
-	orchCheck.apiClient = cl
+	orchCheck.ApiClient = cl
 
 	bundle := NewCollectorBundle(orchCheck)
-	err := bundle.Initialize()
+	err := bundle.InitializeWithClient(client)
 	assert.NoError(t, err)
 
 	wg.Add(2)
@@ -58,7 +58,14 @@ func TestOrchestratorCheckSafeReSchedule(t *testing.T) {
 	// If things are too fast the close is not getting propagated fast enough.
 	// But even if we are too fast and don't catch that part it will not lead to a false positive
 	time.Sleep(1 * time.Millisecond)
-	err = bundle.Initialize()
+	err = bundle.InitializeWithClient(client)
+	bundle.runCfg.APIClient.InformerFactory.Core().V1().Nodes().Informer().AddEventHandler(&cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			wg.Done()
+		},
+	})
+	cl.InformerFactory = bundle.runCfg.APIClient.InformerFactory
+
 	assert.NoError(t, err)
 	writeNode(t, client, "2")
 

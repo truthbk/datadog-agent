@@ -9,6 +9,10 @@
 package orchestrator
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
 	"strings"
 	"time"
 
@@ -26,6 +30,8 @@ import (
 const (
 	defaultExtraSyncTimeout = 60 * time.Second
 )
+
+var InformerSynced = map[cache.SharedInformer]struct{}{}
 
 // CollectorBundle is a container for a group of collectors. It provides a way
 // to easily run them all.
@@ -58,7 +64,7 @@ func NewCollectorBundle(chk *OrchestratorCheck) *CollectorBundle {
 		check:              chk,
 		inventory:          inventory.NewCollectorInventory(),
 		runCfg: &collectors.CollectorRunConfig{
-			APIClient:   chk.apiClient,
+			APIClient:   chk.ApiClient,
 			ClusterID:   chk.clusterID,
 			Config:      chk.orchestratorConfig,
 			MsgGroupRef: chk.groupID,
@@ -245,11 +251,40 @@ func (cb *CollectorBundle) prepareExtraSyncTimeout() {
 // During initialization informers are created, started and their cache is
 // synced.
 func (cb *CollectorBundle) Initialize() error {
+	if len(InformerSynced) == 0 {
+		return cb.initialize()
+	} else {
+		close(cb.stopCh)
+		cb.stopCh = make(chan struct{})
+		InformerSynced = map[cache.SharedInformer]struct{}{}
+
+		err := cb.ReGetInformerFactory()
+		if err != nil {
+			return err
+		}
+		return cb.initialize()
+	}
+}
+
+// InitializeWithClient is used to initialize collectors part of the bundle by providing kubernetes client
+// Currently it is only used for test
+func (cb *CollectorBundle) InitializeWithClient(client kubernetes.Interface) error {
+	if len(InformerSynced) == 0 {
+		return cb.initialize()
+	} else {
+		close(cb.stopCh)
+		cb.stopCh = make(chan struct{})
+		InformerSynced = map[cache.SharedInformer]struct{}{}
+		cb.ReGetInformerFactoryWithClient(client)
+		return cb.initialize()
+	}
+}
+
+func (cb *CollectorBundle) initialize() error {
 	informersToSync := make(map[apiserver.InformerName]cache.SharedInformer)
 	var availableCollectors []collectors.Collector
 	// informerSynced is a helper map which makes sure that we don't initialize the same informer twice.
 	// i.e. the cluster and nodes resources share the same informer and using both can lead to a race condition activating both concurrently.
-	informerSynced := map[cache.SharedInformer]struct{}{}
 
 	for _, collector := range cb.collectors {
 		collector.Init(cb.runCfg)
@@ -262,9 +297,9 @@ func (cb *CollectorBundle) Initialize() error {
 
 		informer := collector.Informer()
 
-		if _, found := informerSynced[informer]; !found {
+		if _, found := InformerSynced[informer]; !found {
 			informersToSync[apiserver.InformerName(collector.Metadata().FullName())] = informer
-			informerSynced[informer] = struct{}{}
+			InformerSynced[informer] = struct{}{}
 			// we run each enabled informer individually, because starting them through the factory
 			// would prevent us from restarting them again if the check is unscheduled/rescheduled
 			// see https://github.com/kubernetes/client-go/blob/3511ef41b1fbe1152ef5cab2c0b950dfd607eea7/informers/factory.go#L64-L66
@@ -278,7 +313,33 @@ func (cb *CollectorBundle) Initialize() error {
 
 	cb.collectors = availableCollectors
 
-	return apiserver.SyncInformers(informersToSync, cb.extraSyncTimeout)
+	err := apiserver.SyncInformers(informersToSync, cb.extraSyncTimeout)
+	return err
+}
+
+func (cb *CollectorBundle) ReGetInformerFactory() error {
+	var err error
+	cb.check.ApiClient.InformerFactory, err = apiserver.GetInformerFactory()
+	if err != nil {
+		return err
+	}
+	cb.check.ApiClient.UnassignedPodInformerFactory, err = apiserver.GetUnassignedPodInformerFactory()
+	if err != nil {
+		return err
+	}
+
+	cb.runCfg.APIClient = cb.check.ApiClient
+	return nil
+}
+
+func (cb *CollectorBundle) ReGetInformerFactoryWithClient(client kubernetes.Interface) {
+	cb.check.ApiClient.InformerFactory = informers.NewSharedInformerFactory(client, 0)
+	tweakListOptions := func(options *metav1.ListOptions) {
+		options.FieldSelector = fields.OneTermEqualSelector("spec.nodeName", "").String()
+	}
+	cb.check.ApiClient.UnassignedPodInformerFactory = informers.NewSharedInformerFactoryWithOptions(client, 0, informers.WithTweakListOptions(tweakListOptions))
+
+	cb.runCfg.APIClient = cb.check.ApiClient
 }
 
 // Run is used to sequentially run all collectors in the bundle.

@@ -281,7 +281,8 @@ func getDDInformerFactory() (dynamicinformer.DynamicSharedInformerFactory, error
 	return dynamicinformer.NewDynamicSharedInformerFactory(client, resyncPeriodSeconds*time.Second), nil
 }
 
-func getInformerFactory() (informers.SharedInformerFactory, error) {
+// GetInformerFactory returns SharedInformerFactory
+func GetInformerFactory() (informers.SharedInformerFactory, error) {
 	resyncPeriodSeconds := time.Duration(config.Datadog.GetInt64("kubernetes_informers_resync_period"))
 	client, err := GetKubeClient(0) // No timeout for the Informers, to allow long watch.
 	if err != nil {
@@ -309,6 +310,16 @@ func getInformerFactoryWithOption(options ...informers.SharedInformerOption) (in
 		return nil, err
 	}
 	return informers.NewSharedInformerFactoryWithOptions(client, resyncPeriodSeconds*time.Second, options...), nil
+}
+
+// GetUnassignedPodInformerFactory returns UnassignedPodInformerFactory
+func GetUnassignedPodInformerFactory() (informers.SharedInformerFactory, error) {
+	tweakListOptions := func(options *metav1.ListOptions) {
+		options.FieldSelector = fields.OneTermEqualSelector("spec.nodeName", "").String()
+	}
+	return getInformerFactoryWithOption(
+		informers.WithTweakListOptions(tweakListOptions),
+	)
 }
 
 func (c *APIClient) connect() error {
@@ -343,18 +354,13 @@ func (c *APIClient) connect() error {
 	}
 
 	// informer factory uses its own clientset with a larger timeout
-	c.InformerFactory, err = getInformerFactory()
+	c.InformerFactory, err = GetInformerFactory()
 	if err != nil {
 		return err
 	}
 
 	if config.Datadog.GetBool("orchestrator_explorer.enabled") {
-		tweakListOptions := func(options *metav1.ListOptions) {
-			options.FieldSelector = fields.OneTermEqualSelector("spec.nodeName", "").String()
-		}
-		c.UnassignedPodInformerFactory, err = getInformerFactoryWithOption(
-			informers.WithTweakListOptions(tweakListOptions),
-		)
+		c.UnassignedPodInformerFactory, err = GetUnassignedPodInformerFactory()
 		if err != nil {
 			log.Infof("Could not get informer factory: %v", err)
 			return err
