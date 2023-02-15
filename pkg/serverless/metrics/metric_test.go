@@ -194,15 +194,16 @@ func getAvailableUDPPort() (int, error) {
 }
 
 func TestRaceFlushVersusParsePacket(t *testing.T) {
-	port, err := getAvailableUDPPort()
-	require.NoError(t, err)
-	config.Datadog.SetDefault("dogstatsd_port", port)
 
 	fxutil.Test(t, fx.Options(
 		core.MockBundle,
 		fx.Supply(dogstatsdServer.Params{Serverless: true}),
 		dogstatsdServer.Module,
 	), func(s dogstatsdServer.Component) {
+
+		port, err := getAvailableUDPPort()
+		require.NoError(t, err)
+		config.Datadog.SetDefault("dogstatsd_port", port)
 
 		opts := aggregator.DefaultAgentDemultiplexerOptions(nil)
 		opts.FlushInterval = 10 * time.Millisecond
