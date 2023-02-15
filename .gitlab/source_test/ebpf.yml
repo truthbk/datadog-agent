@@ -89,7 +89,6 @@ tests_ebpf_arm64:
 
 .prepare_ebpf_tests:
   stage: source_test
-  needs: ["go_deps", "go_tools_deps"]
   artifacts:
     when: always
     paths:
