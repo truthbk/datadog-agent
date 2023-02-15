@@ -259,6 +259,8 @@ func (cb *CollectorBundle) Initialize() error {
 		if _, ok := <-cb.stopCh; ok {
 			close(cb.stopCh)
 		}
+		cb.stopCh = make(chan struct{})
+
 		InformerSynced = map[cache.SharedInformer]struct{}{}
 
 		err := cb.ReGetInformerFactory()
@@ -278,6 +280,8 @@ func (cb *CollectorBundle) InitializeWithClient(client kubernetes.Interface) err
 		if _, ok := <-cb.stopCh; ok {
 			close(cb.stopCh)
 		}
+		cb.stopCh = make(chan struct{})
+
 		InformerSynced = map[cache.SharedInformer]struct{}{}
 		cb.ReGetInformerFactoryWithClient(client)
 		return cb.initialize()
