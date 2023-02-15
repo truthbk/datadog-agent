@@ -17,7 +17,7 @@ import (
 	"time"
 
 	configComponent "github.com/DataDog/datadog-agent/comp/core/config"
-	logger "github.com/DataDog/datadog-agent/comp/core/log"
+	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/dogstatsd/listeners"
@@ -33,7 +33,6 @@ import (
 )
 
 var (
-	log                               logger.Component
 	dogstatsdExpvars                  = expvar.NewMap("dogstatsd")
 	dogstatsdServiceCheckParseErrors  = expvar.Int{}
 	dogstatsdServiceCheckPackets      = expvar.Int{}
@@ -63,7 +62,7 @@ var (
 type dependencies struct {
 	fx.In
 
-	Log    logger.Component
+	Log    log.Component
 	Config configComponent.Component
 	Params Params
 }
@@ -80,6 +79,7 @@ type cachedOriginCounter struct {
 
 // Server represent a Dogstatsd server
 type server struct {
+	log log.Component
 	// listeners are the instantiated socket listener (UDS or UDP or both)
 	listeners []listeners.StatsdListener
 
@@ -135,7 +135,7 @@ type server struct {
 	enrichConfig enrichConfig
 }
 
-func initTelemetry() {
+func initTelemetry(logger log.Component) {
 	dogstatsdExpvars.Set("ServiceCheckParseErrors", &dogstatsdServiceCheckParseErrors)
 	dogstatsdExpvars.Set("ServiceCheckPackets", &dogstatsdServiceCheckPackets)
 	dogstatsdExpvars.Set("EventParseErrors", &dogstatsdEventParseErrors)
@@ -151,11 +151,11 @@ func initTelemetry() {
 
 		buckets, err := config.Datadog.GetFloat64SliceE(option)
 		if err != nil {
-			log.Errorf("%s, falling back to default values", err)
+			logger.Errorf("%s, falling back to default values", err)
 			return nil
 		}
 		if len(buckets) == 0 {
-			log.Debugf("'%s' is empty, falling back to default values", option)
+			logger.Debugf("'%s' is empty, falling back to default values", option)
 			return nil
 		}
 		return buckets
@@ -183,17 +183,15 @@ func NewServerlessServer(deps dependencies) Component {
 }
 
 func newServer(deps dependencies) Component {
-	log = deps.Log
-
 	// This needs to be done after the configuration is loaded
-	once.Do(initTelemetry)
+	once.Do(func() { initTelemetry(deps.Log) })
 
 	var stats *util.Stats
 	if config.Datadog.GetBool("dogstatsd_stats_enable") {
 		buff := config.Datadog.GetInt("dogstatsd_stats_buffer")
 		s, err := util.NewStats(uint32(buff))
 		if err != nil {
-			log.Errorf("Dogstatsd: unable to start statistics facilities")
+			deps.Log.Errorf("Dogstatsd: unable to start statistics facilities")
 		}
 		stats = s
 		dogstatsdExpvars.Set("PacketsLastSecond", &dogstatsdPacketsLastSec)
@@ -210,7 +208,7 @@ func newServer(deps dependencies) Component {
 
 	defaultHostname, err := hostname.Get(context.TODO())
 	if err != nil {
-		log.Errorf("Dogstatsd: unable to determine default hostname: %s", err.Error())
+		deps.Log.Errorf("Dogstatsd: unable to determine default hostname: %s", err.Error())
 	}
 
 	histToDist := config.Datadog.GetBool("histogram_copy_to_distribution")
@@ -240,11 +238,12 @@ func newServer(deps dependencies) Component {
 		case "named_pipe":
 			eolTerminationNamedPipe = true
 		default:
-			log.Errorf("Invalid dogstatsd_eol_required value: %s", v)
+			deps.Log.Errorf("Invalid dogstatsd_eol_required value: %s", v)
 		}
 	}
 
 	s := &server{
+		log:                     deps.Log,
 		Started:                 false,
 		Statistics:              stats,
 		packetsIn:               nil,
@@ -308,7 +307,7 @@ func (s *server) Start(demultiplexer aggregator.Demultiplexer) error {
 	if len(socketPath) > 0 {
 		unixListener, err := listeners.NewUDSListener(packetsChannel, sharedPacketPoolManager, capture)
 		if err != nil {
-			log.Errorf(err.Error())
+			s.log.Errorf(err.Error())
 		} else {
 			tmpListeners = append(tmpListeners, unixListener)
 			udsListenerRunning = true
@@ -317,7 +316,7 @@ func (s *server) Start(demultiplexer aggregator.Demultiplexer) error {
 	if config.Datadog.GetInt("dogstatsd_port") > 0 {
 		udpListener, err := listeners.NewUDPListener(packetsChannel, sharedPacketPoolManager, capture)
 		if err != nil {
-			log.Errorf(err.Error())
+			s.log.Errorf(err.Error())
 		} else {
 			tmpListeners = append(tmpListeners, udpListener)
 		}
@@ -327,7 +326,7 @@ func (s *server) Start(demultiplexer aggregator.Demultiplexer) error {
 	if len(pipeName) > 0 {
 		namedPipeListener, err := listeners.NewNamedPipeListener(pipeName, packetsChannel, sharedPacketPoolManager, capture)
 		if err != nil {
-			log.Errorf("named pipe error: %v", err.Error())
+			s.log.Errorf("named pipe error: %v", err.Error())
 		} else {
 			tmpListeners = append(tmpListeners, namedPipeListener)
 		}
@@ -354,7 +353,7 @@ func (s *server) Start(demultiplexer aggregator.Demultiplexer) error {
 		forwardAddress := fmt.Sprintf("%s:%d", forwardHost, forwardPort)
 		con, err := net.Dial("udp", forwardAddress)
 		if err != nil {
-			log.Warnf("Could not connect to statsd forward host : %s", err)
+			s.log.Warnf("Could not connect to statsd forward host : %s", err)
 		} else {
 			s.packetsIn = make(chan packets.Packets, config.Datadog.GetInt("dogstatsd_queue_size"))
 			go s.forwarder(con)
@@ -371,7 +370,7 @@ func (s *server) Start(demultiplexer aggregator.Demultiplexer) error {
 	// ----------------------
 
 	if config.Datadog.GetBool("dogstatsd_metrics_stats_enable") {
-		log.Info("Dogstatsd: metrics statistics will be stored.")
+		s.log.Info("Dogstatsd: metrics statistics will be stored.")
 		s.EnableMetricsStats()
 	}
 
@@ -382,11 +381,11 @@ func (s *server) Start(demultiplexer aggregator.Demultiplexer) error {
 
 	mappings, err := config.GetDogstatsdMappingProfiles()
 	if err != nil {
-		log.Warnf("Could not parse mapping profiles: %v", err)
+		s.log.Warnf("Could not parse mapping profiles: %v", err)
 	} else if len(mappings) != 0 {
 		mapperInstance, err := mapper.NewMetricMapper(mappings, cacheSize)
 		if err != nil {
-			log.Warnf("Could not create metric mapper: %v", err)
+			s.log.Warnf("Could not create metric mapper: %v", err)
 		} else {
 			s.mapper = mapperInstance
 		}
@@ -458,7 +457,7 @@ func (s *server) EnableMetricsStats() {
 	go func() {
 		ticker := s.Debug.clock.Ticker(time.Millisecond * 100)
 		var closed bool
-		log.Debug("Starting the DogStatsD debug loop.")
+		s.log.Debug("Starting the DogStatsD debug loop.")
 		for {
 			select {
 			case <-ticker.C:
@@ -466,7 +465,7 @@ func (s *server) EnableMetricsStats() {
 				if sec.After(s.Debug.metricsCounts.currentSec) {
 					s.Debug.metricsCounts.currentSec = sec
 					if s.hasSpike() {
-						log.Warnf("A burst of metrics has been detected by DogStatSd: here is the last 5 seconds count of metrics: %v", s.Debug.metricsCounts.counts)
+						s.log.Warnf("A burst of metrics has been detected by DogStatSd: here is the last 5 seconds count of metrics: %v", s.Debug.metricsCounts.counts)
 					}
 
 					s.Debug.metricsCounts.bucketIdx++
@@ -488,7 +487,7 @@ func (s *server) EnableMetricsStats() {
 				break
 			}
 		}
-		log.Debug("Stopping the DogStatsD debug loop.")
+		s.log.Debug("Stopping the DogStatsD debug loop.")
 		ticker.Stop()
 	}()
 }
@@ -504,7 +503,7 @@ func (s *server) DisableMetricsStats() {
 		s.Debug.metricsCounts.closeChan <- struct{}{}
 	}
 
-	log.Info("Disabling DogStatsD debug metrics stats.")
+	s.log.Info("Disabling DogStatsD debug metrics stats.")
 }
 
 func (s *server) UdsListenerRunning() bool {
@@ -531,11 +530,11 @@ func (s *server) handleMessages() {
 	// undocumented configuration field to force the amount of dogstatsd workers
 	// mainly used for benchmarks or some very specific use-case.
 	if configWC := config.Datadog.GetInt("dogstatsd_workers_count"); configWC != 0 {
-		log.Debug("Forcing the amount of DogStatsD workers to:", configWC)
+		s.log.Debug("Forcing the amount of DogStatsD workers to:", configWC)
 		workersCount = configWC
 	}
 
-	log.Debug("DogStatsD will run", workersCount, "workers")
+	s.log.Debug("DogStatsD will run", workersCount, "workers")
 
 	for i := 0; i < workersCount; i++ {
 		worker := newWorker(s)
@@ -554,7 +553,7 @@ func (s *server) forwarder(fcon net.Conn) {
 				_, err := fcon.Write(packet.Contents)
 
 				if err != nil {
-					log.Warnf("Forwarding packet failed : %s", err)
+					s.log.Warnf("Forwarding packet failed : %s", err)
 				}
 			}
 			s.packetsIn <- packets
@@ -564,7 +563,7 @@ func (s *server) forwarder(fcon net.Conn) {
 
 // ServerlessFlush flushes all the data to the aggregator to them send it to the Datadog intake.
 func (s *server) ServerlessFlush() {
-	log.Debug("Received a Flush trigger")
+	s.log.Debug("Received a Flush trigger")
 
 	// make all workers flush their aggregated data (in the batchers) into the time samplers
 	s.serverlessFlushChan <- true
@@ -647,16 +646,16 @@ func (s *server) eolEnabled(sourceType packets.SourceType) bool {
 
 func (s *server) errLog(format string, params ...interface{}) {
 	if s.disableVerboseLogs {
-		log.Debugf(format, params...)
+		s.log.Debugf(format, params...)
 	} else {
-		log.Errorf(format, params...)
+		s.log.Errorf(format, params...)
 	}
 }
 
 // workers are running this function in their goroutine
 func (s *server) parsePackets(batcher *batcher, parser *parser, packets []*packets.Packet, samples metrics.MetricSampleBatch) metrics.MetricSampleBatch {
 	for _, packet := range packets {
-		log.Tracef("Dogstatsd receive: %q", packet.Contents)
+		s.log.Tracef("Dogstatsd receive: %q", packet.Contents)
 		for {
 			message := nextMessage(&packet.Contents, s.eolEnabled(packet.Source))
 			if message == nil {
@@ -785,7 +784,7 @@ func (s *server) parseMetricMessage(metricSamples []metrics.MetricSample, parser
 	if s.mapper != nil {
 		mapResult := s.mapper.Map(sample.name)
 		if mapResult != nil {
-			log.Tracef("Dogstatsd mapper: metric mapped from %q to %q with tags %v", sample.name, mapResult.Name, mapResult.Tags)
+			s.log.Tracef("Dogstatsd mapper: metric mapped from %q to %q with tags %v", sample.name, mapResult.Name, mapResult.Tags)
 			sample.name = mapResult.Name
 			sample.tags = append(sample.tags, mapResult.Tags...)
 		}

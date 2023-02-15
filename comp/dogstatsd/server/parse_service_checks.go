@@ -9,6 +9,8 @@ import (
 	"bytes"
 	"fmt"
 	"strconv"
+
+	"github.com/DataDog/datadog-agent/comp/core/log"
 )
 
 type serviceCheckStatus int
@@ -133,7 +135,7 @@ func (p *parser) parseServiceCheck(message []byte) (dogstatsdServiceCheck, error
 		optionalField, message = nextField(message)
 		serviceCheck, err = p.applyServiceCheckOptionalField(serviceCheck, optionalField)
 		if err != nil {
-			log.Warnf("invalid service check optional field: %v", err)
+			log.NewTemporaryLogger().Warnf("invalid service check optional field: %v", err)
 		}
 	}
 	return serviceCheck, nil
