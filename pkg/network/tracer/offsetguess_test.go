@@ -98,19 +98,17 @@ func TestOffsetGuessAgainstBTF(t *testing.T) {
 			case "offset_ino":
 				netOff, _, err := getOffset(net.Members, "ns")
 				if err == nil {
-					var inumOff uint32
-					var ns_common *btf.Struct
-					err = btfdata.TypeByName("ns_common", &ns_common)
-					if assert.NoError(t, err, "%s:ns_common", ce.Name) {
-						inumOff, _, err = getOffset(ns_common.Members, "inum")
-						netOff += inumOff
+					ns_common := getFirstStruct(t, btfdata, "ns_common")
+					inumOff, _, err := getOffset(ns_common.Members, "inum")
+					if assert.NoError(t, err, ce.Name) {
+						assert.Equal(t, uint64(netOff+inumOff), ce.Value.(uint64), ce.Name)
 					}
-				} else {
-					netOff, _, err = getOffset(net.Members, "proc_inum")
+					break
 				}
-				// fallthrough error from both branches
+
+				procOff, _, err := getOffset(net.Members, "proc_inum")
 				if assert.NoError(t, err, ce.Name) {
-					assert.Equal(t, uint64(netOff), ce.Value.(uint64), ce.Name)
+					assert.Equal(t, uint64(procOff), ce.Value.(uint64), ce.Name)
 				}
 			case "offset_rtt":
 				off, _, err := getOffset(tcp_sock.Members, "srtt_us")
