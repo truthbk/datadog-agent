@@ -252,12 +252,13 @@ func (cb *CollectorBundle) prepareExtraSyncTimeout() {
 // synced.
 func (cb *CollectorBundle) Initialize() error {
 	if len(InformerSynced) == 0 {
+		log.Error("First Initialize")
 		return cb.initialize()
 	} else {
+		log.Error("Second Initialize")
 		if _, ok := <-cb.stopCh; ok {
 			close(cb.stopCh)
 		}
-		cb.stopCh = make(chan struct{})
 		InformerSynced = map[cache.SharedInformer]struct{}{}
 
 		err := cb.ReGetInformerFactory()
@@ -277,7 +278,6 @@ func (cb *CollectorBundle) InitializeWithClient(client kubernetes.Interface) err
 		if _, ok := <-cb.stopCh; ok {
 			close(cb.stopCh)
 		}
-		cb.stopCh = make(chan struct{})
 		InformerSynced = map[cache.SharedInformer]struct{}{}
 		cb.ReGetInformerFactoryWithClient(client)
 		return cb.initialize()
@@ -328,6 +328,7 @@ func (cb *CollectorBundle) initialize() error {
 }
 
 func (cb *CollectorBundle) ReGetInformerFactory() error {
+	log.Error("ReGetInformerFactory")
 	var err error
 	cb.check.apiClient.InformerFactory, err = apiserver.GetInformerFactory()
 	if err != nil {
@@ -343,6 +344,7 @@ func (cb *CollectorBundle) ReGetInformerFactory() error {
 }
 
 func (cb *CollectorBundle) ReGetInformerFactoryWithClient(client kubernetes.Interface) {
+	log.Error("ReGetInformerFactory")
 	cb.check.apiClient.InformerFactory = informers.NewSharedInformerFactory(client, 0)
 	tweakListOptions := func(options *metav1.ListOptions) {
 		options.FieldSelector = fields.OneTermEqualSelector("spec.nodeName", "").String()
