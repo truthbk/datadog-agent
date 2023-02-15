@@ -12,7 +12,6 @@ import (
 	"context"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/types"
@@ -50,14 +49,9 @@ func TestOrchestratorCheckSafeReSchedule(t *testing.T) {
 		},
 	})
 
-	writeNode(t, client, "1")
-
 	// getting rescheduled.
 	orchCheck.Cancel()
-	// This part is not optimal as the cancel closes a channel which gets propagated everywhere that might take some time.
-	// If things are too fast the close is not getting propagated fast enough.
-	// But even if we are too fast and don't catch that part it will not lead to a false positive
-	time.Sleep(1 * time.Millisecond)
+
 	err = bundle.InitializeWithClient(client)
 	bundle.runCfg.APIClient.InformerFactory.Core().V1().Nodes().Informer().AddEventHandler(&cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
@@ -67,6 +61,7 @@ func TestOrchestratorCheckSafeReSchedule(t *testing.T) {
 	cl.InformerFactory = bundle.runCfg.APIClient.InformerFactory
 
 	assert.NoError(t, err)
+	writeNode(t, client, "1")
 	writeNode(t, client, "2")
 
 	wg.Wait()

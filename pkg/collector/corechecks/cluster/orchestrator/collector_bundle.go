@@ -69,7 +69,7 @@ func NewCollectorBundle(chk *OrchestratorCheck) *CollectorBundle {
 			Config:      chk.orchestratorConfig,
 			MsgGroupRef: chk.groupID,
 		},
-		stopCh:              make(chan struct{}),
+		stopCh:              chk.stopCh,
 		manifestBuffer:      NewManifestBuffer(chk),
 		crdDiscovery:        discovery.NewDiscoveryCollectorForInventory(),
 		activatedCollectors: map[string]struct{}{},
@@ -254,7 +254,9 @@ func (cb *CollectorBundle) Initialize() error {
 	if len(InformerSynced) == 0 {
 		return cb.initialize()
 	} else {
-		close(cb.stopCh)
+		if _, ok := <-cb.stopCh; ok {
+			close(cb.stopCh)
+		}
 		cb.stopCh = make(chan struct{})
 		InformerSynced = map[cache.SharedInformer]struct{}{}
 
@@ -272,7 +274,9 @@ func (cb *CollectorBundle) InitializeWithClient(client kubernetes.Interface) err
 	if len(InformerSynced) == 0 {
 		return cb.initialize()
 	} else {
-		close(cb.stopCh)
+		if _, ok := <-cb.stopCh; ok {
+			close(cb.stopCh)
+		}
 		cb.stopCh = make(chan struct{})
 		InformerSynced = map[cache.SharedInformer]struct{}{}
 		cb.ReGetInformerFactoryWithClient(client)
@@ -283,9 +287,12 @@ func (cb *CollectorBundle) InitializeWithClient(client kubernetes.Interface) err
 func (cb *CollectorBundle) initialize() error {
 	informersToSync := make(map[apiserver.InformerName]cache.SharedInformer)
 	var availableCollectors []collectors.Collector
+
+	// Cluster and nodes use the same informer
+	cb.check.wg.Add(len(cb.collectors) - 1)
+
 	// informerSynced is a helper map which makes sure that we don't initialize the same informer twice.
 	// i.e. the cluster and nodes resources share the same informer and using both can lead to a race condition activating both concurrently.
-
 	for _, collector := range cb.collectors {
 		collector.Init(cb.runCfg)
 		if !collector.IsAvailable() {
@@ -307,7 +314,10 @@ func (cb *CollectorBundle) initialize() error {
 			// TODO: right now we use a stop channel which we don't close, that can lead to resource leaks
 			// A recent go-client update https://github.com/kubernetes/kubernetes/pull/104853 changed the behaviour so that
 			// we are not able to start informers anymore once they have been stopped. We will need to work around this. Once this is fixed we can properly release the resources during a check.Close().
-			go informer.Run(cb.stopCh)
+			go func() {
+				informer.Run(cb.stopCh)
+				defer cb.check.wg.Done()
+			}()
 		}
 	}
 

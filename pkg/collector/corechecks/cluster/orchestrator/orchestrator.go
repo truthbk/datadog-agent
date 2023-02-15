@@ -12,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"math/rand"
+	"sync"
 	"time"
 
 	"go.uber.org/atomic"
@@ -67,6 +68,7 @@ type OrchestratorCheck struct {
 	instance           *OrchestratorInstance
 	collectorBundle    *CollectorBundle
 	stopCh             chan struct{}
+	wg                 sync.WaitGroup
 	clusterID          string
 	groupID            *atomic.Int32
 	isCLCRunner        bool
@@ -189,4 +191,5 @@ func (o *OrchestratorCheck) Run() error {
 func (o *OrchestratorCheck) Cancel() {
 	log.Infof("Shutting down informers used by the check '%s'", o.ID())
 	close(o.stopCh)
+	o.wg.Wait()
 }
