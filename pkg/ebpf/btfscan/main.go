@@ -38,6 +38,7 @@ var (
 	searchStruct string
 	searchFunc   string
 	searchMember string
+	fullSearch   bool
 )
 
 func init() {
@@ -46,6 +47,7 @@ func init() {
 	flag.StringVar(&searchStruct, "s", "", "search for struct")
 	flag.StringVar(&searchFunc, "f", "", "search for func")
 	flag.StringVar(&searchMember, "n", "", "search for struct member")
+	flag.BoolVar(&fullSearch, "e", false, "exhaustive search")
 }
 
 type btfFile struct {
@@ -71,11 +73,11 @@ func main() {
 
 	switch {
 	case searchFunc != "":
-		searchForChanges(searchDir, funcSearchFunc(searchFunc), false, false)
+		searchForChanges(searchDir, funcSearchFunc(searchFunc), fullSearch, false)
 	case searchMember != "":
-		searchForChanges(searchDir, memberSearchFunc(searchMember), false, false)
+		searchForChanges(searchDir, memberSearchFunc(searchMember), fullSearch, false)
 	case searchStruct != "":
-		searchForChanges(searchDir, typeSearchFunc(searchStruct), false, true)
+		searchForChanges(searchDir, typeSearchFunc(searchStruct), fullSearch, true)
 	default:
 		log.Fatal("search type not provided\n")
 	}
