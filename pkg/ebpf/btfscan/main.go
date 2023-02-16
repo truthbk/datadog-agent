@@ -30,6 +30,7 @@ import (
 )
 
 var versionRegex = regexp.MustCompile(`^(\d+)\.(\d+)(?:\.(\d+))?.*$`)
+var errItemNotFound = errors.New("item not found")
 
 var (
 	archivePath  string
@@ -121,10 +122,15 @@ func search(btfs []btfFile, searchFunc changeFunc, fullSearch bool, diff bool) {
 
 	var lastSig string
 	var lastV kernel.Version
+	var itemFound bool
 	for _, b := range btfs {
-		if !fullSearch && (b.v == lastV || (b.v.Major() == lastV.Major() && b.v.Minor() == lastV.Minor())) {
-			continue
+		if !fullSearch && itemFound {
+			// skip if same version or same major.minor AND item was found
+			if b.v == lastV || (b.v.Major() == lastV.Major() && b.v.Minor() == lastV.Minor()) {
+				continue
+			}
 		}
+		itemFound = false
 
 		btfFilename := strings.TrimSuffix(filepath.Base(b.path), ".tar.xz")
 		extractedFile := filepath.Join(tmpdir, btfFilename)
@@ -142,11 +148,19 @@ func search(btfs []btfFile, searchFunc changeFunc, fullSearch bool, diff bool) {
 		}
 		sig, err := searchFunc(s)
 		if err != nil {
+			if errors.Is(err, errItemNotFound) || errors.Is(err, btf.ErrNotFound) {
+				// TODO ideally only output once per version once we know the type is missing from all kernels
+				fmt.Printf("%13s%s:\t%s\n", "", fv(b.v), err)
+				lastV = b.v
+				// do not reset lastSig for missing
+				continue
+			}
 			fmt.Printf("%13s%s:\terror searching: %s\n", "", fv(b.v), err)
 			lastV = b.v
 			lastSig = ""
 			continue
 		}
+		itemFound = true
 
 		if sig != lastSig {
 			if b.v.Major() != lastV.Major() || (b.v.Minor()-1 != lastV.Minor()) {
@@ -293,7 +307,7 @@ func firstStruct(s *btf.Spec, name string) (*btf.Struct, error) {
 			continue
 		}
 	}
-	return nil, fmt.Errorf("unable to find struct named %s", name)
+	return nil, fmt.Errorf("struct named %s: %w", name, errItemNotFound)
 }
 
 func memberSearchFunc(typeName string) changeFunc {
@@ -314,7 +328,7 @@ func memberSearchFunc(typeName string) changeFunc {
 		for i, f := range fields {
 			nr, off := searchTypeForMember(root, f)
 			if nr == nil {
-				return "", fmt.Errorf("unable to find member %s", f)
+				return "", fmt.Errorf("member %s: %w", f, errItemNotFound)
 			}
 			for _, o := range off {
 				offsets = append(offsets, fmt.Sprintf("%d", o))
@@ -326,7 +340,7 @@ func memberSearchFunc(typeName string) changeFunc {
 				case *btf.Struct:
 				case *btf.Union:
 				default:
-					return "", fmt.Errorf("member %s does not have members", f)
+					return "", fmt.Errorf("member %s does not have members: %w", f, errItemNotFound)
 				}
 			}
 			root = nr
