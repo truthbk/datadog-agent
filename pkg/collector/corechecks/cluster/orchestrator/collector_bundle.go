@@ -252,10 +252,8 @@ func (cb *CollectorBundle) prepareExtraSyncTimeout() {
 // synced.
 func (cb *CollectorBundle) Initialize() error {
 	if len(InformerSynced) == 0 {
-		log.Error("First Initialize")
 		return cb.initialize()
 	} else {
-		log.Error("Second Initialize")
 		if _, ok := <-cb.stopCh; ok {
 			close(cb.stopCh)
 		}
@@ -292,9 +290,6 @@ func (cb *CollectorBundle) initialize() error {
 	informersToSync := make(map[apiserver.InformerName]cache.SharedInformer)
 	var availableCollectors []collectors.Collector
 
-	// Cluster and nodes use the same informer
-	cb.check.wg.Add(len(cb.collectors) - 1)
-
 	// informerSynced is a helper map which makes sure that we don't initialize the same informer twice.
 	// i.e. the cluster and nodes resources share the same informer and using both can lead to a race condition activating both concurrently.
 	for _, collector := range cb.collectors {
@@ -320,7 +315,6 @@ func (cb *CollectorBundle) initialize() error {
 			// we are not able to start informers anymore once they have been stopped. We will need to work around this. Once this is fixed we can properly release the resources during a check.Close().
 			go func() {
 				informer.Run(cb.stopCh)
-				defer cb.check.wg.Done()
 			}()
 		}
 	}
@@ -332,7 +326,6 @@ func (cb *CollectorBundle) initialize() error {
 }
 
 func (cb *CollectorBundle) ReGetInformerFactory() error {
-	log.Error("ReGetInformerFactory")
 	var err error
 	cb.check.apiClient.InformerFactory, err = apiserver.GetInformerFactory()
 	if err != nil {
@@ -348,7 +341,6 @@ func (cb *CollectorBundle) ReGetInformerFactory() error {
 }
 
 func (cb *CollectorBundle) ReGetInformerFactoryWithClient(client kubernetes.Interface) {
-	log.Error("ReGetInformerFactory")
 	cb.check.apiClient.InformerFactory = informers.NewSharedInformerFactory(client, 0)
 	tweakListOptions := func(options *metav1.ListOptions) {
 		options.FieldSelector = fields.OneTermEqualSelector("spec.nodeName", "").String()
