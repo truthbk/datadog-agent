@@ -5,13 +5,14 @@
 //go:build windows
 // +build windows
 
-package eventlog
+package windows
 
 import (
 	"fmt"
 	"unsafe"
 
     "github.com/DataDog/datadog-agent/pkg/util/winutil"
+    evtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
 
 	"golang.org/x/sys/windows"
 )
@@ -27,69 +28,30 @@ var (
 	evtRender = wevtapi.NewProc("EvtRender")
 )
 
-const (
-	// EVT_SUBSCRIBE_FLAGS
-	// https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_subscribe_flags
-    EvtSubscribeToFutureEvents = iota + 1
-    EvtSubscribeStartAtOldestRecord
-    EvtSubscribeStartAfterBookmark
-    EvtSubscribeOriginMask
-    EvtSubscribeTolerateQueryErrors = 0x1000
-    EvtSubscribeStrict = 0x10000
-)
+type WindowsEventLogAPI struct {}
 
-const (
-	// EVT_RENDER_CONTEXT_FLAGS
-	// https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_render_context_flags
-	EvtRenderContextValues = iota
-	EvtRenderContextSystem
-	EvtRenderContextUser
-)
-
-const (
-	// EVT_RENDER_FLAGS
-	// https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_render_flags
-	EvtRenderEventValues = iota
-	EvtRenderEventXml
-	EvtRenderBookmark
-)
-
-// Returned from EvtQuery and EvtSubscribe
-type EventResultSetHandle windows.Handle
-
-// Returned from EvtNext
-type EventRecordHandle windows.Handle
-
-// Returned from EvtCreateBookmark
-type EventBookmarkHandle windows.Handle
-
-// Returned from EvtCreateRenderContext
-type EventRenderContextHandle windows.Handle
-
-// Returned from CreateEvent
-type WaitEventHandle windows.Handle
-
-type EventFragmentHandle interface {
-	EventRecordHandle | EventBookmarkHandle
+func NewWindowsEventLogAPI() *WindowsEventLogAPI {
+	var api WindowsEventLogAPI
+	return &api
 }
 
 // Pass returned handle to EvtClose
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtsubscribe
-func EvtSubscribe(
-	SignalEvent WaitEventHandle,
+func (api *WindowsEventLogAPI) EvtSubscribe(
+	SignalEvent evtapi.WaitEventHandle,
 	ChannelPath string,
 	Query string,
-	Bookmark EventBookmarkHandle,
-	Flags uint) (EventResultSetHandle, error) {
+	Bookmark evtapi.EventBookmarkHandle,
+	Flags uint) (evtapi.EventResultSetHandle, error) {
 
 	// Convert Go string to Windows API string
 	channelPath, err := winutil.UTF16PtrOrNilFromString(ChannelPath)
 	if err != nil {
-		return EventResultSetHandle(0), err
+		return evtapi.EventResultSetHandle(0), err
 	}
 	query, err := winutil.UTF16PtrOrNilFromString(Query)
 	if err != nil {
-		return EventResultSetHandle(0), err
+		return evtapi.EventResultSetHandle(0), err
 	}
 
 	// Call API
@@ -104,19 +66,19 @@ func EvtSubscribe(
 		uintptr(Flags))
 	// EvtSubscribe returns NULL on error
 	if r1 == 0 {
-		return EventResultSetHandle(0), lastErr
+		return evtapi.EventResultSetHandle(0), lastErr
 	}
 
-	return EventResultSetHandle(r1), nil
+	return evtapi.EventResultSetHandle(r1), nil
 }
 
 // Must call EvtClose on every handle returned
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtnext
-func EvtNext(
-	Session EventResultSetHandle,
-	EventsArray []EventRecordHandle,
+func (api *WindowsEventLogAPI) EvtNext(
+	Session evtapi.EventResultSetHandle,
+	EventsArray []evtapi.EventRecordHandle,
 	EventsSize uint,
-	Timeout uint) ([]EventRecordHandle, error) {
+	Timeout uint) ([]evtapi.EventRecordHandle, error) {
 
 	var Returned uint32
 	Returned = 0
@@ -141,32 +103,32 @@ func EvtNext(
 }
 
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtclose
-func EvtClose(h windows.Handle) {
+func (api *WindowsEventLogAPI) EvtClose(h windows.Handle) {
 	if h != windows.Handle(0) {
 		evtClose.Call(uintptr(h))
 	}
 }
 
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtcreatebookmark
-func EvtCreateBookmark(BookmarkXml string) (EventBookmarkHandle, error) {
+func EvtCreateBookmark(BookmarkXml string) (evtapi.EventBookmarkHandle, error) {
 	var bookmarkXml *uint16
 
 	bookmarkXml, err := winutil.UTF16PtrOrNilFromString(BookmarkXml)
 	if err != nil {
-		return EventBookmarkHandle(0), err
+		return evtapi.EventBookmarkHandle(0), err
 	}
 
 	r1, _, lastErr := evtCreateBookmark.Call(uintptr(unsafe.Pointer(bookmarkXml)))
 	// EvtCreateBookmark returns NULL on error
 	if r1 == 0 {
-		return EventBookmarkHandle(0), lastErr
+		return evtapi.EventBookmarkHandle(0), lastErr
 	}
 
-	return EventBookmarkHandle(r1), nil
+	return evtapi.EventBookmarkHandle(r1), nil
 }
 
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtupdatebookmark
-func EvtUpdateBookmark(Bookmark EventBookmarkHandle, Event EventRecordHandle) error {
+func EvtUpdateBookmark(Bookmark evtapi.EventBookmarkHandle, Event evtapi.EventRecordHandle) error {
 	r1, _, lastErr := evtUpdateBookmark.Call(uintptr(Bookmark), uintptr(Event))
 	// EvtUpdateBookmark returns C FALSE (0) on error
 	if r1 == 0 {
@@ -177,14 +139,14 @@ func EvtUpdateBookmark(Bookmark EventBookmarkHandle, Event EventRecordHandle) er
 }
 
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtcreaterendercontext
-func EvtCreateRenderContext(ValuePaths []string, Flags uint) (EventRenderContextHandle, error) {
+func EvtCreateRenderContext(ValuePaths []string, Flags uint) (evtapi.EventRenderContextHandle, error) {
 	var err error
 	valuePaths := make([]*uint16, len(ValuePaths))
 
 	for i, v := range ValuePaths {
 		valuePaths[i], err = windows.UTF16PtrFromString(v)
 		if err != nil {
-			return EventRenderContextHandle(0), err
+			return evtapi.EventRenderContextHandle(0), err
 		}
 	}
 
@@ -195,19 +157,19 @@ func EvtCreateRenderContext(ValuePaths []string, Flags uint) (EventRenderContext
 		uintptr(Flags))
 	// EvtCreateRenderContext returns NULL on error
 	if r1 == 0 {
-		return EventRenderContextHandle(0), lastErr
+		return evtapi.EventRenderContextHandle(0), lastErr
 	}
 
-	return EventRenderContextHandle(r1), nil
+	return evtapi.EventRenderContextHandle(r1), nil
 }
 
 // EvtRenderText supports the EvtRenderEventXml and EvtRenderBookmark Flags
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtrender
-func EvtRenderText[FragmentType EventFragmentHandle](
+func EvtRenderText[FragmentType evtapi.EventFragmentHandle](
 	Fragment FragmentType,
 	Flags uint) ([]uint16, error) {
 
-	if Flags != EvtRenderEventXml && Flags != EvtRenderBookmark {
+	if Flags != evtapi.EvtRenderEventXml && Flags != evtapi.EvtRenderBookmark {
 		return nil, fmt.Errorf("Invalid Flags")
 	}
 
@@ -250,26 +212,5 @@ func EvtRenderText[FragmentType EventFragmentHandle](
 	}
 
 	return Buffer, nil
-}
-
-//
-// Helpful wrappers for custom types
-//
-func EvtCloseResultSet(h EventResultSetHandle) {
-	EvtClose(windows.Handle(h))
-}
-
-func EvtCloseBookmark(h EventBookmarkHandle) {
-	EvtClose(windows.Handle(h))
-}
-
-func EvtCloseRecord(h EventRecordHandle) {
-	EvtClose(windows.Handle(h))
-}
-
-func safeCloseNullHandle(h windows.Handle) {
-	if h != windows.Handle(0) {
-		windows.CloseHandle(h)
-	}
 }
 

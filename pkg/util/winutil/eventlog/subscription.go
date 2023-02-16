@@ -13,6 +13,7 @@ import (
 
 	// "github.com/DataDog/datadog-agent/comp/core/log"
 	pkglog "github.com/DataDog/datadog-agent/pkg/util/log"
+	evtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
 	"golang.org/x/sys/windows"
 )
 
@@ -43,9 +44,10 @@ type PullSubscription struct {
 	//log log.Component
 
 	// Windows API
-	subscriptionHandle EventResultSetHandle
-	waitEventHandle WaitEventHandle
-	evtNextStorage []EventRecordHandle
+	eventLogAPI evtapi.IWindowsEventLogAPI
+	subscriptionHandle evtapi.EventResultSetHandle
+	waitEventHandle evtapi.WaitEventHandle
+	evtNextStorage []evtapi.EventRecordHandle
 
 	// Query loop management
 	started bool
@@ -54,21 +56,21 @@ type PullSubscription struct {
 }
 
 type EventRecord struct {
-	EventRecordHandle EventRecordHandle
+	EventRecordHandle evtapi.EventRecordHandle
 }
 
-func newSubscriptionWaitEvent() (WaitEventHandle, error) {
+func newSubscriptionWaitEvent() (evtapi.WaitEventHandle, error) {
 	// https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createeventa
 	// Manual reset, initally set
 	hEvent, err := windows.CreateEvent(nil, 1, 1, nil)
-	return WaitEventHandle(hEvent), err
+	return evtapi.WaitEventHandle(hEvent), err
 }
 
 //func NewPullSubscription(log log.Component) *PullSubscription {
 func NewPullSubscription(ChannelPath, Query string, options ...func(*PullSubscription)) *PullSubscription {
 	var q PullSubscription
-	q.subscriptionHandle = EventResultSetHandle(0)
-	q.waitEventHandle = WaitEventHandle(0)
+	q.subscriptionHandle = evtapi.EventResultSetHandle(0)
+	q.waitEventHandle = evtapi.WaitEventHandle(0)
 
 	q.EventLoopWaitMs = DEFAULT_GET_EVENT_LOOP_WAIT_MS
 	q.EventBatchCount = DEFAULT_EVENT_BATCH_COUNT
@@ -103,6 +105,12 @@ func WithMaxEventLoopCount(count uint) func(*PullSubscription) {
 	}
 }
 
+func WithWindowsEventLogAPI(api evtapi.IWindowsEventLogAPI) func(*PullSubscription) {
+	return func (q *PullSubscription) {
+		q.eventLogAPI = api
+	}
+}
+
 func (q *PullSubscription) Start() (error) {
 
 	if q.started {
@@ -116,18 +124,19 @@ func (q *PullSubscription) Start() (error) {
 	}
 
 	// create subscription
-	hSub, err := EvtSubscribe(
+	hSub, err := q.eventLogAPI.EvtSubscribe(
 		hWait,
 		q.ChannelPath,
 		q.Query,
-		EvtSubscribeToFutureEvents)
+		evtapi.EventBookmarkHandle(0),
+		evtapi.EvtSubscribeToFutureEvents)
 	if err != nil {
 		safeCloseNullHandle(windows.Handle(hWait))
 		return err
 	}
 
 	// alloc reusable storage for EvtNext output
-	q.evtNextStorage = make([]EventRecordHandle, q.EventBatchCount)
+	q.evtNextStorage = make([]evtapi.EventRecordHandle, q.EventBatchCount)
 
 	// Query loop management
 	q.stopQueryLoop = make(chan bool)
@@ -194,7 +203,7 @@ func (q *PullSubscription) collectEvents() error {
 	for {
 		// TODO: should we use infinite or a small value?
 		//       it shouldn't block or timeout because we had out event set?
-		eventRecordHandles, err := EvtNext(q.subscriptionHandle, q.evtNextStorage, uint(len(q.evtNextStorage)), windows.INFINITE)
+		eventRecordHandles, err := q.eventLogAPI.EvtNext(q.subscriptionHandle, q.evtNextStorage, uint(len(q.evtNextStorage)), windows.INFINITE)
 		if err == nil {
 			// got events, process them and send them to the channel
 			eventRecords := q.parseEventRecordHandles(eventRecordHandles)
@@ -210,7 +219,7 @@ func (q *PullSubscription) collectEvents() error {
 			windows.ResetEvent(windows.Handle(q.waitEventHandle))
 			break
 		} else {
-			pkglog.Errorf("EvtNext failed: %d %#x", err, err)
+			pkglog.Errorf("EvtNext failed: %v", err)
 		}
 
 		// Check max so we can return and check for Stop()
@@ -222,7 +231,7 @@ func (q *PullSubscription) collectEvents() error {
 	return nil
 }
 
-func (q *PullSubscription) parseEventRecordHandles(eventRecordHandles []EventRecordHandle) []*EventRecord {
+func (q *PullSubscription) parseEventRecordHandles(eventRecordHandles []evtapi.EventRecordHandle) []*EventRecord {
 	var err error
 
 	eventRecords := make([]*EventRecord, len(eventRecordHandles))
@@ -239,7 +248,7 @@ func (q *PullSubscription) parseEventRecordHandles(eventRecordHandles []EventRec
 	return eventRecords
 }
 
-func (q *PullSubscription) parseEventRecordHandle(eventRecordHandle EventRecordHandle) (*EventRecord, error) {
+func (q *PullSubscription) parseEventRecordHandle(eventRecordHandle evtapi.EventRecordHandle) (*EventRecord, error) {
 	var e EventRecord
 	e.EventRecordHandle = eventRecordHandle
 	// TODO: Render?
@@ -266,8 +275,15 @@ func (q *PullSubscription) Stop() {
 	close(q.EventRecords)
 
 	// Cleanup Windows API
-	EvtCloseResultSet(q.subscriptionHandle)
+	evtapi.EvtCloseResultSet(q.eventLogAPI, q.subscriptionHandle)
 	safeCloseNullHandle(windows.Handle(q.waitEventHandle))
 
 	q.started = false
 }
+
+func safeCloseNullHandle(h windows.Handle) {
+	if h != windows.Handle(0) {
+		windows.CloseHandle(h)
+	}
+}
+

@@ -24,6 +24,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog"
+	winevtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api/windows"
 )
 
 // Start starts tailing the event log.
@@ -48,7 +49,8 @@ func (t *Tailer) tail() {
 	t.sub = eventlog.NewPullSubscription(
 		t.config.ChannelPath,
 		t.config.Query,
-		eventlog.WithEventLoopWaitMs(50))
+		eventlog.WithEventLoopWaitMs(50),
+		eventlog.WithWindowsEventLogAPI(winevtapi.NewWindowsEventLogAPI()))
 	err := t.sub.Start()
 	if err != nil {
 		err = fmt.Errorf("Failed to start subscription: %v", err)

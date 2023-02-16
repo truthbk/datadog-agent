@@ -2,8 +2,8 @@
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2023-present Datadog, Inc.
-//go:build windows
-// +build windows
+//go:build !windows
+// +build !windows
 
 package eventlog
 
@@ -11,26 +11,27 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
 	"golang.org/x/sys/windows"
 )
 
-func OpenBookmarkFromPath(bookmarkPath string) (EventBookmarkHandle, error) {
+func OpenBookmarkFromPath(bookmarkPath string) (api.EventBookmarkHandle, error) {
 	// Read bookmark from file
 	bookmarkXml, err := os.ReadFile(bookmarkPath)
 	if err != nil {
-		return EventBookmarkHandle(0), err
+		return api.EventBookmarkHandle(0), err
 	}
 
 	// Load bookmark XML
 	bookmarkHandle, err := EvtCreateBookmark(string(bookmarkXml))
 	if err != nil {
-		return EventBookmarkHandle(0), err
+		return api.EventBookmarkHandle(0), err
 	}
 
 	return bookmarkHandle, nil
 }
 
-func RenderBookmark(bookmarkHandle EventBookmarkHandle) (string, error) {
+func RenderBookmark(bookmarkHandle api.EventBookmarkHandle) (string, error) {
 	// Render bookmark
 	buf, err := EvtRenderText(bookmarkHandle, EvtRenderBookmark)
 	if err != nil {
@@ -43,7 +44,7 @@ func RenderBookmark(bookmarkHandle EventBookmarkHandle) (string, error) {
 	return windows.UTF16ToString(buf), nil
 }
 
-func WriteBookmarkToPath(bookmarkHandle EventBookmarkHandle, path string) (err error) {
+func WriteBookmarkToPath(bookmarkHandle api.EventBookmarkHandle, path string) (err error) {
 	// Render bookmark to a string
 	bookmarkXml, err := RenderBookmark(bookmarkHandle)
 	if err != nil {
