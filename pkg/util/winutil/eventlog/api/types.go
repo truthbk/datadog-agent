@@ -57,11 +57,7 @@ type EventFragmentHandle interface {
 	EventRecordHandle | EventBookmarkHandle
 }
 
-
 type IWindowsEventLogAPI interface {
-	// API methods
-	API_Name() string
-
 	// Windows methods
 	EvtSubscribe(
 		SignalEvent WaitEventHandle,

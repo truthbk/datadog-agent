@@ -11,39 +11,62 @@ import (
 	"fmt"
 	"testing"
 
-    evtapidef "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
-    winevtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api/windows"
-    mockevtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api/mock"
+    "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func get_test_apis() []evtapidef.IWindowsEventLogAPI {
-
-	var apis []evtapidef.IWindowsEventLogAPI
-
-	apis = append(apis, mockevtapi.NewMockWindowsEventLogAPI())
-
-	if testing.Short() == false {
-		apis = append(apis, winevtapi.NewWindowsEventLogAPI())
-	}
-
-	return apis
-}
 
 func TestInvalidChannel(t *testing.T) {
-	apis := get_test_apis()
+	testInterfaceNames := eventlog_test.GetEnabledTestInterfaces()
 
-	for _, api := range apis {
-		t.Run(fmt.Sprintf("%s API", api.API_Name()), func(t *testing.T) {
+	for _, tiName := range testInterfaceNames {
+		t.Run(fmt.Sprintf("%sAPI", tiName), func(t *testing.T) {
+			ti := eventlog_test.GetTestInterfaceByName(tiName, t)
 			sub := NewPullSubscription(
 				"nonexistentchannel",
 				"*",
 				WithEventLoopWaitMs(50),
-				WithWindowsEventLogAPI(api))
+				WithWindowsEventLogAPI(ti.EventLogAPI()))
 
 			err := sub.Start()
-			assert.Error(t, err)
+			require.Error(t, err)
+		})
+	}
+}
+
+func TestGetEventHandles(t *testing.T) {
+	testInterfaceNames := eventlog_test.GetEnabledTestInterfaces()
+
+	var err error
+	channel := "testchannel"
+	numEvents := uint(10)
+
+	for _, tiName := range testInterfaceNames {
+		t.Run(fmt.Sprintf("%sAPI", tiName), func(t *testing.T) {
+			ti := eventlog_test.GetTestInterfaceByName(tiName, t)
+
+			// Report events
+			err = ti.InstallSource(channel)
+			require.NoError(t, err)
+			err = ti.GenerateEvents(channel, numEvents)
+			require.NoError(t, err)
+
+			// Create sub
+			sub := NewPullSubscription(
+				channel,
+				"*",
+				WithEventLoopWaitMs(50),
+				WithWindowsEventLogAPI(ti.EventLogAPI()))
+
+			err = sub.Start()
+			require.NoError(t, err)
+
+			eventRecords := ReadNumEvents(ti, sub, numEvents)
+			count := uint(len(eventRecords))
+			require.Equal(ti.T(), count, numEvents, fmt.Sprintf("Missing events, collected %d/%d events", count, numEvents))
+
+			sub.Stop()
 		})
 	}
 }

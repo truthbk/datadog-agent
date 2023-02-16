@@ -28,18 +28,11 @@ var (
 	evtRender = wevtapi.NewProc("EvtRender")
 )
 
-type WindowsEventLogAPI struct {
-	name string
-}
+type WindowsEventLogAPI struct {}
 
 func NewWindowsEventLogAPI() *WindowsEventLogAPI {
 	var api WindowsEventLogAPI
-	api.name = "Windows"
 	return &api
-}
-
-func (api *WindowsEventLogAPI) API_Name() string {
-	return api.name
 }
 
 // Pass returned handle to EvtClose
