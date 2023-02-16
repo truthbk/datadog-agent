@@ -190,7 +190,7 @@ func (o *OrchestratorCheck) Run() error {
 
 // Cancel cancels the orchestrator check
 func (o *OrchestratorCheck) Cancel() {
-	log.Infof("Shutting down informers used by the check '%s'", o.ID())
+	log.Infof("Shutting down informerssss used by the check '%s'", o.ID())
 	close(o.stopCh)
 	o.wg.Wait()
 }
