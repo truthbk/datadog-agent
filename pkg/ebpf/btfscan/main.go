@@ -10,6 +10,7 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"io/fs"
 	"log"
@@ -30,6 +31,22 @@ import (
 
 var versionRegex = regexp.MustCompile(`^(\d+)\.(\d+)(?:\.(\d+))?.*$`)
 
+var (
+	archivePath  string
+	arch         string
+	searchStruct string
+	searchFunc   string
+	searchMember string
+)
+
+func init() {
+	flag.StringVar(&archivePath, "d", "", "path to btfhub-archive directory")
+	flag.StringVar(&arch, "a", runtime.GOARCH, "architecture")
+	flag.StringVar(&searchStruct, "s", "", "search for struct")
+	flag.StringVar(&searchFunc, "f", "", "search for func")
+	flag.StringVar(&searchMember, "n", "", "search for struct member")
+}
+
 type btfFile struct {
 	v        kernel.Version
 	path     string
@@ -37,14 +54,10 @@ type btfFile struct {
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		log.Fatal("path to archive directory and function name required")
+	if archivePath == "" {
+		log.Fatal("path to archive directory required")
 	}
 
-	arch := runtime.GOARCH
-	if len(os.Args) > 2 {
-		arch = os.Args[2]
-	}
 	var btfhubArch string
 	switch arch {
 	case "arm64":
@@ -53,22 +66,17 @@ func main() {
 		btfhubArch = "x86_64"
 	}
 
-	archivePath := os.Args[1]
 	searchDir := fmt.Sprintf("%s/*/*/%s/*.btf.tar.xz", archivePath, btfhubArch)
 
-	searchType := os.Args[3]
-	switch searchType {
-	case "func":
-		funcName := os.Args[4]
-		searchForChanges(searchDir, funcSearchFunc(funcName), false, false)
-	case "member":
-		memberPath := os.Args[4]
-		searchForChanges(searchDir, memberSearchFunc(memberPath), false, false)
-	case "type":
-		typeName := os.Args[4]
-		searchForChanges(searchDir, typeSearchFunc(typeName), false, true)
+	switch {
+	case searchFunc != "":
+		searchForChanges(searchDir, funcSearchFunc(searchFunc), false, false)
+	case searchMember != "":
+		searchForChanges(searchDir, memberSearchFunc(searchMember), false, false)
+	case searchStruct != "":
+		searchForChanges(searchDir, typeSearchFunc(searchStruct), false, true)
 	default:
-		log.Fatalf("unknown search type: %s\n", searchType)
+		log.Fatal("search type not provided\n")
 	}
 }
 
