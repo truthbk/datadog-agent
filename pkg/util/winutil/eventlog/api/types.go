@@ -59,6 +59,10 @@ type EventFragmentHandle interface {
 
 
 type IWindowsEventLogAPI interface {
+	// API methods
+	API_Name() string
+
+	// Windows methods
 	EvtSubscribe(
 		SignalEvent WaitEventHandle,
 		ChannelPath string,

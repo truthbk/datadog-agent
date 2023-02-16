@@ -16,6 +16,7 @@ import (
 )
 
 type MockWindowsEventLogAPI struct {
+	name string
 	subscriptionHandleCount uint
 	eventLogs map[string]*mockEventLog
 	subscriptions map[evtapi.EventResultSetHandle]*mockSubscription
@@ -43,6 +44,7 @@ type mockEventRecord struct {
 
 func NewMockWindowsEventLogAPI() *MockWindowsEventLogAPI {
 	var api MockWindowsEventLogAPI
+	api.name = "Mock"
 
 	api.subscriptions = make(map[evtapi.EventResultSetHandle]*mockSubscription)
 	// invalid handle
@@ -51,6 +53,10 @@ func NewMockWindowsEventLogAPI() *MockWindowsEventLogAPI {
 	api.eventLogs = make(map[string]*mockEventLog)
 
 	return &api
+}
+
+func (api *MockWindowsEventLogAPI) API_Name() string {
+	return api.name
 }
 
 func newMockEventLog(name string) *mockEventLog {
