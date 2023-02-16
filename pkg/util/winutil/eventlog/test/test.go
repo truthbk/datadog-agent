@@ -18,7 +18,7 @@ import (
 
 type EventLogTestInterface interface {
 	Name() string
-	T() *testing.T
+	T() testing.TB
 	EventLogAPI() evtapidef.IWindowsEventLogAPI
 	InstallSource(name string) error
 	RemoveSource(name string) error
@@ -40,10 +40,13 @@ func GetEnabledTestInterfaces() []string {
 	return ti
 }
 
-func GetTestInterfaceByName(name string, t *testing.T) EventLogTestInterface {
+func GetTestInterfaceByName(name string, t testing.TB) EventLogTestInterface {
 	if name == "Mock" {
 		return NewMockTestInterface(t)
 	} else if name == "Windows" {
+		if testing.Short() {
+			t.Skip("Skipping Windows API")
+		}
 		return NewWindowsTestInterface(t)
 	}
 

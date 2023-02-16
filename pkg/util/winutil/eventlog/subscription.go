@@ -237,7 +237,7 @@ func (q *PullSubscription) parseEventRecordHandles(eventRecordHandles []evtapi.E
 	eventRecords := make([]*EventRecord, len(eventRecordHandles))
 
 	for i, eventRecordHandle := range eventRecordHandles {
-		pkglog.Errorf("%d %v", i, eventRecordHandle)
+		// pkglog.Errorf("%d %v", i, eventRecordHandle)
 		pkglog.Flush()
 		eventRecords[i], err = q.parseEventRecordHandle(eventRecordHandle)
 		if err != nil {

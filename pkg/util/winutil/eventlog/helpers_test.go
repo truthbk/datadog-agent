@@ -8,7 +8,7 @@
 package eventlog
 
 import (
-	"fmt"
+	// "fmt"
 
     evtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
     "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
@@ -28,7 +28,7 @@ func ReadNumEvents(ti eventlog_test.EventLogTestInterface, sub *PullSubscription
 			if eventRecord.EventRecordHandle == evtapi.EventRecordHandle(0) {
 				require.FailNow(ti.T(), "EventRecordHandle should not be NULL")
 			}
-			fmt.Printf("handle: %#x\n", eventRecord.EventRecordHandle)
+			// fmt.Printf("handle: %#x\n", eventRecord.EventRecordHandle)
 			eventRecords[count] = eventRecord
 			count += 1
 			if count >= numEvents {

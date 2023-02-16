@@ -18,11 +18,11 @@ import (
 // and provides utilities to the test framework that will simulate
 // behavior and not make any changes to the host system
 type MockTestInterface struct {
-	t *testing.T
+	t testing.TB
 	eventlogapi *mockevtapi.MockWindowsEventLogAPI
 }
 
-func NewMockTestInterface(t *testing.T) *MockTestInterface {
+func NewMockTestInterface(t testing.TB) *MockTestInterface {
 	var ti MockTestInterface
 	ti.t = t
 	ti.eventlogapi = mockevtapi.NewMockWindowsEventLogAPI()
@@ -33,7 +33,7 @@ func (ti *MockTestInterface) Name() string{
 	return "Mock"
 }
 
-func (ti *MockTestInterface) T() *testing.T {
+func (ti *MockTestInterface) T() testing.TB {
 	return ti.t
 }
 

@@ -8,23 +8,22 @@
 package eventlog_test
 
 import (
+	"fmt"
 	"testing"
 
     evtapidef "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
     winevtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api/windows"
-
-	"github.com/stretchr/testify/assert"
 )
 
 // WindowsTestInterface uses the real Windows EventLog APIs
 // and provides utilities to the test framework that will modify
 // the host system (e.g. install event log source, generate events).
 type WindowsTestInterface struct {
-	t *testing.T
+	t testing.TB
 	eventlogapi *winevtapi.WindowsEventLogAPI
 }
 
-func NewWindowsTestInterface(t *testing.T) *WindowsTestInterface {
+func NewWindowsTestInterface(t testing.TB) *WindowsTestInterface {
 	var ti WindowsTestInterface
 	ti.t = t
 	ti.eventlogapi = winevtapi.NewWindowsEventLogAPI()
@@ -35,7 +34,7 @@ func (ti *WindowsTestInterface) Name() string{
 	return "Windows"
 }
 
-func (ti *WindowsTestInterface) T() *testing.T {
+func (ti *WindowsTestInterface) T() testing.TB {
 	return ti.t
 }
 
@@ -44,16 +43,13 @@ func (ti *WindowsTestInterface) EventLogAPI() evtapidef.IWindowsEventLogAPI {
 }
 
 func (ti *WindowsTestInterface) InstallSource(name string) error {
-	assert.FailNow(ti.T(), "not implemented")
-	return nil
+	return fmt.Errorf("not implemented")
 }
 
 func (ti *WindowsTestInterface) RemoveSource(name string) error {
-	assert.FailNow(ti.T(), "not implemented")
-	return nil
+	return fmt.Errorf("not implemented")
 }
 
 func (ti *WindowsTestInterface) GenerateEvents(channelName string, numEvents uint) error {
-	assert.FailNow(ti.T(), "not implemented")
-	return nil
+	return fmt.Errorf("not implemented")
 }
