@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/config"
 	"github.com/DataDog/datadog-agent/pkg/logs/internal/launchers"
 	tailer "github.com/DataDog/datadog-agent/pkg/logs/internal/tailers/windowsevent"
+	newtailer "github.com/DataDog/datadog-agent/pkg/logs/internal/tailers/windowsevent-new"
 	"github.com/DataDog/datadog-agent/pkg/logs/pipeline"
 	"github.com/DataDog/datadog-agent/pkg/logs/sources"
 	"github.com/DataDog/datadog-agent/pkg/util/startstop"
@@ -98,7 +99,11 @@ func (l *Launcher) setupTailer(source *sources.LogSource) (*tailer.Tailer, error
 		ChannelPath: sanitizedConfig.ChannelPath,
 		Query:       sanitizedConfig.Query,
 	}
-	tailer := tailer.NewTailer(source, config, l.pipelineProvider.NextPipelineChan())
+	if source.Config.Type == "windows_event_new" {
+		tailer := newtailer.NewTailer(source, config, l.pipelineProvider.NextPipelineChan())
+	} else {
+		tailer := tailer.NewTailer(source, config, l.pipelineProvider.NextPipelineChan())
+	}
 	tailer.Start()
 	return tailer, nil
 }

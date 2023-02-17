@@ -15,6 +15,7 @@ package windowsevent
 import "C"
 
 import (
+	"fmt"
 	"unicode/utf16"
 	"unsafe"
 
@@ -22,6 +23,8 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog"
+	winevtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api/windows"
 )
 
 // Start starts tailing the event log.
@@ -33,6 +36,7 @@ func (t *Tailer) Start() {
 // Stop stops the tailer
 func (t *Tailer) Stop() {
 	log.Info("Stop tailing windows event log")
+	t.sub.Stop()
 	t.stop <- struct{}{}
 	<-t.done
 }
@@ -42,39 +46,41 @@ func (t *Tailer) tail() {
 	t.context = &eventContext{
 		id: indexForTailer(t),
 	}
-	C.startEventSubscribe(
-		C.CString(t.config.ChannelPath),
-		C.CString(t.config.Query),
-		C.ULONGLONG(0),
-		C.int(EvtSubscribeToFutureEvents),
-		C.PVOID(uintptr(unsafe.Pointer(t.context))),
-	)
+	if t.evtapi == nil {
+		t.evtapi = winevtapi.NewWindowsEventLogAPI()
+	}
+	t.sub = eventlog.NewPullSubscription(
+		t.config.ChannelPath,
+		t.config.Query,
+		eventlog.WithEventLoopWaitMs(50),
+		eventlog.WithWindowsEventLogAPI(t.evtapi))
+	err := t.sub.Start()
+	if err != nil {
+		err = fmt.Errorf("Failed to start subscription: %v", err)
+		log.Errorf("%v", err)
+		t.source.Status.Error(err)
+		return
+	}
 	t.source.Status.Success()
 
 	// wait for stop signal
-	<-t.stop
+	eventLoop:
+		for {
+			select {
+			case <-t.stop:
+				break eventLoop
+			case eventRecord := <-t.sub.EventRecords:
+				if eventRecord == nil {
+					break
+				}
+				goNotificationCallback(C.ULONGLONG(uintptr(eventRecord.EventRecordHandle)), C.PVOID(uintptr(unsafe.Pointer(t.context))))
+
+			}
+		}
 	t.done <- struct{}{}
 	return
 }
 
-/*
-	Windows related methods
-*/
-
-/* These are entry points for the callback to hand the pointer to Go-land.
-   Note: handles are only valid within the callback. Don't pass them out. */
-
-//export goStaleCallback
-func goStaleCallback(errCode C.ULONGLONG, ctx C.PVOID) {
-	log.Warn("EventLog tailer got Stale callback")
-}
-
-//export goErrorCallback
-func goErrorCallback(errCode C.ULONGLONG, ctx C.PVOID) {
-	log.Warn("EventLog tailer got Error callback with code ", errCode)
-}
-
-//export goNotificationCallback
 func goNotificationCallback(handle C.ULONGLONG, ctx C.PVOID) {
 	goctx := *(*eventContext)(unsafe.Pointer(uintptr(ctx)))
 	log.Debug("Callback from ", goctx.id)
@@ -153,7 +159,7 @@ func EvtRender(h C.ULONGLONG) (richEvt *richEvent, err error) {
 func enrichEvent(h C.ULONGLONG, xml string) *richEvent {
 	var message, task, opcode, level string
 	// Enrich event with rendered
-	richEvtCStruct := C.EnrichEvent(h)
+	richEvtCStruct := C.NewEnrichEvent(h)
 	if richEvtCStruct != nil {
 		if richEvtCStruct.message != nil {
 			message = LPWSTRToString(richEvtCStruct.message)

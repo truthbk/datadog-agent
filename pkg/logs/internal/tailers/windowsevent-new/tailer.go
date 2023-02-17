@@ -19,6 +19,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
 	"github.com/DataDog/datadog-agent/pkg/logs/sources"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog"
+	evtapidef "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
 )
 
 const (
@@ -53,6 +55,7 @@ type richEvent struct {
 
 // Tailer collects logs from event log.
 type Tailer struct {
+	evtapi     evtapidef.IWindowsEventLogAPI
 	source     *sources.LogSource
 	config     *Config
 	outputChan chan *message.Message
@@ -60,11 +63,13 @@ type Tailer struct {
 	done       chan struct{}
 
 	context *eventContext
+	sub *eventlog.PullSubscription
 }
 
 // NewTailer returns a new tailer.
-func NewTailer(source *sources.LogSource, config *Config, outputChan chan *message.Message) *Tailer {
+func NewTailer(evtapi evtapidef.IWindowsEventLogAPI, source *sources.LogSource, config *Config, outputChan chan *message.Message) *Tailer {
 	return &Tailer{
+		evtapi:     evtapi,
 		source:     source,
 		config:     config,
 		outputChan: outputChan,
