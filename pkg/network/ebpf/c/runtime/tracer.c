@@ -49,7 +49,7 @@
 // by using tail call.
 SEC("socket/classifier_entry")
 int socket__classifier_entry(struct __sk_buff *skb) {
-    bpf_tail_call_compat(skb, &classification_progs, CLASSIFICATION_PROG);
+    bpf_tail_call_compat_with_telemetry(skb, &classification_progs, CLASSIFICATION_PROG);
     return 0;
 }
 
