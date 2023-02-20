@@ -402,7 +402,10 @@ func TestProcessEvents(t *testing.T) {
 
 			// Define a max size of 1 for the queue. With a size > 1, it's difficult to
 			// control the number of events sent on each call.
-			p := newProcessor(fakeworkloadmeta, sender, 1, 50*time.Millisecond)
+			p, err := newProcessor(fakeworkloadmeta, sender, 1, 50*time.Millisecond)
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			for _, ev := range test.inputEvents {
 				switch ev.Type {
@@ -413,7 +416,7 @@ func TestProcessEvents(t *testing.T) {
 				}
 			}
 
-			p.processEvents(workloadmeta.EventBundle{
+			p.processContainerImagesEvents(workloadmeta.EventBundle{
 				Events: test.inputEvents,
 				Ch:     make(chan struct{}),
 			})
