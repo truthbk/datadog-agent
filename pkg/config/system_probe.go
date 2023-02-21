@@ -286,7 +286,7 @@ func InitSystemProbeConfig(cfg Config) {
 	bindEnvAndSetLogsConfigKeys(cfg, "runtime_security_config.activity_dump.remote_storage.endpoints.")
 
 	// SBOM
-	cfg.BindEnvAndSetDefault("runtime_security_config.sbom.enabled", true)
+	cfg.BindEnvAndSetDefault("runtime_security_config.sbom.enabled", false)
 	cfg.BindEnvAndSetDefault("runtime_security_config.sbom.workloads_cache_size", 10)
 }
 
