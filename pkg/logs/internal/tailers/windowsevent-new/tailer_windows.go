@@ -22,8 +22,8 @@ import (
 	"golang.org/x/sys/windows"
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
-	"github.com/DataDog/datadog-agent/pkg/util/winutil"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog"
+	evtapidef "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
 	winevtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api/windows"
 )
 
@@ -73,7 +73,7 @@ func (t *Tailer) tail() {
 				if eventRecord == nil {
 					break
 				}
-				goNotificationCallback(C.ULONGLONG(uintptr(eventRecord.EventRecordHandle)), C.PVOID(uintptr(unsafe.Pointer(t.context))))
+				goNotificationCallback(t.evtapi, eventRecord.EventRecordHandle, C.PVOID(uintptr(unsafe.Pointer(t.context))))
 
 			}
 		}
@@ -81,15 +81,25 @@ func (t *Tailer) tail() {
 	return
 }
 
-func goNotificationCallback(handle C.ULONGLONG, ctx C.PVOID) {
+func goNotificationCallback(evtapi evtapidef.IWindowsEventLogAPI, eventRecordHandle evtapidef.EventRecordHandle, ctx C.PVOID) {
 	goctx := *(*eventContext)(unsafe.Pointer(uintptr(ctx)))
 	log.Debug("Callback from ", goctx.id)
 
-	richEvt, err := EvtRender(handle)
+	xmlData, err := evtapi.EvtRenderEventXml(eventRecordHandle)
 	if err != nil {
 		log.Warnf("Error rendering xml: %v", err)
 		return
 	}
+	xml := windows.UTF16ToString(xmlData)
+
+	richEvt := &richEvent{
+		xmlEvent: xml,
+		message:  "",
+		task:     "",
+		opcode:   "",
+		level:    "",
+	}
+
 	t, exists := tailerForIndex(goctx.id)
 	if !exists {
 		log.Warnf("Got invalid eventContext id %d when map is %v", goctx.id, eventContextToTailerMap)
@@ -111,88 +121,6 @@ var (
 	procEvtRender = modWinEvtAPI.NewProc("EvtRender")
 )
 
-// EvtRender takes an event handle and renders it to XML
-func EvtRender(h C.ULONGLONG) (richEvt *richEvent, err error) {
-	var bufSize uint32
-	var bufUsed uint32
-
-	_, _, err = procEvtRender.Call(uintptr(0), // this handle is always null for XML renders
-		uintptr(h),                 // handle of event we're rendering
-		uintptr(EvtRenderEventXml), // for now, always render in xml
-		uintptr(bufSize),
-		uintptr(0),                        // no buffer for now, just getting necessary size
-		uintptr(unsafe.Pointer(&bufUsed)), // filled in with necessary buffer size
-		uintptr(0))                        // not used but must be provided
-	if err != error(windows.ERROR_INSUFFICIENT_BUFFER) {
-		log.Warnf("Couldn't render xml event: %s", err)
-		return
-	}
-	bufSize = bufUsed
-	buf := make([]uint8, bufSize)
-	ret, _, err := procEvtRender.Call(uintptr(0), // this handle is always null for XML renders
-		uintptr(h),                 // handle of event we're rendering
-		uintptr(EvtRenderEventXml), // for now, always render in xml
-		uintptr(bufSize),
-		uintptr(unsafe.Pointer(&buf[0])),  // actual buffer used
-		uintptr(unsafe.Pointer(&bufUsed)), // filled in with necessary buffer size
-		uintptr(0))                        // not used but must be provided
-	if ret == 0 {
-		return
-	}
-	buf = buf[:bufUsed]
-	// Call will set error anyway.  Clear it so we don't return an error
-	err = nil
-
-	xml := winutil.ConvertWindowsString(buf)
-
-	richEvt = enrichEvent(h, xml)
-
-	return
-
-}
-
-// enrichEvent renders data, and set the rendered fields to the richEvent.
-// We need this some fields in the Windows Events are coded with numerical
-// value. We then call a function in the Windows API that match the code to
-// a human readable value.
-// enrichEvent also takes care of freeing the memory allocated in the C code
-func enrichEvent(h C.ULONGLONG, xml string) *richEvent {
-	var message, task, opcode, level string
-	// Enrich event with rendered
-	richEvtCStruct := C.NewEnrichEvent(h)
-	if richEvtCStruct != nil {
-		if richEvtCStruct.message != nil {
-			message = LPWSTRToString(richEvtCStruct.message)
-		}
-		if richEvtCStruct.task != nil {
-			task = LPWSTRToString(richEvtCStruct.task)
-		}
-		if richEvtCStruct.opcode != nil {
-			opcode = LPWSTRToString(richEvtCStruct.opcode)
-		}
-		if richEvtCStruct.level != nil {
-			level = LPWSTRToString(richEvtCStruct.level)
-		}
-
-		C.free(unsafe.Pointer(richEvtCStruct.message))
-		C.free(unsafe.Pointer(richEvtCStruct.task))
-		C.free(unsafe.Pointer(richEvtCStruct.opcode))
-		C.free(unsafe.Pointer(richEvtCStruct.level))
-		C.free(unsafe.Pointer(richEvtCStruct))
-	}
-
-	if len(message) >= maxRunes {
-		message = message + truncatedFlag
-	}
-
-	return &richEvent{
-		xmlEvent: xml,
-		message:  message,
-		task:     task,
-		opcode:   opcode,
-		level:    level,
-	}
-}
 
 type evtSubscribeNotifyAction int32
 type evtSubscribeFlags int32

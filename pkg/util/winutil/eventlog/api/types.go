@@ -53,10 +53,6 @@ type EventRenderContextHandle windows.Handle
 // Returned from CreateEvent
 type WaitEventHandle windows.Handle
 
-type EventFragmentHandle interface {
-	EventRecordHandle | EventBookmarkHandle
-}
-
 type IWindowsEventLogAPI interface {
 	// Windows methods
 	EvtSubscribe(
@@ -73,6 +69,10 @@ type IWindowsEventLogAPI interface {
 		Timeout uint) ([]EventRecordHandle, error)
 
 	EvtClose(h windows.Handle)
+
+	EvtRenderEventXml(Fragment EventRecordHandle) ([]uint16, error)
+
+	EvtRenderBookmark(Fragment EventBookmarkHandle) ([]uint16, error)
 }
 
 //

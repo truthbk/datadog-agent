@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"testing"
 
+	"golang.org/x/sys/windows/svc/eventlog"
+
     evtapidef "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
     winevtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api/windows"
 )

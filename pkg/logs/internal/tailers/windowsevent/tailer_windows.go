@@ -15,6 +15,7 @@ package windowsevent
 import "C"
 
 import (
+	"fmt"
 	"unicode/utf16"
 	"unsafe"
 
@@ -42,17 +43,23 @@ func (t *Tailer) tail() {
 	t.context = &eventContext{
 		id: indexForTailer(t),
 	}
-	C.startEventSubscribe(
+	hSub := C.startEventSubscribe(
 		C.CString(t.config.ChannelPath),
 		C.CString(t.config.Query),
 		C.ULONGLONG(0),
 		C.int(EvtSubscribeToFutureEvents),
 		C.PVOID(uintptr(unsafe.Pointer(t.context))),
 	)
-	t.source.Status.Success()
+	if hSub == 0 {
+		err := fmt.Errorf("Failed to start subscription: %v", windows.GetLastError())
+		log.Errorf("%v", err)
+		t.source.Status.Error(err)
+	} else {
+		t.source.Status.Success()
+		// wait for stop signal
+		<-t.stop
+	}
 
-	// wait for stop signal
-	<-t.stop
 	t.done <- struct{}{}
 	return
 }

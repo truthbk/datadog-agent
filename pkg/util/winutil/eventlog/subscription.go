@@ -207,7 +207,11 @@ func (q *PullSubscription) collectEvents() error {
 		if err == nil {
 			// got events, process them and send them to the channel
 			eventRecords := q.parseEventRecordHandles(eventRecordHandles)
-			q.sendEventsToChannel(eventRecords)
+			err = q.sendEventsToChannel(eventRecords)
+			if err != nil {
+				fmt.Println("%v", err)
+				return err
+			}
 			eventCount += uint(len(eventRecordHandles))
 		} else if err == windows.ERROR_TIMEOUT {
 			// no more events
@@ -257,7 +261,13 @@ func (q *PullSubscription) parseEventRecordHandle(eventRecordHandle evtapi.Event
 
 func (q *PullSubscription) sendEventsToChannel(eventRecords []*EventRecord) error {
 	for _, eventRecord := range eventRecords {
-		q.EventRecords <- eventRecord
+		select {
+		case q.EventRecords <- eventRecord:
+		case x := <- q.stopQueryLoop:
+			go func() { q.stopQueryLoop <- x }()
+			return fmt.Errorf("interrupted, stop signal set")
+		}
+
 	}
 	return nil
 }

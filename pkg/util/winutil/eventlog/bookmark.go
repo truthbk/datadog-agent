@@ -33,7 +33,7 @@ func OpenBookmarkFromPath(bookmarkPath string) (api.EventBookmarkHandle, error) 
 
 func RenderBookmark(bookmarkHandle api.EventBookmarkHandle) (string, error) {
 	// Render bookmark
-	buf, err := EvtRenderText(bookmarkHandle, EvtRenderBookmark)
+	buf, err := EvtRenderBookmark(bookmarkHandle)
 	if err != nil {
 		return "", err
 	} else if buf == nil || len(buf) == 0 {

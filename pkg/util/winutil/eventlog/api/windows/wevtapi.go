@@ -165,8 +165,8 @@ func EvtCreateRenderContext(ValuePaths []string, Flags uint) (evtapi.EventRender
 
 // EvtRenderText supports the EvtRenderEventXml and EvtRenderBookmark Flags
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtrender
-func EvtRenderText[FragmentType evtapi.EventFragmentHandle](
-	Fragment FragmentType,
+func evtRenderText(
+	Fragment windows.Handle,
 	Flags uint) ([]uint16, error) {
 
 	if Flags != evtapi.EvtRenderEventXml && Flags != evtapi.EvtRenderBookmark {
@@ -214,3 +214,15 @@ func EvtRenderText[FragmentType evtapi.EventFragmentHandle](
 	return Buffer, nil
 }
 
+
+// EvtRenderEventXmlText renders EvtRenderEventXml
+// https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtrender
+func (api *WindowsEventLogAPI) EvtRenderEventXml(Fragment evtapi.EventRecordHandle) ([]uint16, error) {
+	return evtRenderText(windows.Handle(Fragment), evtapi.EvtRenderEventXml)
+}
+
+// EvtRenderEventXmlText renders EvtRenderBookmark
+// https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtrender
+func (api *WindowsEventLogAPI) EvtRenderBookmark(Fragment evtapi.EventBookmarkHandle) ([]uint16, error) {
+	return evtRenderText(windows.Handle(Fragment), evtapi.EvtRenderBookmark)
+}
