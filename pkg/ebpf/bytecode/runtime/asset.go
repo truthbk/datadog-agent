@@ -12,6 +12,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -135,6 +136,26 @@ func createRamBackedFile(name, hash string, source io.Reader, runtimeDir string)
 	tmpFile := filepath.Join(runtimeDir, fmt.Sprintf("%s-%s", name, hash))
 
 	os.Remove(tmpFile)
+
+	files, err := ioutil.ReadDir(fmt.Sprintf("/proc/%d/fd", os.Getpid()))
+	if err != nil {
+		return "", nil, fmt.Errorf("no dir %s: %w", fmt.Sprintf("/proc/%d/fd", os.Getpid()), err)
+	}
+
+	for _, file := range files {
+		if file.Mode()&os.ModeSymlink != 0 {
+			link, _ := os.Readlink(fmt.Sprintf("/proc/%d/fd/%s", os.Getpid(), file.Name()))
+			fmt.Println(
+				fmt.Sprintf("%s => %s",
+					file.Name(),
+					link,
+				),
+			)
+		} else {
+			fmt.Println(file.Name())
+		}
+	}
+
 	if err := os.Symlink(target, tmpFile); err != nil {
 		return "", nil, fmt.Errorf("failed to create symlink with target file %s: %w", target, err)
 	}
