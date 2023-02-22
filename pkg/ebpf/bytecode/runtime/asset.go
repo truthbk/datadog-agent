@@ -144,7 +144,11 @@ func createRamBackedFile(name, hash string, source io.Reader, runtimeDir string)
 
 	for _, file := range files {
 		if file.Mode()&os.ModeSymlink != 0 {
-			link, _ := os.Readlink(fmt.Sprintf("/proc/%d/fd/%s", os.Getpid(), file.Name()))
+			link, err := os.Readlink(fmt.Sprintf("/proc/%d/fd/%s", os.Getpid(), file.Name()))
+			if err != nil {
+				log.Info("Failed to read link of file %s: %w", fmt.Sprintf("/proc/%d/fd/%s", os.Getpid(), file.Name()), err)
+				continue
+			}
 			fmt.Println(
 				fmt.Sprintf("%s => %s",
 					file.Name(),
