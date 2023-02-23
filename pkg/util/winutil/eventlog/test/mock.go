@@ -41,11 +41,21 @@ func (ti *MockTestInterface) EventLogAPI() evtapidef.IWindowsEventLogAPI {
 	return ti.eventlogapi
 }
 
-func (ti *MockTestInterface) InstallSource(name string) error {
-	return ti.eventlogapi.AddEventLog(name)
+func (ti *MockTestInterface) InstallChannel(channel string) error {
+	return ti.eventlogapi.AddEventLog(channel)
 }
 
-func (ti *MockTestInterface) RemoveSource(name string) error {
+func (ti *MockTestInterface) RemoveChannel(channel string) error {
+	return ti.eventlogapi.RemoveEventLog(channel)
+}
+
+func (ti *MockTestInterface) InstallSource(channel string, source string) error {
+	// not needed
+	return nil
+}
+
+func (ti *MockTestInterface) RemoveSource(channel string, source string) error {
+	// not needed
 	return nil
 }
 

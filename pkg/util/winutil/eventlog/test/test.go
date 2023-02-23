@@ -20,8 +20,10 @@ type EventLogTestInterface interface {
 	Name() string
 	T() testing.TB
 	EventLogAPI() evtapidef.IWindowsEventLogAPI
-	InstallSource(name string) error
-	RemoveSource(name string) error
+	InstallChannel(channel string) error
+	RemoveChannel(channel string) error
+	InstallSource(channel string, source string) error
+	RemoveSource(channel string, name string) error
 	GenerateEvents(channelName string, numEvents uint) error
 }
 

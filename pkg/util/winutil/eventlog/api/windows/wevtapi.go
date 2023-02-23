@@ -18,6 +18,8 @@ import (
 )
 
 var (
+	// New Event Log API
+	// https://learn.microsoft.com/en-us/windows/win32/wes/using-windows-event-log
 	wevtapi = windows.NewLazySystemDLL("wevtapi.dll")
 	evtSubscribe = wevtapi.NewProc("EvtSubscribe")
 	evtClose = wevtapi.NewProc("EvtClose")
@@ -26,6 +28,14 @@ var (
 	evtUpdateBookmark = wevtapi.NewProc("EvtUpdateBookmark")
 	evtCreateRenderContext = wevtapi.NewProc("EvtCreateRenderContext")
 	evtRender = wevtapi.NewProc("EvtRender")
+	evtClearLog = wevtapi.NewProc("EvtClearLog")
+
+	// Legacy Event Logging API
+	// https://learn.microsoft.com/en-us/windows/win32/eventlog/using-event-logging
+	advapi32 = windows.NewLazySystemDLL("advapi32.dll")
+	registerEventSource = advapi32.NewProc("RegisterEventSourceW")
+	deregisterEventSource = advapi32.NewProc("DeregisterEventSource")
+	reportEvent = advapi32.NewProc("ReportEventW")
 )
 
 type WindowsEventLogAPI struct {}
@@ -225,4 +235,99 @@ func (api *WindowsEventLogAPI) EvtRenderEventXml(Fragment evtapi.EventRecordHand
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtrender
 func (api *WindowsEventLogAPI) EvtRenderBookmark(Fragment evtapi.EventBookmarkHandle) ([]uint16, error) {
 	return evtRenderText(windows.Handle(Fragment), evtapi.EvtRenderBookmark)
+}
+
+// https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-registereventsourcew
+func (api *WindowsEventLogAPI) RegisterEventSource(SourceName string) (evtapi.EventSourceHandle, error) {
+	sourceName, err := winutil.UTF16PtrOrNilFromString(SourceName)
+	if err != nil {
+		return evtapi.EventSourceHandle(0), err
+	}
+
+	r1, _, lastErr := registerEventSource.Call(
+		uintptr(0), // local computer only
+		uintptr(unsafe.Pointer(sourceName)))
+	// RegisterEventSource returns NULL on error
+	if r1 == 0 {
+		return evtapi.EventSourceHandle(0), lastErr
+	}
+
+	return evtapi.EventSourceHandle(r1), nil
+}
+
+// https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-deregistereventsource
+func (api *WindowsEventLogAPI) DeregisterEventSource(EventLog evtapi.EventSourceHandle) error {
+	r1, _, lastErr := deregisterEventSource.Call(uintptr(EventLog))
+	// DeregisterEventSource returns C FALSE (0) on error
+	if r1 == 0 {
+		return lastErr
+	}
+
+	return nil
+}
+
+// https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-reporteventw
+func (api *WindowsEventLogAPI) ReportEvent(
+	EventLog evtapi.EventSourceHandle,
+	Type uint,
+	Category uint,
+	EventID uint,
+	Strings []string,
+	RawData []uint8) error {
+
+	var err error
+	strings := make([]*uint16, len(Strings))
+
+	for i, s := range Strings {
+		strings[i], err = windows.UTF16PtrFromString(s)
+		if err != nil {
+			return err
+		}
+	}
+
+	var rawData *uint8
+	if len(RawData) == 0 {
+		rawData = nil
+	} else {
+		rawData = &RawData[:1][0]
+	}
+
+	r1, _, lastErr := reportEvent.Call(
+		uintptr(EventLog),
+		uintptr(Type),
+		uintptr(Category),
+		uintptr(EventID),
+		uintptr(0), // userSid
+		uintptr(len(strings)),
+		uintptr(len(RawData)),
+		// TODO: use unsafe.SliceData in go1.20
+		uintptr(unsafe.Pointer(&strings[:1][0])),
+		// TODO: use unsafe.SliceData in go1.20
+		uintptr(unsafe.Pointer(rawData)))
+	// ReportEvent returns C FALSE (0) on error
+	if r1 == 0 {
+		return lastErr
+	}
+
+	return nil
+}
+
+// https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtclearlog
+func (api *WindowsEventLogAPI) EvtClearLog(ChannelPath string) error {
+	channelPath, err := winutil.UTF16PtrOrNilFromString(ChannelPath)
+	if err != nil {
+		return err
+	}
+
+	r1, _, lastErr := evtClearLog.Call(
+		uintptr(0), // local computer only
+		uintptr(unsafe.Pointer(channelPath)),
+		uintptr(0), // TargetFilePath not supported
+		uintptr(0)) // reserved must be 0
+	// EvtClearLog returns C FALSE (0) on error
+	if r1 == 0 {
+		return lastErr
+	}
+
+	return nil
 }

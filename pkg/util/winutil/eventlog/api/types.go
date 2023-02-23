@@ -50,11 +50,14 @@ type EventBookmarkHandle windows.Handle
 // Returned from EvtCreateRenderContext
 type EventRenderContextHandle windows.Handle
 
+// Returned from RegisterEventSource
+type EventSourceHandle windows.Handle
+
 // Returned from CreateEvent
 type WaitEventHandle windows.Handle
 
 type IWindowsEventLogAPI interface {
-	// Windows methods
+	// Windows Event Log API methods
 	EvtSubscribe(
 		SignalEvent WaitEventHandle,
 		ChannelPath string,
@@ -73,7 +76,24 @@ type IWindowsEventLogAPI interface {
 	EvtRenderEventXml(Fragment EventRecordHandle) ([]uint16, error)
 
 	EvtRenderBookmark(Fragment EventBookmarkHandle) ([]uint16, error)
+
+	// Windows Event Logging methods
+	RegisterEventSource(SourceName string) (EventSourceHandle, error)
+
+	DeregisterEventSource(EventLog EventSourceHandle) error
+
+	EvtClearLog(ChannelPath string) error
+
+	ReportEvent(
+		EventLog EventSourceHandle,
+		Type uint,
+		Category uint,
+		EventID uint,
+		Strings []string,
+		RawData []uint8) error
+
 }
+
 
 //
 // Helpful wrappers for custom types

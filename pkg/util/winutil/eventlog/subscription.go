@@ -129,7 +129,7 @@ func (q *PullSubscription) Start() (error) {
 		q.ChannelPath,
 		q.Query,
 		evtapi.EventBookmarkHandle(0),
-		evtapi.EvtSubscribeToFutureEvents)
+		evtapi.EvtSubscribeStartAtOldestRecord)
 	if err != nil {
 		safeCloseNullHandle(windows.Handle(hWait))
 		return err
@@ -209,7 +209,7 @@ func (q *PullSubscription) collectEvents() error {
 			eventRecords := q.parseEventRecordHandles(eventRecordHandles)
 			err = q.sendEventsToChannel(eventRecords)
 			if err != nil {
-				fmt.Println("%v", err)
+				pkglog.Errorf("Failed to send events to channel: %v", err)
 				return err
 			}
 			eventCount += uint(len(eventRecordHandles))

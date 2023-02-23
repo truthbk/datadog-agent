@@ -25,6 +25,9 @@ type MockWindowsEventLogAPI struct {
 
 	eventRecordHandleCount uint
 	eventHandles map[evtapi.EventRecordHandle]*mockEventRecord
+
+	sourceHandleCount uint
+	sourceHandles map[evtapi.EventSourceHandle]string
 }
 
 type mockEventLog struct {
@@ -43,12 +46,13 @@ type mockSubscription struct {
 type mockEventRecord struct {
 	handle evtapi.EventRecordHandle
 
-	eventLog string
-
 	// Must be exported so template can render them
+	Type uint
+	Category uint
 	EventID uint
-	Source string
-	Data string
+	Strings []string
+	RawData []uint8
+	EventLog string
 }
 
 func NewMockWindowsEventLogAPI() *MockWindowsEventLogAPI {
@@ -63,6 +67,8 @@ func NewMockWindowsEventLogAPI() *MockWindowsEventLogAPI {
 	api.eventHandles = make(map[evtapi.EventRecordHandle]*mockEventRecord)
 	// invalid handle
 	api.eventHandles[0] = nil
+
+	api.sourceHandles = make(map[evtapi.EventSourceHandle]string)
 
 	return &api
 }
@@ -80,11 +86,14 @@ func newMockSubscription(channel string, query string) *mockSubscription {
 	return &s
 }
 
-func newMockEventRecord(eventID uint, source string, data string) *mockEventRecord {
+func newMockEventRecord(Type uint, category uint, eventID uint, eventLog string, strings []string, data []uint8) *mockEventRecord {
 	var e mockEventRecord
+	e.Type = Type
+	e.Category = category
 	e.EventID = eventID
-	e.Source = source
-	e.Data = data
+	e.Strings = strings
+	e.RawData = data
+	e.EventLog = eventLog
 	return &e
 }
 
@@ -102,6 +111,10 @@ func (api *MockWindowsEventLogAPI) AddEventLog(name string) error {
 	return nil
 }
 
+func (api *MockWindowsEventLogAPI) RemoveEventLog(name string) error {
+	return fmt.Errorf("not implemented")
+}
+
 func (api *MockWindowsEventLogAPI) GenerateEvents(eventLogName string, numEvents uint) error {
 	// Get event log
 	eventLog, err := api.getMockEventLog(eventLogName)
@@ -111,9 +124,10 @@ func (api *MockWindowsEventLogAPI) GenerateEvents(eventLogName string, numEvents
 
 	// Add junk events
 	for i := uint(0); i < numEvents; i+=1 {
-		event := newMockEventRecord(1000, "testchannel", "testdata")
+		event := eventLog.reportEvent(windows.EVENTLOG_INFORMATION_TYPE,
+			0, 1000, []string{"teststring"}, nil)
+		// TODO: Should only create a handle in the API when EvtNext is called
 		api.addEventRecord(event)
-		eventLog.addEventRecord(event)
 	}
 
 	return nil
@@ -155,9 +169,19 @@ func (api *MockWindowsEventLogAPI) getMockEventRecordByHandle(eventHandle evtapi
 func (api *MockWindowsEventLogAPI) getMockEventLog(name string) (*mockEventLog, error) {
 	v, ok := api.eventLogs[name]
 	if !ok {
-		return nil, fmt.Errorf("Event log %v not found", name)
+		return nil, fmt.Errorf("The Log name \"%v\" does not exist", name)
 	}
 	return v, nil
+}
+
+func (api *MockWindowsEventLogAPI) getMockEventLogByHandle(sourceHandle evtapi.EventSourceHandle) (*mockEventLog, error) {
+	// lookup name using handle
+	v, ok := api.sourceHandles[sourceHandle]
+	if !ok {
+		return nil, fmt.Errorf("Invalid source handle: %#x", sourceHandle)
+	}
+
+	return api.getMockEventLog(v)
 }
 
 func (api *MockWindowsEventLogAPI) addMockEventLog(eventLog *mockEventLog) {
@@ -166,7 +190,24 @@ func (api *MockWindowsEventLogAPI) addMockEventLog(eventLog *mockEventLog) {
 
 func (e *mockEventLog) addEventRecord(event *mockEventRecord) {
 	e.events = append(e.events, event)
-	event.eventLog = e.name
+}
+
+func (e *mockEventLog) reportEvent(
+	Type uint,
+	Category uint,
+	EventID uint,
+	Strings []string,
+	RawData []uint8) *mockEventRecord {
+
+	event := newMockEventRecord(
+		Type,
+		Category,
+		EventID,
+		e.name,
+		Strings,
+		RawData)
+	e.addEventRecord(event)
+	return event
 }
 
 //
@@ -254,7 +295,7 @@ func (api *MockWindowsEventLogAPI) EvtRenderEventXml(Fragment evtapi.EventRecord
 	tstr := `<Event xmlns="http://scemas.microsoft.com/win/2004/08/events/event">
   <System>
 	<EventID>{{ .EventID }}</EventID>
-	<Channel>{{ .Source }}</Channel>
+	<Channel>{{ .EventLog }}</Channel>
   </System>
   <EventData>
     <Data>{{ .Data }}</Data>
@@ -286,4 +327,66 @@ func (api *MockWindowsEventLogAPI) EvtRenderEventXml(Fragment evtapi.EventRecord
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtrender
 func (api *MockWindowsEventLogAPI) EvtRenderBookmark(Fragment evtapi.EventBookmarkHandle) ([]uint16, error) {
 	return nil, fmt.Errorf("not implemented")
+}
+
+func (api *MockWindowsEventLogAPI) RegisterEventSource(SourceName string) (evtapi.EventSourceHandle, error) {
+	// Ensure source/eventLog exists
+	eventLog, err := api.getMockEventLog(SourceName)
+	if err != nil {
+		return evtapi.EventSourceHandle(0), err
+	}
+
+	// Create a handle
+	api.sourceHandleCount += 1
+	h := evtapi.EventSourceHandle(api.sourceHandleCount)
+	api.sourceHandles[h] = eventLog.name
+	return h, nil
+}
+
+func (api *MockWindowsEventLogAPI) DeregisterEventSource(sourceHandle evtapi.EventSourceHandle) error {
+	_, err := api.getMockEventLogByHandle(sourceHandle)
+	if err != nil {
+		return err
+	}
+	delete(api.sourceHandles, sourceHandle)
+	return nil
+}
+
+func (api *MockWindowsEventLogAPI) ReportEvent(
+	EventLog evtapi.EventSourceHandle,
+	Type uint,
+	Category uint,
+	EventID uint,
+	Strings []string,
+	RawData []uint8) error {
+
+	// get event log
+	eventLog, err := api.getMockEventLogByHandle(EventLog)
+	if err != nil {
+		return err
+	}
+
+	event := eventLog.reportEvent(
+		Type,
+		Category,
+		EventID,
+		Strings,
+		RawData)
+	// TODO: Should only create a handle in the API when EvtNext is called
+	api.addEventRecord(event)
+
+	return nil
+}
+
+// https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtclearlog
+func (api *MockWindowsEventLogAPI) EvtClearLog(ChannelPath string) error {
+	// Ensure eventlog exists
+	eventLog, err := api.getMockEventLog(ChannelPath)
+	if err != nil {
+		return err
+	}
+
+	// clear the log
+	eventLog.events = nil
+	return nil
 }

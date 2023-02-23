@@ -11,6 +11,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/cihub/seelog"
+	pkglog "github.com/DataDog/datadog-agent/pkg/util/log"
+
     "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
 
 	"github.com/stretchr/testify/require"
@@ -37,7 +40,11 @@ func TestInvalidChannel(t *testing.T) {
 
 func createEvents(t testing.TB, ti eventlog_test.EventLogTestInterface, channel string, numEvents uint) {
 	// Report events
-	err := ti.InstallSource(channel)
+	err := ti.InstallChannel(channel)
+	require.NoError(t, err)
+	err = ti.EventLogAPI().EvtClearLog(channel)
+	require.NoError(t, err)
+	err = ti.InstallSource(channel, "testsource")
 	require.NoError(t, err)
 	err = ti.GenerateEvents(channel, numEvents)
 	require.NoError(t, err)
@@ -65,6 +72,7 @@ func getEventHandles(t testing.TB, ti eventlog_test.EventLogTestInterface, sub *
 }
 
 func TestGetEventHandles(t *testing.T) {
+	pkglog.SetupLogger(seelog.Default, "debug")
 	testInterfaceNames := eventlog_test.GetEnabledTestInterfaces()
 
 	channel := "testchannel"
