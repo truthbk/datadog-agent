@@ -1,3 +1,5 @@
+include_recipe "::docker_installation"
+
 root_dir = "/tmp/ci/system-probe"
 tests_dir = ::File.join(root_dir, "tests")
 
@@ -188,7 +190,6 @@ directory "/tmp/pkgjson" do
 end
 
 # Install relevant packages for docker
-include_recipe "::docker_installation"
 docker_file_dir = "#{root_dir}/kitchen-dockers"
 remote_directory docker_file_dir do
   source 'dockers'
