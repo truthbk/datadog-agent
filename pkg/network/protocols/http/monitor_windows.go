@@ -124,7 +124,6 @@ func (m *WindowsMonitor) GetHTTPStats() map[Key]*RequestStats {
 	defer m.mux.Unlock()
 
 	stats := m.statkeeper.GetAndResetAllStats()
-	removeDuplicates(stats)
 
 	m.telemetry.log()
 

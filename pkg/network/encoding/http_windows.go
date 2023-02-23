@@ -18,6 +18,6 @@ func newRequestMatcher() requestMatcher {
 	return func(e *httpEncoder, c network.ConnectionStats) (*model.HTTPAggregations, uint64, map[string]struct{}) {
 		// in windows data is not normalized so we use the key with the original (src, dst) order
 		k := network.HTTPKeyTuplesFromConn(c)[0]
-		return e.aggregations[k], e.staticTags[k], e.dynamicTags[k]
+		return e.aggregations[k], e.staticTags[k], e.dynamicTagsSet[k]
 	}
 }

@@ -42,7 +42,7 @@ func TestProcessHTTPTransactions(t *testing.T) {
 		for j := 0; j < 10; j++ {
 			statusCode := (j%5 + 1) * 100
 			latency := time.Duration(j%5+1) * time.Millisecond
-			tx := generateIPv4HTTPTransaction(sourceIP, destIP, sourcePort, destPort, path, statusCode, latency)
+			tx := generateIPv4HTTPTransaction(sourceIP, destIP, sourcePort, destPort, path, statusCode, latency, true)
 			sk.Process(tx)
 		}
 	}
@@ -82,6 +82,7 @@ func BenchmarkProcessSameConn(b *testing.B) {
 		"foobar",
 		404,
 		30*time.Millisecond,
+		true,
 	)
 
 	b.ReportAllocs()
@@ -120,8 +121,8 @@ func TestPathProcessing(t *testing.T) {
 
 		sk := setupStatKeeper(rules)
 		transactions := []httpTX{
-			generateIPv4HTTPTransaction(sourceIP, destIP, sourcePort, destPort, "/foobar", statusCode, latency),
-			generateIPv4HTTPTransaction(sourceIP, destIP, sourcePort, destPort, "/payment/123", statusCode, latency),
+			generateIPv4HTTPTransaction(sourceIP, destIP, sourcePort, destPort, "/foobar", statusCode, latency, true),
+			generateIPv4HTTPTransaction(sourceIP, destIP, sourcePort, destPort, "/payment/123", statusCode, latency, true),
 		}
 		for _, tx := range transactions {
 			sk.Process(tx)
@@ -144,9 +145,9 @@ func TestPathProcessing(t *testing.T) {
 
 		sk := setupStatKeeper(rules)
 		transactions := []httpTX{
-			generateIPv4HTTPTransaction(sourceIP, destIP, sourcePort, destPort, "/prefix/users/1", statusCode, latency),
-			generateIPv4HTTPTransaction(sourceIP, destIP, sourcePort, destPort, "/prefix/users/2", statusCode, latency),
-			generateIPv4HTTPTransaction(sourceIP, destIP, sourcePort, destPort, "/prefix/users/3", statusCode, latency),
+			generateIPv4HTTPTransaction(sourceIP, destIP, sourcePort, destPort, "/prefix/users/1", statusCode, latency, true),
+			generateIPv4HTTPTransaction(sourceIP, destIP, sourcePort, destPort, "/prefix/users/2", statusCode, latency, true),
+			generateIPv4HTTPTransaction(sourceIP, destIP, sourcePort, destPort, "/prefix/users/3", statusCode, latency, true),
 		}
 		for _, tx := range transactions {
 			sk.Process(tx)
@@ -176,8 +177,8 @@ func TestPathProcessing(t *testing.T) {
 
 		sk := setupStatKeeper(rules)
 		transactions := []httpTX{
-			generateIPv4HTTPTransaction(sourceIP, destIP, sourcePort, destPort, "/users/ana/payment/123", statusCode, latency),
-			generateIPv4HTTPTransaction(sourceIP, destIP, sourcePort, destPort, "/users/bob/payment/456", statusCode, latency),
+			generateIPv4HTTPTransaction(sourceIP, destIP, sourcePort, destPort, "/users/ana/payment/123", statusCode, latency, true),
+			generateIPv4HTTPTransaction(sourceIP, destIP, sourcePort, destPort, "/users/bob/payment/456", statusCode, latency, true),
 		}
 		for _, tx := range transactions {
 			sk.Process(tx)
@@ -210,6 +211,7 @@ func TestHTTPCorrectness(t *testing.T) {
 			"/ver\x04y/wro\x02g/path/",
 			404,
 			30*time.Millisecond,
+			true,
 		)
 
 		sk.Process(tx)
@@ -235,6 +237,7 @@ func TestHTTPCorrectness(t *testing.T) {
 			"/ver\x04y/wro\x02g/path/",
 			404,
 			30*time.Millisecond,
+			true,
 		)
 		tx.SetRequestMethod(MethodUnknown)
 
@@ -261,6 +264,7 @@ func TestHTTPCorrectness(t *testing.T) {
 			"/ver\x04y/wro\x02g/path/",
 			404,
 			0,
+			true,
 		)
 
 		sk.Process(tx)
