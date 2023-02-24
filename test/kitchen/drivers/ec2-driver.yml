@@ -140,6 +140,9 @@ platforms:
         sudo mkdir -p <%= ENV['KITCHEN_CI_MOUNT_PATH'] %>;
         sudo chmod a+rwx <%= ENV['KITCHEN_CI_MOUNT_PATH'] %>;
         sudo ln -s <%= ENV['KITCHEN_CI_MOUNT_PATH'] %> <%= ENV['KITCHEN_CI_ROOT_PATH'] %>;
+    pre_converge:
+    - remote: |
+      sudo du -abx -d 1 /tmp | sort -rn;
   <% end %>
   <% if al2022 %>
   # Add a hook after creating the host, to make sure we wait until the user_data
