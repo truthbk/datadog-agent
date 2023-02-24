@@ -1,5 +1,10 @@
 # prereqs
 case node[:platform]
+  when 'ubuntu', 'debian'
+    apt_update
+end
+
+case node[:platform]
 when 'ubuntu', 'debian'
   package 'gnupg'
 
