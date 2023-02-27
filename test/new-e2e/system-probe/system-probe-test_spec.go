@@ -1,9 +1,15 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"io/fs"
+	"log"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -15,13 +21,13 @@ const (
 
 //const TestDirRoot = "/home/usama.saqib/go/github.com/DataDog/datadog-agent/test/kitchen/site-cookbooks/dd-system-probe-check"
 
-var BaseEnv = map[string]string{
+var BaseEnv = map[string]interface{}{
 	"DD_SYSTEM_PROBE_BPF_DIR": filepath.Join("/opt/system-probe-tests", "pkg/ebpf/bytecode/build"),
 }
 
 type testConfig struct {
 	bundle         string
-	env            map[string]bool
+	env            map[string]interface{}
 	filterPackages filterPaths
 }
 
@@ -68,13 +74,19 @@ func pathEmbedded(fullPath, embedded string) bool {
 	return strings.Contains(fullPath, normalized)
 }
 
-func glob(dir, filename string, filter filterPaths) ([]string, error) {
+func glob(dir, filePattern string, filter filterPaths) ([]string, error) {
 	var matches []string
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() || d.Name() != filename {
+
+		present, err := regexp.Match(filePattern, []byte(d.Name()))
+		if err != nil {
+			return err
+		}
+
+		if d.IsDir() || !present {
 			return nil
 		}
 		for _, p := range filter.paths {
@@ -110,72 +122,136 @@ func buildCommandArgs(file, bundle string) []string {
 	pkg := generatePacakgeName(file)
 	junitfilePrefix := strings.ReplaceAll(pkg, "/", "-")
 	xmlpath := filepath.Join(
-		"/", "junit", bundle,
+		"/", "tmp", bundle,
 		fmt.Sprintf("%s.xml", junitfilePrefix),
 	)
 	jsonpath := filepath.Join(
-		"/", "pkgjson", bundle,
+		"/", "tmp", bundle,
 		fmt.Sprintf("%s.json", junitfilePrefix),
 	)
 	args := []string{
 		"-E",
-		"/go/bin/gotestsum",
+		"/tmp/gotestsum",
 		"--format", "dots",
 		"--junitfile", xmlpath,
 		"--jsonfile", jsonpath,
 		"--raw-command", "--",
-		"/go/bin/test2json", "-t", "-p", pkg, file, "-test.v", "-test.count=1",
+		"/tmp/test2json", "-t", "-p", pkg, file, "-test.v", "-test.count=1",
 	}
 
 	return args
 }
 
-func testPass(config testConfig) {
-	matches, _ := glob(TestDirRoot, Testsuite, config.filterPackages)
-	fmt.Printf("%s\n------\n", config.bundle)
-	for _, file := range matches {
-		args := buildCommandArgs(file, config.bundle)
+func mergeEnv(env ...map[string]interface{}) []string {
+	var mergedEnv []string
 
+	for _, e := range env {
+		for key, element := range e {
+			mergedEnv = append(mergedEnv, fmt.Sprintf("%s=%s", key, fmt.Sprint(element)))
+		}
 	}
-	fmt.Println()
+
+	return mergedEnv
+}
+
+func runCommandAndStreamOutput(cmd *exec.Cmd, commandOutput io.Reader) error {
+	go func() {
+		scanner := bufio.NewScanner(commandOutput)
+		for scanner.Scan() {
+			_, _ = os.Stdout.Write([]byte(scanner.Text() + "\n"))
+		}
+	}()
+
+	return cmd.Run()
+}
+
+func testPass(config testConfig) error {
+	matches, err := glob(TestDirRoot, Testsuite, config.filterPackages)
+	if err != nil {
+		return err
+	}
+
+	for _, file := range matches {
+		fmt.Println(file)
+
+		args := buildCommandArgs(file, config.bundle)
+		cmd := exec.Command(Sudo, args...)
+
+		r, w := io.Pipe()
+		cmd.Env = mergeEnv(config.env, BaseEnv)
+		cmd.Dir = filepath.Dir(file)
+		cmd.Stdout = w
+
+		if err := runCommandAndStreamOutput(cmd, r); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func fixAssetPermissions() error {
+	matches, err := glob(TestDirRoot, `.*\.o`, filterPaths{
+		paths:     []string{"pkg/ebpf/bytecode/build"},
+		inclusive: true,
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, file := range matches {
+		if err := os.Chown(file, 0, 0); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func main() {
-	testPass(testConfig{
-		bundle: "prebuilt",
-		env: map[string]bool{
-			"DD_ENABLE_RUNTIME_COMPILER": false,
-			"DD_ENABLE_CO_RE":            false,
-		},
-		filterPackages: skipPrebuiltTests,
-	})
-	testPass(testConfig{
+	if err := fixAssetPermissions(); err != nil {
+		log.Fatal(err)
+	}
+
+	//	if err := testPass(testConfig{
+	//		bundle: "prebuilt",
+	//		env: map[string]interface{}{
+	//			"DD_ENABLE_RUNTIME_COMPILER": false,
+	//			"DD_ENABLE_CO_RE":            false,
+	//		},
+	//		filterPackages: skipPrebuiltTests,
+	//	}); err != nil {
+	//		log.Fatal(err)
+	//	}
+	if err := testPass(testConfig{
 		bundle: "runtime",
-		env: map[string]bool{
+		env: map[string]interface{}{
 			"DD_ENABLE_RUNTIME_COMPILER":    true,
 			"DD_ALLOW_PRECOMPILED_FALLBACK": false,
 			"DD_ENABLE_CO_RE":               false,
 		},
 		filterPackages: runtimeCompiledTests,
-	})
-	testPass(testConfig{
-		bundle: "co-re",
-		env: map[string]bool{
-			"DD_ENABLE_CO_RE":                    true,
-			"DD_ENABLE_RUNTIME_COMPILER":         false,
-			"DD_ALLOW_RUNTIME_COMPILED_FALLBACK": false,
-			"DD_ALLOW_PRECOMPILED_FALLBACK":      false,
-		},
-		filterPackages: coreTests,
-	})
-	testPass(testConfig{
-		bundle: "fentry",
-		env: map[string]bool{
-			"ECS_FARGATE":                   true,
-			"DD_ENABLE_CO_RE":               true,
-			"DD_ENABLE_RUNTIME_COMPILER":    false,
-			"DD_ALLOW_PRECOMPILED_FALLBACK": false,
-		},
-		filterPackages: fentryTests,
-	})
+	}); err != nil {
+		log.Fatal(err)
+	}
+	//	testPass(testConfig{
+	//		bundle: "co-re",
+	//		env: map[string]interface{}{
+	//			"DD_ENABLE_CO_RE":                    true,
+	//			"DD_ENABLE_RUNTIME_COMPILER":         false,
+	//			"DD_ALLOW_RUNTIME_COMPILED_FALLBACK": false,
+	//			"DD_ALLOW_PRECOMPILED_FALLBACK":      false,
+	//		},
+	//		filterPackages: coreTests,
+	//	})
+	//	testPass(testConfig{
+	//		bundle: "fentry",
+	//		env: map[string]interface{}{
+	//			"ECS_FARGATE":                   true,
+	//			"DD_ENABLE_CO_RE":               true,
+	//			"DD_ENABLE_RUNTIME_COMPILER":    false,
+	//			"DD_ALLOW_PRECOMPILED_FALLBACK": false,
+	//		},
+	//		filterPackages: fentryTests,
+	//	})
 }
