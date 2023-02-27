@@ -206,7 +206,7 @@ func (p *FileProvider) FilesToTail(inputSources []*sources.LogSource) []*tailer.
 
 	// Record what ratio of files each wildcard source tracked
 	for source, matchCnt := range wildcardFileCounter.counts {
-		source.Messages.AddMessage(source.Config.Path, fmt.Sprintf("%d files tailed out of %d files matching", matchCnt.tracked, matchCnt.total))
+		source.FileStatus.SetTotal(matchCnt.total)
 	}
 
 	if len(filesToTail) == p.filesLimit {

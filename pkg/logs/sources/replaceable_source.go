@@ -53,6 +53,7 @@ func (r *ReplaceableSource) AddInput(input string) {
 	r.RLock()
 	defer r.RUnlock()
 	r.source.AddInput(input)
+	r.source.FileStatus.AddTailer()
 }
 
 // RemoveInput removes an input from this source.
@@ -60,6 +61,7 @@ func (r *ReplaceableSource) RemoveInput(input string) {
 	r.RLock()
 	defer r.RUnlock()
 	r.source.RemoveInput(input)
+	r.source.FileStatus.RemoveTailer()
 }
 
 // RecordBytes reports bytes to the source expvars
