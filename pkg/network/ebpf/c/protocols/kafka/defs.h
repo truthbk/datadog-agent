@@ -12,6 +12,8 @@
 
 #define TOPIC_NAME_MAX_STRING_SIZE 80
 
+#define KAFKA_BUFFER_SIZE 8 * 40 // 320
+
 // This controls the number of Kafka transactions read from userspace at a time
 #define KAFKA_BATCH_SIZE 15
 
