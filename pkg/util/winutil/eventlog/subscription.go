@@ -18,24 +18,15 @@ import (
 )
 
 const (
-	// Timeout on pull event handle in milliseconds
-	// Controls how often the poll goroutine will check for Stop()
-	DEFAULT_GET_EVENT_LOOP_WAIT_MS = 50
-
 	// How many events to fetch per EvtNext call
-	DEFAULT_EVENT_BATCH_COUNT = 64
-
-	// Break EvtNext loop and return to mainLoop after this many events
-	DEFAULT_MAX_EVENT_LOOP_COUNT = 1000
+	DEFAULT_EVENT_BATCH_COUNT = 512
 )
 
 type PullSubscription struct {
 	// Configuration
 	ChannelPath string
 	Query string
-	EventLoopWaitMs uint32
 	EventBatchCount uint
-	MaxEventLoopCount uint
 
 	// Notify user that event records are available
 	NotifyEventsAvailable chan struct{}
@@ -57,13 +48,13 @@ type PullSubscription struct {
 
 	// notifyNoMoreItems synchronizes notifyEventsAvailableLoop and GetEvents when
 	// EvtNext returns ERROR_NO_MORE_ITEMS.
-	// GetEvents writes to this cannel to tell notifyEventsAvailableLoop to skip writing
+	// GetEvents writes to this channel to tell notifyEventsAvailableLoop to skip writing
 	// to the NotifyEventsAvailable channel and return to the WaitForMultipleObjects call.
-	// If GetEvents were to call ResetEvent() directly, then notifyEventsAvailableLoop
-	// would block writing to the NotifyEventsAvailable channel until the user read
-	// from the channel again, at which point the user would be erroneously notified
-	// that events are available.
+	// Without this synchronization notifyEventsAvailableLoop would block writing to the
+	// NotifyEventsAvailable channel until the user read from the channel again, at which
+	// point the user would be erroneously notified that events are available.
 	notifyNoMoreItems chan struct{}
+	notifyNoMoreItemsComplete chan struct{}
 }
 
 type EventRecord struct {
@@ -90,9 +81,7 @@ func NewPullSubscription(ChannelPath, Query string, options ...func(*PullSubscri
 	q.subscriptionHandle = evtapi.EventResultSetHandle(0)
 	q.waitEventHandle = evtapi.WaitEventHandle(0)
 
-	q.EventLoopWaitMs = DEFAULT_GET_EVENT_LOOP_WAIT_MS
 	q.EventBatchCount = DEFAULT_EVENT_BATCH_COUNT
-	q.MaxEventLoopCount = DEFAULT_MAX_EVENT_LOOP_COUNT
 
 	q.ChannelPath = ChannelPath
 	q.Query = Query
@@ -105,22 +94,10 @@ func NewPullSubscription(ChannelPath, Query string, options ...func(*PullSubscri
 	return &q
 }
 
-func WithEventLoopWaitMs(ms uint32) func(*PullSubscription) {
-	return func (q *PullSubscription) {
-		q.EventLoopWaitMs = ms
-	}
-}
-
 func WithEventBatchCount(count uint) func(*PullSubscription) {
-	return func (q *PullSubscription) {
-		q.EventBatchCount = count
-	}
-}
-
-func WithMaxEventLoopCount(count uint) func(*PullSubscription) {
-	return func (q *PullSubscription) {
-		q.MaxEventLoopCount = count
-	}
+   return func (q *PullSubscription) {
+       q.EventBatchCount = count
+   }
 }
 
 func WithWindowsEventLogAPI(api evtapi.IWindowsEventLogAPI) func(*PullSubscription) {
@@ -156,13 +133,13 @@ func (q *PullSubscription) Start() (error) {
 		return err
 	}
 
-
 	// alloc reusable storage for EvtNext output
 	q.evtNextStorage = make([]evtapi.EventRecordHandle, q.EventBatchCount)
 
 	// Query loop management
 	q.notifyStop = make(chan struct{})
 	q.notifyNoMoreItems = make(chan struct{})
+	q.notifyNoMoreItemsComplete = make(chan struct{})
 	q.NotifyEventsAvailable = make(chan struct{})
 	q.waitEventHandle = hSubWait
 	q.stopEventHandle = hStopWait
@@ -187,6 +164,7 @@ func (q *PullSubscription) Stop() {
 	q.notifyEventsAvailableWaiter.Wait()
 
 	close(q.notifyNoMoreItems)
+	close(q.notifyNoMoreItemsComplete)
 
 	// Cleanup Windows API
 	evtapi.EvtCloseResultSet(q.eventLogAPI, q.subscriptionHandle)
@@ -198,7 +176,7 @@ func (q *PullSubscription) Stop() {
 
 // notifyEventsAvailableLoop writes to the NotifyEventsAvailable channel
 // when the Windows Event Log API Subscription sets the waitEventHandle.
-// Closes the NotifyEventsAvailable channel on return to notify the user
+// On return, closes the NotifyEventsAvailable channel to notify the user
 // of an error or a Stop().
 func (q *PullSubscription) notifyEventsAvailableLoop() {
 	// q.Stop() waits on this goroutine to finish, notify it that we are done
@@ -224,9 +202,14 @@ func (q *PullSubscription) notifyEventsAvailableLoop() {
 				case q.NotifyEventsAvailable <- struct{}{}:
 					break
 				case <- q.notifyNoMoreItems:
-					// EvtNext called, there are no more items to read
-					// Reset the events ready event so we wait again in WaitForMultipleObjects
-					windows.ResetEvent(windows.Handle(q.waitEventHandle))
+					// EvtNext called, there are no more items to read, this case
+					// allows us to cancel sending NotifyEventsAvailable to the user.
+					// Now we must wait for the event to be reset to ensure WaitForMultipleObjects will
+					// block until Windows sets the event again.
+					// We cannot just call ResetEvent here instead because that creates a race
+					// with the SetEvent call in GetEvents() that could create a deadlock.
+					<-q.notifyNoMoreItemsComplete
+					break
 			}
 		} else if dwWait == (windows.WAIT_OBJECT_0+1) {
 			// Stop event is set
@@ -249,6 +232,34 @@ func (q *PullSubscription) notifyEventsAvailableLoop() {
 	}
 }
 
+// synchronizeNoMoreItems is used to synchronize notifyEventsAvailableLoop when
+// EvtNext returns ERROR_NO_MORE_ITEMS.
+// Note that the Microsoft's Pull Subscriptions model is inherently racey. It is possible
+// for EvtNext to return ERROR_NO_MORE_ITEMS and then for Windows to call SetEvent(waitHandle)
+// before our code reaches the ResetEvent(waitHandle). If this happens we will not see those
+// events until newer events are created and Windows once again calls SetEvent(waitHandle).
+func (q *PullSubscription) synchronizeNoMoreItems() error {
+	// If notifyEventsAvailableLoop is blocking on WaitForMultipleObjects
+	// wake it up so we can sync on notifyNoMoreItems
+	// If notifyEventsAvailableLoop is blocking on notifyNoMoreItems then this is a no-op
+	windows.SetEvent(windows.Handle(q.waitEventHandle))
+	// windows.ResetEvent(windows.Handle(q.waitEventHandle))
+	// If notifyEventsAvailableLoop is blocking on sending NotifyEventsAvailable
+	// then wake/cancel it so it does not erroneously send NotifyEventsAvailable.
+	select {
+		case <- q.notifyStop:
+			return fmt.Errorf("stop signal")
+		case q.notifyNoMoreItems <- struct{}{}:
+			break
+	}
+	// Reset the events ready event so notifyEventsAvailableLoop will wait again in WaitForMultipleObjects,
+	// then write to notifyNoMoreItemsComplete to tell the loop that the event has been reset and it
+	// can safely continue.
+	windows.ResetEvent(windows.Handle(q.waitEventHandle))
+	q.notifyNoMoreItemsComplete <- struct{}{}
+	return nil
+}
+
 // GetEvents returns the next available events in the subscription.
 func (q *PullSubscription) GetEvents() ([]*EventRecord, error) {
 
@@ -269,12 +280,9 @@ func (q *PullSubscription) GetEvents() ([]*EventRecord, error) {
 		} else if err == windows.ERROR_NO_MORE_ITEMS {
 			// no more events
 			pkglog.Debugf("EvtNext returned no more items")
-			// reset wait event handle
-			select {
-				case <- q.notifyStop:
-					return nil, fmt.Errorf("CollectEvents interrupted by stop signal")
-				case q.notifyNoMoreItems <- struct{}{}:
-					break
+			err := q.synchronizeNoMoreItems()
+			if err != nil {
+				return nil, err
 			}
 			// not an error, there are just no more items
 			return nil, nil
@@ -293,8 +301,6 @@ func (q *PullSubscription) parseEventRecordHandles(eventRecordHandles []evtapi.E
 	eventRecords := make([]*EventRecord, len(eventRecordHandles))
 
 	for i, eventRecordHandle := range eventRecordHandles {
-		// pkglog.Errorf("%d %v", i, eventRecordHandle)
-		pkglog.Flush()
 		eventRecords[i], err = q.parseEventRecordHandle(eventRecordHandle)
 		if err != nil {
 			pkglog.Errorf("Failed to process event (%#x): %v", eventRecordHandle, err)
