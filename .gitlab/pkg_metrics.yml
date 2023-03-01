@@ -49,7 +49,7 @@ send_pkg_size-a6:
     - ls -l $OMNIBUS_PACKAGE_DIR
     - ls -l $OMNIBUS_PACKAGE_DIR_SUSE
   script:
-    - source /root/.bashrc && conda activate ddpy3
+    - source /root/.bashrc
     - mkdir -p /tmp/deb/agent
     - mkdir -p /tmp/rpm/agent
     - mkdir -p /tmp/suse/agent
@@ -101,9 +101,9 @@ send_pkg_size-a7:
     - ls -l $OMNIBUS_PACKAGE_DIR
     - ls -l $OMNIBUS_PACKAGE_DIR_SUSE
   script:
+    - source /root/.bashrc
     - !reference [.add_metric_func, script]
 
-    - source /root/.bashrc && conda activate ddpy3
     - mkdir -p /tmp/deb/agent /tmp/deb/dogstatsd /tmp/deb/iot-agent /tmp/deb/heroku-agent
     - mkdir -p /tmp/rpm/agent /tmp/rpm/dogstatsd /tmp/rpm/iot-agent
     - mkdir -p /tmp/suse/agent /tmp/suse/dogstatsd /tmp/suse/iot-agent
@@ -158,11 +158,11 @@ send_pkg_size-a7:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   tags: ["runner:main"]
   script:
+    - source /root/.bashrc
     - !reference [.add_metric_func, script]
 
     - ls -l $OMNIBUS_PACKAGE_DIR
     - ls -l $OMNIBUS_PACKAGE_DIR_SUSE
-    - source /root/.bashrc && conda activate ddpy3
     - export failures=0
     - export last_stable=$(inv release.get-release-json-value "last_stable::${MAJOR_VERSION}")
     # Get stable packages from S3 buckets, send new package sizes & compare stable and new package sizes
