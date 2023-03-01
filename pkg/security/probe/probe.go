@@ -817,7 +817,7 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 	}
 
 	if eventType == model.ExitEventType {
-		defer p.resolvers.ProcessResolver.DeleteEntry(event.ProcessCacheEntry.Pid, p.fieldHandlers.ResolveEventTimestamp(event))
+		defer p.resolvers.ProcessResolver.DeleteEntry(event.ProcessCacheEntry.Pid, event.ProcessCacheEntry.Process.ExitTime)
 	}
 
 	p.DispatchEvent(event)

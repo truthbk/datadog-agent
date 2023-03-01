@@ -154,7 +154,11 @@ func (fh *FieldHandlers) ResolveChownGID(ev *model.Event, e *model.ChownEvent) s
 
 // ResolveProcessCreatedAt resolves process creation time
 func (fh *FieldHandlers) ResolveProcessCreatedAt(ev *model.Event, e *model.Process) int {
-	return int(e.ExecTime.UnixNano())
+	if e.ExecTime.IsZero() {
+		return int(e.ForkTime.UnixNano())
+	} else {
+		return int(e.ExecTime.UnixNano())
+	}
 }
 
 // ResolveProcessArgv0 resolves the first arg of the event

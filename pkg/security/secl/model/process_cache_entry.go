@@ -85,9 +85,6 @@ func copyProcessContext(parent, child *ProcessCacheEntry) {
 func (pc *ProcessCacheEntry) Exec(entry *ProcessCacheEntry) {
 	entry.SetAncestor(pc)
 
-	// use exec time a exit time
-	pc.Exit(entry.ExecTime)
-
 	// keep some context
 	copyProcessContext(pc, entry)
 }
@@ -109,7 +106,6 @@ func (pc *ProcessCacheEntry) Fork(childEntry *ProcessCacheEntry) {
 	childEntry.Comm = pc.Comm
 	childEntry.FileEvent = pc.FileEvent
 	childEntry.ContainerID = pc.ContainerID
-	childEntry.ExecTime = pc.ExecTime
 	childEntry.Credentials = pc.Credentials
 	childEntry.LinuxBinprm = pc.LinuxBinprm
 	childEntry.Cookie = pc.Cookie

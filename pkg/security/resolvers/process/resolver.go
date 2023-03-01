@@ -509,10 +509,6 @@ func (p *Resolver) insertEntry(entry, prev *model.ProcessCacheEntry, origin proc
 
 func (p *Resolver) insertForkEntry(entry *model.ProcessCacheEntry, origin processCacheEntrySource) {
 	prev := p.entryCache[entry.Pid]
-	if prev != nil {
-		// this shouldn't happen but it is better to exit the prev and let the new one replace it
-		prev.Exit(entry.ForkTime)
-	}
 
 	parent := p.entryCache[entry.PPid]
 	if parent == nil && entry.PPid >= 1 {
