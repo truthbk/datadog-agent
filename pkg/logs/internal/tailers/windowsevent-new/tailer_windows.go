@@ -69,12 +69,27 @@ func (t *Tailer) tail() {
 			select {
 			case <-t.stop:
 				break eventLoop
-			case eventRecord := <-t.sub.EventRecords:
-				if eventRecord == nil {
-					break
+			case _, ok := <-t.sub.NotifyEventsAvailable:
+				if !ok {
+					break eventLoop
 				}
-				goNotificationCallback(t.evtapi, eventRecord.EventRecordHandle, C.PVOID(uintptr(unsafe.Pointer(t.context))))
-
+				// events are available, read them
+				for {
+					events, err := t.sub.GetEvents()
+					if err != nil {
+						// error
+						log.Errorf("GetEvents failed: %v", err)
+						break eventLoop
+					}
+					if events == nil {
+						// no more events
+						log.Debugf("No more events")
+						break
+					}
+					for _,eventRecord := range events {
+						goNotificationCallback(t.evtapi, eventRecord.EventRecordHandle, C.PVOID(uintptr(unsafe.Pointer(t.context))))
+					}
+				}
 			}
 		}
 	t.done <- struct{}{}

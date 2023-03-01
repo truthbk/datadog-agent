@@ -9,6 +9,7 @@ package eventlog
 
 import (
 	// "fmt"
+	"testing"
 
     evtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
     "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
@@ -16,24 +17,39 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func ReadNumEvents(ti eventlog_test.EventLogTestInterface, sub *PullSubscription, numEvents uint) []*EventRecord {
-	eventRecords := make([]*EventRecord, numEvents)
+func ReadNumEventsWithNotify(t testing.TB, ti eventlog_test.EventLogTestInterface, sub *PullSubscription, numEvents uint) []*EventRecord {
+	eventRecords := make([]*EventRecord, 0)
 
 	count := uint(0)
 	eventLoop:
 	for {
 		select {
-		case eventRecord := <- sub.EventRecords:
-			require.NotNil(ti.T(), eventRecord)
-			if eventRecord.EventRecordHandle == evtapi.EventRecordHandle(0) {
-				require.FailNow(ti.T(), "EventRecordHandle should not be NULL")
-			}
-			// fmt.Printf("handle: %#x\n", eventRecord.EventRecordHandle)
-			eventRecords[count] = eventRecord
-			count += 1
-			if count >= numEvents {
+		case _, ok := <- sub.NotifyEventsAvailable:
+			if !ok {
 				break eventLoop
 			}
+			for {
+				events, err := sub.GetEvents()
+				require.NoError(t, err)
+				if count == numEvents {
+					require.Nil(t, events)
+				} else {
+					require.NotNil(t, events)
+				}
+				if events != nil {
+					eventRecords = append(eventRecords, events...)
+					count += uint(len(events))
+				}
+				if count >= numEvents {
+					break eventLoop
+				}
+			}
+		}
+	}
+
+	for _, eventRecord := range eventRecords {
+		if eventRecord.EventRecordHandle == evtapi.EventRecordHandle(0) {
+			require.FailNow(t, "EventRecordHandle must not be NULL")
 		}
 	}
 

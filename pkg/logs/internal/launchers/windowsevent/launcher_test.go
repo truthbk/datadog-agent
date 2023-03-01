@@ -52,7 +52,9 @@ func (suite *LauncherTestSuite) SetupSuite() {
 	pkglog.SetupLogger(seelog.Default, "debug")
 
 	suite.ti = eventlog_test.GetTestInterfaceByName(suite.testAPI, suite.T())
-	err = suite.ti.InstallSource(suite.channelPath)
+	err = suite.ti.InstallChannel(suite.channelPath)
+	require.NoError(suite.T(), err)
+	err = suite.ti.InstallSource(suite.channelPath, "testsource")
 	require.NoError(suite.T(), err)
 	err = suite.ti.GenerateEvents(suite.channelPath, suite.numEvents)
 	require.NoError(suite.T(), err)
@@ -60,7 +62,8 @@ func (suite *LauncherTestSuite) SetupSuite() {
 
 func (suite *LauncherTestSuite) TearDownSuite() {
 	fmt.Println("TearDownSuite")
-	suite.ti.RemoveSource(suite.channelPath)
+	suite.ti.RemoveSource(suite.channelPath, "testsource")
+	suite.ti.RemoveChannel(suite.channelPath)
 }
 
 func (suite *LauncherTestSuite) SetupTest() {
