@@ -181,6 +181,7 @@ int __attribute__((always_inline)) resolve_dentry_tail_call(void *ctx, struct de
         map_value.parent = next_key;
 
         bpf_map_update_elem(&pathnames, &key, &map_value, BPF_ANY);
+        bpf_map_lookup_elem(&pathnames, &key); // force add the map entry in the active list of the LRU
 
         dentry = d_parent;
         if (next_key.ino == 0) {
