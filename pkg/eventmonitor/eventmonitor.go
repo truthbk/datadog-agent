@@ -3,9 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build linux
-// +build linux
-
 package eventmonitor
 
 import (
@@ -95,8 +92,9 @@ func (m *EventMonitor) RegisterEventConsumer(consumer EventConsumer) {
 
 // Init initializes the module
 func (m *EventMonitor) Init() error {
-	// force socket cleanup of previous socket not cleanup
-	os.Remove(m.Config.SocketPath)
+	if err := m.init(); err != nil {
+		return err
+	}
 
 	// initialize the eBPF manager and load the programs and maps in the kernel. At this stage, the probes are not
 	// running yet.
@@ -109,12 +107,8 @@ func (m *EventMonitor) Init() error {
 
 // Start the module
 func (m *EventMonitor) Start() error {
-	ln, err := net.Listen("unix", m.Config.SocketPath)
+	ln, err := m.getListener()
 	if err != nil {
-		return fmt.Errorf("unable to register event monitoring module: %w", err)
-	}
-
-	if err := os.Chmod(m.Config.SocketPath, 0700); err != nil {
 		return fmt.Errorf("unable to register event monitoring module: %w", err)
 	}
 
@@ -170,8 +164,9 @@ func (m *EventMonitor) Close() {
 
 	if m.netListener != nil {
 		m.netListener.Close()
-		os.Remove(m.Config.SocketPath)
 	}
+
+	m.cleanup()
 
 	m.cancelFnc()
 	m.wg.Wait()
