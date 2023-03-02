@@ -355,7 +355,7 @@ func TestGRPCScenarios(t *testing.T) {
 		},
 
 		{
-			name: "request with large body (1MB) -> b -> request with large body (1MB) -> b",
+			name: "request with large body (1MB) -> b -> request with large body (1MB) --> b",
 			runClients: func(t *testing.T, differentClients bool) {
 				var client1, client2 grpc.Client
 				var err error
