@@ -43,7 +43,7 @@ if ohai["platform"] != "windows"
 
   python_configure = ["./configure",
                       "--prefix=#{install_dir}/embedded",
-                      "--with-ensurepip=no"] # pip is installed separately by its own software def
+                      "--with-ensurepip=yes"] # We upgrade pip later, in the pip2 software definition
 
   if mac_os_x?
     python_configure.push("--enable-ipv6",
@@ -103,5 +103,9 @@ else
     #
     # expand python zip into the embedded directory
     command "XCOPY /YEHIR *.* \"#{windows_safe_path(python_2_embedded)}\""
+
+    # Install pip
+    python = "#{windows_safe_path(python_2_embedded)}\\python.exe"
+    command "#{python} -m ensurepip"
   end
 end

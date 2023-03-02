@@ -1,11 +1,11 @@
 name "pip2"
-default_version "20.3.3"
 
-dependency "setuptools2"
-
+# The version of pip used must be at least equal to the one bundled with the Python version we use
+# Python 2.7.18 bundles pip 20.3.4
+default_version "20.3.4"
 
 source :url => "https://github.com/pypa/pip/archive/#{version}.tar.gz",
-       :sha256 => "016f8d509871b72fb05da911db513c11059d8a99f4591dda3050a3cf83a29a79",
+       :sha256 => "cc21e03832d7ce96a0cf77ec1669661de35abb4366a9059fa54f1647e514ce3f",
        :extract => :seven_zip
 
 relative_path "pip-#{version}"
@@ -14,17 +14,18 @@ build do
   license "MIT"
   license_file "https://raw.githubusercontent.com/pypa/pip/main/LICENSE.txt"
 
-  patch :source => "remove-python27-deprecation-warning.patch", :target => "src/pip/_internal/cli/base_command.py"
-
   if ohai["platform"] == "windows"
-    python_bin = "#{windows_safe_path(python_2_embedded)}\\python.exe"
-    python_prefix = "#{windows_safe_path(python_2_embedded)}"
+    python = "#{windows_safe_path(python_2_embedded)}\\python.exe"
   else
-    python_bin = "#{install_dir}/embedded/bin/python2"
-    python_prefix = "#{install_dir}/embedded"
+    python = "#{install_dir}/embedded/bin/python2"
   end
+  command "#{python} -m pip install ."
 
-  command "#{python_bin} setup.py install --prefix=#{python_prefix}"
+  if windows?
+    patch :source => "remove-python27-deprecation-warning.patch", :target => "#{windows_safe_path(python_2_embedded)}\\Lib\\site-packages\\pip\\_internal\\cli\\base_command.py"
+  else
+    patch :source => "remove-python27-deprecation-warning.patch", :target => "#{install_dir}/embedded/lib/python2.7/site-packages/pip/_internal/cli/base_command.py"
+  end
 
   if ohai["platform"] != "windows"
     block do
