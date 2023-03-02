@@ -156,6 +156,8 @@ type GoTLSProgram struct {
 	// binAnalysisMetric handles telemetry on the time spent doing binary
 	// analysis
 	binAnalysisMetric *libtelemetry.Metric
+
+	currentPID pid
 }
 
 // Static evaluation to make sure we are not breaking the interface.
@@ -177,11 +179,12 @@ func newGoTLSProgram(c *config.Config) *GoTLSProgram {
 	}
 
 	p := &GoTLSProgram{
-		done:      make(chan struct{}),
-		cfg:       c,
-		procRoot:  c.ProcRoot,
-		binaries:  make(map[binaryID]*runningBinary),
-		processes: make(map[pid]binaryID),
+		done:       make(chan struct{}),
+		cfg:        c,
+		procRoot:   c.ProcRoot,
+		binaries:   make(map[binaryID]*runningBinary),
+		processes:  make(map[pid]binaryID),
+		currentPID: os.Getpid(),
 	}
 
 	p.binAnalysisMetric = libtelemetry.NewMetric("gotls.analysis_time", libtelemetry.OptStatsd)
@@ -310,6 +313,10 @@ func (p *GoTLSProgram) Stop() {
 }
 
 func (p *GoTLSProgram) handleProcessStart(pid pid) {
+	// Don't hook our own process
+	if p.currentPID == pid {
+		return
+	}
 	exePath := filepath.Join(p.procRoot, strconv.FormatUint(uint64(pid), 10), "exe")
 
 	binPath, err := os.Readlink(exePath)
