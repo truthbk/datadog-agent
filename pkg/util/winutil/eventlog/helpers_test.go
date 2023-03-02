@@ -8,7 +8,6 @@
 package eventlog
 
 import (
-	// "fmt"
 	"testing"
 
     evtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"

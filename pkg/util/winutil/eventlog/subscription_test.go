@@ -31,7 +31,6 @@ func TestInvalidChannel(t *testing.T) {
 			sub := NewPullSubscription(
 				"nonexistentchannel",
 				"*",
-				WithEventLoopWaitMs(50),
 				WithWindowsEventLogAPI(ti.EventLogAPI()))
 
 			err := sub.Start()
@@ -40,16 +39,17 @@ func TestInvalidChannel(t *testing.T) {
 	}
 }
 
-func createEvents(t testing.TB, ti eventlog_test.EventLogTestInterface, channel string, numEvents uint) {
-	// Report events
+func createLog(t testing.TB, ti eventlog_test.EventLogTestInterface, channel string) {
 	err := ti.InstallChannel(channel)
 	require.NoError(t, err)
 	err = ti.EventLogAPI().EvtClearLog(channel)
 	require.NoError(t, err)
 	err = ti.InstallSource(channel, "testsource")
 	require.NoError(t, err)
-	err = ti.GenerateEvents(channel, numEvents)
-	require.NoError(t, err)
+	t.Cleanup(func() {
+		ti.RemoveSource(channel, "testsource")
+		ti.RemoveChannel(channel)
+	})
 }
 
 func startSubscription(t testing.TB, ti eventlog_test.EventLogTestInterface, channel string) *PullSubscription {
@@ -57,20 +57,25 @@ func startSubscription(t testing.TB, ti eventlog_test.EventLogTestInterface, cha
 	sub := NewPullSubscription(
 		channel,
 		"*",
-		WithEventLoopWaitMs(50),
 		WithWindowsEventLogAPI(ti.EventLogAPI()))
 
 	err := sub.Start()
 	require.NoError(t, err)
+
+	t.Cleanup(func() { sub.Stop() })
 	return sub
 }
 
 func getEventHandles(t testing.TB, ti eventlog_test.EventLogTestInterface, sub *PullSubscription, numEvents uint) {
 	eventRecords := ReadNumEventsWithNotify(t, ti, sub, numEvents)
 	count := uint(len(eventRecords))
-	require.Equal(t, count, numEvents, fmt.Sprintf("Missing events, collected %d/%d events", count, numEvents))
+	require.Equal(t, numEvents, count, fmt.Sprintf("Missing events, collected %d/%d events", count, numEvents))
+}
 
-	sub.Stop()
+func requireNoMoreEvents(t testing.TB, sub *PullSubscription) {
+	events, err := sub.GetEvents()
+	require.NoError(t, err, "Error should be nil when there are no more events")
+	require.Nil(t, events, "[]events should be nil when there are no more events")
 }
 
 func TestBenchmarkTestGetEventHandles(t *testing.T) {
@@ -87,11 +92,15 @@ func TestBenchmarkTestGetEventHandles(t *testing.T) {
 		for _, v := range numEvents {
 			t.Run(fmt.Sprintf("%vAPI/%d", tiName, v), func(t *testing.T) {
 				ti := eventlog_test.GetTestInterfaceByName(tiName, t)
-				createEvents(t, ti, channel, v)
+				createLog(t, ti, channel)
+				err := ti.GenerateEvents(channel, v)
+				require.NoError(t, err)
 				result := testing.Benchmark(func(b *testing.B) {
 					for i := 0; i < b.N; i++ {
 						sub := startSubscription(b, ti, channel)
 						getEventHandles(b, ti, sub, v)
+						requireNoMoreEvents(b, sub)
+						sub.Stop()
 					}
 				})
 				total_events := float64(v)*float64(result.N)
@@ -155,7 +164,24 @@ func (s *GetEventsTestSuite) TestReadOldEvents() {
 	getEventHandles(s.T(), s.ti, sub, s.numEvents)
 }
 
-func (s *GetEventsTestSuite) TestStopWhileWaiting() {
+func (s *GetEventsTestSuite) TestReadNewEvents() {
+	// Create sub
+	sub := startSubscription(s.T(), s.ti, s.channelPath)
+
+	// Eat the initial state
+	requireNoMoreEvents(s.T(), sub)
+
+	// Put events in the log
+	err := s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	require.NoError(s.T(), err)
+
+	// Get Events
+	getEventHandles(s.T(), s.ti, sub, s.numEvents)
+	requireNoMoreEvents(s.T(), sub)
+}
+
+// Tests that Stop() can be called when there are events available to be collected
+func (s *GetEventsTestSuite) TestStopWhileWaitingWithEventsAvailable() {
 	// Create subscription
 	sub := startSubscription(s.T(), s.ti, s.channelPath)
 
@@ -164,36 +190,76 @@ func (s *GetEventsTestSuite) TestStopWhileWaiting() {
 	require.NoError(s.T(), err)
 
 	readyToStop := make(chan struct{})
+	stopped := make(chan struct{})
+	done := make(chan struct{})
 	go func() {
 		// Read all events
 		getEventHandles(s.T(), s.ti, sub, s.numEvents)
 		close(readyToStop)
-		// block on events available notification
-		select {
-		case _, ok := <- sub.NotifyEventsAvailable:
-			require.False(s.T(), ok, "Notify channel should be closed after Stop()")
-		}
+		// Purposefully don't call EvtNext the final time when it would normally return ERROR_NO_MORE_ITEMS.
+		// This leaves the notify event set.
+		// Wait for Stop() to finish
+		<-stopped
+		_, ok := <- sub.NotifyEventsAvailable
+		require.False(s.T(), ok, "Notify channel should be closed after Stop()")
+		close(done)
 	}()
 
 	<-readyToStop
 	sub.Stop()
+	close(stopped)
+	<-done
 }
 
-func (s *GetEventsTestSuite) TestUnusedNotifyChannel() {
-	// Create sub
+// Tests that Stop() can be called when the subscription is in a ERROR_NO_MORE_ITEMS state
+func (s *GetEventsTestSuite) TestStopWhileWaitingNoMoreEvents() {
+	// Create subscription
 	sub := startSubscription(s.T(), s.ti, s.channelPath)
 
 	// Put events in the log
 	err := s.ti.GenerateEvents(s.channelPath, s.numEvents)
 	require.NoError(s.T(), err)
 
-	// Don't wait on the channel, just get events
-	getEventHandles(s.T(), s.ti, sub, s.numEvents)
+	readyToStop := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		// Read all events
+		getEventHandles(s.T(), s.ti, sub, s.numEvents)
+		requireNoMoreEvents(s.T(), sub)
+		close(readyToStop)
+		// block on events available notification
+		_, ok := <- sub.NotifyEventsAvailable
+		require.False(s.T(), ok, "Notify channel should be closed after Stop()")
+		close(done)
+	}()
 
+	<-readyToStop
 	sub.Stop()
+	<-done
 }
 
+// Tests that GetEvents() still works when the NotifyEventsAvailable channel is ignored
+func (s *GetEventsTestSuite) TestUnusedNotifyChannel() {
+	// Create sub
+	sub := startSubscription(s.T(), s.ti, s.channelPath)
 
+	// Loop so we test collecting old events and then new events
+	for i := 0; i < 2; i++ {
+		// Put events in the log
+		err := s.ti.GenerateEvents(s.channelPath, s.numEvents)
+		require.NoError(s.T(), err)
+
+		// Don't wait on the channel, just get events
+		eventRecords, err := sub.GetEvents()
+		count := uint(len(eventRecords))
+		require.Equal(s.T(), s.numEvents, count, fmt.Sprintf("Missing events, collected %d/%d events", count, s.numEvents))
+		requireNoMoreEvents(s.T(), sub)
+	}
+}
+
+// Tests that NotifyEventsAvailable starts out set then becomes unset after calling GetEvents().
+// This ensures the Windows Event Log API follows the behavior implied by the Microsoft example.
+// https://learn.microsoft.com/en-us/windows/win32/wes/subscribing-to-events#pull-subscriptions
 func (s *GetEventsTestSuite) TestChannelInitiallyNotified() {
 	// Create sub
 	sub := startSubscription(s.T(), s.ti, s.channelPath)
@@ -209,9 +275,7 @@ func (s *GetEventsTestSuite) TestChannelInitiallyNotified() {
 	}
 
 	// should return empty
-	events, err := sub.GetEvents()
-	require.NoError(s.T(), err)
-	require.Nil(s.T(), events)
+	requireNoMoreEvents(s.T(), sub)
 
 	// should block this time
 	select {
@@ -220,10 +284,7 @@ func (s *GetEventsTestSuite) TestChannelInitiallyNotified() {
 	default:
 		break
 	}
-
-	sub.Stop()
 }
-
 
 func TestLaunchGetEventsTestSuite(t *testing.T) {
 	testInterfaceNames := eventlog_test.GetEnabledTestInterfaces()
