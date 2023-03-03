@@ -11,15 +11,15 @@ import (
 	"fmt"
 	"testing"
 
-    evtapidef "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
 
 	"github.com/stretchr/testify/require"
 )
 
-type EventLogTestInterface interface {
+type APITester interface {
 	Name() string
 	T() testing.TB
-	EventLogAPI() evtapidef.IWindowsEventLogAPI
+	API() evtapi.API
 	InstallChannel(channel string) error
 	RemoveChannel(channel string) error
 	InstallSource(channel string, source string) error
@@ -27,7 +27,7 @@ type EventLogTestInterface interface {
 	GenerateEvents(channelName string, numEvents uint) error
 }
 
-func GetEnabledTestInterfaces() []string {
+func GetEnabledAPITesters() []string {
 
 	var ti []string
 
@@ -42,14 +42,14 @@ func GetEnabledTestInterfaces() []string {
 	return ti
 }
 
-func GetTestInterfaceByName(name string, t testing.TB) EventLogTestInterface {
+func GetAPITesterByName(name string, t testing.TB) APITester {
 	if name == "Mock" {
-		return NewMockTestInterface(t)
+		return NewMockAPITester(t)
 	} else if name == "Windows" {
 		if testing.Short() {
 			t.Skip("Skipping Windows API")
 		}
-		return NewWindowsTestInterface(t)
+		return NewWindowsAPITester(t)
 	}
 
 	require.FailNow(t, fmt.Sprintf("invalid test interface: %v", name))

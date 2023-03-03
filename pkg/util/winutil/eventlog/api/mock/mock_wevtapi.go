@@ -5,20 +5,20 @@
 //go:build windows
 // +build windows
 
-package mock
+package mockevtapi
 
 import (
 	"bytes"
 	"fmt"
 	"text/template"
 
-    evtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
 
 	"go.uber.org/atomic"
 	"golang.org/x/sys/windows"
 )
 
-type MockWindowsEventLogAPI struct {
+type API struct {
 	eventLogs map[string]*mockEventLog
 
 	nextHandle *atomic.Uint64
@@ -57,8 +57,8 @@ type mockEventRecord struct {
 	EventLog string
 }
 
-func NewMockWindowsEventLogAPI() *MockWindowsEventLogAPI {
-	var api MockWindowsEventLogAPI
+func New() *API {
+	var api API
 
 	api.nextHandle = atomic.NewUint64(0)
 
@@ -99,7 +99,7 @@ func newMockEventRecord(Type uint, category uint, eventID uint, eventLog string,
 //
 // Mock helpers
 //
-func (api *MockWindowsEventLogAPI) AddEventLog(name string) error {
+func (api *API) AddEventLog(name string) error {
 	// does it exist
 	_, err := api.getMockEventLog(name)
 	if err == nil {
@@ -110,7 +110,7 @@ func (api *MockWindowsEventLogAPI) AddEventLog(name string) error {
 	return nil
 }
 
-func (api *MockWindowsEventLogAPI) RemoveEventLog(name string) error {
+func (api *API) RemoveEventLog(name string) error {
 	// Get event log
 	_, err := api.getMockEventLog(name)
 	if err != nil {
@@ -120,7 +120,7 @@ func (api *MockWindowsEventLogAPI) RemoveEventLog(name string) error {
 	return nil
 }
 
-func (api *MockWindowsEventLogAPI) GenerateEvents(eventLogName string, numEvents uint) error {
+func (api *API) GenerateEvents(eventLogName string, numEvents uint) error {
 	// Get event log
 	eventLog, err := api.getMockEventLog(eventLogName)
 	if err != nil {
@@ -141,19 +141,19 @@ func (api *MockWindowsEventLogAPI) GenerateEvents(eventLogName string, numEvents
 //
 // internal mock functions
 //
-func (api *MockWindowsEventLogAPI) addSubscription(sub *mockSubscription) {
+func (api *API) addSubscription(sub *mockSubscription) {
 	h := api.nextHandle.Inc()
 	sub.handle = evtapi.EventResultSetHandle(h)
 	api.subscriptions[sub.handle] = sub
 }
 
-func (api *MockWindowsEventLogAPI) addEventRecord(event *mockEventRecord) {
+func (api *API) addEventRecord(event *mockEventRecord) {
 	h := api.nextHandle.Inc()
 	event.handle = evtapi.EventRecordHandle(h)
 	api.eventHandles[event.handle] = event
 }
 
-func (api *MockWindowsEventLogAPI) getMockSubscriptionByHandle(subHandle evtapi.EventResultSetHandle) (*mockSubscription, error) {
+func (api *API) getMockSubscriptionByHandle(subHandle evtapi.EventResultSetHandle) (*mockSubscription, error) {
 	v, ok := api.subscriptions[subHandle]
 	if !ok {
 		return nil, fmt.Errorf("Subscription not found: %#x", subHandle)
@@ -161,7 +161,7 @@ func (api *MockWindowsEventLogAPI) getMockSubscriptionByHandle(subHandle evtapi.
 	return v, nil
 }
 
-func (api *MockWindowsEventLogAPI) getMockEventRecordByHandle(eventHandle evtapi.EventRecordHandle) (*mockEventRecord, error) {
+func (api *API) getMockEventRecordByHandle(eventHandle evtapi.EventRecordHandle) (*mockEventRecord, error) {
 	v, ok := api.eventHandles[eventHandle]
 	if !ok {
 		return nil, fmt.Errorf("Event not found: %#x", eventHandle)
@@ -169,7 +169,7 @@ func (api *MockWindowsEventLogAPI) getMockEventRecordByHandle(eventHandle evtapi
 	return v, nil
 }
 
-func (api *MockWindowsEventLogAPI) getMockEventLog(name string) (*mockEventLog, error) {
+func (api *API) getMockEventLog(name string) (*mockEventLog, error) {
 	v, ok := api.eventLogs[name]
 	if !ok {
 		return nil, fmt.Errorf("The Log name \"%v\" does not exist", name)
@@ -177,7 +177,7 @@ func (api *MockWindowsEventLogAPI) getMockEventLog(name string) (*mockEventLog, 
 	return v, nil
 }
 
-func (api *MockWindowsEventLogAPI) getMockEventLogByHandle(sourceHandle evtapi.EventSourceHandle) (*mockEventLog, error) {
+func (api *API) getMockEventLogByHandle(sourceHandle evtapi.EventSourceHandle) (*mockEventLog, error) {
 	// lookup name using handle
 	v, ok := api.sourceHandles[sourceHandle]
 	if !ok {
@@ -187,7 +187,7 @@ func (api *MockWindowsEventLogAPI) getMockEventLogByHandle(sourceHandle evtapi.E
 	return api.getMockEventLog(v)
 }
 
-func (api *MockWindowsEventLogAPI) addMockEventLog(eventLog *mockEventLog) {
+func (api *API) addMockEventLog(eventLog *mockEventLog) {
 	api.eventLogs[eventLog.name] = eventLog
 }
 
@@ -196,7 +196,7 @@ func (e *mockEventLog) addEventRecord(event *mockEventRecord) {
 }
 
 func (e *mockEventLog) reportEvent(
-	api *MockWindowsEventLogAPI,
+	api *API,
 	Type uint,
 	Category uint,
 	EventID uint,
@@ -222,7 +222,7 @@ func (e *mockEventLog) reportEvent(
 //
 // Mock Windows APIs
 //
-func (api *MockWindowsEventLogAPI) EvtSubscribe(
+func (api *API) EvtSubscribe(
 	SignalEvent evtapi.WaitEventHandle,
 	ChannelPath string,
 	Query string,
@@ -247,7 +247,7 @@ func (api *MockWindowsEventLogAPI) EvtSubscribe(
 	return sub.handle, nil
 }
 
-func (api *MockWindowsEventLogAPI) EvtNext(
+func (api *API) EvtNext(
 	Session evtapi.EventResultSetHandle,
 	EventsArray []evtapi.EventRecordHandle,
 	EventsSize uint,
@@ -289,7 +289,7 @@ func (api *MockWindowsEventLogAPI) EvtNext(
 	return eventHandles, nil
 }
 
-func (api *MockWindowsEventLogAPI) EvtClose(h windows.Handle) {
+func (api *API) EvtClose(h windows.Handle) {
 	// is handle an event?
 	// TODO
 	// Is handle a subscription?
@@ -306,7 +306,7 @@ func (api *MockWindowsEventLogAPI) EvtClose(h windows.Handle) {
 
 // EvtRenderEventXmlText renders EvtRenderEventXml
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtrender
-func (api *MockWindowsEventLogAPI) EvtRenderEventXml(Fragment evtapi.EventRecordHandle) ([]uint16, error) {
+func (api *API) EvtRenderEventXml(Fragment evtapi.EventRecordHandle) ([]uint16, error) {
 	// get event object
 	event, err := api.getMockEventRecordByHandle(Fragment)
 	if err != nil {
@@ -347,11 +347,11 @@ func (api *MockWindowsEventLogAPI) EvtRenderEventXml(Fragment evtapi.EventRecord
 
 // EvtRenderEventXmlText renders EvtRenderEventBookmark
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtrender
-func (api *MockWindowsEventLogAPI) EvtRenderBookmark(Fragment evtapi.EventBookmarkHandle) ([]uint16, error) {
+func (api *API) EvtRenderBookmark(Fragment evtapi.EventBookmarkHandle) ([]uint16, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (api *MockWindowsEventLogAPI) RegisterEventSource(SourceName string) (evtapi.EventSourceHandle, error) {
+func (api *API) RegisterEventSource(SourceName string) (evtapi.EventSourceHandle, error) {
 	// Ensure source/eventLog exists
 	eventLog, err := api.getMockEventLog(SourceName)
 	if err != nil {
@@ -364,7 +364,7 @@ func (api *MockWindowsEventLogAPI) RegisterEventSource(SourceName string) (evtap
 	return h, nil
 }
 
-func (api *MockWindowsEventLogAPI) DeregisterEventSource(sourceHandle evtapi.EventSourceHandle) error {
+func (api *API) DeregisterEventSource(sourceHandle evtapi.EventSourceHandle) error {
 	_, err := api.getMockEventLogByHandle(sourceHandle)
 	if err != nil {
 		return err
@@ -373,7 +373,7 @@ func (api *MockWindowsEventLogAPI) DeregisterEventSource(sourceHandle evtapi.Eve
 	return nil
 }
 
-func (api *MockWindowsEventLogAPI) ReportEvent(
+func (api *API) ReportEvent(
 	EventLog evtapi.EventSourceHandle,
 	Type uint,
 	Category uint,
@@ -401,7 +401,7 @@ func (api *MockWindowsEventLogAPI) ReportEvent(
 }
 
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtclearlog
-func (api *MockWindowsEventLogAPI) EvtClearLog(ChannelPath string) error {
+func (api *API) EvtClearLog(ChannelPath string) error {
 	// Ensure eventlog exists
 	eventLog, err := api.getMockEventLog(ChannelPath)
 	if err != nil {

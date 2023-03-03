@@ -13,7 +13,7 @@ import (
 
 	// "github.com/DataDog/datadog-agent/comp/core/log"
 	pkglog "github.com/DataDog/datadog-agent/pkg/util/log"
-	evtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
 	"golang.org/x/sys/windows"
 )
 
@@ -35,7 +35,7 @@ type PullSubscription struct {
 	//log log.Component
 
 	// Windows API
-	eventLogAPI evtapi.IWindowsEventLogAPI
+	eventLogAPI evtapi.API
 	subscriptionHandle evtapi.EventResultSetHandle
 	waitEventHandle evtapi.WaitEventHandle
 	stopEventHandle evtapi.WaitEventHandle
@@ -100,7 +100,7 @@ func WithEventBatchCount(count uint) func(*PullSubscription) {
    }
 }
 
-func WithWindowsEventLogAPI(api evtapi.IWindowsEventLogAPI) func(*PullSubscription) {
+func WithWindowsEventLogAPI(api evtapi.API) func(*PullSubscription) {
 	return func (q *PullSubscription) {
 		q.eventLogAPI = api
 	}

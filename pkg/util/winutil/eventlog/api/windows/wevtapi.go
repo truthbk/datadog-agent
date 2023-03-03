@@ -5,7 +5,7 @@
 //go:build windows
 // +build windows
 
-package windows
+package winevtapi
 
 import (
 	"fmt"
@@ -38,16 +38,16 @@ var (
 	reportEvent = advapi32.NewProc("ReportEventW")
 )
 
-type WindowsEventLogAPI struct {}
+type API struct {}
 
-func NewWindowsEventLogAPI() *WindowsEventLogAPI {
-	var api WindowsEventLogAPI
+func New() *API {
+	var api API
 	return &api
 }
 
 // Pass returned handle to EvtClose
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtsubscribe
-func (api *WindowsEventLogAPI) EvtSubscribe(
+func (api *API) EvtSubscribe(
 	SignalEvent evtapi.WaitEventHandle,
 	ChannelPath string,
 	Query string,
@@ -84,7 +84,7 @@ func (api *WindowsEventLogAPI) EvtSubscribe(
 
 // Must call EvtClose on every handle returned
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtnext
-func (api *WindowsEventLogAPI) EvtNext(
+func (api *API) EvtNext(
 	Session evtapi.EventResultSetHandle,
 	EventsArray []evtapi.EventRecordHandle,
 	EventsSize uint,
@@ -113,7 +113,7 @@ func (api *WindowsEventLogAPI) EvtNext(
 }
 
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtclose
-func (api *WindowsEventLogAPI) EvtClose(h windows.Handle) {
+func (api *API) EvtClose(h windows.Handle) {
 	if h != windows.Handle(0) {
 		evtClose.Call(uintptr(h))
 	}
@@ -227,18 +227,18 @@ func evtRenderText(
 
 // EvtRenderEventXmlText renders EvtRenderEventXml
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtrender
-func (api *WindowsEventLogAPI) EvtRenderEventXml(Fragment evtapi.EventRecordHandle) ([]uint16, error) {
+func (api *API) EvtRenderEventXml(Fragment evtapi.EventRecordHandle) ([]uint16, error) {
 	return evtRenderText(windows.Handle(Fragment), evtapi.EvtRenderEventXml)
 }
 
 // EvtRenderEventXmlText renders EvtRenderBookmark
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtrender
-func (api *WindowsEventLogAPI) EvtRenderBookmark(Fragment evtapi.EventBookmarkHandle) ([]uint16, error) {
+func (api *API) EvtRenderBookmark(Fragment evtapi.EventBookmarkHandle) ([]uint16, error) {
 	return evtRenderText(windows.Handle(Fragment), evtapi.EvtRenderBookmark)
 }
 
 // https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-registereventsourcew
-func (api *WindowsEventLogAPI) RegisterEventSource(SourceName string) (evtapi.EventSourceHandle, error) {
+func (api *API) RegisterEventSource(SourceName string) (evtapi.EventSourceHandle, error) {
 	sourceName, err := winutil.UTF16PtrOrNilFromString(SourceName)
 	if err != nil {
 		return evtapi.EventSourceHandle(0), err
@@ -256,7 +256,7 @@ func (api *WindowsEventLogAPI) RegisterEventSource(SourceName string) (evtapi.Ev
 }
 
 // https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-deregistereventsource
-func (api *WindowsEventLogAPI) DeregisterEventSource(EventLog evtapi.EventSourceHandle) error {
+func (api *API) DeregisterEventSource(EventLog evtapi.EventSourceHandle) error {
 	r1, _, lastErr := deregisterEventSource.Call(uintptr(EventLog))
 	// DeregisterEventSource returns C FALSE (0) on error
 	if r1 == 0 {
@@ -267,7 +267,7 @@ func (api *WindowsEventLogAPI) DeregisterEventSource(EventLog evtapi.EventSource
 }
 
 // https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-reporteventw
-func (api *WindowsEventLogAPI) ReportEvent(
+func (api *API) ReportEvent(
 	EventLog evtapi.EventSourceHandle,
 	Type uint,
 	Category uint,
@@ -313,7 +313,7 @@ func (api *WindowsEventLogAPI) ReportEvent(
 }
 
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtclearlog
-func (api *WindowsEventLogAPI) EvtClearLog(ChannelPath string) error {
+func (api *API) EvtClearLog(ChannelPath string) error {
 	channelPath, err := winutil.UTF16PtrOrNilFromString(ChannelPath)
 	if err != nil {
 		return err

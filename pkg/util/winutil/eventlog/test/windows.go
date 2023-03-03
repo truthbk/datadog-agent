@@ -14,42 +14,42 @@ import (
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 
-    evtapidef "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
-    winevtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api/windows"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api/windows"
 )
 
 const (
 	eventLogRootKey = `SYSTEM\CurrentControlSet\Services\EventLog`
 )
 
-// WindowsTestInterface uses the real Windows EventLog APIs
+// WindowsAPITester uses the real Windows EventLog APIs
 // and provides utilities to the test framework that will modify
 // the host system (e.g. install event log source, generate events).
-type WindowsTestInterface struct {
+type WindowsAPITester struct {
 	t testing.TB
-	eventlogapi *winevtapi.WindowsEventLogAPI
+	eventlogapi *winevtapi.API
 }
 
-func NewWindowsTestInterface(t testing.TB) *WindowsTestInterface {
-	var ti WindowsTestInterface
+func NewWindowsAPITester(t testing.TB) *WindowsAPITester {
+	var ti WindowsAPITester
 	ti.t = t
-	ti.eventlogapi = winevtapi.NewWindowsEventLogAPI()
+	ti.eventlogapi = winevtapi.New()
 	return &ti
 }
 
-func (ti *WindowsTestInterface) Name() string{
+func (ti *WindowsAPITester) Name() string{
 	return "Windows"
 }
 
-func (ti *WindowsTestInterface) T() testing.TB {
+func (ti *WindowsAPITester) T() testing.TB {
 	return ti.t
 }
 
-func (ti *WindowsTestInterface) EventLogAPI() evtapidef.IWindowsEventLogAPI {
+func (ti *WindowsAPITester) API() evtapi.API {
 	return ti.eventlogapi
 }
 
-func (ti *WindowsTestInterface) InstallChannel(channel string) error {
+func (ti *WindowsAPITester) InstallChannel(channel string) error {
 	// Open EventLog registry key
 	rootKey, err := registry.OpenKey(registry.LOCAL_MACHINE, channelRootKey(), registry.CREATE_SUB_KEY)
 	if err != nil {
@@ -67,7 +67,7 @@ func (ti *WindowsTestInterface) InstallChannel(channel string) error {
 	return nil
 }
 
-func (ti *WindowsTestInterface) InstallSource(channel string, source string) error {
+func (ti *WindowsAPITester) InstallSource(channel string, source string) error {
 	// Open channel key
 	channelKey, err := registry.OpenKey(registry.LOCAL_MACHINE, channelRegistryKey(channel), registry.CREATE_SUB_KEY)
 	if err != nil {
@@ -95,7 +95,7 @@ func (ti *WindowsTestInterface) InstallSource(channel string, source string) err
 	return nil
 }
 
-func (ti *WindowsTestInterface) RemoveChannel(channel string) error {
+func (ti *WindowsAPITester) RemoveChannel(channel string) error {
 	// Open EventLog registry key
 	rootKey, err := registry.OpenKey(registry.LOCAL_MACHINE, channelRootKey(), registry.CREATE_SUB_KEY)
 	if err != nil {
@@ -107,7 +107,7 @@ func (ti *WindowsTestInterface) RemoveChannel(channel string) error {
 	return registry.DeleteKey(rootKey, channel)
 }
 
-func (ti *WindowsTestInterface) RemoveSource(channel string, source string) error {
+func (ti *WindowsAPITester) RemoveSource(channel string, source string) error {
 	// Open channel key
 	channelKey, err := registry.OpenKey(registry.LOCAL_MACHINE, channelRegistryKey(channel), registry.CREATE_SUB_KEY)
 	if err != nil {
@@ -119,7 +119,7 @@ func (ti *WindowsTestInterface) RemoveSource(channel string, source string) erro
 	return registry.DeleteKey(channelKey, source)
 }
 
-func (ti *WindowsTestInterface) GenerateEvents(channelName string, numEvents uint) error {
+func (ti *WindowsAPITester) GenerateEvents(channelName string, numEvents uint) error {
 
 	sourceHandle, err := ti.eventlogapi.RegisterEventSource(channelName)
 	if err != nil {

@@ -11,13 +11,13 @@ import (
 	"fmt"
 	"testing"
 
-    evtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
-    "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func ReadNumEventsWithNotify(t testing.TB, ti eventlog_test.EventLogTestInterface, sub *PullSubscription, numEvents uint) ([]*EventRecord, error) {
+func ReadNumEventsWithNotify(t testing.TB, ti eventlog_test.APITester, sub *PullSubscription, numEvents uint) ([]*EventRecord, error) {
 	eventRecords := make([]*EventRecord, 0)
 
 	count := uint(0)

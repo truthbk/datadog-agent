@@ -5,7 +5,7 @@
 //go:build windows
 // +build windows
 
-package api
+package evtapi
 
 import (
 	"golang.org/x/sys/windows"
@@ -14,12 +14,12 @@ import (
 const (
 	// EVT_SUBSCRIBE_FLAGS
 	// https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_subscribe_flags
-    EvtSubscribeToFutureEvents = iota + 1
-    EvtSubscribeStartAtOldestRecord
-    EvtSubscribeStartAfterBookmark
-    EvtSubscribeOriginMask
-    EvtSubscribeTolerateQueryErrors = 0x1000
-    EvtSubscribeStrict = 0x10000
+	EvtSubscribeToFutureEvents = iota + 1
+	EvtSubscribeStartAtOldestRecord
+	EvtSubscribeStartAfterBookmark
+	EvtSubscribeOriginMask
+	EvtSubscribeTolerateQueryErrors = 0x1000
+	EvtSubscribeStrict = 0x10000
 )
 
 const (
@@ -56,7 +56,7 @@ type EventSourceHandle windows.Handle
 // Returned from CreateEvent
 type WaitEventHandle windows.Handle
 
-type IWindowsEventLogAPI interface {
+type API interface {
 	// Windows Event Log API methods
 	EvtSubscribe(
 		SignalEvent WaitEventHandle,
@@ -98,15 +98,15 @@ type IWindowsEventLogAPI interface {
 //
 // Helpful wrappers for custom types
 //
-func EvtCloseResultSet(api IWindowsEventLogAPI, h EventResultSetHandle) {
+func EvtCloseResultSet(api API, h EventResultSetHandle) {
 	api.EvtClose(windows.Handle(h))
 }
 
-func EvtCloseBookmark(api IWindowsEventLogAPI, h EventBookmarkHandle) {
+func EvtCloseBookmark(api API, h EventBookmarkHandle) {
 	api.EvtClose(windows.Handle(h))
 }
 
-func EvtCloseRecord(api IWindowsEventLogAPI, h EventRecordHandle) {
+func EvtCloseRecord(api API, h EventRecordHandle) {
 	api.EvtClose(windows.Handle(h))
 }
 

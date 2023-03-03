@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-    evtapidef "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
-    "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,24 +21,24 @@ import (
 
 // Example usage of the eventlog utility library to get event records from the Windows Event Log
 // while using a channel to be notified when new events are available.
-func testExampleNotifyChannel(t testing.TB, ti eventlog_test.EventLogTestInterface, stop chan struct{}, done chan struct{}, channelPath string, numEvents uint) {
+func testExampleNotifyChannel(t testing.TB, ti eventlog_test.APITester, stop chan struct{}, done chan struct{}, channelPath string, numEvents uint) {
 	defer close(done)
 
 	// Choose the Windows Event Log API implementation
 	// Windows API
-	//   winevtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api/windows"
-	//   api = winevtapi.NewWindowsEventAPI()
+	//   "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api/windows"
+	//   api = winevtapi.New()
 	// Mock API
-	//   mockevtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api/mock"
-	//   api = mockevtapi.NewMockWindowsEventAPI()
+	//   "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api/mock"
+	//   api = mockevtapi.New()
 	// For this test the API implementation is selected by the test runner
-	evtapi := ti.EventLogAPI()
+	api := ti.API()
 
 	// Create the subscription
 	sub := NewPullSubscription(
 		channelPath,
 		"*",
-		WithWindowsEventLogAPI(evtapi))
+		WithWindowsEventLogAPI(api))
 
 	// Start the subscription
 	err := sub.Start()
@@ -73,7 +73,7 @@ func testExampleNotifyChannel(t testing.TB, ti eventlog_test.EventLogTestInterfa
 				// do something with the event
 				// ...
 				// close the event when done
-				evtapidef.EvtCloseRecord(evtapi, eventRecord.EventRecordHandle)
+				evtapi.EvtCloseRecord(api, eventRecord.EventRecordHandle)
 			}
 			break outerLoop
 		}
@@ -84,13 +84,13 @@ func testExampleNotifyChannel(t testing.TB, ti eventlog_test.EventLogTestInterfa
 }
 
 func TestExampleNotifyChannel(t *testing.T) {
-	testInterfaceNames := eventlog_test.GetEnabledTestInterfaces()
+	testInterfaceNames := eventlog_test.GetEnabledAPITesters()
 
 	channelPath := "testchannel"
 	numEvents := uint(10)
 	for _, tiName := range testInterfaceNames {
 		t.Run(fmt.Sprintf("%sAPI", tiName), func(t *testing.T) {
-			ti := eventlog_test.GetTestInterfaceByName(tiName, t)
+			ti := eventlog_test.GetAPITesterByName(tiName, t)
 			// Create some test events
 			createLog(t, ti, channelPath)
 			err := ti.GenerateEvents(channelPath, numEvents)

@@ -23,15 +23,15 @@ import (
 )
 
 func TestInvalidChannel(t *testing.T) {
-	testInterfaceNames := eventlog_test.GetEnabledTestInterfaces()
+	testerNames := eventlog_test.GetEnabledAPITesters()
 
-	for _, tiName := range testInterfaceNames {
+	for _, tiName := range testerNames {
 		t.Run(fmt.Sprintf("%sAPI", tiName), func(t *testing.T) {
-			ti := eventlog_test.GetTestInterfaceByName(tiName, t)
+			ti := eventlog_test.GetAPITesterByName(tiName, t)
 			sub := NewPullSubscription(
 				"nonexistentchannel",
 				"*",
-				WithWindowsEventLogAPI(ti.EventLogAPI()))
+				WithWindowsEventLogAPI(ti.API()))
 
 			err := sub.Start()
 			require.Error(t, err)
@@ -39,12 +39,12 @@ func TestInvalidChannel(t *testing.T) {
 	}
 }
 
-func createLog(t testing.TB, ti eventlog_test.EventLogTestInterface, channel string) error {
+func createLog(t testing.TB, ti eventlog_test.APITester, channel string) error {
 	err := ti.InstallChannel(channel)
 	if !assert.NoError(t, err) {
 		return err
 	}
-	err = ti.EventLogAPI().EvtClearLog(channel)
+	err = ti.API().EvtClearLog(channel)
 	if !assert.NoError(t, err) {
 		return err
 	}
@@ -59,12 +59,12 @@ func createLog(t testing.TB, ti eventlog_test.EventLogTestInterface, channel str
 	return nil
 }
 
-func startSubscription(t testing.TB, ti eventlog_test.EventLogTestInterface, channel string) (*PullSubscription, error) {
+func startSubscription(t testing.TB, ti eventlog_test.APITester, channel string) (*PullSubscription, error) {
 	// Create sub
 	sub := NewPullSubscription(
 		channel,
 		"*",
-		WithWindowsEventLogAPI(ti.EventLogAPI()))
+		WithWindowsEventLogAPI(ti.API()))
 
 	err := sub.Start()
 	if !assert.NoError(t, err) {
@@ -75,7 +75,7 @@ func startSubscription(t testing.TB, ti eventlog_test.EventLogTestInterface, cha
 	return sub, nil
 }
 
-func getEventHandles(t testing.TB, ti eventlog_test.EventLogTestInterface, sub *PullSubscription, numEvents uint) error {
+func getEventHandles(t testing.TB, ti eventlog_test.APITester, sub *PullSubscription, numEvents uint) error {
 	eventRecords, err := ReadNumEventsWithNotify(t, ti, sub, numEvents)
 	if err != nil {
 		return err
@@ -106,12 +106,12 @@ func TestBenchmarkTestGetEventHandles(t *testing.T) {
 	channel := "testchannel"
 	numEvents := []uint{10,100,1000,10000}
 
-	testInterfaceNames := eventlog_test.GetEnabledTestInterfaces()
+	testerNames := eventlog_test.GetEnabledAPITesters()
 
-	for _, tiName := range testInterfaceNames {
+	for _, tiName := range testerNames {
 		for _, v := range numEvents {
 			t.Run(fmt.Sprintf("%vAPI/%d", tiName, v), func(t *testing.T) {
-				ti := eventlog_test.GetTestInterfaceByName(tiName, t)
+				ti := eventlog_test.GetAPITesterByName(tiName, t)
 				createLog(t, ti, channel)
 				err := ti.GenerateEvents(channel, v)
 				require.NoError(t, err)
@@ -139,7 +139,7 @@ type GetEventsTestSuite struct {
 	testAPI string
 	numEvents uint
 
-	ti eventlog_test.EventLogTestInterface
+	ti eventlog_test.APITester
 }
 
 func (s *GetEventsTestSuite) SetupSuite() {
@@ -147,7 +147,7 @@ func (s *GetEventsTestSuite) SetupSuite() {
 	// pkglog.SetupLogger(seelog.Default, "debug")
 	// fmt.Println("SetupSuite")
 
-	s.ti = eventlog_test.GetTestInterfaceByName(s.testAPI, s.T())
+	s.ti = eventlog_test.GetAPITesterByName(s.testAPI, s.T())
 	err := s.ti.InstallChannel(s.channelPath)
 	require.NoError(s.T(), err)
 	err = s.ti.InstallSource(s.channelPath, "testsource")
@@ -163,14 +163,14 @@ func (s *GetEventsTestSuite) TearDownSuite() {
 func (s *GetEventsTestSuite) SetupTest() {
 	// Ensure the log is empty
 	// fmt.Println("SetupTest")
-	err := s.ti.EventLogAPI().EvtClearLog(s.channelPath)
+	err := s.ti.API().EvtClearLog(s.channelPath)
 	require.NoError(s.T(), err)
 
 }
 
 func (s *GetEventsTestSuite) TearDownTest() {
 	// fmt.Println("TearDownTest")
-	err := s.ti.EventLogAPI().EvtClearLog(s.channelPath)
+	err := s.ti.API().EvtClearLog(s.channelPath)
 	require.NoError(s.T(), err)
 }
 
@@ -335,9 +335,9 @@ func (s *GetEventsTestSuite) TestChannelInitiallyNotified() {
 }
 
 func TestLaunchGetEventsTestSuite(t *testing.T) {
-	testInterfaceNames := eventlog_test.GetEnabledTestInterfaces()
+	testerNames := eventlog_test.GetEnabledAPITesters()
 
-	for _, tiName := range testInterfaceNames {
+	for _, tiName := range testerNames {
 		t.Run(fmt.Sprintf("%sAPI", tiName), func(t *testing.T) {
 			var s GetEventsTestSuite
 			s.channelPath = "testchannel"
