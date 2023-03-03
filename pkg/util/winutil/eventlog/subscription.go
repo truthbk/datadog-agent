@@ -263,33 +263,31 @@ func (q *PullSubscription) synchronizeNoMoreItems() error {
 // GetEvents returns the next available events in the subscription.
 func (q *PullSubscription) GetEvents() ([]*EventRecord, error) {
 
-	for {
-		// TODO: should we use infinite or a small value?
-		//       it shouldn't block or timeout because we had out event set?
-		eventRecordHandles, err := q.eventLogAPI.EvtNext(q.subscriptionHandle, q.evtNextStorage, uint(len(q.evtNextStorage)), windows.INFINITE)
-		if err == nil {
-			pkglog.Debugf("EvtNext returned %v handles", len(eventRecordHandles))
-			// got events
-			eventRecords := q.parseEventRecordHandles(eventRecordHandles)
-			return eventRecords, nil
-		} else if err == windows.ERROR_TIMEOUT {
-			// no more events
-			// TODO: Should we reset the handle? MS example says no
-			pkglog.Errorf("evtnext timeout")
-			break
-		} else if err == windows.ERROR_NO_MORE_ITEMS {
-			// no more events
-			pkglog.Debugf("EvtNext returned no more items")
-			err := q.synchronizeNoMoreItems()
-			if err != nil {
-				return nil, err
-			}
-			// not an error, there are just no more items
-			return nil, nil
-		} else {
-			pkglog.Errorf("EvtNext failed: %v", err)
+	// TODO: should we use infinite or a small value?
+	//       it shouldn't block or timeout because we had out event set?
+	eventRecordHandles, err := q.eventLogAPI.EvtNext(q.subscriptionHandle, q.evtNextStorage, uint(len(q.evtNextStorage)), windows.INFINITE)
+	if err == nil {
+		pkglog.Debugf("EvtNext returned %v handles", len(eventRecordHandles))
+		// got events
+		eventRecords := q.parseEventRecordHandles(eventRecordHandles)
+		return eventRecords, nil
+	} else if err == windows.ERROR_TIMEOUT {
+		// no more events
+		// TODO: Should we reset the handle? MS example says no
+		pkglog.Errorf("evtnext timeout")
+		return nil, fmt.Errorf("timeout")
+	} else if err == windows.ERROR_NO_MORE_ITEMS {
+		// no more events
+		pkglog.Debugf("EvtNext returned no more items")
+		err := q.synchronizeNoMoreItems()
+		if err != nil {
 			return nil, err
 		}
+		// not an error, there are just no more items
+		return nil, nil
+	} else {
+		pkglog.Errorf("EvtNext failed: %v", err)
+		return nil, err
 	}
 
 	return nil, nil

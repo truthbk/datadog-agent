@@ -35,7 +35,7 @@ type mockEventLog struct {
 	events []*mockEventRecord
 
 	// For notifying of new events
-	subscriptions []evtapi.EventResultSetHandle
+	subscriptions map[evtapi.EventResultSetHandle]*mockSubscription
 }
 
 type mockSubscription struct {
@@ -81,6 +81,7 @@ func NewMockWindowsEventLogAPI() *MockWindowsEventLogAPI {
 func newMockEventLog(name string) *mockEventLog {
 	var e mockEventLog
 	e.name = name
+	e.subscriptions = make(map[evtapi.EventResultSetHandle]*mockSubscription)
 	return &e
 }
 
@@ -117,7 +118,13 @@ func (api *MockWindowsEventLogAPI) AddEventLog(name string) error {
 }
 
 func (api *MockWindowsEventLogAPI) RemoveEventLog(name string) error {
-	return fmt.Errorf("not implemented")
+	// Get event log
+	_, err := api.getMockEventLog(name)
+	if err != nil {
+		return err
+	}
+	delete(api.eventLogs, name)
+	return nil
 }
 
 func (api *MockWindowsEventLogAPI) GenerateEvents(eventLogName string, numEvents uint) error {
@@ -215,12 +222,7 @@ func (e *mockEventLog) reportEvent(
 	e.addEventRecord(event)
 
 	// notify subscriptions
-	for _, subHandle := range e.subscriptions {
-		// get subscription
-		sub, err := api.getMockSubscriptionByHandle(subHandle)
-		if err != nil {
-			continue
-		}
+	for _, sub := range e.subscriptions {
 		windows.SetEvent(windows.Handle(sub.signalEventHandle))
 	}
 	return event
@@ -250,7 +252,7 @@ func (api *MockWindowsEventLogAPI) EvtSubscribe(
 	sub := newMockSubscription(ChannelPath, Query)
 	sub.signalEventHandle = SignalEvent
 	api.addSubscription(sub)
-	evtlog.subscriptions = append(evtlog.subscriptions, sub.handle)
+	evtlog.subscriptions[sub.handle] = sub
 	return sub.handle, nil
 }
 
@@ -297,7 +299,18 @@ func (api *MockWindowsEventLogAPI) EvtNext(
 }
 
 func (api *MockWindowsEventLogAPI) EvtClose(h windows.Handle) {
-	// nothing to do
+	// is handle an event?
+	// TODO
+	// Is handle a subscription?
+	sub, err := api.getMockSubscriptionByHandle(evtapi.EventResultSetHandle(h))
+	if err == nil {
+		eventLog, err := api.getMockEventLog(sub.channel)
+		if err != nil {
+			return
+		}
+		delete(eventLog.subscriptions, sub.handle)
+		return
+	}
 }
 
 // EvtRenderEventXmlText renders EvtRenderEventXml
@@ -355,8 +368,8 @@ func (api *MockWindowsEventLogAPI) RegisterEventSource(SourceName string) (evtap
 	}
 
 	// Create a handle
-	api.sourceHandleCount += 1
-	h := evtapi.EventSourceHandle(api.sourceHandleCount)
+	api.nextHandle += 1
+	h := evtapi.EventSourceHandle(api.nextHandle)
 	api.sourceHandles[h] = eventLog.name
 	return h, nil
 }
