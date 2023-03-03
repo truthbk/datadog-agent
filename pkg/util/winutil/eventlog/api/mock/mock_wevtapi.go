@@ -14,19 +14,16 @@ import (
 
     evtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
 
+	"go.uber.org/atomic"
 	"golang.org/x/sys/windows"
 )
 
 type MockWindowsEventLogAPI struct {
 	eventLogs map[string]*mockEventLog
 
-	subscriptionHandleCount uint
+	nextHandle *atomic.Uint64
 	subscriptions map[evtapi.EventResultSetHandle]*mockSubscription
-
-	eventRecordHandleCount uint
 	eventHandles map[evtapi.EventRecordHandle]*mockEventRecord
-
-	sourceHandleCount uint
 	sourceHandles map[evtapi.EventSourceHandle]string
 }
 
@@ -63,17 +60,13 @@ type mockEventRecord struct {
 func NewMockWindowsEventLogAPI() *MockWindowsEventLogAPI {
 	var api MockWindowsEventLogAPI
 
+	api.nextHandle = atomic.NewUint64(0)
+
 	api.subscriptions = make(map[evtapi.EventResultSetHandle]*mockSubscription)
-	// invalid handle
-	api.subscriptions[0] = nil
+	api.eventHandles = make(map[evtapi.EventRecordHandle]*mockEventRecord)
+	api.sourceHandles = make(map[evtapi.EventSourceHandle]string)
 
 	api.eventLogs = make(map[string]*mockEventLog)
-
-	api.eventHandles = make(map[evtapi.EventRecordHandle]*mockEventRecord)
-	// invalid handle
-	api.eventHandles[0] = nil
-
-	api.sourceHandles = make(map[evtapi.EventSourceHandle]string)
 
 	return &api
 }
@@ -149,17 +142,15 @@ func (api *MockWindowsEventLogAPI) GenerateEvents(eventLogName string, numEvents
 // internal mock functions
 //
 func (api *MockWindowsEventLogAPI) addSubscription(sub *mockSubscription) {
-	api.subscriptionHandleCount += 1
-	h := api.subscriptionHandleCount
+	h := api.nextHandle.Inc()
 	sub.handle = evtapi.EventResultSetHandle(h)
 	api.subscriptions[sub.handle] = sub
 }
 
 func (api *MockWindowsEventLogAPI) addEventRecord(event *mockEventRecord) {
-   api.eventRecordHandleCount += 1
-   h := api.eventRecordHandleCount
-   event.handle = evtapi.EventRecordHandle(h)
-   api.eventHandles[event.handle] = event
+	h := api.nextHandle.Inc()
+	event.handle = evtapi.EventRecordHandle(h)
+	api.eventHandles[event.handle] = event
 }
 
 func (api *MockWindowsEventLogAPI) getMockSubscriptionByHandle(subHandle evtapi.EventResultSetHandle) (*mockSubscription, error) {
@@ -368,8 +359,7 @@ func (api *MockWindowsEventLogAPI) RegisterEventSource(SourceName string) (evtap
 	}
 
 	// Create a handle
-	api.nextHandle += 1
-	h := evtapi.EventSourceHandle(api.nextHandle)
+	h := evtapi.EventSourceHandle(api.nextHandle.Inc())
 	api.sourceHandles[h] = eventLog.name
 	return h, nil
 }
