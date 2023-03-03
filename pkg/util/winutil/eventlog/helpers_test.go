@@ -8,15 +8,16 @@
 package eventlog
 
 import (
+	"fmt"
 	"testing"
 
     evtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
     "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
 
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
-func ReadNumEventsWithNotify(t testing.TB, ti eventlog_test.EventLogTestInterface, sub *PullSubscription, numEvents uint) []*EventRecord {
+func ReadNumEventsWithNotify(t testing.TB, ti eventlog_test.EventLogTestInterface, sub *PullSubscription, numEvents uint) ([]*EventRecord, error) {
 	eventRecords := make([]*EventRecord, 0)
 
 	count := uint(0)
@@ -29,11 +30,17 @@ func ReadNumEventsWithNotify(t testing.TB, ti eventlog_test.EventLogTestInterfac
 			}
 			for {
 				events, err := sub.GetEvents()
-				require.NoError(t, err)
+				if !assert.NoError(t, err, "GetEvents should not return an error") {
+					return nil, fmt.Errorf("GetEvents returned error: %v", err)
+				}
 				if count == numEvents {
-					require.Nil(t, events)
+					if !assert.Nil(t, events, "events should be nil when count is reached") {
+						return nil, fmt.Errorf("events should be nil when count is reached")
+					}
 				} else {
-					require.NotNil(t, events)
+					if !assert.NotNil(t, events, "events should not be nil if count is not reached %v/%v", count, numEvents) {
+						return nil, fmt.Errorf("events should not be nil")
+					}
 				}
 				if events != nil {
 					eventRecords = append(eventRecords, events...)
@@ -47,10 +54,10 @@ func ReadNumEventsWithNotify(t testing.TB, ti eventlog_test.EventLogTestInterfac
 	}
 
 	for _, eventRecord := range eventRecords {
-		if eventRecord.EventRecordHandle == evtapi.EventRecordHandle(0) {
-			require.FailNow(t, "EventRecordHandle must not be NULL")
+		if !assert.NotEqual(t, evtapi.EventRecordHandle(0), eventRecord.EventRecordHandle, "EventRecordHandle should not be NULL") {
+			return nil, fmt.Errorf("EventRecordHandle should not be NULL")
 		}
 	}
 
-	return eventRecords
+	return eventRecords, nil
 }

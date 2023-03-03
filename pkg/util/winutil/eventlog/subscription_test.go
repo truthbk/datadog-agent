@@ -12,15 +12,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cihub/seelog"
-	pkglog "github.com/DataDog/datadog-agent/pkg/util/log"
+	// "github.com/cihub/seelog"
+	// pkglog "github.com/DataDog/datadog-agent/pkg/util/log"
 
     "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
-
 
 func TestInvalidChannel(t *testing.T) {
 	testInterfaceNames := eventlog_test.GetEnabledTestInterfaces()
@@ -39,20 +39,27 @@ func TestInvalidChannel(t *testing.T) {
 	}
 }
 
-func createLog(t testing.TB, ti eventlog_test.EventLogTestInterface, channel string) {
+func createLog(t testing.TB, ti eventlog_test.EventLogTestInterface, channel string) error {
 	err := ti.InstallChannel(channel)
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return err
+	}
 	err = ti.EventLogAPI().EvtClearLog(channel)
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return err
+	}
 	err = ti.InstallSource(channel, "testsource")
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return err
+	}
 	t.Cleanup(func() {
 		ti.RemoveSource(channel, "testsource")
 		ti.RemoveChannel(channel)
 	})
+	return nil
 }
 
-func startSubscription(t testing.TB, ti eventlog_test.EventLogTestInterface, channel string) *PullSubscription {
+func startSubscription(t testing.TB, ti eventlog_test.EventLogTestInterface, channel string) (*PullSubscription, error) {
 	// Create sub
 	sub := NewPullSubscription(
 		channel,
@@ -60,22 +67,35 @@ func startSubscription(t testing.TB, ti eventlog_test.EventLogTestInterface, cha
 		WithWindowsEventLogAPI(ti.EventLogAPI()))
 
 	err := sub.Start()
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return nil, err
+	}
 
 	t.Cleanup(func() { sub.Stop() })
-	return sub
+	return sub, nil
 }
 
-func getEventHandles(t testing.TB, ti eventlog_test.EventLogTestInterface, sub *PullSubscription, numEvents uint) {
-	eventRecords := ReadNumEventsWithNotify(t, ti, sub, numEvents)
+func getEventHandles(t testing.TB, ti eventlog_test.EventLogTestInterface, sub *PullSubscription, numEvents uint) error {
+	eventRecords, err := ReadNumEventsWithNotify(t, ti, sub, numEvents)
+	if err != nil {
+		return err
+	}
 	count := uint(len(eventRecords))
-	require.Equal(t, numEvents, count, fmt.Sprintf("Missing events, collected %d/%d events", count, numEvents))
+	if !assert.Equal(t, numEvents, count, fmt.Sprintf("Missing events, collected %d/%d events", count, numEvents)) {
+		return fmt.Errorf("Missing events")
+	}
+	return nil
 }
 
-func requireNoMoreEvents(t testing.TB, sub *PullSubscription) {
+func assertNoMoreEvents(t testing.TB, sub *PullSubscription) error {
 	events, err := sub.GetEvents()
-	require.NoError(t, err, "Error should be nil when there are no more events")
-	require.Nil(t, events, "[]events should be nil when there are no more events")
+	if !assert.NoError(t, err, "Error should be nil when there are no more events") {
+		return fmt.Errorf("Error should be nil when there are no more events")
+	}
+	if !assert.Nil(t, events, "[]events should be nil when there are no more events") {
+		return fmt.Errorf("[]events should be nil when there are no more events")
+	}
+	return nil
 }
 
 func TestBenchmarkTestGetEventHandles(t *testing.T) {
@@ -97,9 +117,11 @@ func TestBenchmarkTestGetEventHandles(t *testing.T) {
 				require.NoError(t, err)
 				result := testing.Benchmark(func(b *testing.B) {
 					for i := 0; i < b.N; i++ {
-						sub := startSubscription(b, ti, channel)
+						sub, err := startSubscription(b, ti, channel)
+						require.NoError(b, err)
 						getEventHandles(b, ti, sub, v)
-						requireNoMoreEvents(b, sub)
+						err = assertNoMoreEvents(b, sub)
+						assert.NoError(b, err)
 						sub.Stop()
 					}
 				})
@@ -122,8 +144,8 @@ type GetEventsTestSuite struct {
 
 func (s *GetEventsTestSuite) SetupSuite() {
 	// Enable logger
-	pkglog.SetupLogger(seelog.Default, "debug")
-	fmt.Println("SetupSuite")
+	// pkglog.SetupLogger(seelog.Default, "debug")
+	// fmt.Println("SetupSuite")
 
 	s.ti = eventlog_test.GetTestInterfaceByName(s.testAPI, s.T())
 	err := s.ti.InstallChannel(s.channelPath)
@@ -133,21 +155,21 @@ func (s *GetEventsTestSuite) SetupSuite() {
 }
 
 func (s *GetEventsTestSuite) TearDownSuite() {
-	fmt.Println("TearDownSuite")
+	// fmt.Println("TearDownSuite")
 	s.ti.RemoveSource(s.channelPath, "testsource")
 	s.ti.RemoveChannel(s.channelPath)
 }
 
 func (s *GetEventsTestSuite) SetupTest() {
 	// Ensure the log is empty
-	fmt.Println("SetupTest")
+	// fmt.Println("SetupTest")
 	err := s.ti.EventLogAPI().EvtClearLog(s.channelPath)
 	require.NoError(s.T(), err)
 
 }
 
 func (s *GetEventsTestSuite) TearDownTest() {
-	fmt.Println("SetupTest")
+	// fmt.Println("TearDownTest")
 	err := s.ti.EventLogAPI().EvtClearLog(s.channelPath)
 	require.NoError(s.T(), err)
 }
@@ -158,51 +180,61 @@ func (s *GetEventsTestSuite) TestReadOldEvents() {
 	require.NoError(s.T(), err)
 
 	// Create sub
-	sub := startSubscription(s.T(), s.ti, s.channelPath)
+	sub, err := startSubscription(s.T(), s.ti, s.channelPath)
+	require.NoError(s.T(), err)
 
 	// Get Events
-	getEventHandles(s.T(), s.ti, sub, s.numEvents)
+	err = getEventHandles(s.T(), s.ti, sub, s.numEvents)
+	require.NoError(s.T(), err)
 }
 
 func (s *GetEventsTestSuite) TestReadNewEvents() {
 	// Create sub
-	sub := startSubscription(s.T(), s.ti, s.channelPath)
+	sub, err := startSubscription(s.T(), s.ti, s.channelPath)
+	require.NoError(s.T(), err)
 
 	// Eat the initial state
-	requireNoMoreEvents(s.T(), sub)
+	err = assertNoMoreEvents(s.T(), sub)
+	require.NoError(s.T(), err)
 
 	// Put events in the log
-	err := s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	err = s.ti.GenerateEvents(s.channelPath, s.numEvents)
 	require.NoError(s.T(), err)
 
 	// Get Events
-	getEventHandles(s.T(), s.ti, sub, s.numEvents)
-	requireNoMoreEvents(s.T(), sub)
+	err = getEventHandles(s.T(), s.ti, sub, s.numEvents)
+	require.NoError(s.T(), err)
+	err = assertNoMoreEvents(s.T(), sub)
+	require.NoError(s.T(), err)
 }
 
 // Tests that Stop() can be called when there are events available to be collected
 func (s *GetEventsTestSuite) TestStopWhileWaitingWithEventsAvailable() {
 	// Create subscription
-	sub := startSubscription(s.T(), s.ti, s.channelPath)
+	sub, err := startSubscription(s.T(), s.ti, s.channelPath)
+	require.NoError(s.T(), err)
 
 	// Put events in the log
-	err := s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	err = s.ti.GenerateEvents(s.channelPath, s.numEvents)
 	require.NoError(s.T(), err)
 
 	readyToStop := make(chan struct{})
 	stopped := make(chan struct{})
 	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		// Read all events
-		getEventHandles(s.T(), s.ti, sub, s.numEvents)
+		err := getEventHandles(s.T(), s.ti, sub, s.numEvents)
 		close(readyToStop)
+		if !assert.NoError(s.T(), err) {
+			return
+		}
 		// Purposefully don't call EvtNext the final time when it would normally return ERROR_NO_MORE_ITEMS.
 		// This leaves the notify event set.
 		// Wait for Stop() to finish
 		<-stopped
 		_, ok := <- sub.NotifyEventsAvailable
-		require.False(s.T(), ok, "Notify channel should be closed after Stop()")
-		close(done)
+		assert.False(s.T(), ok, "Notify channel should be closed after Stop()")
 	}()
 
 	<-readyToStop
@@ -214,22 +246,33 @@ func (s *GetEventsTestSuite) TestStopWhileWaitingWithEventsAvailable() {
 // Tests that Stop() can be called when the subscription is in a ERROR_NO_MORE_ITEMS state
 func (s *GetEventsTestSuite) TestStopWhileWaitingNoMoreEvents() {
 	// Create subscription
-	sub := startSubscription(s.T(), s.ti, s.channelPath)
+	sub, err := startSubscription(s.T(), s.ti, s.channelPath)
+	require.NoError(s.T(), err)
 
 	// Put events in the log
-	err := s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	err = s.ti.GenerateEvents(s.channelPath, s.numEvents)
 	require.NoError(s.T(), err)
 
 	readyToStop := make(chan struct{})
 	done := make(chan struct{})
 	go func() {
 		// Read all events
-		getEventHandles(s.T(), s.ti, sub, s.numEvents)
-		requireNoMoreEvents(s.T(), sub)
+		err := getEventHandles(s.T(), s.ti, sub, s.numEvents)
+		if err != nil {
+			close(readyToStop)
+			close(done)
+			return
+		}
+		err = assertNoMoreEvents(s.T(), sub)
+		if err != nil {
+			close(readyToStop)
+			close(done)
+			return
+		}
 		close(readyToStop)
 		// block on events available notification
 		_, ok := <- sub.NotifyEventsAvailable
-		require.False(s.T(), ok, "Notify channel should be closed after Stop()")
+		assert.False(s.T(), ok, "Notify channel should be closed after Stop()")
 		close(done)
 	}()
 
@@ -241,19 +284,22 @@ func (s *GetEventsTestSuite) TestStopWhileWaitingNoMoreEvents() {
 // Tests that GetEvents() still works when the NotifyEventsAvailable channel is ignored
 func (s *GetEventsTestSuite) TestUnusedNotifyChannel() {
 	// Create sub
-	sub := startSubscription(s.T(), s.ti, s.channelPath)
+	sub, err := startSubscription(s.T(), s.ti, s.channelPath)
+	require.NoError(s.T(), err)
 
 	// Loop so we test collecting old events and then new events
 	for i := 0; i < 2; i++ {
 		// Put events in the log
-		err := s.ti.GenerateEvents(s.channelPath, s.numEvents)
+		err = s.ti.GenerateEvents(s.channelPath, s.numEvents)
 		require.NoError(s.T(), err)
 
 		// Don't wait on the channel, just get events
 		eventRecords, err := sub.GetEvents()
+		require.NoError(s.T(), err)
 		count := uint(len(eventRecords))
 		require.Equal(s.T(), s.numEvents, count, fmt.Sprintf("Missing events, collected %d/%d events", count, s.numEvents))
-		requireNoMoreEvents(s.T(), sub)
+		err = assertNoMoreEvents(s.T(), sub)
+		require.NoError(s.T(), err)
 	}
 }
 
@@ -262,7 +308,8 @@ func (s *GetEventsTestSuite) TestUnusedNotifyChannel() {
 // https://learn.microsoft.com/en-us/windows/win32/wes/subscribing-to-events#pull-subscriptions
 func (s *GetEventsTestSuite) TestChannelInitiallyNotified() {
 	// Create sub
-	sub := startSubscription(s.T(), s.ti, s.channelPath)
+	sub, err := startSubscription(s.T(), s.ti, s.channelPath)
+	require.NoError(s.T(), err)
 
 	// TODO: How to remove this sleep?
 	time.Sleep(100*time.Millisecond)
@@ -275,7 +322,8 @@ func (s *GetEventsTestSuite) TestChannelInitiallyNotified() {
 	}
 
 	// should return empty
-	requireNoMoreEvents(s.T(), sub)
+	err = assertNoMoreEvents(s.T(), sub)
+	require.NoError(s.T(), err)
 
 	// should block this time
 	select {
