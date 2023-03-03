@@ -15,6 +15,7 @@ import (
     evtapidef "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
     "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,7 +42,9 @@ func testExampleNotifyChannel(t testing.TB, ti eventlog_test.EventLogTestInterfa
 
 	// Start the subscription
 	err := sub.Start()
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	// Get events until stop is set
 	outerLoop:
