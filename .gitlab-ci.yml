@@ -703,6 +703,12 @@ workflow:
     when: never
   - <<: *if_kitchen
 
+.on_kitchen_tests_a6_allow_failure:
+  - <<: *if_not_version_6
+    when: never
+  - <<: *if_kitchen
+    allow_failure: true
+
 .on_kitchen_tests_a6_always:
   - <<: *if_not_version_6
     when: never
@@ -720,6 +726,12 @@ workflow:
   - <<: *if_not_version_7
     when: never
   - <<: *if_kitchen
+
+.on_kitchen_tests_a7_allow_failure:
+  - <<: *if_not_version_7
+    when: never
+  - <<: *if_kitchen
+    allow_failure: true
 
 .on_kitchen_tests_a7_always:
   - <<: *if_not_version_7
