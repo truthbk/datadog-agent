@@ -6,6 +6,7 @@ High level testing tasks
 # so we only need to check that we don't run this code with old Python versions.
 
 import abc
+import datetime
 import json
 import operator
 import os
@@ -145,9 +146,14 @@ def lint_flavor(
             continue
 
         with ctx.cd(module.full_path()):
+            start_time = datetime.datetime.now()
             lint_results = run_golangci_lint(
                 ctx, targets=module.targets, rtloader_root=rtloader_root, build_tags=build_tags, arch=arch
             )
+            end_time = datetime.datetime.now()
+
+            module_lint_result.duration = end_time - start_time
+
             for lint_result in lint_results:
                 module_lint_result.lint_outputs.append(lint_result)
                 if lint_result.exited != 0:
@@ -165,9 +171,14 @@ class ModuleResult(abc.ABC):
         self.failed = False
         # String for representing the result type in printed output
         self.result_type = "generic"
+        # Duration of the step
+        self.duration = None
 
     def failure_string(self, flavor):
         return color_message(f"{self.result_type} for module {self.path} failed ({flavor.name} flavor)\n", "red")
+
+    def timing_string(self, flavor):
+        return f"{self.result_type} ({flavor.name} flavor) {self.path}: {self.duration}"
 
     @abc.abstractmethod
     def get_failure(self, flavor):  # noqa: U100
@@ -300,6 +311,8 @@ def test_flavor(
             print("----- Skipped")
             continue
 
+        start_time = datetime.datetime.now()
+
         with ctx.cd(module.full_path()):
             res = ctx.run(
                 cmd.format(
@@ -309,7 +322,9 @@ def test_flavor(
                 out_stream=test_profiler,
                 warn=True,
             )
+        end_time = datetime.datetime.now()
 
+        module_test_result.duration = end_time - start_time
         module_test_result.result_json_path = os.path.join(module.full_path(), GO_TEST_RESULT_TMP_JSON)
 
         if res.exited is None or res.exited > 0:
@@ -589,6 +604,14 @@ def test(
         # print("\n--- Top 15 packages sorted by run time:")
         test_profiler.print_sorted(15)
 
+    # Print timing information
+    for flavor in flavors:
+        for module_results in modules_results_per_flavor[flavor].values():
+            for module_result in module_results:
+                if module_result is not None:
+                    print(module_result.timing_string(flavor))
+
+    # Print failures
     should_fail = False
     for flavor in flavors:
         for module_results in modules_results_per_flavor[flavor].values():
