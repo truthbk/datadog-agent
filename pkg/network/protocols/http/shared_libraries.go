@@ -9,14 +9,19 @@
 package http
 
 import (
+	"bytes"
+	"debug/elf"
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
+	"github.com/gofrs/flock"
+	"io"
 	"os"
 	"regexp"
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/DataDog/gopsutil/process"
@@ -88,7 +93,7 @@ func newPathIdentifier(path string) (pi pathIdentifier, err error) {
 
 type soRule struct {
 	re           *regexp.Regexp
-	registerCB   func(id pathIdentifier, root string, path string) error
+	registerCB   func(id pathIdentifier, root string, path string, f io.ReaderAt) error
 	unregisterCB func(id pathIdentifier) error
 }
 
@@ -254,6 +259,14 @@ func (w *soWatcher) Start() {
 						libPath = "/" + libPath
 					}
 
+					s, err := os.Stat(root + libPath)
+					if err != nil {
+						log.Debugf("Stat %s error %s", root+libPath, err)
+					}
+					if strings.Contains(libPath, "native") {
+						log.Debugf("Stat %#+v", s)
+					}
+
 					w.registry.Register(root, libPath, lib.Pid, r)
 					break
 				}
@@ -305,6 +318,7 @@ func (r *soRegistry) Register(root string, libPath string, pid uint32, rule soRu
 		log.Tracef("can't create path identifier %s", err)
 		return
 	}
+	log.Debugf("%s register ssl %s %s %d", time.Now(), pathID.String(), hostLibPath, pid)
 
 	r.m.Lock()
 	defer r.m.Unlock()
@@ -318,8 +332,47 @@ func (r *soRegistry) Register(root string, libPath string, pid uint32, rule soRu
 		return
 	}
 
-	if err := rule.registerCB(pathID, root, libPath); err != nil {
-		log.Debugf("error registering library (adding to blocklist) %s path %s by pid %d : %s", pathID.String(), hostLibPath, pid, err)
+	s, err := os.Stat(root + libPath)
+	if err != nil {
+		log.Debugf("Stat %s error %s", root+libPath, err)
+	}
+
+	f := flock.New(root + libPath)
+	f.TryLock() // unchecked errors here
+	log.Debugf("==== ==  =locked: %v\n", f.Locked())
+	defer f.Unlock()
+
+	o, err := os.ReadFile(root + libPath)
+	for s.Size() == 0 {
+		s, err = os.Stat(root + libPath)
+		if err != nil {
+			log.Debugf("Stat %s error %s", root+libPath, err)
+			break
+		}
+		if s.Size() > 0 {
+			oo, err := os.ReadFile(root + libPath)
+			if err != nil {
+				break
+			}
+			o = oo
+		} else {
+			time.Sleep(1 * time.Millisecond)
+		}
+	}
+	//	o, err = os.ReadFile(root + libPath)
+	if strings.Contains(libPath, "native") {
+		log.Debugf("====Stat %#+v   %s %d", s, err, len(o))
+		os.WriteFile("/tmp/native.so", o, 0666)
+	}
+	freader := bytes.NewReader(o)
+
+	if err := rule.registerCB(pathID, root, libPath, freader); err != nil {
+		log.Debugf("%s error registering library (adding to blocklist) %s path %s by pid %d : %s", time.Now(), pathID.String(), hostLibPath, pid, err)
+		_, err = elf.Open(root + libPath)
+		if err != nil {
+			log.Debugf("elfopen %s error %s", root+libPath, err)
+		}
+
 		// we calling unregisterCB here as some uprobe could be already attached, unregisterCB will cleanup those entries
 		if rule.unregisterCB != nil {
 			if err := rule.unregisterCB(pathID); err != nil {

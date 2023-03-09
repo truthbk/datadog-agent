@@ -27,11 +27,11 @@ public final class NettyClient {
     static final String URL = "https://httpbin.org/anything/get/java-netty-test";
 
     public static void main(String[] args) throws Exception {
-        try {
-            Thread.sleep(11*1000);
-        } catch (Exception ex) {
-            System.out.println(ex);
-        }
+        // try {
+        //     Thread.sleep(11*1000);
+        // } catch (Exception ex) {
+        //     System.out.println(ex);
+        // }
 
 
         URI uri = new URI(URL);
@@ -53,10 +53,17 @@ public final class NettyClient {
             // provider JDK, OPENSSL, OPENSSL_REFCNT
             sslCtx = SslContextBuilder.forClient()
                 .trustManager(InsecureTrustManagerFactory.INSTANCE)
-                .sslProvider(SslProvider.JDK).build();
+                .sslProvider(SslProvider.OPENSSL).build();
         } else {
             sslCtx = null;
         }
+
+        try {
+            Thread.sleep(2*1000);
+        } catch (Exception ex) {
+            System.out.println(ex);
+        }
+            
 
         // Configure the client.
         EventLoopGroup group = new NioEventLoopGroup();
@@ -76,7 +83,7 @@ public final class NettyClient {
             request.headers().set(HttpHeaderNames.ACCEPT_ENCODING, HttpHeaderValues.GZIP);
 
         try {
-            Thread.sleep(3*1000);
+            Thread.sleep(5*1000);
         } catch (Exception ex) {
             System.out.println(ex);
         }

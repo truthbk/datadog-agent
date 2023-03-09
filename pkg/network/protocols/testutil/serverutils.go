@@ -46,6 +46,7 @@ func RunDockerServer(t *testing.T, serverName, dockerPath string, env []string, 
 	for {
 		select {
 		case <-patternScanner.DoneChan:
+			patternScanner.PrintLogs(t)
 			t.Logf("%s server pid (docker) %d is ready", serverName, cmd.Process.Pid)
 			return true
 		case <-time.After(timeout):

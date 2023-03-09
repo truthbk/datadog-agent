@@ -10,6 +10,7 @@ package http
 
 import (
 	"debug/elf"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -300,6 +301,11 @@ func (o *sslProgram) Start() {
 			unregisterCB: removeHooks(o.manager, openSSLProbes),
 		},
 		soRule{
+			re:           regexp.MustCompile(`libnetty_tcnative.*.so`),
+			registerCB:   addHooks(o.manager, openSSLProbes),
+			unregisterCB: removeHooks(o.manager, openSSLProbes),
+		},
+		soRule{
 			re:           regexp.MustCompile(`libcrypto.so`),
 			registerCB:   addHooks(o.manager, cryptoProbes),
 			unregisterCB: removeHooks(o.manager, cryptoProbes),
@@ -318,11 +324,11 @@ func (o *sslProgram) Stop() {
 	o.perfHandler.Stop()
 }
 
-func addHooks(m *errtelemetry.Manager, probes []manager.ProbesSelector) func(pathIdentifier, string, string) error {
-	return func(id pathIdentifier, root string, path string) error {
+func addHooks(m *errtelemetry.Manager, probes []manager.ProbesSelector) func(pathIdentifier, string, string, io.ReaderAt) error {
+	return func(id pathIdentifier, root string, path string, f io.ReaderAt) error {
 		uid := getUID(id)
 
-		elfFile, err := elf.Open(root + path)
+		elfFile, err := elf.NewFile(f) //Open(root + path)
 		if err != nil {
 			return err
 		}
