@@ -9,6 +9,7 @@
 package java
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -134,3 +135,54 @@ func TestInject(t *testing.T) {
 	})
 
 }
+
+func TestInject10(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		t.Run(fmt.Sprintf("nb%3d", i), func(t *testing.T) { TestInject(t) })
+	}
+}
+
+/*
+func TestInject10_2(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		t.Run(fmt.Sprintf("nb%3d", i), func(t *testing.T) { TestInject(t) })
+	}
+}
+
+func TestInject10_3(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		t.Run(fmt.Sprintf("nb%3d", i), func(t *testing.T) { TestInject(t) })
+	}
+}
+
+func TestInject10_4(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		t.Run(fmt.Sprintf("nb%3d", i), func(t *testing.T) { TestInject(t) })
+	}
+}
+func TestInject10_5(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		t.Run(fmt.Sprintf("nb%3d", i), func(t *testing.T) { TestInject(t) })
+	}
+}
+func TestInject10_6(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		t.Run(fmt.Sprintf("nb%3d", i), func(t *testing.T) { TestInject(t) })
+	}
+}
+func TestInject10_7(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		t.Run(fmt.Sprintf("nb%3d", i), func(t *testing.T) { TestInject(t) })
+	}
+}
+func TestInject10_8(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		t.Run(fmt.Sprintf("nb%3d", i), func(t *testing.T) { TestInject(t) })
+	}
+}
+func TestInject10_9(t *testing.T) {
+	for i := 0; i < 10; i++ {
+		t.Run(fmt.Sprintf("nb%3d", i), func(t *testing.T) { TestInject(t) })
+	}
+}
+*/
