@@ -6,7 +6,7 @@
 require './lib/ostools.rb'
 require 'json'
 
-name 'datadog-security-agent-policies'
+name 'datadog-security-agent-policies-test'
 
 dependency 'datadog-agent'
 
