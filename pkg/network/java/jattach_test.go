@@ -50,13 +50,13 @@ func findJustWait(t *testing.T) (retpid int) {
 }
 
 func testInject(t *testing.T, prefix string) {
-	go func() {
+	go func(t *testing.T) {
 		o, err := testutil.RunCommand(prefix + "java -cp testdata JustWait")
 		if err != nil {
 			t.Logf("%v\n", err)
 		}
 		t.Log(o)
-	}()
+	}(t)
 	time.Sleep(time.Second) // give a chance to spawn java
 
 	pid := findJustWait(t)
