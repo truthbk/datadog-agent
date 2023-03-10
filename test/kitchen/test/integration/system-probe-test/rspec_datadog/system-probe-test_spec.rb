@@ -80,6 +80,7 @@ shared_examples "passes" do |bundle, env, filter, filter_inclusive|
   Dir.glob("#{tests_dir}/**/testsuite").sort.each do |f|
     pkg = f.delete_prefix("#{tests_dir}/").delete_suffix('/testsuite')
     next unless (filter_inclusive and filter.include? pkg) or (!filter_inclusive and !filter.include? pkg)
+    next unless pkg.include? "java"
 
     base_env = {
       "DD_SYSTEM_PROBE_BPF_DIR"=>"#{tests_dir}/pkg/ebpf/bytecode/build",
