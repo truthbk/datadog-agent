@@ -125,8 +125,7 @@ namespace WixSetup.Datadog
                 upgradeCode: ProductUpgradeCode,
                 name: ProductFullName,
                 description: ProductDescription,
-                // SetProjectInfo throws an Exception is Revision is != 0
-                // we use Revision = 2 for the next gen installer while it's still a prototype
+                // This version is overridden below because SetProjectInfo throws an Exception if Revision is != 0
                 version: new Version(_agentVersion.Version.Major, _agentVersion.Version.Minor,
                     _agentVersion.Version.Build, 0)
             )
@@ -160,6 +159,9 @@ namespace WixSetup.Datadog
                 ),
                 new Dir("logs")
             );
+            // NineDigit.WixSharpExtensions SetProductInfo prohibits setting the revision, so we must do it here instead
+            // The revision is ignored by WiX during upgrades, so it is only useful for documentation purposes.
+            project.Version = _agentVersion.Version;
 
             // Enable the ability to repair the installation even when the original MSI is no longer available.
             // This adds a symlink in %PROGRAMFILES%\Datadog\Datadog Agent which remains even when uninstalled
@@ -180,12 +182,16 @@ namespace WixSetup.Datadog
             // For example, product version 1.0.0.1 will "upgrade" 1.0.0.2998 because they're seen as the same version (1.0.0).
             // That could reintroduce serious bugs so the safest choice is to change the first three version fields and
             // omit this attribute to get the default of no.
-            project.MajorUpgrade.AllowSameVersionUpgrades = false;
+            // However, since Agent releases include three version numbers the three version fields used by WiX to detect upgrades
+            // are already taken. This leaves no room for the WiX product version to disambuigate between release candidate builds
+            // during upgrades. Thus, we must set this value to "true" so that new release candidiate builds can upgrade
+            // previous release candidate builds.
+            project.MajorUpgrade.AllowSameVersionUpgrades = true;
             project.MajorUpgrade.Schedule = UpgradeSchedule.afterInstallInitialize;
             project.MajorUpgrade.DowngradeErrorMessage =
                 "Automatic downgrades are not supported.  Uninstall the current version, and then reinstall the desired version.";
             project.ReinstallMode = "amus";
-            
+
             project.Platform = Platform.x64;
             // MSI 5.0 was shipped in Windows Server 2012 R2.
             // https://learn.microsoft.com/en-us/windows/win32/msi/released-versions-of-windows-installer

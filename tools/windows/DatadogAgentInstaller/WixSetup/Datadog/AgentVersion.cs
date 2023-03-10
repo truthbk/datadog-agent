@@ -28,6 +28,7 @@ namespace WixSetup.Datadog
                     major: versionMatch.Groups["major"].Value.ToInt(),
                     minor: versionMatch.Groups["minor"].Value.ToInt(),
                     build: versionMatch.Groups["build"].Value.ToInt(),
+                    // For now, match the OG installer revision
                     revision: 1
                 );
             }
