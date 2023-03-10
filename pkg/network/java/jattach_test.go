@@ -19,7 +19,9 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/network/testutil"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/gopsutil/process"
+	"github.com/cihub/seelog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -105,6 +107,8 @@ func TestInject(t *testing.T) {
 		t.Fatal("java is not installed", javaVersion, err)
 	}
 	t.Log(javaVersion)
+
+	log.SetupLogger(seelog.Default, "debug")
 
 	// flush the caches to slow start java
 	testutil.RunCommand("sudo sysctl -w vm.drop_caches=3")

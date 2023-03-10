@@ -351,6 +351,7 @@ func (h *Hotspot) Attach(agentPath string, args string, uid int, gid int) error 
 	if !h.isSocketExists() {
 		// ask JVM to create a socket to communicate
 		if err := h.attachJVMProtocol(uid, gid); err != nil {
+			log.Debugf("attachJVMProtocol failed %s", err)
 			return err
 		}
 	}
@@ -358,6 +359,7 @@ func (h *Hotspot) Attach(agentPath string, args string, uid int, gid int) error 
 	// copy the agent in the cwd of the process and change his owner/group
 	dstAgentPath, agentCleanup, err := h.copyAgent(agentPath, uid, gid)
 	if err != nil {
+		log.Debugf("copy agent failed %s", err)
 		return err
 	}
 	defer agentCleanup()
@@ -367,6 +369,7 @@ func (h *Hotspot) Attach(agentPath string, args string, uid int, gid int) error 
 	// connect and ask to load the agent .jar or .so
 	cleanConn, err := h.connect(false)
 	if err != nil {
+		log.Debugf("connect failed %s", err)
 		return err
 	}
 	defer cleanConn()
