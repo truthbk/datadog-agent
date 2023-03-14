@@ -73,6 +73,7 @@ func NewHotspot(pid int, nsPid int) (*Hotspot, error) {
 		return nil, err
 	}
 	h.socketPath = fmt.Sprintf("%s/.java_pid%d", h.tmpPath(), h.nsPid)
+	log.Infof("java path dump: root: %q; cwd: %q; socket path: %q", h.root, h.cwd, h.socketPath)
 	return h, nil
 }
 
@@ -105,9 +106,12 @@ func getPathOwner(path string) (uint32, uint32, error) {
 //	o dstPath is path to the copy of agent-usm.jar (from container perspective), this would be pass to the hotspot command
 //	o cleanup must be called to remove the created file
 func (h *Hotspot) copyAgent(agent string, uid int, gid int) (dstPath string, cleanup func(), err error) {
-	dstPath = h.cwd + "/" + filepath.Base(agent)
+	dstPath = filepath.Join(h.cwd, filepath.Base(agent))
+	log.Infof("java agent dst path %q", dstPath)
 	// path from the host point of view pointing to the process root namespace (/proc/pid/root/usr/...)
 	nsDstPath := h.root + dstPath
+	log.Infof("java agent ns dst path %q", nsDstPath)
+
 	if dst, err := os.Stat(nsDstPath); err == nil {
 		// if the destination file already exist
 		// check if it's not the source agent file
@@ -115,14 +119,16 @@ func (h *Hotspot) copyAgent(agent string, uid int, gid int) (dstPath string, cle
 			s, oks := src.Sys().(*syscall.Stat_t)
 			d, okd := dst.Sys().(*syscall.Stat_t)
 			if s == nil || d == nil || !oks || !okd {
-				return "", nil, fmt.Errorf("stat cast issue on path %s %T %s %T", agent, src.Sys(), nsDstPath, dst.Sys())
+				return "", nil, fmt.Errorf("java stat cast issue on path %s %T %s %T", agent, src.Sys(), nsDstPath, dst.Sys())
 			}
 			if s.Dev == d.Dev && s.Ino == d.Ino {
+				log.Infof("java s.Dev == d.Dev && s.Ino == d.Ino")
 				return "", func() {}, nil
 			}
 		}
 	}
 
+	log.Infof("java agent path %q", agent)
 	srcAgent, err := os.Open(agent)
 	if err != nil {
 		return "", nil, err

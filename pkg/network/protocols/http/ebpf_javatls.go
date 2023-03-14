@@ -208,8 +208,8 @@ func newJavaProcess(pid uint32) {
 
 func (p *JavaTLSProgram) Start() {
 	var err error
-	var regex string
-	if regex, present := os.LookupEnv("SYSPROBE_JAVA_REGEX"); present != nil {
+	regex, present := os.LookupEnv("SYSPROBE_JAVA_REGEX")
+	if !present {
 		regex = "^java$"
 	}
 
