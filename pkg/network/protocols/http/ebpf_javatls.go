@@ -191,6 +191,7 @@ func newJavaProcess(pid uint32) {
 		log.Debugf("java pid %d attachment rejected", pid)
 		return
 	}
+	log.Debugf("java pid %d attachment allowed", pid)
 
 	allArgs := []string{
 		javaUSMAgentArgs,
@@ -201,16 +202,21 @@ func newJavaProcess(pid uint32) {
 	}
 	args := strings.Join(allArgs, " ")
 	if err := java.InjectAgent(int(pid), javaUSMAgentJarPath, args); err != nil {
-		log.Error(err)
+		log.Errorf("java pid %d: could not inject java agent: %s", err)
 	}
 }
 
 func (p *JavaTLSProgram) Start() {
 	var err error
+	var regex string
+	if regex, present := os.LookupEnv("SYSPROBE_JAVA_REGEX"); present != nil {
+		regex = "^java$"
+	}
+
 	p.cleanupExec, err = p.processMonitor.Subscribe(&monitor.ProcessCallback{
 		Event:    monitor.EXEC,
 		Metadata: monitor.NAME,
-		Regex:    regexp.MustCompile("^java$"),
+		Regex:    regexp.MustCompile(regex),
 		Callback: newJavaProcess,
 	})
 	if err != nil {
