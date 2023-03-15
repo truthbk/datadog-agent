@@ -16,10 +16,12 @@ func main() {
 		Metadata: monitor.NAME,
 		Regex:    regexp.MustCompile(os.Getenv("SYSPROBE_JAVA_REGEX")),
 		Callback: func(pid uint32) {
-			fmt.Println("New Java Process with pid %q", pid)
+			fmt.Printf("New Java Process with pid %q\n", pid)
 		},
 	})
 	if err != nil {
 		log.Fatalf("process monitor Subscribe() error: %s", err)
 	}
+
+	cleanup()
 }

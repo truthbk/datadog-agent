@@ -364,6 +364,7 @@ func (h *Hotspot) Attach(agentPath string, args string, uid int, gid int) error 
 	// copy the agent in the cwd of the process and change his owner/group
 	dstAgentPath, agentCleanup, err := h.copyAgent(agentPath, uid, gid)
 	if err != nil {
+		log.Debugf("could not copy java agent: %s", err)
 		return err
 	}
 	defer agentCleanup()
