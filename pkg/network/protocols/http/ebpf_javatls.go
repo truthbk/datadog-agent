@@ -202,7 +202,7 @@ func newJavaProcess(pid uint32) {
 	}
 	args := strings.Join(allArgs, " ")
 	if err := java.InjectAgent(int(pid), javaUSMAgentJarPath, args); err != nil {
-		log.Errorf("java pid %d: could not inject java agent: %s", err)
+		log.Errorf("java pid %d: could not inject java agent: %s", pid, err)
 	}
 }
 
