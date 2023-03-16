@@ -72,6 +72,8 @@ func enabledProbes(c *config.Config, runtimeTracer bool) (map[probes.ProbeFuncNa
 		enableProbe(enabled, probes.IPMakeSkbReturn)
 		enableProbe(enabled, probes.InetBind)
 		enableProbe(enabled, probes.InetBindRet)
+		enableProbe(enabled, probes.UDPSendPage)
+		enableProbe(enabled, probes.UDPSendPageReturn)
 
 		if c.CollectIPv6Conns {
 			enableProbe(enabled, selectVersionBasedProbe(runtimeTracer, kv, probes.IP6MakeSkb, probes.IP6MakeSkbPre470, kv470))

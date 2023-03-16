@@ -43,6 +43,12 @@ BPF_HASH_MAP(tcp_sendmsg_args, __u64, struct sock *, 1024)
 BPF_HASH_MAP(tcp_sendpage_args, __u64, struct sock *, 1024)
 
 /*
+ * Map to hold struct sock parameter for udp_sendpage calls
+ * to be used in kretprobe/udp_sendpage
+ */
+BPF_HASH_MAP(udp_sendpage_args, __u64, struct sock *, 1024)
+
+/*
  * Map to hold struct sock parameter for tcp_recvmsg/tcp_read_sock calls
  * to be used in kretprobe/tcp_recvmsg/tcp_read_sock
  */

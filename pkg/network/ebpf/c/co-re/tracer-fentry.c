@@ -131,7 +131,7 @@ int BPF_PROG(tcp_sendmsg_exit, struct sock *sk, struct msghdr *msg, size_t size,
 SEC("fexit/tcp_sendpage")
 int BPF_PROG(tcp_sendpage_exit, struct sock *sk, struct page *page, int offset, size_t size, int flags, int sent) {
     if (sent < 0) {
-        log_debug("fexit/tcp_sendpage: tcp_sendpage err=%d\n", sent);
+        log_debug("fexit/tcp_sendpage: err=%d\n", sent);
         return 0;
     }
 
@@ -150,6 +150,24 @@ int BPF_PROG(tcp_sendpage_exit, struct sock *sk, struct page *page, int offset, 
     get_tcp_segment_counts(sk, &packets_in, &packets_out);
 
     return handle_message(&t, sent, 0, CONN_DIRECTION_UNKNOWN, packets_out, packets_in, PACKET_COUNT_ABSOLUTE, sk);
+}
+
+SEC("fexit/udp_sendpage")
+int BPF_PROG(udp_sendpage_exit, struct sock *sk, struct page *page, int offset, size_t size, int flags, int sent) {
+    if (sent < 0) {
+        log_debug("fexit/udp_sendpage: err=%d\n", sent);
+        return 0;
+    }
+
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    log_debug("fexit/udp_sendpage: pid_tgid: %d, sent: %d, sock: %llx\n", pid_tgid, sent, sk);
+
+    conn_tuple_t t = {};
+    if (!read_conn_tuple(&t, sk, pid_tgid, CONN_TYPE_UDP)) {
+        return 0;
+    }
+
+    return handle_message(&t, sent, 0, CONN_DIRECTION_UNKNOWN, 0, 0, PACKET_COUNT_NONE, sk);
 }
 
 SEC("fexit/tcp_recvmsg")

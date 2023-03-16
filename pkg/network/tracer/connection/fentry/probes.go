@@ -25,6 +25,7 @@ const (
 	// tcpSendMsgReturn traces the return value for the tcp_sendmsg() system call
 	tcpSendMsgReturn  = "tcp_sendmsg_exit"
 	tcpSendPageReturn = "tcp_sendpage_exit"
+	udpSendPageReturn = "udp_sendpage_exit"
 
 	// tcpSetState traces the tcp_set_state() kernel function
 	tcpSetState = "tcp_set_state"
@@ -131,6 +132,7 @@ func enabledPrograms(c *config.Config) (map[string]struct{}, error) {
 		enableProgram(enabled, udpRecvMsgReturn)
 		enableProgram(enabled, udpSendMsgReturn)
 		enableProgram(enabled, udpSendSkb)
+		enableProgram(enabled, udpSendPageReturn)
 
 		if c.CollectIPv6Conns {
 			enableProgram(enabled, inet6BindRet)
