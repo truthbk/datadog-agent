@@ -44,6 +44,7 @@ type PullSubscription struct {
 	// Query loop management
 	started bool
 	notifyEventsAvailableWaiter sync.WaitGroup
+	notifyEventsAvailableLoopDone chan struct{}
 	notifyStop chan struct{}
 
 	// notifyNoMoreItems synchronizes notifyEventsAvailableLoop and GetEvents when
@@ -141,6 +142,7 @@ func (q *PullSubscription) Start() (error) {
 	q.notifyNoMoreItems = make(chan struct{})
 	q.notifyNoMoreItemsComplete = make(chan struct{})
 	q.NotifyEventsAvailable = make(chan struct{})
+	q.notifyEventsAvailableLoopDone = make(chan struct{})
 	q.waitEventHandle = hSubWait
 	q.stopEventHandle = hStopWait
 	q.subscriptionHandle = hSub
@@ -183,6 +185,8 @@ func (q *PullSubscription) notifyEventsAvailableLoop() {
 	defer q.notifyEventsAvailableWaiter.Done()
 	// close the notify channel so the user knows this loop is dead
 	defer close(q.NotifyEventsAvailable)
+	// close so internal functions know this loop is dead
+	defer close(q.notifyEventsAvailableLoopDone)
 
 	waiters := []windows.Handle{windows.Handle(q.waitEventHandle), windows.Handle(q.stopEventHandle)}
 
@@ -208,7 +212,12 @@ func (q *PullSubscription) notifyEventsAvailableLoop() {
 					// block until Windows sets the event again.
 					// We cannot just call ResetEvent here instead because that creates a race
 					// with the SetEvent call in GetEvents() that could create a deadlock.
-					<-q.notifyNoMoreItemsComplete
+					select {
+					case <- q.notifyStop:
+						return
+					case <- q.notifyNoMoreItemsComplete:
+						break
+					}
 					break
 			}
 		} else if dwWait == (windows.WAIT_OBJECT_0+1) {
@@ -241,14 +250,15 @@ func (q *PullSubscription) notifyEventsAvailableLoop() {
 func (q *PullSubscription) synchronizeNoMoreItems() error {
 	// If notifyEventsAvailableLoop is blocking on WaitForMultipleObjects
 	// wake it up so we can sync on notifyNoMoreItems
-	// If notifyEventsAvailableLoop is blocking on notifyNoMoreItems then this is a no-op
+	// If notifyEventsAvailableLoop is blocking on notifyNoMoreItems channel then this is a no-op
 	windows.SetEvent(windows.Handle(q.waitEventHandle))
-	// windows.ResetEvent(windows.Handle(q.waitEventHandle))
 	// If notifyEventsAvailableLoop is blocking on sending NotifyEventsAvailable
 	// then wake/cancel it so it does not erroneously send NotifyEventsAvailable.
 	select {
 		case <- q.notifyStop:
 			return fmt.Errorf("stop signal")
+		case <- q.notifyEventsAvailableLoopDone:
+			return fmt.Errorf("notify loop is not running")
 		case q.notifyNoMoreItems <- struct{}{}:
 			break
 	}
@@ -256,7 +266,14 @@ func (q *PullSubscription) synchronizeNoMoreItems() error {
 	// then write to notifyNoMoreItemsComplete to tell the loop that the event has been reset and it
 	// can safely continue.
 	windows.ResetEvent(windows.Handle(q.waitEventHandle))
-	q.notifyNoMoreItemsComplete <- struct{}{}
+	select {
+		case <- q.notifyStop:
+			return fmt.Errorf("stop signal")
+		case <- q.notifyEventsAvailableLoopDone:
+			return fmt.Errorf("notify loop is not running")
+		case q.notifyNoMoreItemsComplete <- struct{}{}:
+			break
+	}
 	return nil
 }
 

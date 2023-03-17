@@ -20,6 +20,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+
+	"golang.org/x/sys/windows"
 )
 
 func TestInvalidChannel(t *testing.T) {
@@ -301,6 +303,47 @@ func (s *GetEventsTestSuite) TestUnusedNotifyChannel() {
 		err = assertNoMoreEvents(s.T(), sub)
 		require.NoError(s.T(), err)
 	}
+}
+
+// Tests that GetEvents does not deadlock when notifyEventsAvailableLoop unexpectedly exits
+func (s *GetEventsTestSuite) TestHandleEarlyNotifyLoopExit() {
+	// Create sub
+	sub, err := startSubscription(s.T(), s.ti, s.channelPath)
+	require.NoError(s.T(), err)
+
+	// set stop event to trigger notify loop to exit
+	windows.SetEvent(windows.Handle(sub.stopEventHandle))
+	require.NoError(s.T(), err)
+
+	// Eat the initial state
+	err = assertNoMoreEvents(s.T(), sub)
+	require.NoError(s.T(), err)
+
+	// wait for the loop to exit
+	sub.notifyEventsAvailableWaiter.Wait()
+
+	// ensure the notify channel is closed
+	_, ok := <- sub.NotifyEventsAvailable
+	require.False(s.T(), ok, "Notify channel should be closed when notify loop exits")
+
+	// Put events in the log
+	err = s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	require.NoError(s.T(), err)
+
+	// read all the events, don't wait on the (now closed) channel, just get events
+	eventRecords, err := sub.GetEvents()
+	require.NoError(s.T(), err)
+	count := uint(len(eventRecords))
+	require.Equal(s.T(), s.numEvents, count, fmt.Sprintf("Missing events, collected %d/%d events", count, s.numEvents))
+
+	// trigger ERROR_NO_MORE_EVENTS, which triggers a sync with the (no longer running) notify loop
+	events, err := sub.GetEvents()
+	require.Nil(s.T(), events, "events should be nil on error")
+	require.Error(s.T(), err, "GetEvents should return error when notify loop is no longer running")
+
+	sub.Stop()
+
+	// success if we did not deadlock
 }
 
 // Tests that NotifyEventsAvailable starts out set then becomes unset after calling GetEvents().
