@@ -11,7 +11,8 @@ package main
 /*
 // This cgo directive is what actually causes jemalloc to be linked in to the
 // final Go executable
-#cgo pkg-config: jemalloc
+#cgo CFLAGS: -I. -I/usr/include/jemalloc/
+#cgo LDFLAGS: -Wl,-Bstatic -ljemalloc -Wl,-Bdynamic -lm
 #include <jemalloc/jemalloc.h>
 void _refresh_jemalloc_stats() {
 	// You just need to pass something not-null into the "epoch" mallctl.
