@@ -108,6 +108,7 @@ docker_build_agent6_py2py3_jmx:
 # build agent7 image
 docker_build_agent7:
   extends: .docker_build_job_definition_amd64
+  tags: ["runner:docker"]
   rules:
     !reference [.on_a7]
   needs:
