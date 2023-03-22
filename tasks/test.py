@@ -474,6 +474,13 @@ def test(
     timeout = int(timeout)
     modules_results_per_flavor = {flavor: {"test": [], "lint": []} for flavor in flavors}
 
+    # Sanitize environment variables
+    # We want to ignore all `DD_` variables, as they will interfere with the behavior
+    # of some unit tests
+    for env in os.environ.keys():
+        if env.startswith("DD_"):
+            del os.environ[env]
+
     # Lint
 
     if skip_linters:
