@@ -827,6 +827,7 @@ func newHTTPMonitor(c *config.Config, tracer connection.Tracer, bpfTelemetry *te
 		return nil
 	}
 
+	log.Debug("Milestones")
 	log.Info("http monitoring enabled")
 	return monitor
 }
