@@ -301,6 +301,14 @@ func (api *API) EvtSubscribe(
 		}
 	}
 
+	// origin flags
+	if Flags&evtapi.EvtSubscribeOriginMask == evtapi.EvtSubscribeToFutureEvents {
+		sub.nextEvent = uint(len(evtlog.events))
+	}
+	if Flags&evtapi.EvtSubscribeOriginMask == evtapi.EvtSubscribeStartAtOldestRecord {
+		sub.nextEvent = 0
+	}
+
 	api.addSubscription(sub)
 	evtlog.subscriptions[sub.handle] = sub
 	return sub.handle, nil

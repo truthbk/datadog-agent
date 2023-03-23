@@ -187,6 +187,7 @@ func (s *GetEventsTestSuite) TearDownTest() {
 	require.NoError(s.T(), err)
 }
 
+// Tests that the subscription can read old events (EvtSubscribeStartAtOldestRecord)
 func (s *GetEventsTestSuite) TestReadOldEvents() {
 	// Put events in the log
 	err := s.ti.GenerateEvents(s.channelPath, s.numEvents)
@@ -196,13 +197,18 @@ func (s *GetEventsTestSuite) TestReadOldEvents() {
 	sub, err := startSubscription(s.T(), s.ti, s.channelPath, StartAtOldestRecord())
 	require.NoError(s.T(), err)
 
+	// Put events in the log
+	err = s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	require.NoError(s.T(), err)
+
 	// Get Events
-	_, err = getEventHandles(s.T(), s.ti, sub, s.numEvents)
+	_, err = getEventHandles(s.T(), s.ti, sub, 2*s.numEvents)
 	require.NoError(s.T(), err)
 	err = assertNoMoreEvents(s.T(), sub)
 	require.NoError(s.T(), err)
 }
 
+// Tests that the subscription is notified of and can read new events
 func (s *GetEventsTestSuite) TestReadNewEvents() {
 	// Create sub
 	sub, err := startSubscription(s.T(), s.ti, s.channelPath)
@@ -210,6 +216,27 @@ func (s *GetEventsTestSuite) TestReadNewEvents() {
 
 	// Eat the initial state
 	err = assertNoMoreEvents(s.T(), sub)
+	require.NoError(s.T(), err)
+
+	// Put events in the log
+	err = s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	require.NoError(s.T(), err)
+
+	// Get Events
+	_, err = getEventHandles(s.T(), s.ti, sub, s.numEvents)
+	require.NoError(s.T(), err)
+	err = assertNoMoreEvents(s.T(), sub)
+	require.NoError(s.T(), err)
+}
+
+// Tests that the subscription can skip over old events (EvtSubscribeToFutureEvents)
+func (s *GetEventsTestSuite) TestReadOnlyNewEvents() {
+	// Put events in the log
+	err := s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	require.NoError(s.T(), err)
+
+	// Create sub
+	sub, err := startSubscription(s.T(), s.ti, s.channelPath)
 	require.NoError(s.T(), err)
 
 	// Put events in the log
