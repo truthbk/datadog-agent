@@ -10,6 +10,7 @@ package mockevtapi
 import (
 	"bytes"
 	"fmt"
+	"sort"
 	"text/template"
 
 	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
@@ -25,11 +26,14 @@ type API struct {
 	subscriptions map[evtapi.EventResultSetHandle]*mockSubscription
 	eventHandles map[evtapi.EventRecordHandle]*mockEventRecord
 	sourceHandles map[evtapi.EventSourceHandle]string
+	bookmarkHandles map[evtapi.EventBookmarkHandle]*mockBookmark
 }
 
 type mockEventLog struct {
 	name string
 	events []*mockEventRecord
+
+	nextRecordID *atomic.Uint64
 
 	// For notifying of new events
 	subscriptions map[evtapi.EventResultSetHandle]*mockSubscription
@@ -55,6 +59,12 @@ type mockEventRecord struct {
 	Strings []string
 	RawData []uint8
 	EventLog string
+	RecordID uint
+}
+
+type mockBookmark struct {
+	handle evtapi.EventBookmarkHandle
+	eventRecordID uint
 }
 
 func New() *API {
@@ -65,6 +75,7 @@ func New() *API {
 	api.subscriptions = make(map[evtapi.EventResultSetHandle]*mockSubscription)
 	api.eventHandles = make(map[evtapi.EventRecordHandle]*mockEventRecord)
 	api.sourceHandles = make(map[evtapi.EventSourceHandle]string)
+	api.bookmarkHandles = make(map[evtapi.EventBookmarkHandle]*mockBookmark)
 
 	api.eventLogs = make(map[string]*mockEventLog)
 
@@ -74,6 +85,7 @@ func New() *API {
 func newMockEventLog(name string) *mockEventLog {
 	var e mockEventLog
 	e.name = name
+	e.nextRecordID = atomic.NewUint64(0)
 	e.subscriptions = make(map[evtapi.EventResultSetHandle]*mockSubscription)
 	return &e
 }
@@ -153,6 +165,12 @@ func (api *API) addEventRecord(event *mockEventRecord) {
 	api.eventHandles[event.handle] = event
 }
 
+func (api *API) addBookmark(bookmark *mockBookmark) {
+	h := api.nextHandle.Inc()
+	bookmark.handle = evtapi.EventBookmarkHandle(h)
+	api.bookmarkHandles[bookmark.handle] = bookmark
+}
+
 func (api *API) getMockSubscriptionByHandle(subHandle evtapi.EventResultSetHandle) (*mockSubscription, error) {
 	v, ok := api.subscriptions[subHandle]
 	if !ok {
@@ -165,6 +183,14 @@ func (api *API) getMockEventRecordByHandle(eventHandle evtapi.EventRecordHandle)
 	v, ok := api.eventHandles[eventHandle]
 	if !ok {
 		return nil, fmt.Errorf("Event not found: %#x", eventHandle)
+	}
+	return v, nil
+}
+
+func (api *API) getMockBookmarkByHandle(bookmarkHandle evtapi.EventBookmarkHandle) (*mockBookmark, error) {
+	v, ok := api.bookmarkHandles[bookmarkHandle]
+	if !ok {
+		return nil, fmt.Errorf("Bookmark not found: %#x", bookmarkHandle)
 	}
 	return v, nil
 }
@@ -192,6 +218,8 @@ func (api *API) addMockEventLog(eventLog *mockEventLog) {
 }
 
 func (e *mockEventLog) addEventRecord(event *mockEventRecord) {
+	event.RecordID = uint(e.nextRecordID.Inc())
+	// TODO: lock list operations
 	e.events = append(e.events, event)
 }
 
@@ -239,9 +267,46 @@ func (api *API) EvtSubscribe(
 		return evtapi.EventResultSetHandle(0), err
 	}
 
+	// get bookmark
+	var bookmark *mockBookmark
+	if Bookmark != evtapi.EventBookmarkHandle(0) {
+		bookmark, err = api.getMockBookmarkByHandle(Bookmark)
+		if err != nil {
+			return evtapi.EventResultSetHandle(0), err
+		}
+	}
+
 	// create sub
 	sub := newMockSubscription(ChannelPath, Query)
 	sub.signalEventHandle = SignalEvent
+
+	// go to bookmark
+	if bookmark != nil && (Flags & evtapi.EvtSubscribeOriginMask == evtapi.EvtSubscribeStartAfterBookmark) {
+		// binary search for event with matching RecordID, or insert location
+		i := sort.Search(len(evtlog.events), func(i int) bool {
+			e := evtlog.events[i]
+			return e.RecordID >= bookmark.eventRecordID
+		})
+		if i < len(evtlog.events) && evtlog.events[i].RecordID == bookmark.eventRecordID {
+			// start AFTER bookmark
+			sub.nextEvent = uint(i+1)
+		} else {
+			// bookmarked event is no longer in the log
+			if (Flags & evtapi.EvtSubscribeStrict == evtapi.EvtSubscribeStrict) {
+				return evtapi.EventResultSetHandle(0), fmt.Errorf("bookmark not found and Strict flag set")
+			}
+			// MSDN says
+			// If you do not include the EvtSubscribeStrict flag and the bookmarked event does not exist,
+			// the subscription begins with the event that is after the event that is closest to the bookmarked event.
+			// https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_subscribe_flags
+			// However, empirically, that is off by one and after clearing the event log it starts at the beginning,
+			// or "at the event that is closest to the bookmarked event".
+			sub.nextEvent = uint(i)
+			// TODO: add a test for if the event log is uninstalled and re-installed, does the RecordID start over?
+			//       if so then it's possible for the RecordID to be less than our bookmark.
+		}
+	}
+
 	api.addSubscription(sub)
 	evtlog.subscriptions[sub.handle] = sub
 	return sub.handle, nil
@@ -410,5 +475,37 @@ func (api *API) EvtClearLog(ChannelPath string) error {
 
 	// clear the log
 	eventLog.events = nil
+	// clearing the log does NOT reset the record IDs
+	return nil
+}
+
+// https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtcreatebookmark
+func (api *API) EvtCreateBookmark(BookmarkXml string) (evtapi.EventBookmarkHandle, error) {
+	var b mockBookmark
+
+	// TODO: parse Xml to get record ID
+
+	api.addBookmark(&b)
+
+	return evtapi.EventBookmarkHandle(b.handle), nil
+}
+
+// https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtupdatebookmark
+func (api *API) EvtUpdateBookmark(Bookmark evtapi.EventBookmarkHandle, Event evtapi.EventRecordHandle) error {
+	// Get bookmark
+	bookmark, err := api.getMockBookmarkByHandle(Bookmark)
+	if err != nil {
+		return err
+	}
+
+	// get event
+	event, err := api.getMockEventRecordByHandle(Event)
+	if err != nil {
+		return err
+	}
+
+	// Update bookmark to point to event
+	bookmark.eventRecordID = event.RecordID
+
 	return nil
 }

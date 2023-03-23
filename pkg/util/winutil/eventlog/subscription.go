@@ -14,6 +14,7 @@ import (
 	// "github.com/DataDog/datadog-agent/comp/core/log"
 	pkglog "github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/bookmark"
 	"golang.org/x/sys/windows"
 )
 
@@ -56,7 +57,14 @@ type PullSubscription struct {
 	// point the user would be erroneously notified that events are available.
 	notifyNoMoreItems chan struct{}
 	notifyNoMoreItemsComplete chan struct{}
+
+	// EvtSubscribe args
+	subscribeOriginFlag uint
+	subscribeFlags uint
+	bookmark evtbookmark.Bookmark
 }
+
+type PullSubscriptionOption func (*PullSubscription)
 
 type EventRecord struct {
 	EventRecordHandle evtapi.EventRecordHandle
@@ -77,7 +85,7 @@ func newStopWaitEvent() (evtapi.WaitEventHandle, error) {
 }
 
 //func NewPullSubscription(log log.Component) *PullSubscription {
-func NewPullSubscription(ChannelPath, Query string, options ...func(*PullSubscription)) *PullSubscription {
+func NewPullSubscription(ChannelPath, Query string, options ...PullSubscriptionOption) *PullSubscription {
 	var q PullSubscription
 	q.subscriptionHandle = evtapi.EventResultSetHandle(0)
 	q.waitEventHandle = evtapi.WaitEventHandle(0)
@@ -86,6 +94,7 @@ func NewPullSubscription(ChannelPath, Query string, options ...func(*PullSubscri
 
 	q.ChannelPath = ChannelPath
 	q.Query = Query
+	q.subscribeOriginFlag = evtapi.EvtSubscribeToFutureEvents
 	// q.log = log
 
 	for _, o := range options {
@@ -95,15 +104,34 @@ func NewPullSubscription(ChannelPath, Query string, options ...func(*PullSubscri
 	return &q
 }
 
-func WithEventBatchCount(count uint) func(*PullSubscription) {
+func WithEventBatchCount(count uint) PullSubscriptionOption {
    return func (q *PullSubscription) {
        q.EventBatchCount = count
    }
 }
 
-func WithWindowsEventLogAPI(api evtapi.API) func(*PullSubscription) {
+func WithWindowsEventLogAPI(api evtapi.API) PullSubscriptionOption {
 	return func (q *PullSubscription) {
 		q.eventLogAPI = api
+	}
+}
+
+func StartAfterBookmark(bookmark evtbookmark.Bookmark) PullSubscriptionOption {
+	return func (q *PullSubscription) {
+		q.bookmark = bookmark
+		q.subscribeOriginFlag = evtapi.EvtSubscribeStartAfterBookmark
+	}
+}
+
+func StartAtOldestRecord() PullSubscriptionOption {
+	return func (q *PullSubscription) {
+		q.subscribeOriginFlag = evtapi.EvtSubscribeStartAtOldestRecord
+	}
+}
+
+func WithSubscribeFlags(flags uint) PullSubscriptionOption {
+	return func (q *PullSubscription) {
+		q.subscribeFlags = flags
 	}
 }
 
@@ -111,6 +139,11 @@ func (q *PullSubscription) Start() (error) {
 
 	if q.started {
 		return fmt.Errorf("Query subscription is already started")
+	}
+
+	var bookmarkHandle evtapi.EventBookmarkHandle
+	if q.bookmark != nil {
+		bookmarkHandle = q.bookmark.Handle()
 	}
 
 	// create subscription
@@ -122,8 +155,8 @@ func (q *PullSubscription) Start() (error) {
 		hSubWait,
 		q.ChannelPath,
 		q.Query,
-		evtapi.EventBookmarkHandle(0),
-		evtapi.EvtSubscribeStartAtOldestRecord)
+		bookmarkHandle,
+		q.subscribeOriginFlag|q.subscribeFlags)
 	if err != nil {
 		safeCloseNullHandle(windows.Handle(hSubWait))
 		return err

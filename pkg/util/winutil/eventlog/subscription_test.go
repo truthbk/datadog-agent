@@ -8,14 +8,17 @@
 package eventlog
 
 import (
+	"flag"
 	"fmt"
 	"testing"
 	"time"
 
-	// "github.com/cihub/seelog"
-	// pkglog "github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/cihub/seelog"
+	pkglog "github.com/DataDog/datadog-agent/pkg/util/log"
 
-    "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/bookmark"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,6 +26,8 @@ import (
 
 	"golang.org/x/sys/windows"
 )
+
+var debuglogFlag = flag.Bool("debuglog", false, "Enable seelog debug logging")
 
 func TestInvalidChannel(t *testing.T) {
 	testerNames := eventlog_test.GetEnabledAPITesters()
@@ -61,12 +66,15 @@ func createLog(t testing.TB, ti eventlog_test.APITester, channel string) error {
 	return nil
 }
 
-func startSubscription(t testing.TB, ti eventlog_test.APITester, channel string) (*PullSubscription, error) {
+func startSubscription(t testing.TB, ti eventlog_test.APITester, channel string, options...PullSubscriptionOption) (*PullSubscription, error) {
+	opts := []PullSubscriptionOption{WithWindowsEventLogAPI(ti.API())}
+	opts = append(opts, options...)
+
 	// Create sub
 	sub := NewPullSubscription(
 		channel,
 		"*",
-		WithWindowsEventLogAPI(ti.API()))
+		opts...)
 
 	err := sub.Start()
 	if !assert.NoError(t, err) {
@@ -77,16 +85,16 @@ func startSubscription(t testing.TB, ti eventlog_test.APITester, channel string)
 	return sub, nil
 }
 
-func getEventHandles(t testing.TB, ti eventlog_test.APITester, sub *PullSubscription, numEvents uint) error {
+func getEventHandles(t testing.TB, ti eventlog_test.APITester, sub *PullSubscription, numEvents uint) ([]*EventRecord,error) {
 	eventRecords, err := ReadNumEventsWithNotify(t, ti, sub, numEvents)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	count := uint(len(eventRecords))
 	if !assert.Equal(t, numEvents, count, fmt.Sprintf("Missing events, collected %d/%d events", count, numEvents)) {
-		return fmt.Errorf("Missing events")
+		return eventRecords, fmt.Errorf("Missing events")
 	}
-	return nil
+	return eventRecords, nil
 }
 
 func assertNoMoreEvents(t testing.TB, sub *PullSubscription) error {
@@ -145,9 +153,12 @@ type GetEventsTestSuite struct {
 }
 
 func (s *GetEventsTestSuite) SetupSuite() {
+	//fmt.Println("SetupSuite")
+
 	// Enable logger
-	// pkglog.SetupLogger(seelog.Default, "debug")
-	// fmt.Println("SetupSuite")
+	if *debuglogFlag {
+		pkglog.SetupLogger(seelog.Default, "debug")
+	}
 
 	s.ti = eventlog_test.GetAPITesterByName(s.testAPI, s.T())
 	err := s.ti.InstallChannel(s.channelPath)
@@ -182,11 +193,13 @@ func (s *GetEventsTestSuite) TestReadOldEvents() {
 	require.NoError(s.T(), err)
 
 	// Create sub
-	sub, err := startSubscription(s.T(), s.ti, s.channelPath)
+	sub, err := startSubscription(s.T(), s.ti, s.channelPath, StartAtOldestRecord())
 	require.NoError(s.T(), err)
 
 	// Get Events
-	err = getEventHandles(s.T(), s.ti, sub, s.numEvents)
+	_, err = getEventHandles(s.T(), s.ti, sub, s.numEvents)
+	require.NoError(s.T(), err)
+	err = assertNoMoreEvents(s.T(), sub)
 	require.NoError(s.T(), err)
 }
 
@@ -204,7 +217,7 @@ func (s *GetEventsTestSuite) TestReadNewEvents() {
 	require.NoError(s.T(), err)
 
 	// Get Events
-	err = getEventHandles(s.T(), s.ti, sub, s.numEvents)
+	_, err = getEventHandles(s.T(), s.ti, sub, s.numEvents)
 	require.NoError(s.T(), err)
 	err = assertNoMoreEvents(s.T(), sub)
 	require.NoError(s.T(), err)
@@ -226,7 +239,7 @@ func (s *GetEventsTestSuite) TestStopWhileWaitingWithEventsAvailable() {
 	go func() {
 		defer close(done)
 		// Read all events
-		err := getEventHandles(s.T(), s.ti, sub, s.numEvents)
+		_, err := getEventHandles(s.T(), s.ti, sub, s.numEvents)
 		close(readyToStop)
 		if !assert.NoError(s.T(), err) {
 			return
@@ -259,7 +272,7 @@ func (s *GetEventsTestSuite) TestStopWhileWaitingNoMoreEvents() {
 	done := make(chan struct{})
 	go func() {
 		// Read all events
-		err := getEventHandles(s.T(), s.ti, sub, s.numEvents)
+		_, err := getEventHandles(s.T(), s.ti, sub, s.numEvents)
 		if err != nil {
 			close(readyToStop)
 			close(done)
@@ -375,6 +388,217 @@ func (s *GetEventsTestSuite) TestChannelInitiallyNotified() {
 	default:
 		break
 	}
+}
+
+// Tests that the subscription can start from a provided bookmark
+func (s *GetEventsTestSuite) TestStartAfterBookmark() {
+	//
+	// Add some events to the log and create a bookmark
+	//
+
+	// Put events in the log
+	err := s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	require.NoError(s.T(), err)
+
+	// Create bookmark
+	bookmark, err := evtbookmark.New(evtbookmark.WithWindowsEventLogAPI(s.ti.API()))
+	require.NoError(s.T(), err)
+
+	// Create sub
+	sub, err := startSubscription(s.T(), s.ti, s.channelPath, StartAtOldestRecord())
+	require.NoError(s.T(), err)
+
+	// Read the events
+	events, err := getEventHandles(s.T(), s.ti, sub, s.numEvents)
+	require.NoError(s.T(), err)
+	err = assertNoMoreEvents(s.T(), sub)
+	require.NoError(s.T(), err)
+
+	// Update bookmark to last event
+	// Must do so before closing the subscription
+	bookmark.Update(events[len(events)-1].EventRecordHandle)
+
+	// Close out this subscription
+	sub.Stop()
+
+	//
+	// Add more events and verify the log contains twice as many events
+	//
+
+	// Add some more events
+	err = s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	require.NoError(s.T(), err)
+
+	// Create sub
+	sub, err = startSubscription(s.T(), s.ti, s.channelPath, StartAtOldestRecord())
+	require.NoError(s.T(), err)
+
+	// Read the events
+	events, err = getEventHandles(s.T(), s.ti, sub, 2*s.numEvents)
+	require.NoError(s.T(), err)
+	err = assertNoMoreEvents(s.T(), sub)
+	require.NoError(s.T(), err)
+
+	// Close out this subscription
+	sub.Stop()
+
+	//
+	// Start subscription part way through log with bookmark
+	//
+
+	// Create a new subscription starting from the bookmark
+	sub, err = startSubscription(s.T(), s.ti, s.channelPath, StartAfterBookmark(bookmark))
+	require.NoError(s.T(), err)
+
+	// Get Events
+	_, err = getEventHandles(s.T(), s.ti, sub, s.numEvents)
+	require.NoError(s.T(), err)
+	// Since we started halfway through there should be no more events
+	err = assertNoMoreEvents(s.T(), sub)
+	require.NoError(s.T(), err)
+}
+
+// Tests that the subscription starts when a bookmark is not found and the EvtSubscribeStrict flag is NOT provided
+func (s *GetEventsTestSuite) TestStartAfterBookmarkNotFoundWithoutStrictFlag() {
+	//
+	// Add some events to the log and create a bookmark
+	//
+
+	// Put events in the log
+	err := s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	require.NoError(s.T(), err)
+
+	// Create bookmark
+	bookmark, err := evtbookmark.New(evtbookmark.WithWindowsEventLogAPI(s.ti.API()))
+	require.NoError(s.T(), err)
+
+	// Create sub
+	sub, err := startSubscription(s.T(), s.ti, s.channelPath, StartAtOldestRecord())
+	require.NoError(s.T(), err)
+
+	// Read the events
+	events, err := getEventHandles(s.T(), s.ti, sub, s.numEvents)
+	require.NoError(s.T(), err)
+	err = assertNoMoreEvents(s.T(), sub)
+	require.NoError(s.T(), err)
+
+	// Update bookmark to last event
+	// Must do so before closing the subscription
+	bookmark.Update(events[len(events)-1].EventRecordHandle)
+
+	// Close out this subscription
+	sub.Stop()
+
+	// Clear the log so the bookmark is missing
+	err = s.ti.API().EvtClearLog(s.channelPath)
+	require.NoError(s.T(), err)
+
+	//
+	// Add more events and verify the log contains only that many events
+	//
+
+	// Add some more events
+	err = s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	require.NoError(s.T(), err)
+
+	// Create sub
+	sub, err = startSubscription(s.T(), s.ti, s.channelPath, StartAtOldestRecord())
+	require.NoError(s.T(), err)
+
+	// Read the events
+	events, err = getEventHandles(s.T(), s.ti, sub, s.numEvents)
+	require.NoError(s.T(), err)
+	err = assertNoMoreEvents(s.T(), sub)
+	require.NoError(s.T(), err)
+
+	// Close out this subscription
+	sub.Stop()
+
+	//
+	// Bookmark is not found so subscription should start from beginning
+	//
+
+	// Create a new subscription starting from the bookmark
+	sub, err = startSubscription(s.T(), s.ti, s.channelPath, StartAfterBookmark(bookmark))
+	// strict flag not set so there should be no error
+	require.NoError(s.T(), err)
+
+
+	// Get Events
+	_, err = getEventHandles(s.T(), s.ti, sub, s.numEvents)
+	require.NoError(s.T(), err)
+	err = assertNoMoreEvents(s.T(), sub)
+	require.NoError(s.T(), err)
+}
+
+// Tests that the subscription returns an error when a bookmark is not found and the EvtSubscribeStrict flag is provided
+func (s *GetEventsTestSuite) TestStartAfterBookmarkNotFoundWithStrictFlag() {
+	//
+	// Add some events to the log and create a bookmark
+	//
+
+	// Put events in the log
+	err := s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	require.NoError(s.T(), err)
+
+	// Create bookmark
+	bookmark, err := evtbookmark.New(evtbookmark.WithWindowsEventLogAPI(s.ti.API()))
+	require.NoError(s.T(), err)
+
+	// Create sub
+	sub, err := startSubscription(s.T(), s.ti, s.channelPath, StartAtOldestRecord())
+	require.NoError(s.T(), err)
+
+	// Read the events
+	events, err := getEventHandles(s.T(), s.ti, sub, s.numEvents)
+	require.NoError(s.T(), err)
+	err = assertNoMoreEvents(s.T(), sub)
+	require.NoError(s.T(), err)
+
+	// Update bookmark to last event
+	// Must do so before closing the subscription
+	bookmark.Update(events[len(events)-1].EventRecordHandle)
+
+	// Close out this subscription
+	sub.Stop()
+
+	// Clear the log so the bookmark is missing
+	err = s.ti.API().EvtClearLog(s.channelPath)
+	require.NoError(s.T(), err)
+
+	//
+	// Add more events and verify the log contains only that many events
+	//
+
+	// Add some more events
+	err = s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	require.NoError(s.T(), err)
+
+	// Create sub
+	sub, err = startSubscription(s.T(), s.ti, s.channelPath, StartAtOldestRecord())
+	require.NoError(s.T(), err)
+
+	// Read the events
+	events, err = getEventHandles(s.T(), s.ti, sub, s.numEvents)
+	require.NoError(s.T(), err)
+	err = assertNoMoreEvents(s.T(), sub)
+	require.NoError(s.T(), err)
+
+	// Close out this subscription
+	sub.Stop()
+
+	//
+	// With bookmark not found and strict flag set subscription should fail
+	//
+
+	sub = NewPullSubscription(
+		s.channelPath,
+		"*",
+		WithWindowsEventLogAPI(s.ti.API()),
+		StartAfterBookmark(bookmark),
+		WithSubscribeFlags(evtapi.EvtSubscribeStrict))
+	err = sub.Start()
+	require.Error(s.T(), err, "Subscription should return error when bookmark is not found and the Strict flag is set")
 }
 
 func TestLaunchGetEventsTestSuite(t *testing.T) {

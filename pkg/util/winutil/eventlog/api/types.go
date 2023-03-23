@@ -14,10 +14,10 @@ import (
 const (
 	// EVT_SUBSCRIBE_FLAGS
 	// https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_subscribe_flags
-	EvtSubscribeToFutureEvents = iota + 1
-	EvtSubscribeStartAtOldestRecord
-	EvtSubscribeStartAfterBookmark
-	EvtSubscribeOriginMask
+	EvtSubscribeToFutureEvents = 1
+	EvtSubscribeStartAtOldestRecord = 2
+	EvtSubscribeStartAfterBookmark = 3
+	EvtSubscribeOriginMask = 3
 	EvtSubscribeTolerateQueryErrors = 0x1000
 	EvtSubscribeStrict = 0x10000
 )
@@ -76,6 +76,10 @@ type API interface {
 	EvtRenderEventXml(Fragment EventRecordHandle) ([]uint16, error)
 
 	EvtRenderBookmark(Fragment EventBookmarkHandle) ([]uint16, error)
+
+	EvtCreateBookmark(BookmarkXml string) (EventBookmarkHandle, error)
+
+	EvtUpdateBookmark(Bookmark EventBookmarkHandle, Event EventRecordHandle) error
 
 	// Windows Event Logging methods
 	RegisterEventSource(SourceName string) (EventSourceHandle, error)

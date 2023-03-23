@@ -8,13 +8,17 @@
 package eventlog_test
 
 import (
+	"flag"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
 
 	"github.com/stretchr/testify/require"
 )
+
+var enabledAPIsFlag = flag.String("evtapi", "Mock", "Comma-separated list of Event Log APIs to run tests with")
 
 type APITester interface {
 	Name() string
@@ -28,27 +32,13 @@ type APITester interface {
 }
 
 func GetEnabledAPITesters() []string {
-
-	var ti []string
-
-	// mock API
-	ti = append(ti, "Mock")
-
-	if testing.Short() == false {
-		// Windows API
-		ti = append(ti, "Windows")
-	}
-
-	return ti
+	return strings.Split(*enabledAPIsFlag, ",")
 }
 
 func GetAPITesterByName(name string, t testing.TB) APITester {
 	if name == "Mock" {
 		return NewMockAPITester(t)
 	} else if name == "Windows" {
-		if testing.Short() {
-			t.Skip("Skipping Windows API")
-		}
 		return NewWindowsAPITester(t)
 	}
 

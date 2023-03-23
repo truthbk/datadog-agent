@@ -120,7 +120,7 @@ func (api *API) EvtClose(h windows.Handle) {
 }
 
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtcreatebookmark
-func EvtCreateBookmark(BookmarkXml string) (evtapi.EventBookmarkHandle, error) {
+func (api *API) EvtCreateBookmark(BookmarkXml string) (evtapi.EventBookmarkHandle, error) {
 	var bookmarkXml *uint16
 
 	bookmarkXml, err := winutil.UTF16PtrOrNilFromString(BookmarkXml)
@@ -138,7 +138,7 @@ func EvtCreateBookmark(BookmarkXml string) (evtapi.EventBookmarkHandle, error) {
 }
 
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtupdatebookmark
-func EvtUpdateBookmark(Bookmark evtapi.EventBookmarkHandle, Event evtapi.EventRecordHandle) error {
+func (api *API) EvtUpdateBookmark(Bookmark evtapi.EventBookmarkHandle, Event evtapi.EventRecordHandle) error {
 	r1, _, lastErr := evtUpdateBookmark.Call(uintptr(Bookmark), uintptr(Event))
 	// EvtUpdateBookmark returns C FALSE (0) on error
 	if r1 == 0 {
