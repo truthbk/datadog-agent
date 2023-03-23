@@ -78,7 +78,6 @@ func TestNewServer(t *testing.T) {
 	cfg["dogstatsd_port"] = port
 
 	runWithComponentAndConfig(t, cfg, func(s Component, _ configComponent.Component) {
-
 		demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
 		defer demux.Stop(false)
 		requireStart(t, s, demux)
@@ -95,7 +94,6 @@ func TestStopServer(t *testing.T) {
 	cfg["dogstatsd_port"] = port
 
 	runWithComponentAndConfig(t, cfg, func(s Component, _ configComponent.Component) {
-
 		demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
 		defer demux.Stop(false)
 		requireStart(t, s, demux)
@@ -150,7 +148,6 @@ func TestUDPReceive(t *testing.T) {
 	cfg["dogstatsd_no_aggregation_pipeline"] = true // another test may have turned it off
 
 	runWithComponentAndConfig(t, cfg, func(s Component, _ configComponent.Component) {
-
 		opts := aggregator.DefaultAgentDemultiplexerOptions(nil)
 		opts.FlushInterval = 10 * time.Millisecond
 		opts.DontStartForwarders = true
@@ -433,7 +430,6 @@ func TestUDPForward(t *testing.T) {
 	cfg["statsd_forward_host"] = "127.0.0.1"
 
 	runWithComponentAndConfig(t, cfg, func(s Component, _ configComponent.Component) {
-
 		addr := fmt.Sprintf("127.0.0.1:%d", fport)
 		pc, err := net.ListenPacket("udp", addr)
 		require.NoError(t, err)
@@ -480,9 +476,6 @@ func TestHistToDist(t *testing.T) {
 	cfg["histogram_copy_to_distribution_prefix"] = "dist."
 
 	runWithComponentAndConfig(t, cfg, func(s Component, _ configComponent.Component) {
-		config.SetDetectedFeatures(config.FeatureMap{})
-		defer config.SetDetectedFeatures(nil)
-
 		demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
 		defer demux.Stop(false)
 		requireStart(t, s, demux)
@@ -515,7 +508,6 @@ func TestHistToDist(t *testing.T) {
 }
 
 func TestScanLines(t *testing.T) {
-
 	messages := []string{"foo", "bar", "baz", "quz", "hax", ""}
 	packet := []byte(strings.Join(messages, "\n"))
 	cnt := 0
@@ -541,11 +533,9 @@ func TestScanLines(t *testing.T) {
 
 	assert.False(t, eol)
 	assert.Equal(t, 5, cnt)
-
 }
 
 func TestEOLParsing(t *testing.T) {
-
 	messages := []string{"foo", "bar", "baz", "quz", "hax", ""}
 	packet := []byte(strings.Join(messages, "\n"))
 	cnt := 0
@@ -567,12 +557,9 @@ func TestEOLParsing(t *testing.T) {
 	}
 
 	assert.Equal(t, 4, cnt)
-
 }
 
 func TestE2EParsing(t *testing.T) {
-	config.SetDetectedFeatures(config.FeatureMap{})
-	defer config.SetDetectedFeatures(nil)
 	cfg := make(map[string]interface{})
 
 	port, err := getAvailableUDPPort()
@@ -622,17 +609,16 @@ func TestE2EParsing(t *testing.T) {
 }
 
 func TestExtraTags(t *testing.T) {
-	config.SetDetectedFeatures(config.FeatureMap{config.EKSFargate: struct{}{}})
-	defer config.SetDetectedFeatures(nil)
-	cfg := make(map[string]interface{})
+	config.SetFeatures(t, config.EKSFargate)
 
 	port, err := getAvailableUDPPort()
 	require.NoError(t, err)
+
+	cfg := make(map[string]interface{})
 	cfg["dogstatsd_port"] = port
 	cfg["dogstatsd_tags"] = []string{"sometag3:somevalue3"}
 
 	runWithComponentAndConfig(t, cfg, func(s Component, _ configComponent.Component) {
-
 		demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
 		requireStart(t, s, demux)
 		defer s.Stop()
@@ -664,11 +650,9 @@ func TestStaticTags(t *testing.T) {
 	cfg["dogstatsd_tags"] = []string{"sometag3:somevalue3"}
 	cfg["tags"] = []string{"from:dd_tags"}
 
-	config.SetDetectedFeatures(config.FeatureMap{config.EKSFargate: struct{}{}})
-	defer config.SetDetectedFeatures(nil)
+	config.SetFeatures(t, config.EKSFargate)
 
 	runWithComponentAndConfig(t, cfg, func(s Component, _ configComponent.Component) {
-
 		demux := aggregator.InitTestAgentDemultiplexerWithFlushInterval(10 * time.Millisecond)
 		requireStart(t, s, demux)
 		defer s.Stop()
@@ -698,9 +682,6 @@ func TestStaticTags(t *testing.T) {
 }
 
 func TestNoMappingsConfig(t *testing.T) {
-	config.SetDetectedFeatures(config.FeatureMap{})
-	defer config.SetDetectedFeatures(nil)
-
 	runWithComponent(t, func(c Component) {
 		s := c.(*server)
 
@@ -821,9 +802,6 @@ dogstatsd_mapper_profiles:
 	samples := []metrics.MetricSample{}
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
-			config.SetDetectedFeatures(config.FeatureMap{})
-			defer config.SetDetectedFeatures(nil)
-
 			cfg := make(map[string]interface{})
 
 			port, err := getAvailableUDPPort()
@@ -869,8 +847,6 @@ dogstatsd_mapper_profiles:
 }
 
 func TestNewServerExtraTags(t *testing.T) {
-	config.SetDetectedFeatures(config.FeatureMap{})
-	defer config.SetDetectedFeatures(nil)
 	cfg := make(map[string]interface{})
 
 	require := require.New(t)
@@ -913,8 +889,6 @@ func TestNewServerExtraTags(t *testing.T) {
 }
 
 func TestProcessedMetricsOrigin(t *testing.T) {
-	config.SetDetectedFeatures(config.FeatureMap{})
-	defer config.SetDetectedFeatures(nil)
 	cfg := make(map[string]interface{})
 
 	for _, enabled := range []bool{true, false} {
@@ -1033,8 +1007,6 @@ func testContainerIDParsing(t *testing.T, cfg map[string]interface{}) {
 }
 
 func TestContainerIDParsing(t *testing.T) {
-	config.SetDetectedFeatures(config.FeatureMap{})
-	defer config.SetDetectedFeatures(nil)
 	cfg := make(map[string]interface{})
 
 	for _, enabled := range []bool{true, false} {
@@ -1090,8 +1062,6 @@ func testOriginOptout(t *testing.T, cfg map[string]interface{}, enabled bool) {
 }
 
 func TestOriginOptout(t *testing.T) {
-	config.SetDetectedFeatures(config.FeatureMap{})
-	defer config.SetDetectedFeatures(nil)
 	cfg := make(map[string]interface{})
 
 	for _, enabled := range []bool{true, false} {

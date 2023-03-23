@@ -150,7 +150,13 @@ def test_core(
 
 
 def lint_flavor(
-    ctx, modules: List[GoModule], flavor: AgentFlavor, build_tags: List[str], arch: str, rtloader_root: bool
+    ctx,
+    modules: List[GoModule],
+    flavor: AgentFlavor,
+    build_tags: List[str],
+    arch: str,
+    rtloader_root: bool,
+    concurrency: int,
 ):
     """
     Runs linters for given flavor, build tags, and modules.
@@ -159,7 +165,12 @@ def lint_flavor(
     def command(module_results, module, module_result):
         with ctx.cd(module.full_path()):
             lint_results = run_golangci_lint(
-                ctx, targets=module.targets, rtloader_root=rtloader_root, build_tags=build_tags, arch=arch
+                ctx,
+                targets=module.targets,
+                rtloader_root=rtloader_root,
+                build_tags=build_tags,
+                arch=arch,
+                concurrency=concurrency,
             )
             for lint_result in lint_results:
                 module_result.lint_outputs.append(lint_result)
@@ -417,7 +428,7 @@ def test(
     rtloader_root=None,
     python_home_2=None,
     python_home_3=None,
-    cpus=0,
+    cpus=None,
     major_version='7',
     python_runtimes='3',
     timeout=180,
@@ -463,6 +474,13 @@ def test(
     timeout = int(timeout)
     modules_results_per_flavor = {flavor: {"test": [], "lint": []} for flavor in flavors}
 
+    # Sanitize environment variables
+    # We want to ignore all `DD_` variables, as they will interfere with the behavior
+    # of some unit tests
+    for env in os.environ.keys():
+        if env.startswith("DD_"):
+            del os.environ[env]
+
     # Lint
 
     if skip_linters:
@@ -470,7 +488,13 @@ def test(
     else:
         for flavor, build_tags in linter_tags.items():
             modules_results_per_flavor[flavor]["lint"] = lint_flavor(
-                ctx, modules=modules, flavor=flavor, build_tags=build_tags, arch=arch, rtloader_root=rtloader_root
+                ctx,
+                modules=modules,
+                flavor=flavor,
+                build_tags=build_tags,
+                arch=arch,
+                rtloader_root=rtloader_root,
+                concurrency=cpus,
             )
 
     ldflags, gcflags, env = get_build_flags(
