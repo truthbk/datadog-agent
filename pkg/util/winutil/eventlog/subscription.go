@@ -116,14 +116,14 @@ func WithWindowsEventLogAPI(api evtapi.API) PullSubscriptionOption {
 	}
 }
 
-func StartAfterBookmark(bookmark evtbookmark.Bookmark) PullSubscriptionOption {
+func WithStartAfterBookmark(bookmark evtbookmark.Bookmark) PullSubscriptionOption {
 	return func(q *PullSubscription) {
 		q.bookmark = bookmark
 		q.subscribeOriginFlag = evtapi.EvtSubscribeStartAfterBookmark
 	}
 }
 
-func StartAtOldestRecord() PullSubscriptionOption {
+func WithStartAtOldestRecord() PullSubscriptionOption {
 	return func(q *PullSubscription) {
 		q.subscribeOriginFlag = evtapi.EvtSubscribeStartAtOldestRecord
 	}

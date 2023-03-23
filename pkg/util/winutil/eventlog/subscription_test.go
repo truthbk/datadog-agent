@@ -110,6 +110,7 @@ func assertNoMoreEvents(t testing.TB, sub *PullSubscription) error {
 
 func TestBenchmarkTestGetEventHandles(t *testing.T) {
 	if testing.Short() {
+		t.Skip("Skipping benchmark tests with -short")
 		return
 	}
 
@@ -127,11 +128,12 @@ func TestBenchmarkTestGetEventHandles(t *testing.T) {
 				require.NoError(t, err)
 				result := testing.Benchmark(func(b *testing.B) {
 					for i := 0; i < b.N; i++ {
-						sub, err := startSubscription(b, ti, channel)
+						sub, err := startSubscription(b, ti, channel, WithStartAtOldestRecord())
 						require.NoError(b, err)
-						getEventHandles(b, ti, sub, v)
+						_, err = getEventHandles(b, ti, sub, v)
+						require.NoError(b, err)
 						err = assertNoMoreEvents(b, sub)
-						assert.NoError(b, err)
+						require.NoError(b, err)
 						sub.Stop()
 					}
 				})
@@ -194,7 +196,7 @@ func (s *GetEventsTestSuite) TestReadOldEvents() {
 	require.NoError(s.T(), err)
 
 	// Create sub
-	sub, err := startSubscription(s.T(), s.ti, s.channelPath, StartAtOldestRecord())
+	sub, err := startSubscription(s.T(), s.ti, s.channelPath, WithStartAtOldestRecord())
 	require.NoError(s.T(), err)
 
 	// Put events in the log
@@ -432,7 +434,7 @@ func (s *GetEventsTestSuite) TestStartAfterBookmark() {
 	require.NoError(s.T(), err)
 
 	// Create sub
-	sub, err := startSubscription(s.T(), s.ti, s.channelPath, StartAtOldestRecord())
+	sub, err := startSubscription(s.T(), s.ti, s.channelPath, WithStartAtOldestRecord())
 	require.NoError(s.T(), err)
 
 	// Read the events
@@ -457,7 +459,7 @@ func (s *GetEventsTestSuite) TestStartAfterBookmark() {
 	require.NoError(s.T(), err)
 
 	// Create sub
-	sub, err = startSubscription(s.T(), s.ti, s.channelPath, StartAtOldestRecord())
+	sub, err = startSubscription(s.T(), s.ti, s.channelPath, WithStartAtOldestRecord())
 	require.NoError(s.T(), err)
 
 	// Read the events
@@ -474,7 +476,7 @@ func (s *GetEventsTestSuite) TestStartAfterBookmark() {
 	//
 
 	// Create a new subscription starting from the bookmark
-	sub, err = startSubscription(s.T(), s.ti, s.channelPath, StartAfterBookmark(bookmark))
+	sub, err = startSubscription(s.T(), s.ti, s.channelPath, WithStartAfterBookmark(bookmark))
 	require.NoError(s.T(), err)
 
 	// Get Events
@@ -500,7 +502,7 @@ func (s *GetEventsTestSuite) TestStartAfterBookmarkNotFoundWithoutStrictFlag() {
 	require.NoError(s.T(), err)
 
 	// Create sub
-	sub, err := startSubscription(s.T(), s.ti, s.channelPath, StartAtOldestRecord())
+	sub, err := startSubscription(s.T(), s.ti, s.channelPath, WithStartAtOldestRecord())
 	require.NoError(s.T(), err)
 
 	// Read the events
@@ -529,7 +531,7 @@ func (s *GetEventsTestSuite) TestStartAfterBookmarkNotFoundWithoutStrictFlag() {
 	require.NoError(s.T(), err)
 
 	// Create sub
-	sub, err = startSubscription(s.T(), s.ti, s.channelPath, StartAtOldestRecord())
+	sub, err = startSubscription(s.T(), s.ti, s.channelPath, WithStartAtOldestRecord())
 	require.NoError(s.T(), err)
 
 	// Read the events
@@ -546,7 +548,7 @@ func (s *GetEventsTestSuite) TestStartAfterBookmarkNotFoundWithoutStrictFlag() {
 	//
 
 	// Create a new subscription starting from the bookmark
-	sub, err = startSubscription(s.T(), s.ti, s.channelPath, StartAfterBookmark(bookmark))
+	sub, err = startSubscription(s.T(), s.ti, s.channelPath, WithStartAfterBookmark(bookmark))
 	// strict flag not set so there should be no error
 	require.NoError(s.T(), err)
 
@@ -572,7 +574,7 @@ func (s *GetEventsTestSuite) TestStartAfterBookmarkNotFoundWithStrictFlag() {
 	require.NoError(s.T(), err)
 
 	// Create sub
-	sub, err := startSubscription(s.T(), s.ti, s.channelPath, StartAtOldestRecord())
+	sub, err := startSubscription(s.T(), s.ti, s.channelPath, WithStartAtOldestRecord())
 	require.NoError(s.T(), err)
 
 	// Read the events
@@ -601,7 +603,7 @@ func (s *GetEventsTestSuite) TestStartAfterBookmarkNotFoundWithStrictFlag() {
 	require.NoError(s.T(), err)
 
 	// Create sub
-	sub, err = startSubscription(s.T(), s.ti, s.channelPath, StartAtOldestRecord())
+	sub, err = startSubscription(s.T(), s.ti, s.channelPath, WithStartAtOldestRecord())
 	require.NoError(s.T(), err)
 
 	// Read the events
@@ -621,7 +623,7 @@ func (s *GetEventsTestSuite) TestStartAfterBookmarkNotFoundWithStrictFlag() {
 		s.channelPath,
 		"*",
 		WithWindowsEventLogAPI(s.ti.API()),
-		StartAfterBookmark(bookmark),
+		WithStartAfterBookmark(bookmark),
 		WithSubscribeFlags(evtapi.EvtSubscribeStrict))
 	err = sub.Start()
 	require.Error(s.T(), err, "Subscription should return error when bookmark is not found and the Strict flag is set")
