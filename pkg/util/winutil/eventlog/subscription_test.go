@@ -117,11 +117,7 @@ func assertNoMoreEvents(t testing.TB, sub *PullSubscription) error {
 	return nil
 }
 
-func TestBenchmarkTestGetEventHandles(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping benchmark tests with -short")
-		return
-	}
+func BenchmarkTestGetEventHandles(b *testing.B) {
 	optEnableDebugLogging()
 
 	channel := "testchannel"
@@ -131,24 +127,26 @@ func TestBenchmarkTestGetEventHandles(t *testing.T) {
 
 	for _, tiName := range testerNames {
 		for _, v := range numEvents {
-			t.Run(fmt.Sprintf("%vAPI/%d", tiName, v), func(t *testing.T) {
-				ti := eventlog_test.GetAPITesterByName(tiName, t)
-				createLog(t, ti, channel)
+			b.Run(fmt.Sprintf("%vAPI/%d", tiName, v), func(b *testing.B) {
+				ti := eventlog_test.GetAPITesterByName(tiName, b)
+				createLog(b, ti, channel)
 				err := ti.GenerateEvents(channel, v)
-				require.NoError(t, err)
-				result := testing.Benchmark(func(b *testing.B) {
-					for i := 0; i < b.N; i++ {
-						sub, err := startSubscription(b, ti, channel, WithStartAtOldestRecord())
-						require.NoError(b, err)
-						_, err = getEventHandles(b, ti, sub, v)
-						require.NoError(b, err)
-						err = assertNoMoreEvents(b, sub)
-						require.NoError(b, err)
-						sub.Stop()
-					}
-				})
-				total_events := float64(v) * float64(result.N)
-				t.Logf("%.2f events/s (%.3fs)", total_events/result.T.Seconds(), result.T.Seconds())
+				require.NoError(b, err)
+				b.ResetTimer()
+				startTime := time.Now()
+				for i := 0; i < b.N; i++ {
+					sub, err := startSubscription(b, ti, channel, WithStartAtOldestRecord())
+					require.NoError(b, err)
+					_, err = getEventHandles(b, ti, sub, v)
+					require.NoError(b, err)
+					err = assertNoMoreEvents(b, sub)
+					require.NoError(b, err)
+					sub.Stop()
+				}
+				// TODO: Use b.Elapsed in go1.20
+				elapsed := time.Since(startTime)
+				total_events := float64(v) * float64(b.N)
+				b.Logf("%.2f events/s (%.3fs)", total_events/elapsed.Seconds(), elapsed.Seconds())
 			})
 		}
 	}
