@@ -27,14 +27,14 @@ import (
 	"github.com/cilium/ebpf"
 	"golang.org/x/sys/unix"
 
+	manager "github.com/DataDog/ebpf-manager"
+
 	"github.com/DataDog/datadog-agent/pkg/network/config"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
 	"github.com/DataDog/datadog-agent/pkg/network/tracer/connection/kprobe"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
-	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/native"
-	manager "github.com/DataDog/ebpf-manager"
 )
 
 const InterfaceLocalMulticastIPv6 = "ff01::1"
@@ -68,8 +68,7 @@ func NewTracerOffsetGuesser() (OffsetGuesser, error) {
 				{ProbeIdentificationPair: idPair(probes.SockGetSockOpt)},
 				{ProbeIdentificationPair: idPair(probes.TCPv6Connect)},
 				{ProbeIdentificationPair: idPair(probes.IPMakeSkb)},
-				{ProbeIdentificationPair: idPair(probes.IP6MakeSkb)},
-				{ProbeIdentificationPair: idPair(probes.IP6MakeSkbPre470), MatchFuncName: "^ip6_make_skb$"},
+				{ProbeIdentificationPair: idPair(probes.UDPv6SendSkb)},
 				{ProbeIdentificationPair: idPair(probes.TCPv6ConnectReturn), KProbeMaxActive: 128},
 				{ProbeIdentificationPair: idPair(probes.NetDevQueue)},
 			},
@@ -195,17 +194,7 @@ func (*tracerOffsetGuesser) Probes(c *config.Config) (map[probes.ProbeFuncName]s
 	if c.CollectIPv6Conns {
 		enableProbe(p, probes.TCPv6Connect)
 		enableProbe(p, probes.TCPv6ConnectReturn)
-
-		kv, err := kernel.HostVersion()
-		if err != nil {
-			return nil, err
-		}
-
-		if kv < kernel.VersionCode(4, 7, 0) {
-			enableProbe(p, probes.IP6MakeSkbPre470)
-		} else {
-			enableProbe(p, probes.IP6MakeSkb)
-		}
+		enableProbe(p, probes.UDPv6SendSkb)
 	}
 	return p, nil
 }

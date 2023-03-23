@@ -90,12 +90,10 @@ const (
 	IPMakeSkb ProbeFuncName = "kprobe__ip_make_skb"
 	// IPMakeSkbReturn traces return of ip_make_skb
 	IPMakeSkbReturn ProbeFuncName = "kretprobe__ip_make_skb"
-	// IP6MakeSkb traces ip6_make_skb
-	IP6MakeSkb ProbeFuncName = "kprobe__ip6_make_skb"
-	// IP6MakeSkbReturn traces return of ip6_make_skb
-	IP6MakeSkbReturn ProbeFuncName = "kretprobe__ip6_make_skb"
-	// IP6MakeSkbPre470 traces ip6_make_skb on kernel versions < 4.7
-	IP6MakeSkbPre470 ProbeFuncName = "kprobe__ip6_make_skb__pre_4_7_0"
+	// UDPv6SendSkb traces udp_v6_send_skb
+	UDPv6SendSkb ProbeFuncName = "kprobe__udp_v6_send_skb"
+	// UDPv6SendMsgReturn traces return of udpv6_sendmsg
+	UDPv6SendMsgReturn ProbeFuncName = "kretprobe__udpv6_sendmsg"
 
 	// UDPRecvMsg traces the udp_recvmsg() system call
 	UDPRecvMsg ProbeFuncName = "kprobe__udp_recvmsg"
@@ -195,6 +193,7 @@ const (
 	TcpSendPageArgsMap                BPFMapName = "tcp_sendpage_args"
 	UdpSendPageArgsMap                BPFMapName = "udp_sendpage_args"
 	IpMakeSkbArgsMap                  BPFMapName = "ip_make_skb_args"
+	UDPv6SendSkbArgsMap               BPFMapName = "udpv6_send_skb_args"
 	MapErrTelemetryMap                BPFMapName = "map_err_telemetry_map"
 	HelperErrTelemetryMap             BPFMapName = "helper_err_telemetry_map"
 	TcpRecvMsgArgsMap                 BPFMapName = "tcp_recvmsg_args"

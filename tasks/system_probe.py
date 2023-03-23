@@ -216,9 +216,10 @@ def ninja_network_ebpf_programs(nw, build_dir, co_re_build_dir):
     network_co_re_programs = ["co-re/tracer-fentry", "runtime/http"]
 
     for prog in network_programs:
+        prebuilt_flags = f"-Ipkg/network/ebpf/c/prebuilt {network_flags}"
         infile = os.path.join(network_prebuilt_dir, f"{prog}.c")
         outfile = os.path.join(build_dir, f"{prog}.o")
-        ninja_network_ebpf_program(nw, infile, outfile, network_flags)
+        ninja_network_ebpf_program(nw, infile, outfile, prebuilt_flags)
 
     for prog_path in network_co_re_programs:
         prog = os.path.basename(prog_path)

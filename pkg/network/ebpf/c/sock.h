@@ -35,11 +35,6 @@ static __always_inline struct inet_sock *inet_sk(const struct sock *sk)
 #define sk_daddr __sk_common.skc_daddr
 #define sk_rcv_saddr __sk_common.skc_rcv_saddr
 #define sk_family __sk_common.skc_family
-// source include/net/flow.h
-#define fl4_sport uli.ports.sport
-#define fl4_dport uli.ports.dport
-#define fl6_sport uli.ports.sport
-#define fl6_dport uli.ports.dport
 
 #elif defined(COMPILE_RUNTIME)
 

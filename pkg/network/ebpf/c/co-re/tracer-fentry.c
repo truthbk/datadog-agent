@@ -18,7 +18,6 @@
 
 #define MSG_PEEK 2
 
-BPF_PERCPU_HASH_MAP(udp6_send_skb_args, u64, u64, 1024)
 BPF_PERCPU_HASH_MAP(udp_send_skb_args, u64, conn_tuple_t, 1024)
 
 static __always_inline int read_conn_tuple_partial_from_flowi4(conn_tuple_t *t, struct flowi4 *fl4, u64 pid_tgid, metadata_mask_t type) {
@@ -50,57 +49,6 @@ static __always_inline int read_conn_tuple_partial_from_flowi4(conn_tuple_t *t, 
         log_debug("ERR(fl4): src/dst port not set: src:%d, dst:%d\n", t->sport, t->dport);
         return 0;
     }
-
-    return 1;
-}
-
-static __always_inline int read_conn_tuple_partial_from_flowi6(conn_tuple_t *t, struct flowi6 *fl6, u64 pid_tgid, metadata_mask_t type) {
-    t->pid = pid_tgid >> 32;
-    t->metadata = type;
-
-    struct in6_addr addr = BPF_CORE_READ(fl6, saddr);
-    if (t->saddr_l == 0 || t->saddr_h == 0) {
-        read_in6_addr(&t->saddr_h, &t->saddr_l, &addr);
-    }
-    if (t->daddr_l == 0 || t->daddr_h == 0) {
-        addr = BPF_CORE_READ(fl6, daddr);
-        read_in6_addr(&t->daddr_h, &t->daddr_l, &addr);
-    }
-
-    if (!(t->saddr_h || t->saddr_l)) {
-        log_debug("ERR(fl6): src addr not set src_l:%d,src_h:%d\n", t->saddr_l, t->saddr_h);
-        return 0;
-    }
-    if (!(t->daddr_h || t->daddr_l)) {
-        log_debug("ERR(fl6): dst addr not set dst_l:%d,dst_h:%d\n", t->daddr_l, t->daddr_h);
-        return 0;
-    }
-
-    // Check if we can map IPv6 to IPv4
-    if (is_ipv4_mapped_ipv6(t->saddr_h, t->saddr_l, t->daddr_h, t->daddr_l)) {
-        t->metadata |= CONN_V4;
-        t->saddr_h = 0;
-        t->daddr_h = 0;
-        t->saddr_l = (u32)(t->saddr_l >> 32);
-        t->daddr_l = (u32)(t->daddr_l >> 32);
-    } else {
-        t->metadata |= CONN_V6;
-    }
-
-    if (t->sport == 0) {
-        t->sport = BPF_CORE_READ(fl6, fl6_sport);
-        t->sport = bpf_ntohs(t->sport);
-    }
-    if (t->dport == 0) {
-        t->dport = BPF_CORE_READ(fl6, fl6_dport);
-        t->dport = bpf_ntohs(t->dport);
-    }
-
-    if (t->sport == 0 || t->dport == 0) {
-        log_debug("ERR(fl6): src/dst port not set: src:%d, dst:%d\n", t->sport, t->dport);
-        return 0;
-    }
-
 
     return 1;
 }

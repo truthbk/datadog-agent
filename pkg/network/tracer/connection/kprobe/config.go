@@ -87,7 +87,7 @@ func enabledProbes(c *config.Config, runtimeTracer bool) (map[probes.ProbeFuncNa
 		}
 		enableProbe(enabled, selectVersionBasedProbe(runtimeTracer, kv, probes.UDPRecvMsgReturn, probes.UDPRecvMsgReturnPre470, kv470))
 		if c.CollectIPv6Conns {
-			enableProbe(enabled, selectVersionBasedProbe(runtimeTracer, kv, probes.IP6MakeSkb, probes.IP6MakeSkbPre470, kv470))
+			enableProbe(enabled, probes.UDPv6SendSkb)
 			if kv >= kv5190 || runtimeTracer {
 				enableProbe(enabled, probes.UDPv6RecvMsg)
 			} else if kv >= kv470 {
@@ -98,7 +98,7 @@ func enabledProbes(c *config.Config, runtimeTracer bool) (map[probes.ProbeFuncNa
 				enableProbe(enabled, probes.UDPv6RecvMsgPre410)
 			}
 			enableProbe(enabled, selectVersionBasedProbe(runtimeTracer, kv, probes.UDPv6RecvMsgReturn, probes.UDPv6RecvMsgReturnPre470, kv470))
-			enableProbe(enabled, probes.IP6MakeSkbReturn)
+			enableProbe(enabled, probes.UDPv6SendMsgReturn)
 			enableProbe(enabled, probes.Inet6Bind)
 			enableProbe(enabled, probes.Inet6BindRet)
 		}
