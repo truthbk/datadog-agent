@@ -35,15 +35,15 @@ dd_agent_installer = "#{dd_agent_installer_basename}.msi"
 source_url += dd_agent_installer
 temp_file = "#{temp_file_basename}.msi"
 
-log_file_name = ::File.join(Chef::Config[:file_cache_path], 'install.log').gsub(File::SEPARATOR, File::ALT_SEPARATOR || File::SEPARATOR)
+installer_log_file_name = ::File.join(Chef::Config[:file_cache_path], 'install.log').gsub(File::SEPARATOR, File::ALT_SEPARATOR || File::SEPARATOR)
 # Delete the log file in case it exists (in case of multiple converge runs for example)
-file log_file_name do
+file installer_log_file_name do
   action :delete
 end
 
 # Agent >= 5.12.0 installs per-machine by default, but specifying ALLUSERS=1 shouldn't affect the install
 agent_install_options = node['dd-agent-install']['agent_install_options']
-install_options = "/log #{log_file_name} /norestart ALLUSERS=1 #{agent_install_options}"
+install_options = "/log #{installer_log_file_name} /norestart ALLUSERS=1 #{agent_install_options}"
 
 # This fake package resource serves only to trigger the Datadog Agent uninstall.
 # If the checksum is not provided, assume we need to reinstall the Agent.
@@ -82,20 +82,13 @@ end
 #  action :run
 #end
 
-ruby_block "Print install logs" do
-  only_if { ::File.exists?(log_file_name) }
-  block do
-    # Use warn, because Chef's default "log" is too chatty
-    # and the kitchen tests default to "warn"
-    Chef::Log.warn(File.open(log_file_name, "rb:UTF-16LE", &:read).encode('UTF-8'))
-  end
-end
+include_recipe 'dd-agent-install::_print_windows_installer_log'
 
 ruby_block "Check install sucess" do
   not_if { agent_install_options.include?('WIXFAILWHENDEFERRED') }
   block do
-    raise "Could not find installation log file, did the installer run ?" if !File.file?(log_file_name)
-    logfile = File.open(log_file_name, "rb:UTF-16LE", &:read).encode('UTF-8')
+    raise "Could not find installation log file, did the installer run ?" if !File.file?(installer_log_file_name)
+    logfile = File.open(installer_log_file_name, "rb:UTF-16LE", &:read).encode('UTF-8')
     raise "The Agent failed to install" if logfile.include? "Product: Datadog Agent -- Installation failed."
   end
 end
