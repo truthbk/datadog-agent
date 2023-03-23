@@ -29,7 +29,16 @@ import (
 
 var debuglogFlag = flag.Bool("debuglog", false, "Enable seelog debug logging")
 
+func optEnableDebugLogging() {
+	// Enable logger
+	if *debuglogFlag {
+		pkglog.SetupLogger(seelog.Default, "debug")
+	}
+}
+
 func TestInvalidChannel(t *testing.T) {
+	optEnableDebugLogging()
+
 	testerNames := eventlog_test.GetEnabledAPITesters()
 
 	for _, tiName := range testerNames {
@@ -113,6 +122,7 @@ func TestBenchmarkTestGetEventHandles(t *testing.T) {
 		t.Skip("Skipping benchmark tests with -short")
 		return
 	}
+	optEnableDebugLogging()
 
 	channel := "testchannel"
 	numEvents := []uint{10, 100, 1000, 10000}
@@ -157,10 +167,7 @@ type GetEventsTestSuite struct {
 func (s *GetEventsTestSuite) SetupSuite() {
 	//fmt.Println("SetupSuite")
 
-	// Enable logger
-	if *debuglogFlag {
-		pkglog.SetupLogger(seelog.Default, "debug")
-	}
+	optEnableDebugLogging()
 
 	s.ti = eventlog_test.GetAPITesterByName(s.testAPI, s.T())
 	err := s.ti.InstallChannel(s.channelPath)
