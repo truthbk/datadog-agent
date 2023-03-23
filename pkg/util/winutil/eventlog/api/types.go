@@ -14,12 +14,12 @@ import (
 const (
 	// EVT_SUBSCRIBE_FLAGS
 	// https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_subscribe_flags
-	EvtSubscribeToFutureEvents = 1
+	EvtSubscribeToFutureEvents      = 1
 	EvtSubscribeStartAtOldestRecord = 2
-	EvtSubscribeStartAfterBookmark = 3
-	EvtSubscribeOriginMask = 3
+	EvtSubscribeStartAfterBookmark  = 3
+	EvtSubscribeOriginMask          = 3
 	EvtSubscribeTolerateQueryErrors = 0x1000
-	EvtSubscribeStrict = 0x10000
+	EvtSubscribeStrict              = 0x10000
 )
 
 const (
@@ -95,13 +95,9 @@ type API interface {
 		EventID uint,
 		Strings []string,
 		RawData []uint8) error
-
 }
 
-
-//
 // Helpful wrappers for custom types
-//
 func EvtCloseResultSet(api API, h EventResultSetHandle) {
 	api.EvtClose(windows.Handle(h))
 }
@@ -113,4 +109,3 @@ func EvtCloseBookmark(api API, h EventBookmarkHandle) {
 func EvtCloseRecord(api API, h EventRecordHandle) {
 	api.EvtClose(windows.Handle(h))
 }
-

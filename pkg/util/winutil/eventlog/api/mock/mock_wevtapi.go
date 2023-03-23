@@ -22,15 +22,15 @@ import (
 type API struct {
 	eventLogs map[string]*mockEventLog
 
-	nextHandle *atomic.Uint64
-	subscriptions map[evtapi.EventResultSetHandle]*mockSubscription
-	eventHandles map[evtapi.EventRecordHandle]*mockEventRecord
-	sourceHandles map[evtapi.EventSourceHandle]string
+	nextHandle      *atomic.Uint64
+	subscriptions   map[evtapi.EventResultSetHandle]*mockSubscription
+	eventHandles    map[evtapi.EventRecordHandle]*mockEventRecord
+	sourceHandles   map[evtapi.EventSourceHandle]string
 	bookmarkHandles map[evtapi.EventBookmarkHandle]*mockBookmark
 }
 
 type mockEventLog struct {
-	name string
+	name   string
 	events []*mockEventRecord
 
 	nextRecordID *atomic.Uint64
@@ -41,8 +41,8 @@ type mockEventLog struct {
 
 type mockSubscription struct {
 	channel string
-	query string
-	handle evtapi.EventResultSetHandle
+	query   string
+	handle  evtapi.EventResultSetHandle
 	// owned by caller, not closed by this lib
 	signalEventHandle evtapi.WaitEventHandle
 
@@ -53,17 +53,17 @@ type mockEventRecord struct {
 	handle evtapi.EventRecordHandle
 
 	// Must be exported so template can render them
-	Type uint
+	Type     uint
 	Category uint
-	EventID uint
-	Strings []string
-	RawData []uint8
+	EventID  uint
+	Strings  []string
+	RawData  []uint8
 	EventLog string
 	RecordID uint
 }
 
 type mockBookmark struct {
-	handle evtapi.EventBookmarkHandle
+	handle        evtapi.EventBookmarkHandle
 	eventRecordID uint
 }
 
@@ -108,9 +108,7 @@ func newMockEventRecord(Type uint, category uint, eventID uint, eventLog string,
 	return &e
 }
 
-//
 // Mock helpers
-//
 func (api *API) AddEventLog(name string) error {
 	// does it exist
 	_, err := api.getMockEventLog(name)
@@ -140,7 +138,7 @@ func (api *API) GenerateEvents(eventLogName string, numEvents uint) error {
 	}
 
 	// Add junk events
-	for i := uint(0); i < numEvents; i+=1 {
+	for i := uint(0); i < numEvents; i += 1 {
 		event := eventLog.reportEvent(api, windows.EVENTLOG_INFORMATION_TYPE,
 			0, 1000, []string{"teststring"}, nil)
 		// TODO: Should only create a handle in the API when EvtNext is called
@@ -150,9 +148,7 @@ func (api *API) GenerateEvents(eventLogName string, numEvents uint) error {
 	return nil
 }
 
-//
 // internal mock functions
-//
 func (api *API) addSubscription(sub *mockSubscription) {
 	h := api.nextHandle.Inc()
 	sub.handle = evtapi.EventResultSetHandle(h)
@@ -247,9 +243,7 @@ func (e *mockEventLog) reportEvent(
 	return event
 }
 
-//
 // Mock Windows APIs
-//
 func (api *API) EvtSubscribe(
 	SignalEvent evtapi.WaitEventHandle,
 	ChannelPath string,
@@ -281,7 +275,7 @@ func (api *API) EvtSubscribe(
 	sub.signalEventHandle = SignalEvent
 
 	// go to bookmark
-	if bookmark != nil && (Flags & evtapi.EvtSubscribeOriginMask == evtapi.EvtSubscribeStartAfterBookmark) {
+	if bookmark != nil && (Flags&evtapi.EvtSubscribeOriginMask == evtapi.EvtSubscribeStartAfterBookmark) {
 		// binary search for event with matching RecordID, or insert location
 		i := sort.Search(len(evtlog.events), func(i int) bool {
 			e := evtlog.events[i]
@@ -289,10 +283,10 @@ func (api *API) EvtSubscribe(
 		})
 		if i < len(evtlog.events) && evtlog.events[i].RecordID == bookmark.eventRecordID {
 			// start AFTER bookmark
-			sub.nextEvent = uint(i+1)
+			sub.nextEvent = uint(i + 1)
 		} else {
 			// bookmarked event is no longer in the log
-			if (Flags & evtapi.EvtSubscribeStrict == evtapi.EvtSubscribeStrict) {
+			if Flags&evtapi.EvtSubscribeStrict == evtapi.EvtSubscribeStrict {
 				return evtapi.EventResultSetHandle(0), fmt.Errorf("bookmark not found and Strict flag set")
 			}
 			// MSDN says
@@ -340,7 +334,7 @@ func (api *API) EvtNext(
 	}
 
 	// get next events from log
-	end := sub.nextEvent+EventsSize
+	end := sub.nextEvent + EventsSize
 	if end > uint(len(eventLog.events)) {
 		end = uint(len(eventLog.events))
 	}

@@ -45,4 +45,3 @@ func GetAPITesterByName(name string, t testing.TB) APITester {
 	require.FailNow(t, fmt.Sprintf("invalid test interface: %v", name))
 	return nil
 }
-

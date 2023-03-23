@@ -21,10 +21,10 @@ func ReadNumEventsWithNotify(t testing.TB, ti eventlog_test.APITester, sub *Pull
 	eventRecords := make([]*EventRecord, 0)
 
 	count := uint(0)
-	eventLoop:
+eventLoop:
 	for {
 		select {
-		case _, ok := <- sub.NotifyEventsAvailable:
+		case _, ok := <-sub.NotifyEventsAvailable:
 			if !ok {
 				break eventLoop
 			}

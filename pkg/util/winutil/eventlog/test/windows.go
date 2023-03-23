@@ -26,7 +26,7 @@ const (
 // and provides utilities to the test framework that will modify
 // the host system (e.g. install event log source, generate events).
 type WindowsAPITester struct {
-	t testing.TB
+	t           testing.TB
 	eventlogapi *winevtapi.API
 }
 
@@ -37,7 +37,7 @@ func NewWindowsAPITester(t testing.TB) *WindowsAPITester {
 	return &ti
 }
 
-func (ti *WindowsAPITester) Name() string{
+func (ti *WindowsAPITester) Name() string {
 	return "Windows"
 }
 
@@ -81,7 +81,6 @@ func (ti *WindowsAPITester) InstallSource(channel string, source string) error {
 		return err
 	}
 	defer sourceKey.Close()
-
 
 	err = sourceKey.SetExpandStringValue("EventMessageFile", `C:\Windows\System32\eventcreate.exe`)
 	if err != nil {
@@ -127,7 +126,7 @@ func (ti *WindowsAPITester) GenerateEvents(channelName string, numEvents uint) e
 	}
 	defer ti.eventlogapi.DeregisterEventSource(sourceHandle)
 
-	for i := uint(0); i < numEvents; i+=1 {
+	for i := uint(0); i < numEvents; i += 1 {
 		err := ti.eventlogapi.ReportEvent(
 			sourceHandle,
 			windows.EVENTLOG_INFORMATION_TYPE,
@@ -151,4 +150,3 @@ func channelRegistryKey(channel string) string {
 func sourceRegistryKey(channel string, source string) string {
 	return fmt.Sprintf(`%v\%v`, channelRegistryKey(channel), source)
 }
-

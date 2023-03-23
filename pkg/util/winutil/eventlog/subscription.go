@@ -25,8 +25,8 @@ const (
 
 type PullSubscription struct {
 	// Configuration
-	ChannelPath string
-	Query string
+	ChannelPath     string
+	Query           string
 	EventBatchCount uint
 
 	// Notify user that event records are available
@@ -36,17 +36,17 @@ type PullSubscription struct {
 	//log log.Component
 
 	// Windows API
-	eventLogAPI evtapi.API
+	eventLogAPI        evtapi.API
 	subscriptionHandle evtapi.EventResultSetHandle
-	waitEventHandle evtapi.WaitEventHandle
-	stopEventHandle evtapi.WaitEventHandle
-	evtNextStorage []evtapi.EventRecordHandle
+	waitEventHandle    evtapi.WaitEventHandle
+	stopEventHandle    evtapi.WaitEventHandle
+	evtNextStorage     []evtapi.EventRecordHandle
 
 	// Query loop management
-	started bool
-	notifyEventsAvailableWaiter sync.WaitGroup
+	started                       bool
+	notifyEventsAvailableWaiter   sync.WaitGroup
 	notifyEventsAvailableLoopDone chan struct{}
-	notifyStop chan struct{}
+	notifyStop                    chan struct{}
 
 	// notifyNoMoreItems synchronizes notifyEventsAvailableLoop and GetEvents when
 	// EvtNext returns ERROR_NO_MORE_ITEMS.
@@ -55,16 +55,16 @@ type PullSubscription struct {
 	// Without this synchronization notifyEventsAvailableLoop would block writing to the
 	// NotifyEventsAvailable channel until the user read from the channel again, at which
 	// point the user would be erroneously notified that events are available.
-	notifyNoMoreItems chan struct{}
+	notifyNoMoreItems         chan struct{}
 	notifyNoMoreItemsComplete chan struct{}
 
 	// EvtSubscribe args
 	subscribeOriginFlag uint
-	subscribeFlags uint
-	bookmark evtbookmark.Bookmark
+	subscribeFlags      uint
+	bookmark            evtbookmark.Bookmark
 }
 
-type PullSubscriptionOption func (*PullSubscription)
+type PullSubscriptionOption func(*PullSubscription)
 
 type EventRecord struct {
 	EventRecordHandle evtapi.EventRecordHandle
@@ -84,7 +84,7 @@ func newStopWaitEvent() (evtapi.WaitEventHandle, error) {
 	return evtapi.WaitEventHandle(hEvent), err
 }
 
-//func NewPullSubscription(log log.Component) *PullSubscription {
+// func NewPullSubscription(log log.Component) *PullSubscription {
 func NewPullSubscription(ChannelPath, Query string, options ...PullSubscriptionOption) *PullSubscription {
 	var q PullSubscription
 	q.subscriptionHandle = evtapi.EventResultSetHandle(0)
@@ -105,37 +105,37 @@ func NewPullSubscription(ChannelPath, Query string, options ...PullSubscriptionO
 }
 
 func WithEventBatchCount(count uint) PullSubscriptionOption {
-   return func (q *PullSubscription) {
-       q.EventBatchCount = count
-   }
+	return func(q *PullSubscription) {
+		q.EventBatchCount = count
+	}
 }
 
 func WithWindowsEventLogAPI(api evtapi.API) PullSubscriptionOption {
-	return func (q *PullSubscription) {
+	return func(q *PullSubscription) {
 		q.eventLogAPI = api
 	}
 }
 
 func StartAfterBookmark(bookmark evtbookmark.Bookmark) PullSubscriptionOption {
-	return func (q *PullSubscription) {
+	return func(q *PullSubscription) {
 		q.bookmark = bookmark
 		q.subscribeOriginFlag = evtapi.EvtSubscribeStartAfterBookmark
 	}
 }
 
 func StartAtOldestRecord() PullSubscriptionOption {
-	return func (q *PullSubscription) {
+	return func(q *PullSubscription) {
 		q.subscribeOriginFlag = evtapi.EvtSubscribeStartAtOldestRecord
 	}
 }
 
 func WithSubscribeFlags(flags uint) PullSubscriptionOption {
-	return func (q *PullSubscription) {
+	return func(q *PullSubscription) {
 		q.subscribeFlags = flags
 	}
 }
 
-func (q *PullSubscription) Start() (error) {
+func (q *PullSubscription) Start() error {
 
 	if q.started {
 		return fmt.Errorf("Query subscription is already started")
@@ -234,26 +234,26 @@ func (q *PullSubscription) notifyEventsAvailableLoop() {
 			// Event records are available, notify the user
 			pkglog.Debugf("Events are available")
 			select {
-				case <- q.notifyStop:
+			case <-q.notifyStop:
+				return
+			case q.NotifyEventsAvailable <- struct{}{}:
+				break
+			case <-q.notifyNoMoreItems:
+				// EvtNext called, there are no more items to read, this case
+				// allows us to cancel sending NotifyEventsAvailable to the user.
+				// Now we must wait for the event to be reset to ensure WaitForMultipleObjects will
+				// block until Windows sets the event again.
+				// We cannot just call ResetEvent here instead because that creates a race
+				// with the SetEvent call in GetEvents() that could create a deadlock.
+				select {
+				case <-q.notifyStop:
 					return
-				case q.NotifyEventsAvailable <- struct{}{}:
+				case <-q.notifyNoMoreItemsComplete:
 					break
-				case <- q.notifyNoMoreItems:
-					// EvtNext called, there are no more items to read, this case
-					// allows us to cancel sending NotifyEventsAvailable to the user.
-					// Now we must wait for the event to be reset to ensure WaitForMultipleObjects will
-					// block until Windows sets the event again.
-					// We cannot just call ResetEvent here instead because that creates a race
-					// with the SetEvent call in GetEvents() that could create a deadlock.
-					select {
-					case <- q.notifyStop:
-						return
-					case <- q.notifyNoMoreItemsComplete:
-						break
-					}
-					break
+				}
+				break
 			}
-		} else if dwWait == (windows.WAIT_OBJECT_0+1) {
+		} else if dwWait == (windows.WAIT_OBJECT_0 + 1) {
 			// Stop event is set
 			return
 		} else if dwWait == uint32(windows.WAIT_TIMEOUT) {
@@ -288,24 +288,24 @@ func (q *PullSubscription) synchronizeNoMoreItems() error {
 	// If notifyEventsAvailableLoop is blocking on sending NotifyEventsAvailable
 	// then wake/cancel it so it does not erroneously send NotifyEventsAvailable.
 	select {
-		case <- q.notifyStop:
-			return fmt.Errorf("stop signal")
-		case <- q.notifyEventsAvailableLoopDone:
-			return fmt.Errorf("notify loop is not running")
-		case q.notifyNoMoreItems <- struct{}{}:
-			break
+	case <-q.notifyStop:
+		return fmt.Errorf("stop signal")
+	case <-q.notifyEventsAvailableLoopDone:
+		return fmt.Errorf("notify loop is not running")
+	case q.notifyNoMoreItems <- struct{}{}:
+		break
 	}
 	// Reset the events ready event so notifyEventsAvailableLoop will wait again in WaitForMultipleObjects,
 	// then write to notifyNoMoreItemsComplete to tell the loop that the event has been reset and it
 	// can safely continue.
 	windows.ResetEvent(windows.Handle(q.waitEventHandle))
 	select {
-		case <- q.notifyStop:
-			return fmt.Errorf("stop signal")
-		case <- q.notifyEventsAvailableLoopDone:
-			return fmt.Errorf("notify loop is not running")
-		case q.notifyNoMoreItemsComplete <- struct{}{}:
-			break
+	case <-q.notifyStop:
+		return fmt.Errorf("stop signal")
+	case <-q.notifyEventsAvailableLoopDone:
+		return fmt.Errorf("notify loop is not running")
+	case q.notifyNoMoreItemsComplete <- struct{}{}:
+		break
 	}
 	return nil
 }
@@ -370,4 +370,3 @@ func safeCloseNullHandle(h windows.Handle) {
 		windows.CloseHandle(h)
 	}
 }
-

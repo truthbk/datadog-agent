@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"unsafe"
 
-    "github.com/DataDog/datadog-agent/pkg/util/winutil"
-    evtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil"
+	evtapi "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
 
 	"golang.org/x/sys/windows"
 )
@@ -20,25 +20,25 @@ import (
 var (
 	// New Event Log API
 	// https://learn.microsoft.com/en-us/windows/win32/wes/using-windows-event-log
-	wevtapi = windows.NewLazySystemDLL("wevtapi.dll")
-	evtSubscribe = wevtapi.NewProc("EvtSubscribe")
-	evtClose = wevtapi.NewProc("EvtClose")
-	evtNext = wevtapi.NewProc("EvtNext")
-	evtCreateBookmark = wevtapi.NewProc("EvtCreateBookmark")
-	evtUpdateBookmark = wevtapi.NewProc("EvtUpdateBookmark")
+	wevtapi                = windows.NewLazySystemDLL("wevtapi.dll")
+	evtSubscribe           = wevtapi.NewProc("EvtSubscribe")
+	evtClose               = wevtapi.NewProc("EvtClose")
+	evtNext                = wevtapi.NewProc("EvtNext")
+	evtCreateBookmark      = wevtapi.NewProc("EvtCreateBookmark")
+	evtUpdateBookmark      = wevtapi.NewProc("EvtUpdateBookmark")
 	evtCreateRenderContext = wevtapi.NewProc("EvtCreateRenderContext")
-	evtRender = wevtapi.NewProc("EvtRender")
-	evtClearLog = wevtapi.NewProc("EvtClearLog")
+	evtRender              = wevtapi.NewProc("EvtRender")
+	evtClearLog            = wevtapi.NewProc("EvtClearLog")
 
 	// Legacy Event Logging API
 	// https://learn.microsoft.com/en-us/windows/win32/eventlog/using-event-logging
-	advapi32 = windows.NewLazySystemDLL("advapi32.dll")
-	registerEventSource = advapi32.NewProc("RegisterEventSourceW")
+	advapi32              = windows.NewLazySystemDLL("advapi32.dll")
+	registerEventSource   = advapi32.NewProc("RegisterEventSourceW")
 	deregisterEventSource = advapi32.NewProc("DeregisterEventSource")
-	reportEvent = advapi32.NewProc("ReportEventW")
+	reportEvent           = advapi32.NewProc("ReportEventW")
 )
 
-type API struct {}
+type API struct{}
 
 func New() *API {
 	var api API
@@ -223,7 +223,6 @@ func evtRenderText(
 
 	return Buffer, nil
 }
-
 
 // EvtRenderEventXmlText renders EvtRenderEventXml
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtrender

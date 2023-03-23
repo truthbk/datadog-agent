@@ -47,12 +47,12 @@ func testExampleNotifyChannel(t testing.TB, ti eventlog_test.APITester, stop cha
 	}
 
 	// Get events until stop is set
-	outerLoop:
+outerLoop:
 	for {
 		select {
-		case <- stop:
+		case <-stop:
 			break outerLoop
-		case _, ok := <- sub.NotifyEventsAvailable:
+		case _, ok := <-sub.NotifyEventsAvailable:
 			if !ok {
 				// The channel is closed, this indicates an error or that sub.Stop() was called
 				break outerLoop
@@ -107,7 +107,7 @@ func TestExampleNotifyChannel(t *testing.T) {
 				err := ti.GenerateEvents(channelPath, numEvents)
 				require.NoError(t, err)
 				// simulate some delay in event generation
-				time.Sleep(100*time.Millisecond)
+				time.Sleep(100 * time.Millisecond)
 			}
 			// Stop the event collector
 			close(stop)
@@ -115,4 +115,3 @@ func TestExampleNotifyChannel(t *testing.T) {
 		})
 	}
 }
-

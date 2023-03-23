@@ -24,11 +24,11 @@ type Bookmark interface {
 
 type bookmark struct {
 	// Windows API
-	eventLogAPI evtapi.API
+	eventLogAPI    evtapi.API
 	bookmarkHandle evtapi.EventBookmarkHandle
 }
 
-func New(options...func(*bookmark) error) (*bookmark, error) {
+func New(options ...func(*bookmark) error) (*bookmark, error) {
 	var b bookmark
 
 	for _, o := range options {
@@ -54,14 +54,14 @@ func New(options...func(*bookmark) error) (*bookmark, error) {
 }
 
 func WithWindowsEventLogAPI(api evtapi.API) func(*bookmark) error {
-	return func (b *bookmark) error {
+	return func(b *bookmark) error {
 		b.eventLogAPI = api
 		return nil
 	}
 }
 
 func FromFile(bookmarkPath string) func(*bookmark) error {
-	return func (b *bookmark) error {
+	return func(b *bookmark) error {
 		if b.eventLogAPI == nil {
 			return fmt.Errorf("event log API not set")
 		}
@@ -78,7 +78,7 @@ func FromFile(bookmarkPath string) func(*bookmark) error {
 }
 
 func FromXML(bookmarkXML string) func(*bookmark) error {
-	return func (b *bookmark) error {
+	return func(b *bookmark) error {
 		if b.eventLogAPI == nil {
 			return fmt.Errorf("event log API not set")
 		}

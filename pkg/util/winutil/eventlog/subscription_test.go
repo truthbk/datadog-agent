@@ -13,12 +13,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cihub/seelog"
 	pkglog "github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/cihub/seelog"
 
 	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
-	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/bookmark"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -66,7 +66,7 @@ func createLog(t testing.TB, ti eventlog_test.APITester, channel string) error {
 	return nil
 }
 
-func startSubscription(t testing.TB, ti eventlog_test.APITester, channel string, options...PullSubscriptionOption) (*PullSubscription, error) {
+func startSubscription(t testing.TB, ti eventlog_test.APITester, channel string, options ...PullSubscriptionOption) (*PullSubscription, error) {
 	opts := []PullSubscriptionOption{WithWindowsEventLogAPI(ti.API())}
 	opts = append(opts, options...)
 
@@ -85,7 +85,7 @@ func startSubscription(t testing.TB, ti eventlog_test.APITester, channel string,
 	return sub, nil
 }
 
-func getEventHandles(t testing.TB, ti eventlog_test.APITester, sub *PullSubscription, numEvents uint) ([]*EventRecord,error) {
+func getEventHandles(t testing.TB, ti eventlog_test.APITester, sub *PullSubscription, numEvents uint) ([]*EventRecord, error) {
 	eventRecords, err := ReadNumEventsWithNotify(t, ti, sub, numEvents)
 	if err != nil {
 		return nil, err
@@ -114,7 +114,7 @@ func TestBenchmarkTestGetEventHandles(t *testing.T) {
 	}
 
 	channel := "testchannel"
-	numEvents := []uint{10,100,1000,10000}
+	numEvents := []uint{10, 100, 1000, 10000}
 
 	testerNames := eventlog_test.GetEnabledAPITesters()
 
@@ -135,7 +135,7 @@ func TestBenchmarkTestGetEventHandles(t *testing.T) {
 						sub.Stop()
 					}
 				})
-				total_events := float64(v)*float64(result.N)
+				total_events := float64(v) * float64(result.N)
 				t.Logf("%.2f events/s (%.3fs)", total_events/result.T.Seconds(), result.T.Seconds())
 			})
 		}
@@ -146,8 +146,8 @@ type GetEventsTestSuite struct {
 	suite.Suite
 
 	channelPath string
-	testAPI string
-	numEvents uint
+	testAPI     string
+	numEvents   uint
 
 	ti eventlog_test.APITester
 }
@@ -248,7 +248,7 @@ func (s *GetEventsTestSuite) TestStopWhileWaitingWithEventsAvailable() {
 		// This leaves the notify event set.
 		// Wait for Stop() to finish
 		<-stopped
-		_, ok := <- sub.NotifyEventsAvailable
+		_, ok := <-sub.NotifyEventsAvailable
 		assert.False(s.T(), ok, "Notify channel should be closed after Stop()")
 	}()
 
@@ -286,7 +286,7 @@ func (s *GetEventsTestSuite) TestStopWhileWaitingNoMoreEvents() {
 		}
 		close(readyToStop)
 		// block on events available notification
-		_, ok := <- sub.NotifyEventsAvailable
+		_, ok := <-sub.NotifyEventsAvailable
 		assert.False(s.T(), ok, "Notify channel should be closed after Stop()")
 		close(done)
 	}()
@@ -336,7 +336,7 @@ func (s *GetEventsTestSuite) TestHandleEarlyNotifyLoopExit() {
 	sub.notifyEventsAvailableWaiter.Wait()
 
 	// ensure the notify channel is closed
-	_, ok := <- sub.NotifyEventsAvailable
+	_, ok := <-sub.NotifyEventsAvailable
 	require.False(s.T(), ok, "Notify channel should be closed when notify loop exits")
 
 	// Put events in the log
@@ -368,10 +368,10 @@ func (s *GetEventsTestSuite) TestChannelInitiallyNotified() {
 	require.NoError(s.T(), err)
 
 	// TODO: How to remove this sleep?
-	time.Sleep(100*time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	select {
-	case <- sub.NotifyEventsAvailable:
+	case <-sub.NotifyEventsAvailable:
 		break
 	default:
 		require.FailNow(s.T(), "NotifyEventsAvailable should not block the first time")
@@ -383,7 +383,7 @@ func (s *GetEventsTestSuite) TestChannelInitiallyNotified() {
 
 	// should block this time
 	select {
-	case <- sub.NotifyEventsAvailable:
+	case <-sub.NotifyEventsAvailable:
 		require.FailNow(s.T(), "NotifyEventsAvailable should block if no events available")
 	default:
 		break
@@ -522,7 +522,6 @@ func (s *GetEventsTestSuite) TestStartAfterBookmarkNotFoundWithoutStrictFlag() {
 	sub, err = startSubscription(s.T(), s.ti, s.channelPath, StartAfterBookmark(bookmark))
 	// strict flag not set so there should be no error
 	require.NoError(s.T(), err)
-
 
 	// Get Events
 	_, err = getEventHandles(s.T(), s.ti, sub, s.numEvents)

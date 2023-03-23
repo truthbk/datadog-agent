@@ -18,7 +18,7 @@ import (
 // and provides utilities to the test framework that will simulate
 // behavior and not make any changes to the host system
 type MockAPITester struct {
-	t testing.TB
+	t           testing.TB
 	eventlogapi *mockevtapi.API
 }
 
@@ -29,7 +29,7 @@ func NewMockAPITester(t testing.TB) *MockAPITester {
 	return &ti
 }
 
-func (ti *MockAPITester) Name() string{
+func (ti *MockAPITester) Name() string {
 	return "Mock"
 }
 
@@ -62,4 +62,3 @@ func (ti *MockAPITester) RemoveSource(channel string, source string) error {
 func (ti *MockAPITester) GenerateEvents(channelName string, numEvents uint) error {
 	return ti.eventlogapi.GenerateEvents(channelName, numEvents)
 }
-
