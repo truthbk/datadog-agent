@@ -5,7 +5,7 @@
 //go:build windows
 // +build windows
 
-package eventlog
+package evtsubscribe
 
 import (
 	"flag"
@@ -94,7 +94,7 @@ func startSubscription(t testing.TB, ti eventlog_test.APITester, channel string,
 	return sub, nil
 }
 
-func getEventHandles(t testing.TB, ti eventlog_test.APITester, sub *PullSubscription, numEvents uint) ([]*EventRecord, error) {
+func getEventHandles(t testing.TB, ti eventlog_test.APITester, sub *PullSubscription, numEvents uint) ([]*evtapi.EventRecord, error) {
 	eventRecords, err := ReadNumEventsWithNotify(t, ti, sub, numEvents)
 	if err != nil {
 		return nil, err

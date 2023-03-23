@@ -5,7 +5,7 @@
 //go:build windows
 // +build windows
 
-package eventlog
+package evtsubscribe
 
 import (
 	"fmt"
@@ -17,8 +17,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func ReadNumEventsWithNotify(t testing.TB, ti eventlog_test.APITester, sub *PullSubscription, numEvents uint) ([]*EventRecord, error) {
-	eventRecords := make([]*EventRecord, 0)
+func ReadNumEventsWithNotify(t testing.TB, ti eventlog_test.APITester, sub *PullSubscription, numEvents uint) ([]*evtapi.EventRecord, error) {
+	eventRecords := make([]*evtapi.EventRecord, 0)
 
 	count := uint(0)
 eventLoop:

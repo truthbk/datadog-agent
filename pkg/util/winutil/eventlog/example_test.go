@@ -14,6 +14,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/subscription"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,10 +36,10 @@ func testExampleNotifyChannel(t testing.TB, ti eventlog_test.APITester, stop cha
 	api := ti.API()
 
 	// Create the subscription
-	sub := NewPullSubscription(
+	sub := evtsubscribe.NewPullSubscription(
 		channelPath,
 		"*",
-		WithWindowsEventLogAPI(api))
+		evtsubscribe.WithWindowsEventLogAPI(api))
 
 	// Start the subscription
 	err := sub.Start()
@@ -83,6 +84,28 @@ outerLoop:
 	sub.Stop()
 }
 
+// test helper function that sets up an event log for the test
+func createLog(t testing.TB, ti eventlog_test.APITester, channel string) error {
+	err := ti.InstallChannel(channel)
+	if !assert.NoError(t, err) {
+		return err
+	}
+	err = ti.API().EvtClearLog(channel)
+	if !assert.NoError(t, err) {
+		return err
+	}
+	err = ti.InstallSource(channel, "testsource")
+	if !assert.NoError(t, err) {
+		return err
+	}
+	t.Cleanup(func() {
+		ti.RemoveSource(channel, "testsource")
+		ti.RemoveChannel(channel)
+	})
+	return nil
+}
+
+// tests our example implementation in testExampleNotifyChannel
 func TestExampleNotifyChannel(t *testing.T) {
 	testInterfaceNames := eventlog_test.GetEnabledAPITesters()
 

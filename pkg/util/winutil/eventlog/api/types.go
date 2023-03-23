@@ -97,6 +97,10 @@ type API interface {
 		RawData []uint8) error
 }
 
+type EventRecord struct {
+	EventRecordHandle EventRecordHandle
+}
+
 // Helpful wrappers for custom types
 func EvtCloseResultSet(api API, h EventResultSetHandle) {
 	api.EvtClose(windows.Handle(h))

@@ -5,7 +5,7 @@
 //go:build windows
 // +build windows
 
-package eventlog
+package evtsubscribe
 
 import (
 	"fmt"
@@ -65,10 +65,6 @@ type PullSubscription struct {
 }
 
 type PullSubscriptionOption func(*PullSubscription)
-
-type EventRecord struct {
-	EventRecordHandle evtapi.EventRecordHandle
-}
 
 func newSubscriptionWaitEvent() (evtapi.WaitEventHandle, error) {
 	// https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createeventa
@@ -311,7 +307,7 @@ func (q *PullSubscription) synchronizeNoMoreItems() error {
 }
 
 // GetEvents returns the next available events in the subscription.
-func (q *PullSubscription) GetEvents() ([]*EventRecord, error) {
+func (q *PullSubscription) GetEvents() ([]*evtapi.EventRecord, error) {
 
 	// TODO: should we use infinite or a small value?
 	//       it shouldn't block or timeout because we had out event set?
@@ -343,10 +339,10 @@ func (q *PullSubscription) GetEvents() ([]*EventRecord, error) {
 	return nil, nil
 }
 
-func (q *PullSubscription) parseEventRecordHandles(eventRecordHandles []evtapi.EventRecordHandle) []*EventRecord {
+func (q *PullSubscription) parseEventRecordHandles(eventRecordHandles []evtapi.EventRecordHandle) []*evtapi.EventRecord {
 	var err error
 
-	eventRecords := make([]*EventRecord, len(eventRecordHandles))
+	eventRecords := make([]*evtapi.EventRecord, len(eventRecordHandles))
 
 	for i, eventRecordHandle := range eventRecordHandles {
 		eventRecords[i], err = q.parseEventRecordHandle(eventRecordHandle)
@@ -358,8 +354,8 @@ func (q *PullSubscription) parseEventRecordHandles(eventRecordHandles []evtapi.E
 	return eventRecords
 }
 
-func (q *PullSubscription) parseEventRecordHandle(eventRecordHandle evtapi.EventRecordHandle) (*EventRecord, error) {
-	var e EventRecord
+func (q *PullSubscription) parseEventRecordHandle(eventRecordHandle evtapi.EventRecordHandle) (*evtapi.EventRecord, error) {
+	var e evtapi.EventRecord
 	e.EventRecordHandle = eventRecordHandle
 	// TODO: Render?
 	return &e, nil
