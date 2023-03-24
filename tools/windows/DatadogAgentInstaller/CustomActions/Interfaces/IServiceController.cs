@@ -1,4 +1,6 @@
+using Datadog.CustomActions.Native;
 using System;
+using System.ComponentModel;
 using System.ServiceProcess;
 
 namespace Datadog.CustomActions.Interfaces
@@ -11,5 +13,7 @@ namespace Datadog.CustomActions.Interfaces
         void SetCredentials(string serviceName, string username, string password);
         void StopService(string serviceName, TimeSpan timeout);
         void StartService(string serviceName, TimeSpan timeout);
+        void SetStartMode(string serviceName, ServiceStartMode mode);
+        void SetDelayedStart(string serviceName, bool delayed);
     }
 }

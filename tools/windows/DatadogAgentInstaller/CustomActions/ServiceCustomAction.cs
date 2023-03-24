@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Security.Principal;
+using System.ServiceProcess;
 using Datadog.CustomActions.Extensions;
 using Datadog.CustomActions.Interfaces;
 using Datadog.CustomActions.Native;
@@ -214,8 +216,6 @@ namespace Datadog.CustomActions
                 }
 #endif
 
-                // Stop each service individually in case the install is broken
-                // e.g. datadogagent doesn't exist or the service dependencies are not correect.
                 var ddservices = new []
                 {
                     Constants.SystemProbeServiceName,
@@ -224,6 +224,28 @@ namespace Datadog.CustomActions
                     Constants.TraceAgentServiceName,
                     Constants.AgentServiceName
                 };
+                // Disable all the services.
+                // Fix issues where the services were started by SCM recovery while the installer
+                // was running.
+                foreach (var service in ddservices)
+                {
+                    try
+                    {
+                        _serviceController.SetStartMode(service, System.ServiceProcess.ServiceStartMode.Disabled);
+                    }
+                    catch (Exception e)
+                    {
+                        if (!continueOnError)
+                        {
+                            throw new Exception($"Failed to disable service {service}", e);
+                        }
+                        _session.Log($"Failed to disable service {service} due to exception {e}{Environment.NewLine}" +
+                            "but will be translated to success due to continue on error.");
+                    }
+                }
+
+                // Stop each service individually in case the install is broken
+                // e.g. datadogagent doesn't exist or the service dependencies are not correect.
                 foreach (var service in ddservices)
                 {
                     try
@@ -252,10 +274,9 @@ namespace Datadog.CustomActions
                         _session.Log($"Service {service} status: {_serviceController.ServiceStatus(service)}");
                         if (!continueOnError)
                         {
-                            // rethrow exception implicitly to preserve the original error information
                             throw new Exception($"Failed to stop service {service}", e);
                         }
-                        _session.Log($"Failed to stop service {service} due to exception {e}\r\n" +
+                        _session.Log($"Failed to stop service {service} due to exception {e}{Environment.NewLine}" +
                                      "but will be translated to success due to continue on error.");
                     }
                 }
@@ -274,8 +295,50 @@ namespace Datadog.CustomActions
             return new ServiceCustomAction(new SessionWrapper(session)).StopDDServices(false);
         }
 
+        [CustomAction]
+        public static ActionResult StopDDServicesRollback(Session session)
+        {
+            return new ServiceCustomAction(new SessionWrapper(session)).StartDDServices();
+        }
+
         private ActionResult StartDDServices()
         {
+            try
+            {
+                var ddservices = new Dictionary<string, ServiceStartMode>()
+                {
+                    { Constants.SystemProbeServiceName, ServiceStartMode.Manual },
+                    { Constants.NpmServiceName, ServiceStartMode.Manual },
+                    { Constants.ProcessAgentServiceName, ServiceStartMode.Manual },
+                    { Constants.TraceAgentServiceName, ServiceStartMode.Manual },
+                    { Constants.AgentServiceName, ServiceStartMode.Automatic },
+                };
+                // Enable the services so they can be started
+                foreach (var ddsvc in ddservices)
+                {
+                    try
+                    {
+                        _serviceController.SetStartMode(ddsvc.Key, ddsvc.Value);
+                        // Set core agent to automatic delayed start
+                        if (ddsvc.Key == Constants.AgentServiceName)
+                        {
+                            _serviceController.SetDelayedStart(ddsvc.Key, true);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        throw new Exception($"Failed to enable service {ddsvc.Key}", e);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                _session.Log($"Failed to enable services: {e}");
+                // While we allow the services to fail to start, we require that
+                // we have properly set their service start types.
+                return ActionResult.Failure;
+            }
+
             try
             {
                 using var actionRecord = new Record(
@@ -290,7 +353,7 @@ namespace Datadog.CustomActions
             }
             catch (Exception e)
             {
-                _session.Log($"Failed to stop services: {e}");
+                _session.Log($"Failed to start services: {e}");
                 // Allow service start to fail and continue the install
             }
             return ActionResult.Success;

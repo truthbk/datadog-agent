@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.DirectoryServices.ActiveDirectory;
 using System.Runtime.InteropServices;
@@ -349,6 +350,22 @@ namespace Datadog.CustomActions.Native
         string lpdwTagId, string lpDependencies, string lpServiceStartName, string lpPassword,
         string lpDisplayName);
 
+        private enum SERVICE_CONFIG_INFO_LEVEL : uint
+        {
+            SERVICE_CONFIG_DELAYED_AUTO_START_INFO = 3,
+        };
+        private static readonly Dictionary<Type, SERVICE_CONFIG_INFO_LEVEL> SERVICE_CONFIG_INFO_TYPE_LEVEL = new Dictionary<Type, SERVICE_CONFIG_INFO_LEVEL>
+        {
+            { typeof(SERVICE_DELAYED_AUTO_START_INFO), SERVICE_CONFIG_INFO_LEVEL.SERVICE_CONFIG_DELAYED_AUTO_START_INFO}
+        };
+
+        [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool ChangeServiceConfig2(
+           SafeHandle hService,
+           int dwInfoLevel,
+           IntPtr lpInfo);
+
         #endregion
         #region Public interface
 
@@ -627,6 +644,41 @@ namespace Datadog.CustomActions.Native
             return result;
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SERVICE_DELAYED_AUTO_START_INFO
+        {
+            [MarshalAs(UnmanagedType.Bool)]
+            public bool fDelayedAutostart;
+        }
+
+        public static void ChangeServiceConfig2<T>(SafeHandle hService, T t)
+        {
+            var infoLevel = SERVICE_CONFIG_INFO_TYPE_LEVEL[typeof(T)];
+
+            IntPtr lpInfo = IntPtr.Zero;
+            try
+            {
+                Marshal.AllocHGlobal(Marshal.SizeOf(t));
+                if (lpInfo == IntPtr.Zero)
+                {
+                    throw new Win32Exception("Unable to allocate memory");
+                }
+                Marshal.StructureToPtr(t, lpInfo, false);
+                if (!ChangeServiceConfig2(hService,
+                    (int)infoLevel,
+                    lpInfo))
+                {
+                    throw new Win32Exception("ChangeServiceConfig2 failed");
+                }
+            }
+            finally
+            {
+                if (lpInfo != IntPtr.Zero)
+                {
+                    Marshal.FreeHGlobal(lpInfo);
+                }
+            }
+        }
         #endregion
     }
 }

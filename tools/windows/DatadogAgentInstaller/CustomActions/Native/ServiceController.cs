@@ -5,6 +5,7 @@ using System.ServiceProcess;
 using System.Threading;
 using System.Threading.Tasks;
 using Datadog.CustomActions.Interfaces;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 
 namespace Datadog.CustomActions.Native
 {
@@ -49,6 +50,35 @@ namespace Datadog.CustomActions.Native
             {
                 throw new Win32Exception($"ChangeServiceConfig({serviceName}) failed");
             }
+        }
+
+        public void SetStartMode(string serviceName, ServiceStartMode mode)
+        {
+            var svc = new System.ServiceProcess.ServiceController(serviceName);
+            if (!Win32NativeMethods.ChangeServiceConfig(svc.ServiceHandle,
+                (uint)Win32NativeMethods.SERVICE_NO_CHANGE,
+                (int)mode,
+                Win32NativeMethods.SERVICE_NO_CHANGE,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null))
+            {
+                throw new Win32Exception($"ChangeServiceConfig({serviceName}) failed");
+            }
+        }
+
+        public void SetDelayedStart(string serviceName, bool delayed)
+        {
+            var svc = new System.ServiceProcess.ServiceController(serviceName);
+            Win32NativeMethods.ChangeServiceConfig2(svc.ServiceHandle,
+                new Win32NativeMethods.SERVICE_DELAYED_AUTO_START_INFO()
+                {
+                    fDelayedAutostart = delayed
+                });
         }
 
         private async Task<ServiceControllerStatus> WaitForStatusChange(System.ServiceProcess.ServiceController svc, ServiceControllerStatus state, TimeSpan timeout)
