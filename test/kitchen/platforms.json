@@ -29,7 +29,7 @@
     "debian": {
         "azure": {
             "x86_64": {
-                "debian-8": "id,/subscriptions/a53d2c33-d372-4e36-9e33-eaf32ce95b28/resourceGroups/agentcustomimages/providers/Microsoft.Compute/galleries/agentcustomimages/images/Debian-8/versions/1.0.1",
+                "debian-8": "id,/subscriptions/a53d2c33-d372-4e36-9e33-eaf32ce95b28/resourceGroups/agentcustomimages/providers/Microsoft.Compute/galleries/agentcustomimages/images/Debian-8/versions/1.0.2",
                 "debian-9": "urn,credativ:Debian:9:9.20200722.0",
                 "debian-10": "urn,Debian:debian-10:10:0.20220911.1135",
                 "debian-11": "urn,Debian:debian-11:11:0.20220911.1135"
