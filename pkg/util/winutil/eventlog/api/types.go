@@ -38,6 +38,59 @@ const (
 	EvtRenderBookmark
 )
 
+const (
+	// EVT_VARIANT_TYPE
+	// https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_variant_type
+	EvtVarTypeNull = 0
+	EvtVarTypeString = 1
+	EvtVarTypeAnsiString = 2
+	EvtVarTypeSByte = 3
+	EvtVarTypeByte = 4
+	EvtVarTypeInt16 = 5
+	EvtVarTypeUInt16 = 6
+	EvtVarTypeInt32 = 7
+	EvtVarTypeUInt32 = 8
+	EvtVarTypeInt64 = 9
+	EvtVarTypeUInt64 = 10
+	EvtVarTypeSingle = 11
+	EvtVarTypeDouble = 12
+	EvtVarTypeBoolean = 13
+	EvtVarTypeBinary = 14
+	EvtVarTypeGuid = 15
+	EvtVarTypeSizeT = 16
+	EvtVarTypeFileTime = 17
+	EvtVarTypeSysTime = 18
+	EvtVarTypeSid = 19
+	EvtVarTypeHexInt32 = 20
+	EvtVarTypeHexInt64 = 21
+	EvtVarTypeEvtHandle = 32
+	EvtVarTypeEvtXml = 35
+)
+
+const (
+	// EVT_SYSTEM_PROPERTY_ID
+	// https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_system_property_id
+	EvtSystemProviderName = iota
+	EvtSystemProviderGuid
+	EvtSystemEventID
+	EvtSystemQualifiers
+	EvtSystemLevel
+	EvtSystemTask
+	EvtSystemOpcode
+	EvtSystemKeywords
+	EvtSystemTimeCreated
+	EvtSystemEventRecordId
+	EvtSystemActivityID
+	EvtSystemRelatedActivityID
+	EvtSystemProcessID
+	EvtSystemThreadID
+	EvtSystemChannel
+	EvtSystemComputer
+	EvtSystemUserID
+	EvtSystemVersion
+	EvtSystemPropertyIdEND
+)
+
 // Returned from EvtQuery and EvtSubscribe
 type EventResultSetHandle windows.Handle
 
@@ -77,6 +130,11 @@ type API interface {
 
 	EvtRenderBookmark(Fragment EventBookmarkHandle) ([]uint16, error)
 
+	EvtCreateRenderContext(ValuePaths []string, Flags uint) (EventRenderContextHandle, error)
+
+	// Note: Must call .Close() on the return value when done using it
+	EvtRenderEventValues(Context EventRenderContextHandle, Fragment EventRecordHandle) (EvtVariantValues, error)
+
 	EvtCreateBookmark(BookmarkXml string) (EventBookmarkHandle, error)
 
 	EvtUpdateBookmark(Bookmark EventBookmarkHandle, Event EventRecordHandle) error
@@ -100,6 +158,29 @@ type API interface {
 type EventRecord struct {
 	EventRecordHandle EventRecordHandle
 }
+
+// EvtVariantValues is returned from EvtRenderEventValues
+// https://learn.microsoft.com/en-us/windows/win32/api/winevt/ns-winevt-evt_variant
+type EvtVariantValues interface {
+	// Each type method accepts an index argument that determines which element in the
+	// array to return.
+	String(uint) (string, error)
+
+	UInt(uint) (uint64, error)
+
+	// Returns unix timestamp in seconds
+	Time(uint) (uint64, error)
+
+	// Returns the EVT_VARIANT_TYPE of the element at index
+	Type(uint) (uint, error)
+
+	// The number of values
+	Count() uint
+
+	// Free resources
+	Close()
+}
+
 
 // Helpful wrappers for custom types
 func EvtCloseResultSet(api API, h EventResultSetHandle) {

@@ -511,3 +511,12 @@ func (api *API) EvtUpdateBookmark(Bookmark evtapi.EventBookmarkHandle, Event evt
 
 	return nil
 }
+
+func (api *API) EvtCreateRenderContext(ValuePaths []string, Flags uint) (evtapi.EventRenderContextHandle, error) {
+	return evtapi.EventRenderContextHandle(0), fmt.Errorf("not implemented")
+}
+
+func (api *API) EvtRenderEventValues(Context evtapi.EventRenderContextHandle, Fragment evtapi.EventRecordHandle) (evtapi.EvtVariantValues, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+

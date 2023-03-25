@@ -149,21 +149,28 @@ func (api *API) EvtUpdateBookmark(Bookmark evtapi.EventBookmarkHandle, Event evt
 }
 
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtcreaterendercontext
-func EvtCreateRenderContext(ValuePaths []string, Flags uint) (evtapi.EventRenderContextHandle, error) {
+func (api *API) EvtCreateRenderContext(ValuePaths []string, Flags uint) (evtapi.EventRenderContextHandle, error) {
 	var err error
-	valuePaths := make([]*uint16, len(ValuePaths))
 
-	for i, v := range ValuePaths {
-		valuePaths[i], err = windows.UTF16PtrFromString(v)
-		if err != nil {
-			return evtapi.EventRenderContextHandle(0), err
+	var valuePathsPtr unsafe.Pointer
+
+	if len(ValuePaths) > 0 {
+		valuePaths := make([]*uint16, len(ValuePaths))
+		for i, v := range ValuePaths {
+			valuePaths[i], err = windows.UTF16PtrFromString(v)
+			if err != nil {
+				return evtapi.EventRenderContextHandle(0), err
+			}
 		}
+		valuePathsPtr = unsafe.Pointer(&valuePaths[:1][0])
+	} else {
+		valuePathsPtr = nil
 	}
 
 	r1, _, lastErr := evtCreateRenderContext.Call(
-		uintptr(len(valuePaths)),
+		uintptr(len(ValuePaths)),
 		// TODO: use unsafe.SliceData in go1.20
-		uintptr(unsafe.Pointer(&valuePaths[:1][0])),
+		uintptr(valuePathsPtr),
 		uintptr(Flags))
 	// EvtCreateRenderContext returns NULL on error
 	if r1 == 0 {

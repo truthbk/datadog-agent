@@ -13,11 +13,12 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
-	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/subscription"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/windows"
 )
 
 // Example usage of the eventlog utility library to get event records from the Windows Event Log
@@ -73,6 +74,10 @@ outerLoop:
 			for _, eventRecord := range events {
 				// do something with the event
 				// ...
+				err = printEventXML(api, eventRecord)
+				assert.NoError(t, err)
+				err = printEventValues(api, eventRecord)
+				assert.NoError(t, err)
 				// close the event when done
 				evtapi.EvtCloseRecord(api, eventRecord.EventRecordHandle)
 			}
@@ -82,6 +87,71 @@ outerLoop:
 
 	// Cleanup the subscription
 	sub.Stop()
+}
+
+// Example usage of the eventlog utility library to render the entire event as XML
+func printEventXML(api evtapi.API, event *evtapi.EventRecord) error {
+	xml, err := api.EvtRenderEventXml(event.EventRecordHandle)
+	if err != nil {
+		return fmt.Errorf("failed to render event XML: %v", err)
+	}
+
+	fmt.Printf("%s\n", windows.UTF16ToString(xml))
+	return nil
+}
+
+// Example usage of the eventlog utility library to render specific values from the event
+func printEventValues(api evtapi.API, event *evtapi.EventRecord) error {
+	// Create render context for the System values
+	// https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_system_property_id
+	c, err := api.EvtCreateRenderContext(nil, evtapi.EvtRenderContextSystem)
+	if err != nil {
+		return fmt.Errorf("failed to create render context: %v", err)
+	}
+
+	// Render the values
+	vals, err := api.EvtRenderEventValues(c, event.EventRecordHandle)
+	if err != nil {
+		return fmt.Errorf("failed to render values: %v", err)
+	}
+	defer vals.Close()
+
+	// EventID
+	eventid, err := vals.UInt(evtapi.EvtSystemEventID)
+	if err != nil {
+		return fmt.Errorf("failed to get eventid value: %v", err)
+	}
+	fmt.Printf("eventid: %d\n", eventid)
+
+	// Provider
+	provider, err := vals.String(evtapi.EvtSystemProviderName)
+	if err != nil {
+		return fmt.Errorf("failed to get provider name value: %v", err)
+	}
+	fmt.Printf("provider name: %s\n", provider)
+
+	// Computer
+	computer, err := vals.String(evtapi.EvtSystemComputer)
+	if err != nil {
+		return fmt.Errorf("failed to get computer name value: %v", err)
+	}
+	fmt.Printf("computer name: %s\n", computer)
+
+	// Time Created
+	ts, err := vals.Time(evtapi.EvtSystemTimeCreated)
+	if err != nil {
+		return fmt.Errorf("failed to get time created value: %v", err)
+	}
+	fmt.Printf("time created: %d\n", ts)
+
+	// Level
+	level, err := vals.UInt(evtapi.EvtSystemLevel)
+	if err != nil {
+		return fmt.Errorf("failed to get level value: %v", err)
+	}
+	fmt.Printf("level: %d\n", level)
+
+	return nil
 }
 
 // test helper function that sets up an event log for the test
