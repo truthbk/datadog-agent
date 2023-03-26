@@ -69,7 +69,7 @@ func (v *evtVariantValues) UInt(index uint) (uint64, error) {
 }
 
 // Returns the number of seconds since unix epoch
-func (v *evtVariantValues) Time(index uint) (uint64, error) {
+func (v *evtVariantValues) Time(index uint) (int64, error) {
 	value, err := v.item(index)
 	if err != nil {
 		return 0, err
@@ -77,8 +77,8 @@ func (v *evtVariantValues) Time(index uint) (uint64, error) {
 	t := C.EVT_VARIANT_TYPE_MASK&value.Type
 	if t == evtapi.EvtVarTypeFileTime {
 		ft := (*C.FILETIME)(unsafe.Pointer(value))
-		nsec := uint64((uint64(ft.dwHighDateTime)<<32)|uint64(ft.dwLowDateTime))
-		return winutil.FileTimeToUnixTimeS(nsec), nil
+		nsec := (uint64(ft.dwHighDateTime)<<32)|uint64(ft.dwLowDateTime)
+		return int64(winutil.FileTimeToUnixTimeS(nsec)), nil
 	}
 	return 0, fmt.Errorf("invalid type %#x", t)
 }

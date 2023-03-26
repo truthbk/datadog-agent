@@ -169,7 +169,7 @@ type EvtVariantValues interface {
 	UInt(uint) (uint64, error)
 
 	// Returns unix timestamp in seconds
-	Time(uint) (uint64, error)
+	Time(uint) (int64, error)
 
 	// Returns the EVT_VARIANT_TYPE of the element at index
 	Type(uint) (uint, error)
