@@ -392,19 +392,50 @@ func printAddress(address util.Address, names []dns.Hostname) string {
 	return b.String()
 }
 
-// HTTPKeyTuplesFromConn build the key for the http map based on whether the local or remote side is http.
-func HTTPKeyTuplesFromConn(c ConnectionStats) [2]http.KeyTuple {
-	// Retrieve translated addresses
-	laddr, lport := GetNATLocalAddress(c)
-	raddr, rport := GetNATRemoteAddress(c)
+type connectionTwoTuple struct {
+	address util.Address
+	port    uint16
+}
 
-	// HTTP data is always indexed as (client, server), but we don't know which is the remote
-	// and which is the local address. To account for this, we'll construct 2 possible
-	// http keys and check for both of them in our http aggregations map.
-	return [2]http.KeyTuple{
-		http.NewKeyTuple(laddr, raddr, lport, rport),
-		http.NewKeyTuple(raddr, laddr, rport, lport),
+// HTTPKeyTuplesFromConn build the key for the http map based on whether the local or remote side is http.
+func HTTPKeyTuplesFromConn(c ConnectionStats) []http.KeyTuple {
+	//// Retrieve translated addresses
+	//laddr, lport := GetNATLocalAddress(c)
+	//raddr, rport := GetNATRemoteAddress(c)
+
+	var localAddresses []connectionTwoTuple
+	var remoteAddresses []connectionTwoTuple
+	localAddresses = append(localAddresses, connectionTwoTuple{c.Source, c.SPort})
+	remoteAddresses = append(remoteAddresses, connectionTwoTuple{c.Dest, c.DPort})
+
+	if c.IPTranslation != nil {
+		if !c.IPTranslation.ReplDstIP.IsZero() {
+			localAddresses = append(localAddresses, connectionTwoTuple{c.IPTranslation.ReplDstIP, c.IPTranslation.ReplDstPort})
+		}
+		if !c.IPTranslation.ReplSrcIP.IsZero() {
+			remoteAddresses = append(remoteAddresses, connectionTwoTuple{c.IPTranslation.ReplSrcIP, c.IPTranslation.ReplSrcPort})
+		}
 	}
+
+	var httpKeyTuple []http.KeyTuple
+	for _, localAddress := range localAddresses {
+		for _, remoteAddress := range remoteAddresses {
+			httpKeyTuple = append(httpKeyTuple,
+				http.NewKeyTuple(localAddress.address, remoteAddress.address, localAddress.port, remoteAddress.port),
+				http.NewKeyTuple(remoteAddress.address, localAddress.address, remoteAddress.port, localAddress.port),
+			)
+		}
+	}
+
+	return httpKeyTuple
+
+	//// HTTP data is always indexed as (client, server), but we don't know which is the remote
+	//// and which is the local address. To account for this, we'll construct 2 possible
+	//// http keys and check for both of them in our http aggregations map.
+	//return [2]http.KeyTuple{
+	//	http.NewKeyTuple(laddr, raddr, lport, rport),
+	//	http.NewKeyTuple(raddr, laddr, rport, lport),
+	//}
 }
 
 func generateConnectionKey(c ConnectionStats, buf []byte, useNAT bool) []byte {
