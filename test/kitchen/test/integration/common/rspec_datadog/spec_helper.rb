@@ -862,6 +862,11 @@ shared_examples_for 'an Agent that is removed' do
       if Dir.exists?("/opt/datadog-agent")
         Find.find('/opt/datadog-agent').each { |f| remaining_files.push(f) }
       end
+
+      log = File.readlines('/var/log/datadog/system-probe.log')
+      puts "Log system-probe:"
+      log.each { |f| puts(f) }
+
       expect(remaining_files).to be_empty
       expect(File).not_to exist("/opt/datadog-agent/")
     end
