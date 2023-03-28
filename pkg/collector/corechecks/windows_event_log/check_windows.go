@@ -53,8 +53,8 @@ type instanceConfig struct {
 	ChannelPath string `yaml:"path"`
 	Query string `yaml:query`
 	Start string `yaml:start`
-	Timeout int `yaml:timeout`
-	Payload_size int `yaml:payload_size`
+	Timeout uint `yaml:timeout`
+	Payload_size uint `yaml:payload_size`
 	Bookmark_frequency int `yaml:bookmark_frequency`
 	Legacy_mode bool `yaml:legacy_mode`
 	Event_priority string `yaml:event_priority`
@@ -240,6 +240,8 @@ func (c *Check) Configure(integrationConfigDigest uint64, data integration.Data,
 	if c.config.instance.Start == "old" {
 		opts = append(opts, evtsubscribe.WithStartAtOldestRecord())
 	}
+
+	opts = append(opts, evtsubscribe.WithEventBatchCount(c.config.instance.Payload_size))
 
 	c.sub = evtsubscribe.NewPullSubscription(
 		c.config.instance.ChannelPath,
