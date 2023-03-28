@@ -88,10 +88,15 @@ func (c *Check) Run() error {
 				Tags:           []string{},
 			}
 
-			// Render event values
+			// Render Windows event values into the DD event
 			c.renderEventSystemValues(winevent, &ddevent)
 			c.renderEventMessage(winevent, &ddevent)
+
+			// submit
 			sender.Event(ddevent)
+
+			// cleanup
+			evtapi.EvtCloseRecord(c.evtapi, winevent.EventRecordHandle)
 		}
 		break
 	}
@@ -131,6 +136,7 @@ func (c *Check) renderEventSystemValues(winevent *evtapi.EventRecord, ddevent *m
 	if err != nil {
 		return fmt.Errorf("failed to render values: %v", err)
 	}
+	defer vals.Close()
 
 	// Timestamp
 	ts, err := vals.Time(evtapi.EvtSystemTimeCreated)
@@ -243,7 +249,7 @@ func (c *Check) Configure(integrationConfigDigest uint64, data integration.Data,
 	// Start the subscription
 	err = c.sub.Start()
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to subscribe to events: %v", err)
 	}
 
 	// Create a render context for System event values
@@ -253,6 +259,16 @@ func (c *Check) Configure(integrationConfigDigest uint64, data integration.Data,
 	}
 
 	return nil
+}
+
+func (c *Check) Cancel() {
+	if c.sub != nil {
+		c.sub.Stop()
+	}
+
+	if c.systemRenderContext != evtapi.EventRenderContextHandle(0) {
+		c.evtapi.EvtClose(windows.Handle(c.systemRenderContext))
+	}
 }
 
 func checkFactory() check.Check {
