@@ -100,6 +100,8 @@ func NewPullSubscription(ChannelPath, Query string, options ...PullSubscriptionO
 	return &q
 }
 
+// Windows limits this to 1024
+// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-even6/65f22d62-5f0f-4306-85c4-50fb9e77075b
 func WithEventBatchCount(count uint) PullSubscriptionOption {
 	return func(q *PullSubscription) {
 		q.EventBatchCount = count

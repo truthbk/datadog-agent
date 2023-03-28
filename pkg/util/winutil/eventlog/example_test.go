@@ -179,7 +179,7 @@ func createLog(t testing.TB, ti eventlog_test.APITester, channel string) error {
 func TestExampleNotifyChannel(t *testing.T) {
 	testInterfaceNames := eventlog_test.GetEnabledAPITesters()
 
-	channelPath := "testchannel"
+	channelPath := "testchannel-example"
 	numEvents := uint(10)
 	for _, tiName := range testInterfaceNames {
 		t.Run(fmt.Sprintf("%sAPI", tiName), func(t *testing.T) {

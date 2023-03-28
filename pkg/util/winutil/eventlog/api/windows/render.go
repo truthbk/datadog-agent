@@ -64,6 +64,8 @@ func (v *evtVariantValues) UInt(index uint) (uint64, error) {
 		return uint64(*(*uint8)(unsafe.Pointer(value))), nil
 	} else if t == evtapi.EvtVarTypeUInt16 {
 		return uint64(*(*uint16)(unsafe.Pointer(value))), nil
+	} else if t == evtapi.EvtVarTypeUInt64 {
+		return uint64(*(*uint64)(unsafe.Pointer(value))), nil
 	}
 	return 0, fmt.Errorf("invalid type %#x", t)
 }

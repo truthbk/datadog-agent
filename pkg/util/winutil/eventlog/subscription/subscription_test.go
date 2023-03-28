@@ -120,7 +120,7 @@ func assertNoMoreEvents(t testing.TB, sub *PullSubscription) error {
 func BenchmarkTestGetEventHandles(b *testing.B) {
 	optEnableDebugLogging()
 
-	channel := "testchannel"
+	channel := "testchannel-subscription"
 	numEvents := []uint{10, 100, 1000, 10000}
 
 	testerNames := eventlog_test.GetEnabledAPITesters()
@@ -192,6 +192,7 @@ func (s *GetEventsTestSuite) TearDownTest() {
 	// fmt.Println("TearDownTest")
 	err := s.ti.API().EvtClearLog(s.channelPath)
 	require.NoError(s.T(), err)
+
 }
 
 // Tests that the subscription can read old events (EvtSubscribeStartAtOldestRecord)
@@ -640,7 +641,7 @@ func TestLaunchGetEventsTestSuite(t *testing.T) {
 	for _, tiName := range testerNames {
 		t.Run(fmt.Sprintf("%sAPI", tiName), func(t *testing.T) {
 			var s GetEventsTestSuite
-			s.channelPath = "testchannel"
+			s.channelPath = "testchannel-subscription"
 			s.testAPI = tiName
 			s.numEvents = 10
 			suite.Run(t, &s)
