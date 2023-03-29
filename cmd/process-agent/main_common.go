@@ -222,7 +222,7 @@ func initMisc(deps miscDeps) error {
 
 	// Set memory limit
 	go func() {
-		err := runtime.RunMemoryLimiter(context.TODO())
+		err := runtime.RunMemoryLimiter("process_config", context.TODO())
 		if err != nil {
 			log.Infof("Running memory limiter failed with: %v", err)
 		}

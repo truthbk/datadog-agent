@@ -56,7 +56,7 @@ func TestDynamicMemoryLimiter(t *testing.T) {
 	limiter := dynamicMemoryLimiter{
 		selfCgroup:  mockCgroup,
 		minLimitPct: 0.20,
-		externalMemoryReader: func() uint64 {
+		externalMemoryReader: func(cgroups.MemoryStats) uint64 {
 			return externalMemoryValue
 		},
 	}

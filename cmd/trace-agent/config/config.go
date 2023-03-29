@@ -383,6 +383,14 @@ func applyDatadogConfig(c *config.AgentConfig) error {
 		c.DDAgentBin = coreconfig.Datadog.GetString("apm_config.dd_agent_bin")
 	}
 
+	if coreconfig.Datadog.IsSet("apm_config.go_memlimit_pct") {
+		c.GoMemLimitPct = coreconfig.Datadog.GetFloat64("apm_config.go_memlimit_pct")
+	} else {
+		// Setting GoMemLimitPct back to config to allow read from common runtime function
+		// Allows to avoid build flags in cmd/trace-agent/run.go
+		coreconfig.Datadog.Set("apm_config.go_memlimit_pct", c.GoMemLimitPct)
+	}
+
 	if err := loadDeprecatedValues(c); err != nil {
 		return err
 	}

@@ -114,13 +114,11 @@ func Run(ctx context.Context) {
 		return
 	}
 
-	// Set memory limit
-	go func() {
-		err := ddruntime.RunMemoryLimiter(ctx)
-		if err != nil {
-			log.Infof("Running memory limiter failed with: %v", err)
-		}
-	}()
+	// Set memory
+	err = ddruntime.RunMemoryLimiter("apm_config", ctx)
+	if err != nil {
+		log.Infof("Running memory limiter failed with: %v", err)
+	}
 
 	defer watchdog.LogOnPanic()
 

@@ -103,7 +103,7 @@ func start(log log.Component, config config.Component, cliParams *command.Global
 
 	// Set memory limit
 	go func() {
-		err := runtime.RunMemoryLimiter(mainCtx)
+		err := runtime.RunMemoryLimiter("", mainCtx)
 		if err != nil {
 			log.Infof("Running memory limiter failed with: %v", err)
 		}

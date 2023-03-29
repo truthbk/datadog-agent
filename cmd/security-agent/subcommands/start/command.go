@@ -152,7 +152,7 @@ func RunAgent(ctx context.Context, log log.Component, config config.Component, p
 
 	// Set memory limit
 	go func() {
-		err := pkgruntime.RunMemoryLimiter(ctx)
+		err := pkgruntime.RunMemoryLimiter("security_agent", ctx)
 		if err != nil {
 			log.Infof("Running memory limiter failed with: %v", err)
 		}

@@ -5,10 +5,14 @@
 
 //go:build !linux
 
-package runtime
+package run
 
-import "context"
+import (
+	"context"
 
-func RunMemoryLimiter(string, context.Context) error {
-	return nil
+	"github.com/DataDog/datadog-agent/pkg/runtime"
+)
+
+func setupRuntime(ctx context.Context) {
+	runtime.SetMaxProcs()
 }

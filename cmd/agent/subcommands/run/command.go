@@ -262,7 +262,7 @@ func startAgent(
 	// prepare go runtime (procs, memory)
 	ddruntime.SetMaxProcs()
 	go func() {
-		err := ddruntime.RunMemoryLimiter(common.MainCtx)
+		err := ddruntime.RunMemoryLimiter("", common.MainCtx)
 		if err != nil {
 			pkglog.Infof("Running memory limiter failed with: %v", err)
 		}

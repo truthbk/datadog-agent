@@ -9,32 +9,26 @@ package runtime
 
 import (
 	"context"
-	"sync/atomic"
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/util/cgroups"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 const minMemLimtPct = 0.20
 
-var pythonMemoryInuse atomic.Uint64
-
-func SetPythonMemoryInUse(inuse uint64) {
-	pythonMemoryInuse.Store(inuse)
-}
-
-func RunMemoryLimiter(c context.Context) error {
+func RunMemoryLimiter(configNS string, c context.Context) error {
 	if !config.IsPythonMemoryMonitoringEnabled() {
 		log.Infof("Memory limiter not running as Python memory monitoring is disabled")
 		return nil
 	}
 
 	limiter, err := NewDynamicMemoryLimiter(
-		time.Duration(config.Datadog.GetFloat64("go_dynamic_memlimit_interval_seconds"))*time.Second,
+		time.Duration(config.Datadog.GetFloat64(config.NSKey(configNS, "go_dynamic_memlimit_interval_seconds")))*time.Second,
 		config.IsContainerized(),
 		minMemLimtPct,
-		func() uint64 {
+		func(cgroups.MemoryStats) uint64 {
 			return pythonMemoryInuse.Load()
 		})
 	if err != nil {

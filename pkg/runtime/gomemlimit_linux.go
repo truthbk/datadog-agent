@@ -66,14 +66,14 @@ type dynamicMemoryLimiter struct {
 	ticker               *time.Ticker
 	selfCgroup           cgroups.Cgroup
 	minLimitPct          float64
-	externalMemoryReader func() uint64
+	externalMemoryReader func(cgroups.MemoryStats) uint64
 }
 
-// NewDynamicMemoryLimiter creates a memory limiter that adapts limit continously based on Cgroup limit
+// NewDynamicMemoryLimiter creates a memory limiter that adapts limit continuously based on Cgroup limit
 // plus memory consumed outside of the Go space.
 // It will set GOMEMLIMT to max(cgroupLimit * minLimitPct, cgroupLimit-externalMemory)
 // It will override existing value of GOMEMLIMIT
-func NewDynamicMemoryLimiter(interval time.Duration, isContainerized bool, minLimitPct float64, externalMemoryReader func() uint64) (MemoryLimiter, error) {
+func NewDynamicMemoryLimiter(interval time.Duration, isContainerized bool, minLimitPct float64, externalMemoryReader func(cgroups.MemoryStats) uint64) (MemoryLimiter, error) {
 	if externalMemoryReader == nil {
 		return nil, errors.New("unable to create dynamicMemoryLimiter, externalMemoryReader function is missing")
 	}
@@ -117,7 +117,7 @@ func (d dynamicMemoryLimiter) computeSetLimit() {
 		return
 	}
 
-	externalMemory := d.externalMemoryReader()
+	externalMemory := d.externalMemoryReader(cgroupMemStats)
 	goMemorySpace := *cgroupMemStats.Limit - externalMemory
 	minGoMemorySpace := uint64(float64(*cgroupMemStats.Limit) * d.minLimitPct)
 	if goMemorySpace < minGoMemorySpace {

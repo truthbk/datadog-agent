@@ -13,6 +13,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config"
 )
 
-func RunMemoryLimiter(c context.Context) error {
-	return NewStaticMemoryLimiter(config.Datadog.GetFloat64("gomemlimit_pct"), config.IsContainerized()).Run(c)
+func RunMemoryLimiter(configNS string, c context.Context) error {
+	return NewStaticMemoryLimiter(config.Datadog.GetFloat64(config.NSKey(configNS, "gomemlimit_pct")), config.IsContainerized()).Run(c)
 }

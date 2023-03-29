@@ -67,8 +67,6 @@ linters:
 linters-settings:
   depguard:
     include-go-root: true
-    packages-with-error-message:
-      - sync/atomic: "Use go.uber.org/atomic instead; see docs/dev/atomics.md"
   errcheck:
     # Disable warnings for `fmt` and `log` packages. Also ignore `Write` functions from `net/http` package.
     # Disable warnings for select Windows functions

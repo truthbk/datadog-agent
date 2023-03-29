@@ -3,12 +3,16 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build !linux
+//go:build python
 
 package runtime
 
-import "context"
+import (
+	"sync/atomic"
+)
 
-func RunMemoryLimiter(string, context.Context) error {
-	return nil
+var pythonMemoryInuse atomic.Uint64
+
+func SetPythonMemoryInUse(inuse uint64) {
+	pythonMemoryInuse.Store(inuse)
 }

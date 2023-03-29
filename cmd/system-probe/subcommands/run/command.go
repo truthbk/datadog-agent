@@ -32,8 +32,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config/settings"
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
 	"github.com/DataDog/datadog-agent/pkg/process/statsd"
-	"github.com/DataDog/datadog-agent/pkg/runtime"
-	ddruntime "github.com/DataDog/datadog-agent/pkg/runtime"
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
@@ -161,13 +159,7 @@ func startSystemProbe(cliParams *cliParams, log log.Component, sysprobeconfig sy
 	cfg := sysprobeconfig.Object()
 
 	// prepare go runtime
-	ddruntime.SetMaxProcs()
-	go func() {
-		err := runtime.RunMemoryLimiter(ctx)
-		if err != nil {
-			log.Infof("Running memory limiter failed with: %v", err)
-		}
-	}()
+	setupRuntime(ctx)
 
 	log.Infof("starting system-probe v%v", version.AgentVersion)
 
