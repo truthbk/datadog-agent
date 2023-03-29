@@ -14,11 +14,16 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
+	"github.com/DataDog/datadog-agent/pkg/metrics"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/reporter"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/stretchr/testify/mock"
+
+	"golang.org/x/sys/windows"
 )
 
 type GetEventsTestSuite struct {
@@ -50,13 +55,32 @@ func (s *GetEventsTestSuite) SetupTest() {
 	// Ensure the log is empty
 	err := s.ti.API().EvtClearLog(s.channelPath)
 	require.NoError(s.T(), err)
-	s.sender.ResetCalls()
+	resetSender(s.sender)
 }
 
 func (s *GetEventsTestSuite) TearDownTest() {
 	err := s.ti.API().EvtClearLog(s.channelPath)
 	require.NoError(s.T(), err)
-	s.sender.ResetCalls()
+	resetSender(s.sender)
+}
+
+func resetSender(sender *mocksender.MockSender) {
+	// Reset collected calls
+	sender.ResetCalls()
+	// Reset expected calls
+	sender.Mock.ExpectedCalls = sender.Mock.ExpectedCalls[0:0]
+}
+
+func (s *GetEventsTestSuite) newCheck(instanceConfig []byte, initConfig []byte) (*Check, error) {
+	check := new(Check)
+	check.evtapi = s.ti.API()
+	err := check.Configure(integration.FakeConfigHash, instanceConfig, initConfig, "test")
+	if !assert.NoError(s.T(), err) {
+		return nil, err
+	}
+	mocksender.SetSender(s.sender, check.ID())
+
+	return check, nil
 }
 
 func TestLaunchGetEventsTestSuite(t *testing.T) {
@@ -73,7 +97,7 @@ func TestLaunchGetEventsTestSuite(t *testing.T) {
 	}
 }
 
-func readEvents(check *Check, senderEventCall *mock.Call, numEvents uint) uint {
+func countEvents(check *Check, senderEventCall *mock.Call, numEvents uint) uint {
 	eventsCollected := uint(0)
 	prevEventsCollected := uint(0)
 	senderEventCall.Run(func (args mock.Arguments) {
@@ -100,20 +124,117 @@ start: old
 `,
 	s.channelPath))
 
-	check := new(Check)
-	check.evtapi = s.ti.API()
-	err = check.Configure(integration.FakeConfigHash, instanceConfig, nil, "test")
+	check, err := s.newCheck(instanceConfig, nil)
 	require.NoError(s.T(), err)
 	defer check.Cancel()
 
-	mocksender.SetSender(s.sender, check.ID())
 	s.sender.On("Commit").Return()
 	senderEventCall := s.sender.On("Event", mock.Anything)
 
-	eventsCollected := readEvents(check, senderEventCall, s.numEvents)
+	eventsCollected := countEvents(check, senderEventCall, s.numEvents)
 
 	require.Equal(s.T(), s.numEvents, eventsCollected)
 	s.sender.AssertExpectations(s.T())
+}
+
+func (s *GetEventsTestSuite) TestLevels() {
+	tests := []struct {
+		name string
+		reportLevel uint
+		alertType string
+	}{
+		{"info", windows.EVENTLOG_INFORMATION_TYPE, "info"},
+		{"warning", windows.EVENTLOG_WARNING_TYPE, "warning"},
+		{"error", windows.EVENTLOG_ERROR_TYPE, "error"},
+	}
+
+	reporter, err := evtreporter.New(s.channelPath, s.ti.API())
+	require.NoError(s.T(), err)
+	defer reporter.Close()
+
+	for _, tc := range tests {
+		s.Run(tc.name, func () {
+			defer resetSender(s.sender)
+
+			alertType, err := metrics.GetAlertTypeFromString(tc.alertType)
+			require.NoError(s.T(), err)
+
+			instanceConfig := []byte(fmt.Sprintf(`
+path: %s
+start: now
+`,
+			s.channelPath))
+
+			check, err := s.newCheck(instanceConfig, nil)
+			require.NoError(s.T(), err)
+			defer check.Cancel()
+
+			// report event
+			err = reporter.ReportEvent(tc.reportLevel, 0, 1000, []string{"teststring"}, nil)
+			require.NoError(s.T(), err)
+
+			s.sender.On("Commit").Return().Once()
+			s.sender.On("Event", mock.MatchedBy(func (e metrics.Event) bool {
+				return e.AlertType == alertType
+			})).Once()
+
+			check.Run()
+
+			s.sender.AssertExpectations(s.T())
+		})
+	}
+}
+
+func (s *GetEventsTestSuite) TestPriority() {
+	tests := []struct {
+		name string
+		confPriority string
+		eventPriority string
+	}{
+		{"low", "low", "low"},
+		{"normal", "normal", "normal"},
+		{"default", "", "normal"},
+	}
+
+	reporter, err := evtreporter.New(s.channelPath, s.ti.API())
+	require.NoError(s.T(), err)
+	defer reporter.Close()
+
+	for _, tc := range tests {
+		s.Run(tc.name, func () {
+			defer resetSender(s.sender)
+
+			eventPriority, err := metrics.GetEventPriorityFromString(tc.eventPriority)
+			require.NoError(s.T(), err)
+
+			instanceConfig := []byte(fmt.Sprintf(`
+path: %s
+start: now
+`,
+			s.channelPath))
+
+			if len(tc.confPriority) > 0 {
+				instanceConfig = append(instanceConfig, []byte(fmt.Sprintf("event_priority: %s", tc.confPriority))...)
+			}
+
+			check, err := s.newCheck(instanceConfig, nil)
+			require.NoError(s.T(), err)
+			defer check.Cancel()
+
+			// report event
+			err = reporter.ReportEvent(windows.EVENTLOG_INFORMATION_TYPE, 0, 1000, []string{"teststring"}, nil)
+			require.NoError(s.T(), err)
+
+			s.sender.On("Commit").Return().Once()
+			s.sender.On("Event", mock.MatchedBy(func (e metrics.Event) bool {
+				return e.Priority == eventPriority
+			})).Once()
+
+			check.Run()
+
+			s.sender.AssertExpectations(s.T())
+		})
+	}
 }
 
 func BenchmarkGetEvents(b *testing.B) {
@@ -166,10 +287,10 @@ payload_size: %d
 						require.NoError(b, err)
 						mocksender.SetSender(sender, check.ID())
 
-						total_events += readEvents(check, senderEventCall, v)
+						total_events += countEvents(check, senderEventCall, v)
 
 						check.Cancel()
-						sender.ResetCalls()
+						resetSender(sender)
 					}
 
 					// TODO: Use b.Elapsed in go1.20

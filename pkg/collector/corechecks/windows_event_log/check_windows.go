@@ -57,7 +57,7 @@ type instanceConfig struct {
 	Payload_size uint `yaml:payload_size`
 	Bookmark_frequency int `yaml:bookmark_frequency`
 	Legacy_mode bool `yaml:legacy_mode`
-	Event_priority string `yaml:event_priority`
+	Event_priority string `yaml:"event_priority"`
 }
 
 type initConfig struct {
@@ -229,7 +229,7 @@ func (c *Check) Configure(integrationConfigDigest uint64, data integration.Data,
 	// map config options to check options
 	c.event_priority, err = metrics.GetEventPriorityFromString(c.config.instance.Event_priority)
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid instance config `event_priority`: %v", err)
 	}
 
 	// Create the subscription
