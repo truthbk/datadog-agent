@@ -50,17 +50,13 @@ static __always_inline int sys_enter_bind(struct socket *sock, struct sockaddr *
 }
 
 SEC("kprobe/inet_bind")
-int kprobe__inet_bind(struct pt_regs *ctx) {
-    struct socket *sock = (struct socket *)PT_REGS_PARM1(ctx);
-    struct sockaddr *addr = (struct sockaddr *)PT_REGS_PARM2(ctx);
+int BPF_KPROBE(kprobe__inet_bind, struct socket *sock, struct sockaddr *addr) {
     log_debug("kprobe/inet_bind: sock=%llx, umyaddr=%x\n", sock, addr);
     return sys_enter_bind(sock, addr);
 }
 
 SEC("kprobe/inet6_bind")
-int kprobe__inet6_bind(struct pt_regs *ctx) {
-    struct socket *sock = (struct socket *)PT_REGS_PARM1(ctx);
-    struct sockaddr *addr = (struct sockaddr *)PT_REGS_PARM2(ctx);
+int BPF_KPROBE(kprobe__inet6_bind, struct socket *sock, struct sockaddr *addr) {
     log_debug("kprobe/inet6_bind: sock=%llx, umyaddr=%x\n", sock, addr);
     return sys_enter_bind(sock, addr);
 }
@@ -119,15 +115,13 @@ static __always_inline int sys_exit_bind(__s64 ret) {
 }
 
 SEC("kretprobe/inet_bind")
-int kretprobe__inet_bind(struct pt_regs *ctx) {
-    __s64 ret = PT_REGS_RC(ctx);
+int BPF_KRETPROBE(kretprobe__inet_bind, int ret) {
     log_debug("kretprobe/inet_bind: ret=%d\n", ret);
     return sys_exit_bind(ret);
 }
 
 SEC("kretprobe/inet6_bind")
-int kretprobe__inet6_bind(struct pt_regs *ctx) {
-    __s64 ret = PT_REGS_RC(ctx);
+int BPF_KRETPROBE(kretprobe__inet6_bind, int ret) {
     log_debug("kretprobe/inet6_bind: ret=%d\n", ret);
     return sys_exit_bind(ret);
 }

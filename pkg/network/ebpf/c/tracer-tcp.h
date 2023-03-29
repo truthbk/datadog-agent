@@ -179,11 +179,9 @@ int kretprobe__tcp_sendmsg(struct pt_regs *ctx) {
 }
 
 SEC("kprobe/tcp_close")
-int kprobe__tcp_close(struct pt_regs *ctx) {
-    struct sock *sk;
+int BPF_KPROBE(kprobe__tcp_close, struct sock *sk) {
     conn_tuple_t t = {};
     u64 pid_tgid = bpf_get_current_pid_tgid();
-    sk = (struct sock *)PT_REGS_PARM1(ctx);
 
     // Should actually delete something only if the connection never got established
     bpf_map_delete_elem(&tcp_ongoing_connect_pid, &sk);
@@ -210,8 +208,7 @@ int kretprobe__tcp_close(struct pt_regs *ctx) {
 #if defined(COMPILE_CORE) || defined(COMPILE_RUNTIME)
 
 SEC("kprobe/tcp_retransmit_skb")
-int kprobe__tcp_retransmit_skb(struct pt_regs *ctx) {
-    struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
+int BPF_KPROBE(kprobe__tcp_retransmit_skb, struct sock *sk) {
     u64 tid = bpf_get_current_pid_tgid();
     tcp_retransmit_skb_args_t args = {};
     args.sk = sk;
@@ -222,10 +219,10 @@ int kprobe__tcp_retransmit_skb(struct pt_regs *ctx) {
 }
 
 SEC("kretprobe/tcp_retransmit_skb")
-int kretprobe__tcp_retransmit_skb(struct pt_regs *ctx) {
+int BPF_KRETPROBE(kretprobe__tcp_retransmit_skb, int ret) {
     log_debug("kretprobe/tcp_retransmit\n");
     u64 tid = bpf_get_current_pid_tgid();
-    if (PT_REGS_RC(ctx) < 0) {
+    if (ret < 0) {
         bpf_map_delete_elem(&pending_tcp_retransmit_skb, &tid);
         return 0;
     }
@@ -244,15 +241,12 @@ int kretprobe__tcp_retransmit_skb(struct pt_regs *ctx) {
 #endif // COMPILE_CORE || COMPILE_RUNTIME
 
 SEC("kprobe/tcp_set_state")
-int kprobe__tcp_set_state(struct pt_regs *ctx) {
-    u8 state = (u8)PT_REGS_PARM2(ctx);
-
+int BPF_KPROBE(kprobe__tcp_set_state, struct sock *sk, u8 state) {
     // For now we're tracking only TCP_ESTABLISHED
     if (state != TCP_ESTABLISHED) {
         return 0;
     }
 
-    struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
     u64 pid_tgid = bpf_get_current_pid_tgid();
     conn_tuple_t t = {};
     if (!read_conn_tuple(&t, sk, pid_tgid, CONN_TYPE_TCP)) {
@@ -266,19 +260,15 @@ int kprobe__tcp_set_state(struct pt_regs *ctx) {
 }
 
 SEC("kprobe/tcp_connect")
-int kprobe__tcp_connect(struct pt_regs *ctx) {
+int BPF_KPROBE(kprobe__tcp_connect, struct sock *skp) {
     u64 pid_tgid = bpf_get_current_pid_tgid();
     log_debug("kprobe/tcp_connect: tgid: %u, pid: %u\n", pid_tgid >> 32, pid_tgid & 0xFFFFFFFF);
-    struct sock *skp = (struct sock *)PT_REGS_PARM1(ctx);
-
     bpf_map_update_with_telemetry(tcp_ongoing_connect_pid, &skp, &pid_tgid, BPF_ANY);
-
     return 0;
 }
 
 SEC("kprobe/tcp_finish_connect")
-int kprobe__tcp_finish_connect(struct pt_regs *ctx) {
-    struct sock *skp = (struct sock *)PT_REGS_PARM1(ctx);
+int BPF_KPROBE(kprobe__tcp_finish_connect, struct sock *skp) {
     u64 *pid_tgid_p = bpf_map_lookup_elem(&tcp_ongoing_connect_pid, &skp);
     if (!pid_tgid_p) {
         return 0;
@@ -302,8 +292,7 @@ int kprobe__tcp_finish_connect(struct pt_regs *ctx) {
 }
 
 SEC("kretprobe/inet_csk_accept")
-int kretprobe__inet_csk_accept(struct pt_regs *ctx) {
-    struct sock *sk = (struct sock *)PT_REGS_RC(ctx);
+int BPF_KRETPROBE(kretprobe__inet_csk_accept, struct sock *sk) {
     if (!sk) {
         return 0;
     }
@@ -328,8 +317,7 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx) {
 }
 
 SEC("kprobe/inet_csk_listen_stop")
-int kprobe__inet_csk_listen_stop(struct pt_regs *ctx) {
-    struct sock *skp = (struct sock *)PT_REGS_PARM1(ctx);
+int BPF_KPROBE(kprobe__inet_csk_listen_stop, struct sock *skp) {
     __u16 lport = read_sport(skp);
     if (lport == 0) {
         log_debug("ERR(inet_csk_listen_stop): lport is 0 \n");
@@ -347,8 +335,7 @@ int kprobe__inet_csk_listen_stop(struct pt_regs *ctx) {
 
 
 SEC("kprobe/sockfd_lookup_light")
-int kprobe__sockfd_lookup_light(struct pt_regs *ctx) {
-    int sockfd = (int)PT_REGS_PARM1(ctx);
+int BPF_KPROBE(kprobe__sockfd_lookup_light, int sockfd) {
     u64 pid_tgid = bpf_get_current_pid_tgid();
 
     // Check if have already a map entry for this pid_fd_t
