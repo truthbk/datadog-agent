@@ -5,7 +5,6 @@
 //go:build windows
 // +build windows
 
-
 package winevtapi
 
 import (
@@ -46,7 +45,7 @@ func (v *evtVariantValues) String(index uint) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	t := C.EVT_VARIANT_TYPE_MASK&value.Type
+	t := C.EVT_VARIANT_TYPE_MASK & value.Type
 	if t == evtapi.EvtVarTypeString {
 		return windows.UTF16PtrToString((*uint16)(C.dataptr(value))), nil
 	} else if t == evtapi.EvtVarTypeString {
@@ -59,7 +58,7 @@ func (v *evtVariantValues) UInt(index uint) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	t := C.EVT_VARIANT_TYPE_MASK&value.Type
+	t := C.EVT_VARIANT_TYPE_MASK & value.Type
 	if t == evtapi.EvtVarTypeByte {
 		return uint64(*(*uint8)(unsafe.Pointer(value))), nil
 	} else if t == evtapi.EvtVarTypeUInt16 {
@@ -76,10 +75,10 @@ func (v *evtVariantValues) Time(index uint) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	t := C.EVT_VARIANT_TYPE_MASK&value.Type
+	t := C.EVT_VARIANT_TYPE_MASK & value.Type
 	if t == evtapi.EvtVarTypeFileTime {
 		ft := (*C.FILETIME)(unsafe.Pointer(value))
-		nsec := (uint64(ft.dwHighDateTime)<<32)|uint64(ft.dwLowDateTime)
+		nsec := (uint64(ft.dwHighDateTime) << 32) | uint64(ft.dwLowDateTime)
 		return int64(winutil.FileTimeToUnixTimeS(nsec)), nil
 	}
 	return 0, fmt.Errorf("invalid type %#x", t)
@@ -150,7 +149,7 @@ func evtRenderEventValues(Context evtapi.EventRenderContextHandle, Fragment evta
 	// Allocate buffer space (BufferUsed is size in bytes)
 	//
 	// /*** MUST NOT USE GO MANAGED MEMORY ***\
-    //
+	//
 	// This buffer will contain pointers that point within the buffer itself.
 	// If Go managed memory is used then the buffer may move, which will invalidate
 	// all of the pointers inside the buffer.

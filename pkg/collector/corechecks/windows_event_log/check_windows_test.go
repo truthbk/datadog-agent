@@ -15,8 +15,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
-	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/reporter"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/test"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -34,7 +34,7 @@ type GetEventsTestSuite struct {
 	numEvents   uint
 
 	sender *mocksender.MockSender
-	ti eventlog_test.APITester
+	ti     eventlog_test.APITester
 }
 
 func (s *GetEventsTestSuite) SetupSuite() {
@@ -100,12 +100,12 @@ func TestLaunchGetEventsTestSuite(t *testing.T) {
 func countEvents(check *Check, senderEventCall *mock.Call, numEvents uint) uint {
 	eventsCollected := uint(0)
 	prevEventsCollected := uint(0)
-	senderEventCall.Run(func (args mock.Arguments) {
+	senderEventCall.Run(func(args mock.Arguments) {
 		eventsCollected += 1
 	})
 	for {
 		check.Run()
-		if eventsCollected == numEvents || prevEventsCollected == eventsCollected{
+		if eventsCollected == numEvents || prevEventsCollected == eventsCollected {
 			break
 		}
 		prevEventsCollected = eventsCollected
@@ -122,7 +122,7 @@ func (s *GetEventsTestSuite) TestGetEvents() {
 path: %s
 start: old
 `,
-	s.channelPath))
+		s.channelPath))
 
 	check, err := s.newCheck(instanceConfig, nil)
 	require.NoError(s.T(), err)
@@ -139,9 +139,9 @@ start: old
 
 func (s *GetEventsTestSuite) TestLevels() {
 	tests := []struct {
-		name string
+		name        string
 		reportLevel uint
-		alertType string
+		alertType   string
 	}{
 		{"info", windows.EVENTLOG_INFORMATION_TYPE, "info"},
 		{"warning", windows.EVENTLOG_WARNING_TYPE, "warning"},
@@ -153,7 +153,7 @@ func (s *GetEventsTestSuite) TestLevels() {
 	defer reporter.Close()
 
 	for _, tc := range tests {
-		s.Run(tc.name, func () {
+		s.Run(tc.name, func() {
 			defer resetSender(s.sender)
 
 			alertType, err := metrics.GetAlertTypeFromString(tc.alertType)
@@ -163,7 +163,7 @@ func (s *GetEventsTestSuite) TestLevels() {
 path: %s
 start: now
 `,
-			s.channelPath))
+				s.channelPath))
 
 			check, err := s.newCheck(instanceConfig, nil)
 			require.NoError(s.T(), err)
@@ -174,7 +174,7 @@ start: now
 			require.NoError(s.T(), err)
 
 			s.sender.On("Commit").Return().Once()
-			s.sender.On("Event", mock.MatchedBy(func (e metrics.Event) bool {
+			s.sender.On("Event", mock.MatchedBy(func(e metrics.Event) bool {
 				return e.AlertType == alertType
 			})).Once()
 
@@ -187,8 +187,8 @@ start: now
 
 func (s *GetEventsTestSuite) TestPriority() {
 	tests := []struct {
-		name string
-		confPriority string
+		name          string
+		confPriority  string
 		eventPriority string
 	}{
 		{"low", "low", "low"},
@@ -201,7 +201,7 @@ func (s *GetEventsTestSuite) TestPriority() {
 	defer reporter.Close()
 
 	for _, tc := range tests {
-		s.Run(tc.name, func () {
+		s.Run(tc.name, func() {
 			defer resetSender(s.sender)
 
 			eventPriority, err := metrics.GetEventPriorityFromString(tc.eventPriority)
@@ -211,7 +211,7 @@ func (s *GetEventsTestSuite) TestPriority() {
 path: %s
 start: now
 `,
-			s.channelPath))
+				s.channelPath))
 
 			if len(tc.confPriority) > 0 {
 				instanceConfig = append(instanceConfig, []byte(fmt.Sprintf("event_priority: %s", tc.confPriority))...)
@@ -226,7 +226,7 @@ start: now
 			require.NoError(s.T(), err)
 
 			s.sender.On("Commit").Return().Once()
-			s.sender.On("Event", mock.MatchedBy(func (e metrics.Event) bool {
+			s.sender.On("Event", mock.MatchedBy(func(e metrics.Event) bool {
 				return e.Priority == eventPriority
 			})).Once()
 
@@ -274,13 +274,13 @@ path: %s
 start: old
 payload_size: %d
 `,
-					channelPath, batchCount))
+						channelPath, batchCount))
 
 					// read the log b.N times
 					b.ResetTimer()
 					startTime := time.Now()
 					total_events := uint(0)
-					for i:= 0; i < b.N; i++ {
+					for i := 0; i < b.N; i++ {
 						check := new(Check)
 						check.evtapi = ti.API()
 						err = check.Configure(integration.FakeConfigHash, instanceConfig, nil, "test")

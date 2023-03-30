@@ -61,4 +61,3 @@ eventLoop:
 
 	return eventRecords, nil
 }
-

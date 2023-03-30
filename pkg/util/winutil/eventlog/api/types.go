@@ -41,30 +41,30 @@ const (
 const (
 	// EVT_VARIANT_TYPE
 	// https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_variant_type
-	EvtVarTypeNull = 0
-	EvtVarTypeString = 1
+	EvtVarTypeNull       = 0
+	EvtVarTypeString     = 1
 	EvtVarTypeAnsiString = 2
-	EvtVarTypeSByte = 3
-	EvtVarTypeByte = 4
-	EvtVarTypeInt16 = 5
-	EvtVarTypeUInt16 = 6
-	EvtVarTypeInt32 = 7
-	EvtVarTypeUInt32 = 8
-	EvtVarTypeInt64 = 9
-	EvtVarTypeUInt64 = 10
-	EvtVarTypeSingle = 11
-	EvtVarTypeDouble = 12
-	EvtVarTypeBoolean = 13
-	EvtVarTypeBinary = 14
-	EvtVarTypeGuid = 15
-	EvtVarTypeSizeT = 16
-	EvtVarTypeFileTime = 17
-	EvtVarTypeSysTime = 18
-	EvtVarTypeSid = 19
-	EvtVarTypeHexInt32 = 20
-	EvtVarTypeHexInt64 = 21
-	EvtVarTypeEvtHandle = 32
-	EvtVarTypeEvtXml = 35
+	EvtVarTypeSByte      = 3
+	EvtVarTypeByte       = 4
+	EvtVarTypeInt16      = 5
+	EvtVarTypeUInt16     = 6
+	EvtVarTypeInt32      = 7
+	EvtVarTypeUInt32     = 8
+	EvtVarTypeInt64      = 9
+	EvtVarTypeUInt64     = 10
+	EvtVarTypeSingle     = 11
+	EvtVarTypeDouble     = 12
+	EvtVarTypeBoolean    = 13
+	EvtVarTypeBinary     = 14
+	EvtVarTypeGuid       = 15
+	EvtVarTypeSizeT      = 16
+	EvtVarTypeFileTime   = 17
+	EvtVarTypeSysTime    = 18
+	EvtVarTypeSid        = 19
+	EvtVarTypeHexInt32   = 20
+	EvtVarTypeHexInt64   = 21
+	EvtVarTypeEvtHandle  = 32
+	EvtVarTypeEvtXml     = 35
 )
 
 const (
@@ -180,7 +180,6 @@ type EvtVariantValues interface {
 	// Free resources
 	Close()
 }
-
 
 // Helpful wrappers for custom types
 func EvtCloseResultSet(api API, h EventResultSetHandle) {

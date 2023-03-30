@@ -519,4 +519,3 @@ func (api *API) EvtCreateRenderContext(ValuePaths []string, Flags uint) (evtapi.
 func (api *API) EvtRenderEventValues(Context evtapi.EventRenderContextHandle, Fragment evtapi.EventRecordHandle) (evtapi.EvtVariantValues, error) {
 	return nil, fmt.Errorf("not implemented")
 }
-

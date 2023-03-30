@@ -39,25 +39,25 @@ type Check struct {
 	event_priority metrics.EventPriority
 
 	// event log
-	sub *evtsubscribe.PullSubscription
-	evtapi evtapi.API
+	sub                 *evtsubscribe.PullSubscription
+	evtapi              evtapi.API
 	systemRenderContext evtapi.EventRenderContextHandle
 }
 
 type Config struct {
 	instance instanceConfig
-	init initConfig
+	init     initConfig
 }
 
 type instanceConfig struct {
-	ChannelPath string `yaml:"path"`
-	Query string `yaml:query`
-	Start string `yaml:start`
-	Timeout uint `yaml:timeout`
-	Payload_size uint `yaml:payload_size`
-	Bookmark_frequency int `yaml:bookmark_frequency`
-	Legacy_mode bool `yaml:legacy_mode`
-	Event_priority string `yaml:"event_priority"`
+	ChannelPath        string `yaml:"path"`
+	Query              string `yaml:query`
+	Start              string `yaml:start`
+	Timeout            uint   `yaml:timeout`
+	Payload_size       uint   `yaml:payload_size`
+	Bookmark_frequency int    `yaml:bookmark_frequency`
+	Legacy_mode        bool   `yaml:legacy_mode`
+	Event_priority     string `yaml:"event_priority"`
 }
 
 type initConfig struct {
@@ -80,7 +80,7 @@ func (c *Check) Run() error {
 			// no more events
 			break
 		}
-		for _,winevent := range events {
+		for _, winevent := range events {
 			// Base event
 			ddevent := metrics.Event{
 				Priority:       c.event_priority,
@@ -276,7 +276,7 @@ func (c *Check) Cancel() {
 func checkFactory() check.Check {
 	return &Check{
 		CheckBase: core.NewCheckBase(checkName),
-		evtapi: winevtapi.New(),
+		evtapi:    winevtapi.New(),
 	}
 }
 
