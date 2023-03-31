@@ -10,8 +10,6 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/aggregator/internal/tags"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
-
-	"github.com/gookit/goutil/dump"
 )
 
 // The timeSamplerWorker runs the process loop for a TimeSampler:
@@ -82,7 +80,6 @@ func (w *timeSamplerWorker) run() {
 			}
 			w.metricSamplePool.PutBatch(ms)
 		case trigger := <-w.flushChan:
-			dump.Println(trigger)
 			w.triggerFlush(trigger)
 			w.tagsStore.Shrink()
 		}

@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
-	"github.com/gookit/goutil/dump"
 )
 
 // senders are the sender used and provided by the Demultiplexer for checks
@@ -47,7 +46,6 @@ func (s *senders) cleanSenders() {
 // If no error is returned here, DestroySender must be called with the same ID
 // once the sender is not used anymore
 func (s *senders) GetSender(cid check.ID) (Sender, error) {
-	dump.Println(s)
 	sender, err := s.senderPool.getSender(cid)
 	if err != nil {
 		sender, err = s.senderPool.mkSender(cid)

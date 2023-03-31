@@ -85,6 +85,8 @@ func (c *PythonCheck) runCheck(commitMetrics bool) error {
 
 	log.Debugf("Running python check %s (version: '%s', id: '%s')", c.ModuleName, c.version, c.id)
 
+	dump.Println(c.instance)
+	// cResult is an error.
 	cResult := C.run_check(rtloader, c.instance)
 	if cResult == nil {
 		if err := getRtLoaderError(); err != nil {
@@ -92,7 +94,6 @@ func (c *PythonCheck) runCheck(commitMetrics bool) error {
 		}
 		return fmt.Errorf("An error occurred while running python check %s", c.ModuleName)
 	}
-	dump.Println(cResult)
 	defer C.rtloader_free(rtloader, unsafe.Pointer(cResult))
 
 	if commitMetrics {
