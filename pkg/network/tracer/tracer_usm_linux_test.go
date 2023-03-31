@@ -1050,7 +1050,7 @@ func TestTLSClassification(t *testing.T) {
 		teardown        func(t *testing.T, ctx testContext)
 	}
 	tests := []tlsTest{}
-	for _, tlsVersion := range []string{"-tls1", "-tls1_1", "-tls1_2", "-tls1_3"} {
+	for _, tlsVersion := range []string{"-tls1", "-tls1_1", "-tls1_2", "-tls1_3", "-dtls1", "-dtls1_2"} {
 		tests = append(tests, tlsTest{
 			name: "TLS" + tlsVersion + "_docker",
 			postTracerSetup: func(t *testing.T, ctx testContext) {
