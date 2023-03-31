@@ -40,6 +40,7 @@ func testExampleNotifyChannel(t testing.TB, ti eventlog_test.APITester, stop cha
 	sub := evtsubscribe.NewPullSubscription(
 		channelPath,
 		"*",
+		evtsubscribe.WithStartAtOldestRecord(),
 		evtsubscribe.WithWindowsEventLogAPI(api))
 
 	// Start the subscription
@@ -108,6 +109,7 @@ func printEventValues(api evtapi.API, event *evtapi.EventRecord) error {
 	if err != nil {
 		return fmt.Errorf("failed to create render context: %v", err)
 	}
+	defer evtapi.EvtCloseRenderContext(api, c)
 
 	// Render the values
 	vals, err := api.EvtRenderEventValues(c, event.EventRecordHandle)
@@ -151,11 +153,24 @@ func printEventValues(api evtapi.API, event *evtapi.EventRecord) error {
 	}
 	fmt.Printf("level: %d\n", level)
 
+	// Format Message
+	pm, err := api.EvtOpenPublisherMetadata(provider, "")
+	if err != nil {
+		return fmt.Errorf("failed to open provider metadata: %v", err)
+	}
+	defer evtapi.EvtClosePublisherMetadata(api, pm)
+
+	message, err := api.EvtFormatMessage(pm, event.EventRecordHandle, 0, nil, evtapi.EvtFormatMessageEvent)
+	if err != nil {
+		return fmt.Errorf("failed to format event message: %v", err)
+	}
+	fmt.Printf("message: %s\n", message)
+
 	return nil
 }
 
 // test helper function that sets up an event log for the test
-func createLog(t testing.TB, ti eventlog_test.APITester, channel string) error {
+func createLog(t testing.TB, ti eventlog_test.APITester, channel string, source string) error {
 	err := ti.InstallChannel(channel)
 	if !assert.NoError(t, err) {
 		return err
@@ -164,12 +179,12 @@ func createLog(t testing.TB, ti eventlog_test.APITester, channel string) error {
 	if !assert.NoError(t, err) {
 		return err
 	}
-	err = ti.InstallSource(channel, "testsource")
+	err = ti.InstallSource(channel, source)
 	if !assert.NoError(t, err) {
 		return err
 	}
 	t.Cleanup(func() {
-		ti.RemoveSource(channel, "testsource")
+		ti.RemoveSource(channel, source)
 		ti.RemoveChannel(channel)
 	})
 	return nil
@@ -179,14 +194,15 @@ func createLog(t testing.TB, ti eventlog_test.APITester, channel string) error {
 func TestExampleNotifyChannel(t *testing.T) {
 	testInterfaceNames := eventlog_test.GetEnabledAPITesters()
 
-	channelPath := "testchannel-example"
+	channelPath := "dd-test-channel-example"
+	eventSource := "dd-test-source-example"
 	numEvents := uint(10)
 	for _, tiName := range testInterfaceNames {
 		t.Run(fmt.Sprintf("%sAPI", tiName), func(t *testing.T) {
 			ti := eventlog_test.GetAPITesterByName(tiName, t)
 			// Create some test events
-			createLog(t, ti, channelPath)
-			err := ti.GenerateEvents(channelPath, numEvents)
+			createLog(t, ti, channelPath, eventSource)
+			err := ti.GenerateEvents(eventSource, numEvents)
 			require.NoError(t, err)
 			// Create stop channel to use as example of an external signal to shutdown
 			stop := make(chan struct{})
@@ -197,7 +213,7 @@ func TestExampleNotifyChannel(t *testing.T) {
 
 			// Create some test events while that's running
 			for i := 0; i < 3; i++ {
-				err := ti.GenerateEvents(channelPath, numEvents)
+				err := ti.GenerateEvents(eventSource, numEvents)
 				require.NoError(t, err)
 				// simulate some delay in event generation
 				time.Sleep(100 * time.Millisecond)

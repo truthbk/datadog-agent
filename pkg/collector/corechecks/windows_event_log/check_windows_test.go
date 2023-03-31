@@ -30,6 +30,7 @@ type GetEventsTestSuite struct {
 	suite.Suite
 
 	channelPath string
+	eventSource string
 	testAPI     string
 	numEvents   uint
 
@@ -41,13 +42,13 @@ func (s *GetEventsTestSuite) SetupSuite() {
 	s.ti = eventlog_test.GetAPITesterByName(s.testAPI, s.T())
 	err := s.ti.InstallChannel(s.channelPath)
 	require.NoError(s.T(), err)
-	err = s.ti.InstallSource(s.channelPath, "testsource")
+	err = s.ti.InstallSource(s.channelPath, s.eventSource)
 	require.NoError(s.T(), err)
 	s.sender = mocksender.NewMockSender("")
 }
 
 func (s *GetEventsTestSuite) TearDownSuite() {
-	s.ti.RemoveSource(s.channelPath, "testsource")
+	s.ti.RemoveSource(s.channelPath, s.eventSource)
 	s.ti.RemoveChannel(s.channelPath)
 }
 
@@ -89,7 +90,8 @@ func TestLaunchGetEventsTestSuite(t *testing.T) {
 	for _, tiName := range testerNames {
 		t.Run(fmt.Sprintf("%sAPI", tiName), func(t *testing.T) {
 			var s GetEventsTestSuite
-			s.channelPath = "testchannel"
+			s.channelPath = "dd-test-channel-check"
+			s.eventSource = "dd-test-source-check"
 			s.testAPI = tiName
 			s.numEvents = 1000
 			suite.Run(t, &s)
@@ -115,7 +117,7 @@ func countEvents(check *Check, senderEventCall *mock.Call, numEvents uint) uint 
 
 func (s *GetEventsTestSuite) TestGetEvents() {
 	// Put events in the log
-	err := s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	err := s.ti.GenerateEvents(s.eventSource, s.numEvents)
 	require.NoError(s.T(), err)
 
 	instanceConfig := []byte(fmt.Sprintf(`
@@ -148,7 +150,7 @@ func (s *GetEventsTestSuite) TestLevels() {
 		{"error", windows.EVENTLOG_ERROR_TYPE, "error"},
 	}
 
-	reporter, err := evtreporter.New(s.channelPath, s.ti.API())
+	reporter, err := evtreporter.New(s.eventSource, s.ti.API())
 	require.NoError(s.T(), err)
 	defer reporter.Close()
 
@@ -196,7 +198,7 @@ func (s *GetEventsTestSuite) TestPriority() {
 		{"default", "", "normal"},
 	}
 
-	reporter, err := evtreporter.New(s.channelPath, s.ti.API())
+	reporter, err := evtreporter.New(s.eventSource, s.ti.API())
 	require.NoError(s.T(), err)
 	defer reporter.Close()
 
@@ -238,15 +240,14 @@ start: now
 }
 
 func BenchmarkGetEvents(b *testing.B) {
-	channelPath := "testchannel"
+	channelPath := "dd-test-channel-check"
+	eventSource := "dd-test-source-check"
 	numEvents := []uint{10, 100, 1000}
 	batchCounts := []uint{1, 10, 100, 1000}
 
 	testerNames := eventlog_test.GetEnabledAPITesters()
 
 	sender := mocksender.NewMockSender("")
-	sender.On("Commit").Return()
-	senderEventCall := sender.On("Event", mock.Anything)
 
 	bench_startTime := time.Now()
 	bench_total_events := uint(0)
@@ -256,11 +257,11 @@ func BenchmarkGetEvents(b *testing.B) {
 			ti := eventlog_test.GetAPITesterByName(tiName, b)
 			err := ti.InstallChannel(channelPath)
 			require.NoError(b, err)
-			err = ti.InstallSource(channelPath, "testsource")
+			err = ti.InstallSource(channelPath, eventSource)
 			require.NoError(b, err)
 			err = ti.API().EvtClearLog(channelPath)
 			require.NoError(b, err)
-			err = ti.GenerateEvents(channelPath, v)
+			err = ti.GenerateEvents(eventSource, v)
 			require.NoError(b, err)
 
 			for _, batchCount := range batchCounts {
@@ -286,6 +287,8 @@ payload_size: %d
 						err = check.Configure(integration.FakeConfigHash, instanceConfig, nil, "test")
 						require.NoError(b, err)
 						mocksender.SetSender(sender, check.ID())
+						sender.On("Commit").Return()
+						senderEventCall := sender.On("Event", mock.Anything)
 
 						total_events += countEvents(check, senderEventCall, v)
 

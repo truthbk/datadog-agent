@@ -55,7 +55,7 @@ func TestInvalidChannel(t *testing.T) {
 	}
 }
 
-func createLog(t testing.TB, ti eventlog_test.APITester, channel string) error {
+func createLog(t testing.TB, ti eventlog_test.APITester, channel string, source string) error {
 	err := ti.InstallChannel(channel)
 	if !assert.NoError(t, err) {
 		return err
@@ -64,12 +64,12 @@ func createLog(t testing.TB, ti eventlog_test.APITester, channel string) error {
 	if !assert.NoError(t, err) {
 		return err
 	}
-	err = ti.InstallSource(channel, "testsource")
+	err = ti.InstallSource(channel, source)
 	if !assert.NoError(t, err) {
 		return err
 	}
 	t.Cleanup(func() {
-		ti.RemoveSource(channel, "testsource")
+		ti.RemoveSource(channel, source)
 		ti.RemoveChannel(channel)
 	})
 	return nil
@@ -120,7 +120,8 @@ func assertNoMoreEvents(t testing.TB, sub *PullSubscription) error {
 func BenchmarkTestGetEventHandles(b *testing.B) {
 	optEnableDebugLogging()
 
-	channel := "testchannel-subscription"
+	channel := "dd-test-channel-subscription"
+	eventSource := "dd-test-source-subscription"
 	numEvents := []uint{10, 100, 1000, 10000}
 
 	testerNames := eventlog_test.GetEnabledAPITesters()
@@ -129,16 +130,137 @@ func BenchmarkTestGetEventHandles(b *testing.B) {
 		for _, v := range numEvents {
 			b.Run(fmt.Sprintf("%vAPI/%d", tiName, v), func(b *testing.B) {
 				ti := eventlog_test.GetAPITesterByName(tiName, b)
-				createLog(b, ti, channel)
-				err := ti.GenerateEvents(channel, v)
+				createLog(b, ti, channel, eventSource)
+				err := ti.GenerateEvents(eventSource, v)
 				require.NoError(b, err)
 				b.ResetTimer()
 				startTime := time.Now()
 				for i := 0; i < b.N; i++ {
 					sub, err := startSubscription(b, ti, channel, WithStartAtOldestRecord())
 					require.NoError(b, err)
-					_, err = getEventHandles(b, ti, sub, v)
+					events, err := getEventHandles(b, ti, sub, v)
 					require.NoError(b, err)
+					err = assertNoMoreEvents(b, sub)
+					require.NoError(b, err)
+					for _, event := range events {
+						evtapi.EvtCloseRecord(ti.API(), event.EventRecordHandle)
+					}
+					sub.Stop()
+				}
+				// TODO: Use b.Elapsed in go1.20
+				elapsed := time.Since(startTime)
+				total_events := float64(v) * float64(b.N)
+				b.Logf("%.2f events/s (%.3fs)", total_events/elapsed.Seconds(), elapsed.Seconds())
+			})
+		}
+	}
+}
+
+func formatEventMessage(api evtapi.API, event *evtapi.EventRecord) (string, error) {
+	// Create render context for the System values
+	c, err := api.EvtCreateRenderContext(nil, evtapi.EvtRenderContextSystem)
+	if err != nil {
+		return "", fmt.Errorf("failed to create render context: %v", err)
+	}
+	defer evtapi.EvtCloseRenderContext(api, c)
+
+	// Render the values
+	vals, err := api.EvtRenderEventValues(c, event.EventRecordHandle)
+	if err != nil {
+		return "", fmt.Errorf("failed to render values: %v", err)
+	}
+	defer vals.Close()
+
+	// Get the provider name
+	provider, err := vals.String(evtapi.EvtSystemProviderName)
+	if err != nil {
+		return "", fmt.Errorf("failed to get provider name value: %v", err)
+	}
+
+	// Format Message
+	pm, err := api.EvtOpenPublisherMetadata(provider, "")
+	if err != nil {
+		return "", fmt.Errorf("failed to open provider metadata: %v", err)
+	}
+	defer evtapi.EvtClosePublisherMetadata(api, pm)
+
+	message, err := api.EvtFormatMessage(pm, event.EventRecordHandle, 0, nil, evtapi.EvtFormatMessageEvent)
+	if err != nil {
+		return "", fmt.Errorf("failed to format event message: %v", err)
+	}
+
+	return message, nil
+}
+
+func BenchmarkTestRenderEventXml(b *testing.B) {
+	optEnableDebugLogging()
+
+	channel := "dd-test-channel-subscription"
+	eventSource := "dd-test-source-subscription"
+	numEvents := []uint{10, 100, 1000, 10000}
+
+	testerNames := eventlog_test.GetEnabledAPITesters()
+
+	for _, tiName := range testerNames {
+		for _, v := range numEvents {
+			b.Run(fmt.Sprintf("%vAPI/%d", tiName, v), func(b *testing.B) {
+				ti := eventlog_test.GetAPITesterByName(tiName, b)
+				createLog(b, ti, channel, eventSource)
+				err := ti.GenerateEvents(eventSource, v)
+				require.NoError(b, err)
+				b.ResetTimer()
+				startTime := time.Now()
+				for i := 0; i < b.N; i++ {
+					sub, err := startSubscription(b, ti, channel, WithStartAtOldestRecord())
+					require.NoError(b, err)
+					events, err := getEventHandles(b, ti, sub, v)
+					require.NoError(b, err)
+					for _, event := range events {
+						_, err := ti.API().EvtRenderEventXml(event.EventRecordHandle)
+						require.NoError(b, err)
+						evtapi.EvtCloseRecord(ti.API(), event.EventRecordHandle)
+					}
+					err = assertNoMoreEvents(b, sub)
+					require.NoError(b, err)
+					sub.Stop()
+				}
+				// TODO: Use b.Elapsed in go1.20
+				elapsed := time.Since(startTime)
+				total_events := float64(v) * float64(b.N)
+				b.Logf("%.2f events/s (%.3fs)", total_events/elapsed.Seconds(), elapsed.Seconds())
+			})
+		}
+	}
+}
+
+func BenchmarkTestFormatEventMessage(b *testing.B) {
+	optEnableDebugLogging()
+
+	channel := "dd-test-channel-subscription"
+	eventSource := "dd-test-source-subscription"
+	numEvents := []uint{10, 100, 1000, 10000}
+
+	testerNames := eventlog_test.GetEnabledAPITesters()
+
+	for _, tiName := range testerNames {
+		for _, v := range numEvents {
+			b.Run(fmt.Sprintf("%vAPI/%d", tiName, v), func(b *testing.B) {
+				ti := eventlog_test.GetAPITesterByName(tiName, b)
+				createLog(b, ti, channel, eventSource)
+				err := ti.GenerateEvents(eventSource, v)
+				require.NoError(b, err)
+				b.ResetTimer()
+				startTime := time.Now()
+				for i := 0; i < b.N; i++ {
+					sub, err := startSubscription(b, ti, channel, WithStartAtOldestRecord())
+					require.NoError(b, err)
+					events, err := getEventHandles(b, ti, sub, v)
+					require.NoError(b, err)
+					for _, event := range events {
+						_, err := formatEventMessage(ti.API(), event)
+						require.NoError(b, err)
+						evtapi.EvtCloseRecord(ti.API(), event.EventRecordHandle)
+					}
 					err = assertNoMoreEvents(b, sub)
 					require.NoError(b, err)
 					sub.Stop()
@@ -156,6 +278,7 @@ type GetEventsTestSuite struct {
 	suite.Suite
 
 	channelPath string
+	eventSource string
 	testAPI     string
 	numEvents   uint
 
@@ -170,13 +293,13 @@ func (s *GetEventsTestSuite) SetupSuite() {
 	s.ti = eventlog_test.GetAPITesterByName(s.testAPI, s.T())
 	err := s.ti.InstallChannel(s.channelPath)
 	require.NoError(s.T(), err)
-	err = s.ti.InstallSource(s.channelPath, "testsource")
+	err = s.ti.InstallSource(s.channelPath, s.eventSource)
 	require.NoError(s.T(), err)
 }
 
 func (s *GetEventsTestSuite) TearDownSuite() {
 	// fmt.Println("TearDownSuite")
-	s.ti.RemoveSource(s.channelPath, "testsource")
+	s.ti.RemoveSource(s.channelPath, s.eventSource)
 	s.ti.RemoveChannel(s.channelPath)
 }
 
@@ -198,7 +321,7 @@ func (s *GetEventsTestSuite) TearDownTest() {
 // Tests that the subscription can read old events (EvtSubscribeStartAtOldestRecord)
 func (s *GetEventsTestSuite) TestReadOldEvents() {
 	// Put events in the log
-	err := s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	err := s.ti.GenerateEvents(s.eventSource, s.numEvents)
 	require.NoError(s.T(), err)
 
 	// Create sub
@@ -206,7 +329,7 @@ func (s *GetEventsTestSuite) TestReadOldEvents() {
 	require.NoError(s.T(), err)
 
 	// Put events in the log
-	err = s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	err = s.ti.GenerateEvents(s.eventSource, s.numEvents)
 	require.NoError(s.T(), err)
 
 	// Get Events
@@ -227,7 +350,7 @@ func (s *GetEventsTestSuite) TestReadNewEvents() {
 	require.NoError(s.T(), err)
 
 	// Put events in the log
-	err = s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	err = s.ti.GenerateEvents(s.eventSource, s.numEvents)
 	require.NoError(s.T(), err)
 
 	// Get Events
@@ -240,7 +363,7 @@ func (s *GetEventsTestSuite) TestReadNewEvents() {
 // Tests that the subscription can skip over old events (EvtSubscribeToFutureEvents)
 func (s *GetEventsTestSuite) TestReadOnlyNewEvents() {
 	// Put events in the log
-	err := s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	err := s.ti.GenerateEvents(s.eventSource, s.numEvents)
 	require.NoError(s.T(), err)
 
 	// Create sub
@@ -248,7 +371,7 @@ func (s *GetEventsTestSuite) TestReadOnlyNewEvents() {
 	require.NoError(s.T(), err)
 
 	// Put events in the log
-	err = s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	err = s.ti.GenerateEvents(s.eventSource, s.numEvents)
 	require.NoError(s.T(), err)
 
 	// Get Events
@@ -265,7 +388,7 @@ func (s *GetEventsTestSuite) TestStopWhileWaitingWithEventsAvailable() {
 	require.NoError(s.T(), err)
 
 	// Put events in the log
-	err = s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	err = s.ti.GenerateEvents(s.eventSource, s.numEvents)
 	require.NoError(s.T(), err)
 
 	readyToStop := make(chan struct{})
@@ -300,7 +423,7 @@ func (s *GetEventsTestSuite) TestStopWhileWaitingNoMoreEvents() {
 	require.NoError(s.T(), err)
 
 	// Put events in the log
-	err = s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	err = s.ti.GenerateEvents(s.eventSource, s.numEvents)
 	require.NoError(s.T(), err)
 
 	readyToStop := make(chan struct{})
@@ -340,7 +463,7 @@ func (s *GetEventsTestSuite) TestUnusedNotifyChannel() {
 	// Loop so we test collecting old events and then new events
 	for i := 0; i < 2; i++ {
 		// Put events in the log
-		err = s.ti.GenerateEvents(s.channelPath, s.numEvents)
+		err = s.ti.GenerateEvents(s.eventSource, s.numEvents)
 		require.NoError(s.T(), err)
 
 		// Don't wait on the channel, just get events
@@ -375,7 +498,7 @@ func (s *GetEventsTestSuite) TestHandleEarlyNotifyLoopExit() {
 	require.False(s.T(), ok, "Notify channel should be closed when notify loop exits")
 
 	// Put events in the log
-	err = s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	err = s.ti.GenerateEvents(s.eventSource, s.numEvents)
 	require.NoError(s.T(), err)
 
 	// read all the events, don't wait on the (now closed) channel, just get events
@@ -432,7 +555,7 @@ func (s *GetEventsTestSuite) TestStartAfterBookmark() {
 	//
 
 	// Put events in the log
-	err := s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	err := s.ti.GenerateEvents(s.eventSource, s.numEvents)
 	require.NoError(s.T(), err)
 
 	// Create bookmark
@@ -461,7 +584,7 @@ func (s *GetEventsTestSuite) TestStartAfterBookmark() {
 	//
 
 	// Add some more events
-	err = s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	err = s.ti.GenerateEvents(s.eventSource, s.numEvents)
 	require.NoError(s.T(), err)
 
 	// Create sub
@@ -500,7 +623,7 @@ func (s *GetEventsTestSuite) TestStartAfterBookmarkNotFoundWithoutStrictFlag() {
 	//
 
 	// Put events in the log
-	err := s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	err := s.ti.GenerateEvents(s.eventSource, s.numEvents)
 	require.NoError(s.T(), err)
 
 	// Create bookmark
@@ -533,7 +656,7 @@ func (s *GetEventsTestSuite) TestStartAfterBookmarkNotFoundWithoutStrictFlag() {
 	//
 
 	// Add some more events
-	err = s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	err = s.ti.GenerateEvents(s.eventSource, s.numEvents)
 	require.NoError(s.T(), err)
 
 	// Create sub
@@ -572,7 +695,7 @@ func (s *GetEventsTestSuite) TestStartAfterBookmarkNotFoundWithStrictFlag() {
 	//
 
 	// Put events in the log
-	err := s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	err := s.ti.GenerateEvents(s.eventSource, s.numEvents)
 	require.NoError(s.T(), err)
 
 	// Create bookmark
@@ -605,7 +728,7 @@ func (s *GetEventsTestSuite) TestStartAfterBookmarkNotFoundWithStrictFlag() {
 	//
 
 	// Add some more events
-	err = s.ti.GenerateEvents(s.channelPath, s.numEvents)
+	err = s.ti.GenerateEvents(s.eventSource, s.numEvents)
 	require.NoError(s.T(), err)
 
 	// Create sub
@@ -641,7 +764,8 @@ func TestLaunchGetEventsTestSuite(t *testing.T) {
 	for _, tiName := range testerNames {
 		t.Run(fmt.Sprintf("%sAPI", tiName), func(t *testing.T) {
 			var s GetEventsTestSuite
-			s.channelPath = "testchannel-subscription"
+			s.channelPath = "dd-test-channel-subscription"
+			s.eventSource = "dd-test-source-subscription"
 			s.testAPI = tiName
 			s.numEvents = 10
 			suite.Run(t, &s)

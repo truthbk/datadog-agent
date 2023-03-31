@@ -106,6 +106,10 @@ func (v *evtVariantValues) Count() uint {
 	return v.count
 }
 
+func (v *evtVariantValues) Buffer() unsafe.Pointer {
+	return v.buf
+}
+
 func (v *evtVariantValues) Close() {
 	C.free(v.buf)
 }

@@ -89,7 +89,8 @@ func (ti *WindowsAPITester) InstallSource(channel string, source string) error {
 	}
 	defer sourceKey.Close()
 
-	err = sourceKey.SetExpandStringValue("EventMessageFile", `C:\Windows\System32\eventcreate.exe`)
+	// eventcreate.exe is used because it has a generic message format that enabled EvtFormatMessage to succeed
+	err = sourceKey.SetExpandStringValue("EventMessageFile", `%SystemRoot%\System32\eventcreate.exe`)
 	if err != nil {
 		return err
 	}

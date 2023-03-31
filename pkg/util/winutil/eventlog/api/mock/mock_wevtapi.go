@@ -519,3 +519,18 @@ func (api *API) EvtCreateRenderContext(ValuePaths []string, Flags uint) (evtapi.
 func (api *API) EvtRenderEventValues(Context evtapi.EventRenderContextHandle, Fragment evtapi.EventRecordHandle) (evtapi.EvtVariantValues, error) {
 	return nil, fmt.Errorf("not implemented")
 }
+
+func (api *API) EvtOpenPublisherMetadata(
+	PublisherId string,
+	LogFilePath string) (evtapi.EventPublisherMetadataHandle, error) {
+	return evtapi.EventPublisherMetadataHandle(0), fmt.Errorf("not implemented")
+}
+
+func (api *API) EvtFormatMessage(
+	PublisherMetadata evtapi.EventPublisherMetadataHandle,
+	Event evtapi.EventRecordHandle,
+	MessageId uint,
+	Values evtapi.EvtVariantValues,
+	Flags uint) (string, error) {
+	return "", fmt.Errorf("not implemented")
+}

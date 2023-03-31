@@ -29,6 +29,8 @@ var (
 	evtCreateRenderContext = wevtapi.NewProc("EvtCreateRenderContext")
 	evtRender              = wevtapi.NewProc("EvtRender")
 	evtClearLog            = wevtapi.NewProc("EvtClearLog")
+	evtOpenPublisherMetadata = wevtapi.NewProc("EvtOpenPublisherMetadata")
+	evtFormatMessage         = wevtapi.NewProc("EvtFormatMessage")
 
 	// Legacy Event Logging API
 	// https://learn.microsoft.com/en-us/windows/win32/eventlog/using-event-logging
@@ -336,4 +338,83 @@ func (api *API) EvtClearLog(ChannelPath string) error {
 	}
 
 	return nil
+}
+
+func (api *API) EvtOpenPublisherMetadata(
+	PublisherId string,
+	LogFilePath string) (evtapi.EventPublisherMetadataHandle, error) {
+
+	publisherId, err := windows.UTF16PtrFromString(PublisherId)
+	if err != nil {
+		return evtapi.EventPublisherMetadataHandle(0), err
+	}
+
+	logFilePath, err := winutil.UTF16PtrOrNilFromString(LogFilePath)
+	if err != nil {
+		return evtapi.EventPublisherMetadataHandle(0), err
+	}
+
+	r1, _, lastErr := evtOpenPublisherMetadata.Call(
+		uintptr(0), // local computer only
+		uintptr(unsafe.Pointer(publisherId)),
+		uintptr(unsafe.Pointer(logFilePath)),
+		uintptr(0), // use current locale
+		uintptr(0)) // reserved must be 0
+	// EvtOpenPublisherMetadata returns NULL on error
+	if r1 == 0 {
+		return evtapi.EventPublisherMetadataHandle(0), lastErr
+	}
+
+	return evtapi.EventPublisherMetadataHandle(r1), nil
+}
+
+func (api *API) EvtFormatMessage(
+	PublisherMetadata evtapi.EventPublisherMetadataHandle,
+	Event evtapi.EventRecordHandle,
+	MessageId uint,
+	Values evtapi.EvtVariantValues,
+	Flags uint) (string, error) {
+
+
+	var BufferUsed uint32
+
+	r1, _, lastErr := evtFormatMessage.Call(
+		uintptr(PublisherMetadata),
+		uintptr(Event),
+		uintptr(MessageId),
+		uintptr(0),
+		uintptr(0),
+		uintptr(Flags),
+		uintptr(0),
+		uintptr(0),
+		uintptr(unsafe.Pointer(&BufferUsed)))
+	// EvtFormatMessage returns C FALSE (0) on error
+	if r1 == 0 {
+		if lastErr != windows.ERROR_INSUFFICIENT_BUFFER {
+			return "", lastErr
+		}
+	} else {
+		return "", nil
+	}
+
+	// Allocate buffer space (BufferUsed is size in characters)
+	Buffer := make([]uint16, BufferUsed)
+
+	r1, _, lastErr = evtFormatMessage.Call(
+		uintptr(PublisherMetadata),
+		uintptr(Event),
+		uintptr(MessageId),
+		uintptr(0),
+		uintptr(0),
+		uintptr(Flags),
+		uintptr(BufferUsed),
+		// TODO: use unsafe.SliceData in go1.20
+		uintptr(unsafe.Pointer(&Buffer[:1][0])),
+		uintptr(unsafe.Pointer(&BufferUsed)))
+	// EvtFormatMessage returns C FALSE (0) on error
+	if r1 == 0 {
+		return "", lastErr
+	}
+
+	return windows.UTF16ToString(Buffer), nil
 }

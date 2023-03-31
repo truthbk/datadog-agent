@@ -89,8 +89,7 @@ func (c *Check) Run() error {
 			}
 
 			// Render Windows event values into the DD event
-			c.renderEventSystemValues(winevent, &ddevent)
-			c.renderEventMessage(winevent, &ddevent)
+			c.renderEventValues(winevent, &ddevent)
 
 			// submit
 			sender.Event(ddevent)
@@ -130,7 +129,7 @@ func alertTypeFromLevel(level uint64) (metrics.EventAlertType, error) {
 	return metrics.GetAlertTypeFromString(alertType)
 }
 
-func (c *Check) renderEventSystemValues(winevent *evtapi.EventRecord, ddevent *metrics.Event) error {
+func (c *Check) renderEventValues(winevent *evtapi.EventRecord, ddevent *metrics.Event) error {
 	// Render the values
 	vals, err := c.evtapi.EvtRenderEventValues(c.systemRenderContext, winevent.EventRecordHandle)
 	if err != nil {
@@ -173,17 +172,28 @@ func (c *Check) renderEventSystemValues(winevent *evtapi.EventRecord, ddevent *m
 		ddevent.Title = fmt.Sprintf("%s/%s", c.config.instance.ChannelPath, providerName)
 	}
 
-	return nil
-}
-
-func (c *Check) renderEventMessage(winevent *evtapi.EventRecord, ddevent *metrics.Event) error {
-	// TODO: switch to evtformatmessage
-	xml, err := c.evtapi.EvtRenderEventXml(winevent.EventRecordHandle)
+	// formatted message
+	err = c.renderEventMessage(providerName, winevent, ddevent)
 	if err != nil {
 		return err
 	}
 
-	ddevent.Text = windows.UTF16ToString(xml)
+	return nil
+}
+
+func (c *Check) renderEventMessage(providerName string, winevent *evtapi.EventRecord, ddevent *metrics.Event) error {
+	pm, err := c.evtapi.EvtOpenPublisherMetadata(providerName, "")
+	if err != nil {
+		return err
+	}
+	defer evtapi.EvtClosePublisherMetadata(c.evtapi, pm)
+
+	message, err := c.evtapi.EvtFormatMessage(pm, winevent.EventRecordHandle, 0, nil, evtapi.EvtFormatMessageEvent)
+	if err != nil {
+		return err
+	}
+
+	ddevent.Text = message
 
 	return nil
 }

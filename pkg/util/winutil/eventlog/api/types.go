@@ -8,6 +8,8 @@
 package evtapi
 
 import (
+	"unsafe"
+
 	"golang.org/x/sys/windows"
 )
 
@@ -91,6 +93,20 @@ const (
 	EvtSystemPropertyIdEND
 )
 
+const (
+	// EVT_FORMAT_MESSAGE_FLAGS
+	// https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_format_message_flags
+	EvtFormatMessageEvent = iota+1
+	EvtFormatMessageLevel
+	EvtFormatMessageTask
+	EvtFormatMessageOpcode
+	EvtFormatMessageKeyword
+	EvtFormatMessageChannel
+	EvtFormatMessageProvider
+	EvtFormatMessageId
+	EvtFormatMessageXml
+)
+
 // Returned from EvtQuery and EvtSubscribe
 type EventResultSetHandle windows.Handle
 
@@ -102,6 +118,9 @@ type EventBookmarkHandle windows.Handle
 
 // Returned from EvtCreateRenderContext
 type EventRenderContextHandle windows.Handle
+
+// Returned from EvtOpenPublisherMetadata
+type EventPublisherMetadataHandle windows.Handle
 
 // Returned from RegisterEventSource
 type EventSourceHandle windows.Handle
@@ -139,6 +158,17 @@ type API interface {
 
 	EvtUpdateBookmark(Bookmark EventBookmarkHandle, Event EventRecordHandle) error
 
+	EvtOpenPublisherMetadata(
+		PublisherId string,
+		LogFilePath string) (EventPublisherMetadataHandle, error)
+
+	EvtFormatMessage(
+		PublisherMetadata EventPublisherMetadataHandle,
+		Event EventRecordHandle,
+		MessageId uint,
+		Values EvtVariantValues,
+		Flags uint) (string, error)
+
 	// Windows Event Logging methods
 	RegisterEventSource(SourceName string) (EventSourceHandle, error)
 
@@ -174,6 +204,9 @@ type EvtVariantValues interface {
 	// Returns the EVT_VARIANT_TYPE of the element at index
 	Type(uint) (uint, error)
 
+	// Buffer to raw EVT_VARIANT buffer
+	Buffer() unsafe.Pointer
+
 	// The number of values
 	Count() uint
 
@@ -191,5 +224,13 @@ func EvtCloseBookmark(api API, h EventBookmarkHandle) {
 }
 
 func EvtCloseRecord(api API, h EventRecordHandle) {
+	api.EvtClose(windows.Handle(h))
+}
+
+func EvtCloseRenderContext(api API, h EventRenderContextHandle) {
+	api.EvtClose(windows.Handle(h))
+}
+
+func EvtClosePublisherMetadata(api API, h EventPublisherMetadataHandle) {
 	api.EvtClose(windows.Handle(h))
 }
