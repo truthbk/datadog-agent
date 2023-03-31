@@ -97,6 +97,7 @@ func (c *PythonCheck) runCheck(commitMetrics bool) error {
 
 	if commitMetrics {
 		s, err := aggregator.GetSender(c.ID())
+		dump.Println(s)
 		if err != nil {
 			return fmt.Errorf("Failed to retrieve a Sender instance: %v", err)
 		}

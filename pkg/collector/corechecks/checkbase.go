@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/check/defaults"
 	telemetry_utils "github.com/DataDog/datadog-agent/pkg/telemetry/utils"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/gookit/goutil/dump"
 )
 
 // CheckBase provides default implementations for most of the check.Check
@@ -240,6 +241,7 @@ func (c *CheckBase) GetWarnings() []error {
 //
 // See `safesender.go` for details on the managed errors.
 func (c *CheckBase) GetSender() (aggregator.Sender, error) {
+	dump.Println(c)
 	sender, err := c.GetRawSender()
 	if err != nil {
 		return nil, err

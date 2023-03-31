@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/metrics"
 	"github.com/DataDog/datadog-agent/pkg/serializer"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/gookit/goutil/dump"
 )
 
 // Sender allows sending metrics from checks/a check
@@ -431,6 +432,7 @@ func (sp *checkSenderPool) getSender(id check.ID) (Sender, error) {
 	sp.m.Lock()
 	defer sp.m.Unlock()
 
+	dump.Println(sp)
 	if sender, ok := sp.senders[id]; ok {
 		return sender, nil
 	}
