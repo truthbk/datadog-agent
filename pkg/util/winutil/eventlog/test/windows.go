@@ -64,6 +64,13 @@ func (ti *WindowsAPITester) InstallChannel(channel string) error {
 	}
 	defer channelKey.Close()
 
+	// Increase the max size to accomodate more events
+	// The default is 20MB, we increase it to 100MB
+	err = channelKey.SetDWordValue("MaxSize", 100*1024*1024)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
