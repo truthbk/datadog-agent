@@ -49,7 +49,7 @@ static __always_inline void protocol_classifier_entrypoint(struct __sk_buff *skb
         return;
     }
     if (cb->recursion != 0) {
-        log_info("assert: cb->recursion == 0 failed cb->recursion == %d\n", cb->recursion);
+        log_info("assert: cb->recursion == 0 failed cb->recursion == %d, pkt_type = %d\n", cb->recursion, skb->pkt_type);
         bpf_map_update_elem(&socket_filter_nesting, &key, &key, BPF_NOEXIST);
         u32* count = bpf_map_lookup_elem(&socket_filter_nesting, &key);
         if (count != NULL) {
@@ -104,7 +104,7 @@ exit:
         return;
 
     if (cb->recursion != 1) {
-        log_info("assert: cb->recursion == 1 failed cb->recursion == %d\n", cb->recursion);
+        log_info("assert: cb->recursion == 1 failed cb->recursion == %d, pkt_type = %d\n", cb->recursion, skb->pkt_type);
         bpf_map_update_elem(&socket_filter_nesting, &key, &key, BPF_NOEXIST);
         u32* count = bpf_map_lookup_elem(&socket_filter_nesting, &key);
         if (count != NULL) {
