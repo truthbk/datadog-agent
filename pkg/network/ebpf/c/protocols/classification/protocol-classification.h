@@ -18,6 +18,7 @@
 #include "protocols/redis/helpers.h"
 #include "protocols/postgres/helpers.h"
 #include "protocols/tls/tls.h"
+#include "protocols/tls/dtls.h"
 
 // Checks if a given buffer is http, http2, gRPC.
 static __always_inline protocol_t classify_applayer_protocols(const char *buf, __u32 size) {
@@ -82,8 +83,8 @@ __maybe_unused static __always_inline void protocol_classifier_entrypoint(struct
         return;
     }
 
-    // We support non empty TCP payloads for classification at the moment.
-    if (!is_tcp(&skb_tup) || is_payload_empty(skb, &skb_info)) {
+    // We support non empty payloads for classification at the moment.
+    if (is_payload_empty(skb, &skb_info)) {
         return;
     }
 
@@ -91,7 +92,7 @@ __maybe_unused static __always_inline void protocol_classifier_entrypoint(struct
     // but as we add support for multiple protocols in the stack, we should revisit this implementation,
     // and unify it with the following if clause.
     //
-    // The connection is TLS encrypted, thus we cannot classify the protocol using socket filter.
+    // The connection is TLS or DTLS encrypted, thus we cannot classify the protocol using socket filter.
     if (is_tls_connection_cached(&skb_tup)) {
         return;
     }
@@ -115,6 +116,18 @@ __maybe_unused static __always_inline void protocol_classifier_entrypoint(struct
     read_into_buffer_for_classification((char *)request_fragment, skb, skb_info.data_off);
     const size_t payload_length = skb->len - skb_info.data_off;
     const size_t final_fragment_size = payload_length < CLASSIFICATION_MAX_BUFFER ? payload_length : CLASSIFICATION_MAX_BUFFER;
+
+    if (is_udp(&skb_tup) && is_dtls(request_fragment, final_fragment_size)) {
+        const bool t = true;
+        bpf_map_update_with_telemetry(tls_connection, &skb_tup, &t, BPF_ANY);
+        flip_tuple(&skb_tup);
+        bpf_map_update_with_telemetry(tls_connection, &skb_tup, &t, BPF_ANY);
+        return;
+    }
+
+    if (!is_tcp(&skb_tup)) {
+        return;
+    }
 
     // In the context of socket filter, we can classify the protocol if it is plain text,
     // so if the protocol is encrypted, then we have to rely on our uprobes to classify correctly the protocol.

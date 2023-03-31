@@ -25,6 +25,11 @@ static __always_inline bool is_tcp(conn_tuple_t *tup) {
     return tup->metadata & CONN_TYPE_TCP;
 }
 
+// Returns true if the packet is UDP.
+static __always_inline bool is_udp(conn_tuple_t *tup) {
+    return tup->metadata & CONN_TYPE_UDP;
+}
+
 // Returns true if the payload is empty.
 static __always_inline bool is_payload_empty(struct __sk_buff *skb, skb_info_t *skb_info) {
     return skb_info->data_off == skb->len;

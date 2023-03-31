@@ -37,7 +37,7 @@ static __always_inline bool is_valid_tls_version(__u16 version) {
     return (version == SSL_VERSION20) || (version == SSL_VERSION30) || (version == TLS_VERSION10) || (version == TLS_VERSION11) || (version == TLS_VERSION12) || (version == TLS_VERSION13);
 }
 
-static __always_inline bool is_payload_length_valid(__u8 app, __u16 tls_len, __u32 buf_size) {
+static __always_inline bool is_tls_payload_length_valid(__u8 app, __u16 tls_len, __u32 buf_size) {
     /* check only for application data layer */
     if (app != TLS_APPLICATION_DATA) {
         return true;
@@ -68,7 +68,7 @@ static __always_inline bool is_tls(const char* buf, __u32 buf_size) {
         return false;
     }
 
-    if (!is_payload_length_valid(tls_record->app, tls_record->length, buf_size)) {
+    if (!is_tls_payload_length_valid(tls_record->app, tls_record->length, buf_size)) {
         return false;
     }
 
