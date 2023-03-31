@@ -566,12 +566,17 @@ require (
 	sigs.k8s.io/yaml v1.3.0
 )
 
-require github.com/aquasecurity/trivy v0.0.0-00010101000000-000000000000
+require (
+	github.com/aquasecurity/trivy v0.0.0-00010101000000-000000000000
+	github.com/gookit/goutil v0.6.7
+)
 
 require (
 	github.com/cloudflare/circl v1.1.0 // indirect
+	github.com/gookit/color v1.5.2 // indirect
 	github.com/rs/zerolog v1.29.0 // indirect
 	github.com/sigstore/rekor v1.0.1 // indirect
+	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 )
 

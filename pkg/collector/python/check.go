@@ -24,6 +24,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config"
 	telemetry_utils "github.com/DataDog/datadog-agent/pkg/telemetry/utils"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+
+	"github.com/gookit/goutil/dump"
 )
 
 /*
@@ -90,6 +92,7 @@ func (c *PythonCheck) runCheck(commitMetrics bool) error {
 		}
 		return fmt.Errorf("An error occurred while running python check %s", c.ModuleName)
 	}
+	dump.Println(cResult)
 	defer C.rtloader_free(rtloader, unsafe.Pointer(cResult))
 
 	if commitMetrics {
