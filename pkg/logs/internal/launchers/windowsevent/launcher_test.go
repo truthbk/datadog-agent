@@ -32,12 +32,13 @@ type LauncherTestSuite struct {
 	configID        string
 
 	channelPath     string
+	eventSource     string
 	query           string
 	tailerType      string
 	testAPI         string
 	numEvents       uint
 
-	ti              eventlog_test.EventLogTestInterface
+	ti              eventlog_test.APITester
 
 	outputChan       chan *message.Message
 	pipelineProvider pipeline.Provider
@@ -47,22 +48,22 @@ type LauncherTestSuite struct {
 
 func (suite *LauncherTestSuite) SetupSuite() {
 	var err error
-	fmt.Println("SetupSuite")
+	// fmt.Println("SetupSuite")
 	// Enable logger
 	pkglog.SetupLogger(seelog.Default, "debug")
 
-	suite.ti = eventlog_test.GetTestInterfaceByName(suite.testAPI, suite.T())
+	suite.ti = eventlog_test.GetAPITesterByName(suite.testAPI, suite.T())
 	err = suite.ti.InstallChannel(suite.channelPath)
 	require.NoError(suite.T(), err)
-	err = suite.ti.InstallSource(suite.channelPath, "testsource")
+	err = suite.ti.InstallSource(suite.channelPath, suite.eventSource)
 	require.NoError(suite.T(), err)
-	err = suite.ti.GenerateEvents(suite.channelPath, suite.numEvents)
+	err = suite.ti.API().EvtClearLog(suite.channelPath)
 	require.NoError(suite.T(), err)
 }
 
 func (suite *LauncherTestSuite) TearDownSuite() {
-	fmt.Println("TearDownSuite")
-	suite.ti.RemoveSource(suite.channelPath, "testsource")
+	// fmt.Println("TearDownSuite")
+	suite.ti.RemoveSource(suite.channelPath, suite.eventSource)
 	suite.ti.RemoveChannel(suite.channelPath)
 }
 
@@ -76,42 +77,46 @@ func (suite *LauncherTestSuite) SetupTest() {
 			ChannelPath: suite.channelPath,
 			Query: suite.query})
 	suite.s = NewLauncher()
-	suite.s.evtapi = suite.ti.EventLogAPI()
+	suite.s.evtapi = suite.ti.API()
 	status.InitStatus(util.CreateSources([]*sources.LogSource{suite.source}))
 	suite.s.Start(launchers.NewMockSourceProvider(), suite.pipelineProvider, auditor.NewRegistry())
-	fmt.Println("sending source")
+	// fmt.Println("sending source")
 	suite.s.sources <- suite.source
-	fmt.Println("sent source")
+	// fmt.Println("sent source")
 	if len(suite.s.tailers) != 1 {
 		time.Sleep(500 * time.Millisecond)
 	}
 	if suite.source.Status.IsSuccess() {
-		fmt.Println("success")
+		// fmt.Println("success")
 	} else {
-		fmt.Println("failure")
+		// fmt.Println("failure")
 		suite.FailNow("failed to create tailer")
 	}
 }
 
 func (suite *LauncherTestSuite) TearDownTest() {
-	fmt.Println("TearDownTest")
+	// fmt.Println("TearDownTest")
 	status.Clear()
 	suite.s.Stop()
 }
 
 func TestLauncherTestSuite(t *testing.T) {
 	var s LauncherTestSuite
-	s.channelPath = "testchannel"
+	s.channelPath = "dd-test-channel-loglauncher"
+	s.eventSource = "dd-test-source-loglauncher"
 	s.query = "*"
-	s.tailerType = "windows_event_new"
-	s.testAPI = "Mock"
+	s.tailerType = "windows_event"
+	s.testAPI = "Windows"
 	s.numEvents = 1
 	suite.Run(t, &s)
 }
 
 func (suite *LauncherTestSuite) TestReadEvents() {
-	fmt.Println("TestReadEvents")
+	err := suite.ti.GenerateEvents(suite.eventSource, suite.numEvents)
+	require.NoError(suite.T(), err)
+	// fmt.Println("TestReadEvents")
 	msg := <-suite.outputChan
+	fmt.Println(msg)
 	suite.Equal("hello world", string(msg.Content))
 }
 

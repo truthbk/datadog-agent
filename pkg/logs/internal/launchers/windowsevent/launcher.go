@@ -13,7 +13,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/internal/launchers"
 	tailer "github.com/DataDog/datadog-agent/pkg/logs/internal/tailers/windowsevent"
 	newtailer "github.com/DataDog/datadog-agent/pkg/logs/internal/tailers/windowsevent-new"
-	evtapidef "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
 	"github.com/DataDog/datadog-agent/pkg/logs/pipeline"
 	"github.com/DataDog/datadog-agent/pkg/logs/sources"
 	"github.com/DataDog/datadog-agent/pkg/util/startstop"
@@ -26,7 +26,7 @@ type Tailer interface {
 
 // Launcher is in charge of starting and stopping windows event logs tailers
 type Launcher struct {
-	evtapi           evtapidef.IWindowsEventLogAPI
+	evtapi           evtapi.API
 	sources          chan *sources.LogSource
 	pipelineProvider pipeline.Provider
 	tailers          map[string]Tailer

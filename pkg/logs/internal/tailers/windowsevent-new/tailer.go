@@ -19,8 +19,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
 	"github.com/DataDog/datadog-agent/pkg/logs/sources"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
-	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog"
-	evtapidef "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
+	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/subscription"
 )
 
 const (
@@ -39,11 +39,6 @@ type Config struct {
 	Query       string
 }
 
-// eventContext links go and c
-type eventContext struct {
-	id int
-}
-
 // richEvent carries rendered information to create a richer log
 type richEvent struct {
 	xmlEvent string
@@ -55,19 +50,19 @@ type richEvent struct {
 
 // Tailer collects logs from event log.
 type Tailer struct {
-	evtapi     evtapidef.IWindowsEventLogAPI
+	evtapi     evtapi.API
 	source     *sources.LogSource
 	config     *Config
 	outputChan chan *message.Message
 	stop       chan struct{}
 	done       chan struct{}
 
-	context *eventContext
-	sub *eventlog.PullSubscription
+	sub *evtsubscribe.PullSubscription
+	systemRenderContext evtapi.EventRenderContextHandle
 }
 
 // NewTailer returns a new tailer.
-func NewTailer(evtapi evtapidef.IWindowsEventLogAPI, source *sources.LogSource, config *Config, outputChan chan *message.Message) *Tailer {
+func NewTailer(evtapi evtapi.API, source *sources.LogSource, config *Config, outputChan chan *message.Message) *Tailer {
 	return &Tailer{
 		evtapi:     evtapi,
 		source:     source,
@@ -91,7 +86,7 @@ func (t *Tailer) Identifier() string {
 // toMessage converts an XML message into json
 func (t *Tailer) toMessage(re *richEvent) (*message.Message, error) { //nolint:unused
 	event := re.xmlEvent
-	log.Debug("Rendered XML:", event)
+	log.Trace("Rendered XML:", event)
 	mxj.PrependAttrWithHyphen(false)
 	mv, err := mxj.NewMapXml([]byte(event))
 	if err != nil {
@@ -146,7 +141,7 @@ func (t *Tailer) toMessage(re *richEvent) (*message.Message, error) { //nolint:u
 		return &message.Message{}, err
 	}
 	jsonEvent = replaceTextKeyToValue(jsonEvent)
-	log.Debug("Sending JSON:", string(jsonEvent))
+	log.Trace("Sending JSON:", string(jsonEvent))
 	return message.NewMessageWithSource(jsonEvent, message.StatusInfo, t.source, time.Now().UnixNano()), nil
 }
 
