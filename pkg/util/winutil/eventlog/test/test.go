@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var enabledAPIsFlag = flag.String("evtapi", "Mock", "Comma-separated list of Event Log APIs to run tests with")
+var enabledAPIsFlag = flag.String("evtapi", "Fake", "Comma-separated list of Event Log APIs to run tests with")
 
 type APITester interface {
 	Name() string
@@ -36,8 +36,8 @@ func GetEnabledAPITesters() []string {
 }
 
 func GetAPITesterByName(name string, t testing.TB) APITester {
-	if name == "Mock" {
-		return NewMockAPITester(t)
+	if name == "Fake" {
+		return NewFakeAPITester(t)
 	} else if name == "Windows" {
 		return NewWindowsAPITester(t)
 	}

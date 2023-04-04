@@ -30,9 +30,9 @@ func testExampleNotifyChannel(t testing.TB, ti eventlog_test.APITester, stop cha
 	// Windows API
 	//   "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api/windows"
 	//   api = winevtapi.New()
-	// Mock API
-	//   "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api/mock"
-	//   api = mockevtapi.New()
+	// Fake API
+	//   "github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api/fake"
+	//   api = fakeevtapi.New()
 	// For this test the API implementation is selected by the test runner
 	api := ti.API()
 
@@ -199,8 +199,8 @@ func TestExampleNotifyChannel(t *testing.T) {
 	numEvents := uint(10)
 	for _, tiName := range testInterfaceNames {
 		t.Run(fmt.Sprintf("%sAPI", tiName), func(t *testing.T) {
-			if tiName == "Mock" {
-				t.Skip("Mock does not implement EvtRenderValues")
+			if tiName == "Fake" {
+				t.Skip("Fake API does not implement EvtRenderValues")
 			}
 			ti := eventlog_test.GetAPITesterByName(tiName, t)
 			// Create some test events

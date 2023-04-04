@@ -155,4 +155,3 @@ func channelRootKey() string {
 func channelRegistryKey(channel string) string {
 	return fmt.Sprintf(`%v\%v`, channelRootKey(), channel)
 }
-

@@ -5,7 +5,7 @@
 //go:build windows
 // +build windows
 
-package mockevtapi
+package fakeevtapi
 
 import (
 	"bytes"
@@ -21,33 +21,33 @@ import (
 )
 
 type API struct {
-	eventLogs map[string]*mockEventLog
+	eventLogs map[string]*eventLog
 
 	nextHandle      *atomic.Uint64
-	subscriptions   map[evtapi.EventResultSetHandle]*mockSubscription
-	eventHandles    map[evtapi.EventRecordHandle]*mockEventRecord
+	subscriptions   map[evtapi.EventResultSetHandle]*subscription
+	eventHandles    map[evtapi.EventRecordHandle]*eventRecord
 	sourceHandles   map[evtapi.EventSourceHandle]string
-	bookmarkHandles map[evtapi.EventBookmarkHandle]*mockBookmark
+	bookmarkHandles map[evtapi.EventBookmarkHandle]*bookmark
 }
 
-type mockEventLog struct {
+type eventLog struct {
 	name   string
-	events []*mockEventRecord
+	events []*eventRecord
 
 	nextRecordID *atomic.Uint64
 
-	sources map[string]*mockEventSource
+	sources map[string]*eventSource
 
 	// For notifying of new events
-	subscriptions map[evtapi.EventResultSetHandle]*mockSubscription
+	subscriptions map[evtapi.EventResultSetHandle]*subscription
 }
 
-type mockEventSource struct {
+type eventSource struct {
 	name    string
 	logName string
 }
 
-type mockSubscription struct {
+type subscription struct {
 	channel string
 	query   string
 	handle  evtapi.EventResultSetHandle
@@ -57,7 +57,7 @@ type mockSubscription struct {
 	nextEvent uint
 }
 
-type mockEventRecord struct {
+type eventRecord struct {
 	handle evtapi.EventRecordHandle
 
 	// Must be exported so template can render them
@@ -70,7 +70,7 @@ type mockEventRecord struct {
 	RecordID uint
 }
 
-type mockBookmark struct {
+type bookmark struct {
 	handle        evtapi.EventBookmarkHandle
 	eventRecordID uint
 }
@@ -80,34 +80,34 @@ func New() *API {
 
 	api.nextHandle = atomic.NewUint64(0)
 
-	api.subscriptions = make(map[evtapi.EventResultSetHandle]*mockSubscription)
-	api.eventHandles = make(map[evtapi.EventRecordHandle]*mockEventRecord)
+	api.subscriptions = make(map[evtapi.EventResultSetHandle]*subscription)
+	api.eventHandles = make(map[evtapi.EventRecordHandle]*eventRecord)
 	api.sourceHandles = make(map[evtapi.EventSourceHandle]string)
-	api.bookmarkHandles = make(map[evtapi.EventBookmarkHandle]*mockBookmark)
+	api.bookmarkHandles = make(map[evtapi.EventBookmarkHandle]*bookmark)
 
-	api.eventLogs = make(map[string]*mockEventLog)
+	api.eventLogs = make(map[string]*eventLog)
 
 	return &api
 }
 
-func newMockEventLog(name string) *mockEventLog {
-	var e mockEventLog
+func newEventLog(name string) *eventLog {
+	var e eventLog
 	e.name = name
 	e.nextRecordID = atomic.NewUint64(0)
-	e.subscriptions = make(map[evtapi.EventResultSetHandle]*mockSubscription)
-	e.sources = make(map[string]*mockEventSource)
+	e.subscriptions = make(map[evtapi.EventResultSetHandle]*subscription)
+	e.sources = make(map[string]*eventSource)
 	return &e
 }
 
-func newMockSubscription(channel string, query string) *mockSubscription {
-	var s mockSubscription
+func newSubscription(channel string, query string) *subscription {
+	var s subscription
 	s.channel = channel
 	s.query = query
 	return &s
 }
 
-func newMockEventRecord(Type uint, category uint, eventID uint, eventLog string, strings []string, data []uint8) *mockEventRecord {
-	var e mockEventRecord
+func newEventRecord(Type uint, category uint, eventID uint, eventLog string, strings []string, data []uint8) *eventRecord {
+	var e eventRecord
 	e.Type = Type
 	e.Category = category
 	e.EventID = eventID
@@ -117,21 +117,21 @@ func newMockEventRecord(Type uint, category uint, eventID uint, eventLog string,
 	return &e
 }
 
-// Mock helpers
+// Fake helpers
 func (api *API) AddEventLog(name string) error {
 	// does it exist
-	_, err := api.getMockEventLog(name)
+	_, err := api.getEventLog(name)
 	if err == nil {
 		return fmt.Errorf("Event log %v already exists", name)
 	}
 
-	api.addMockEventLog(newMockEventLog(name))
+	api.addEventLog(newEventLog(name))
 	return nil
 }
 
 func (api *API) RemoveEventLog(name string) error {
 	// Get event log
-	_, err := api.getMockEventLog(name)
+	_, err := api.getEventLog(name)
 	if err != nil {
 		return err
 	}
@@ -141,14 +141,14 @@ func (api *API) RemoveEventLog(name string) error {
 
 func (api *API) AddEventSource(channel string, source string) error {
 	// Get event log
-	log, err := api.getMockEventLog(channel)
+	log, err := api.getEventLog(channel)
 	if err != nil {
 		return err
 	}
 
 	_, exists := log.sources[source]
 	if !exists {
-		var s mockEventSource
+		var s eventSource
 		s.name = source
 		s.logName = channel
 		log.sources[source] = &s
@@ -159,7 +159,7 @@ func (api *API) AddEventSource(channel string, source string) error {
 
 func (api *API) RemoveEventSource(channel string, name string) error {
 	// Get event log
-	log, err := api.getMockEventLog(channel)
+	log, err := api.getEventLog(channel)
 	if err != nil {
 		return err
 	}
@@ -169,7 +169,7 @@ func (api *API) RemoveEventSource(channel string, name string) error {
 
 func (api *API) GenerateEvents(sourceName string, numEvents uint) error {
 	// find the log the source is registered to
-	var eventLog *mockEventLog
+	var eventLog *eventLog
 	for _, log := range api.eventLogs {
 		_, ok := log.sources[sourceName]
 		if ok {
@@ -190,26 +190,26 @@ func (api *API) GenerateEvents(sourceName string, numEvents uint) error {
 	return nil
 }
 
-// internal mock functions
-func (api *API) addSubscription(sub *mockSubscription) {
+// internal fake functions
+func (api *API) addSubscription(sub *subscription) {
 	h := api.nextHandle.Inc()
 	sub.handle = evtapi.EventResultSetHandle(h)
 	api.subscriptions[sub.handle] = sub
 }
 
-func (api *API) addEventRecord(event *mockEventRecord) {
+func (api *API) addEventRecord(event *eventRecord) {
 	h := api.nextHandle.Inc()
 	event.handle = evtapi.EventRecordHandle(h)
 	api.eventHandles[event.handle] = event
 }
 
-func (api *API) addBookmark(bookmark *mockBookmark) {
+func (api *API) addBookmark(bookmark *bookmark) {
 	h := api.nextHandle.Inc()
 	bookmark.handle = evtapi.EventBookmarkHandle(h)
 	api.bookmarkHandles[bookmark.handle] = bookmark
 }
 
-func (api *API) getMockSubscriptionByHandle(subHandle evtapi.EventResultSetHandle) (*mockSubscription, error) {
+func (api *API) getSubscriptionByHandle(subHandle evtapi.EventResultSetHandle) (*subscription, error) {
 	v, ok := api.subscriptions[subHandle]
 	if !ok {
 		return nil, fmt.Errorf("Subscription not found: %#x", subHandle)
@@ -217,7 +217,7 @@ func (api *API) getMockSubscriptionByHandle(subHandle evtapi.EventResultSetHandl
 	return v, nil
 }
 
-func (api *API) getMockEventRecordByHandle(eventHandle evtapi.EventRecordHandle) (*mockEventRecord, error) {
+func (api *API) getEventRecordByHandle(eventHandle evtapi.EventRecordHandle) (*eventRecord, error) {
 	v, ok := api.eventHandles[eventHandle]
 	if !ok {
 		return nil, fmt.Errorf("Event not found: %#x", eventHandle)
@@ -225,7 +225,7 @@ func (api *API) getMockEventRecordByHandle(eventHandle evtapi.EventRecordHandle)
 	return v, nil
 }
 
-func (api *API) getMockBookmarkByHandle(bookmarkHandle evtapi.EventBookmarkHandle) (*mockBookmark, error) {
+func (api *API) getBookmarkByHandle(bookmarkHandle evtapi.EventBookmarkHandle) (*bookmark, error) {
 	v, ok := api.bookmarkHandles[bookmarkHandle]
 	if !ok {
 		return nil, fmt.Errorf("Bookmark not found: %#x", bookmarkHandle)
@@ -233,7 +233,7 @@ func (api *API) getMockBookmarkByHandle(bookmarkHandle evtapi.EventBookmarkHandl
 	return v, nil
 }
 
-func (api *API) getMockEventLog(name string) (*mockEventLog, error) {
+func (api *API) getEventLog(name string) (*eventLog, error) {
 	v, ok := api.eventLogs[name]
 	if !ok {
 		return nil, fmt.Errorf("The Log name \"%v\" does not exist", name)
@@ -241,35 +241,35 @@ func (api *API) getMockEventLog(name string) (*mockEventLog, error) {
 	return v, nil
 }
 
-func (api *API) getMockEventSourceByHandle(sourceHandle evtapi.EventSourceHandle) (*mockEventLog, error) {
+func (api *API) getEventSourceByHandle(sourceHandle evtapi.EventSourceHandle) (*eventLog, error) {
 	// lookup name using handle
 	v, ok := api.sourceHandles[sourceHandle]
 	if !ok {
 		return nil, fmt.Errorf("Invalid source handle: %#x", sourceHandle)
 	}
 
-	return api.getMockEventLog(v)
+	return api.getEventLog(v)
 }
 
-func (api *API) addMockEventLog(eventLog *mockEventLog) {
+func (api *API) addEventLog(eventLog *eventLog) {
 	api.eventLogs[eventLog.name] = eventLog
 }
 
-func (e *mockEventLog) addEventRecord(event *mockEventRecord) {
+func (e *eventLog) addEventRecord(event *eventRecord) {
 	event.RecordID = uint(e.nextRecordID.Inc())
 	// TODO: lock list operations
 	e.events = append(e.events, event)
 }
 
-func (e *mockEventLog) reportEvent(
+func (e *eventLog) reportEvent(
 	api *API,
 	Type uint,
 	Category uint,
 	EventID uint,
 	Strings []string,
-	RawData []uint8) *mockEventRecord {
+	RawData []uint8) *eventRecord {
 
-	event := newMockEventRecord(
+	event := newEventRecord(
 		Type,
 		Category,
 		EventID,
@@ -285,7 +285,7 @@ func (e *mockEventLog) reportEvent(
 	return event
 }
 
-// Mock Windows APIs
+// Fake Windows APIs
 func (api *API) EvtSubscribe(
 	SignalEvent evtapi.WaitEventHandle,
 	ChannelPath string,
@@ -294,26 +294,26 @@ func (api *API) EvtSubscribe(
 	Flags uint) (evtapi.EventResultSetHandle, error) {
 
 	if Query != "" && Query != "*" {
-		return evtapi.EventResultSetHandle(0), fmt.Errorf("Mock does not support query syntax")
+		return evtapi.EventResultSetHandle(0), fmt.Errorf("Fake API does not support query syntax")
 	}
 
 	// ensure channel exists
-	evtlog, err := api.getMockEventLog(ChannelPath)
+	evtlog, err := api.getEventLog(ChannelPath)
 	if err != nil {
 		return evtapi.EventResultSetHandle(0), err
 	}
 
 	// get bookmark
-	var bookmark *mockBookmark
+	var bookmark *bookmark
 	if Bookmark != evtapi.EventBookmarkHandle(0) {
-		bookmark, err = api.getMockBookmarkByHandle(Bookmark)
+		bookmark, err = api.getBookmarkByHandle(Bookmark)
 		if err != nil {
 			return evtapi.EventResultSetHandle(0), err
 		}
 	}
 
 	// create sub
-	sub := newMockSubscription(ChannelPath, Query)
+	sub := newSubscription(ChannelPath, Query)
 	sub.signalEventHandle = SignalEvent
 
 	// go to bookmark
@@ -363,13 +363,13 @@ func (api *API) EvtNext(
 	Timeout uint) ([]evtapi.EventRecordHandle, error) {
 
 	// get subscription
-	sub, err := api.getMockSubscriptionByHandle(Session)
+	sub, err := api.getSubscriptionByHandle(Session)
 	if err != nil {
 		return nil, err
 	}
 
 	// get event log
-	eventLog, err := api.getMockEventLog(sub.channel)
+	eventLog, err := api.getEventLog(sub.channel)
 	if err != nil {
 		return nil, err
 	}
@@ -401,16 +401,16 @@ func (api *API) EvtNext(
 
 func (api *API) EvtClose(h windows.Handle) {
 	// is handle an event?
-	event, err := api.getMockEventRecordByHandle(evtapi.EventRecordHandle(h))
+	event, err := api.getEventRecordByHandle(evtapi.EventRecordHandle(h))
 	if err == nil {
 		delete(api.eventHandles, event.handle)
 		return
 	}
 	// TODO
 	// Is handle a subscription?
-	sub, err := api.getMockSubscriptionByHandle(evtapi.EventResultSetHandle(h))
+	sub, err := api.getSubscriptionByHandle(evtapi.EventResultSetHandle(h))
 	if err == nil {
-		eventLog, err := api.getMockEventLog(sub.channel)
+		eventLog, err := api.getEventLog(sub.channel)
 		if err != nil {
 			return
 		}
@@ -424,7 +424,7 @@ func (api *API) EvtClose(h windows.Handle) {
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtrender
 func (api *API) EvtRenderEventXml(Fragment evtapi.EventRecordHandle) ([]uint16, error) {
 	// get event object
-	event, err := api.getMockEventRecordByHandle(Fragment)
+	event, err := api.getEventRecordByHandle(Fragment)
 	if err != nil {
 		return nil, err
 	}
@@ -493,7 +493,7 @@ func (api *API) RegisterEventSource(SourceName string) (evtapi.EventSourceHandle
 }
 
 func (api *API) DeregisterEventSource(sourceHandle evtapi.EventSourceHandle) error {
-	_, err := api.getMockEventSourceByHandle(sourceHandle)
+	_, err := api.getEventSourceByHandle(sourceHandle)
 	if err != nil {
 		return err
 	}
@@ -510,7 +510,7 @@ func (api *API) ReportEvent(
 	RawData []uint8) error {
 
 	// get event log
-	eventLog, err := api.getMockEventSourceByHandle(EventLog)
+	eventLog, err := api.getEventSourceByHandle(EventLog)
 	if err != nil {
 		return err
 	}
@@ -529,7 +529,7 @@ func (api *API) ReportEvent(
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtclearlog
 func (api *API) EvtClearLog(ChannelPath string) error {
 	// Ensure eventlog exists
-	eventLog, err := api.getMockEventLog(ChannelPath)
+	eventLog, err := api.getEventLog(ChannelPath)
 	if err != nil {
 		return err
 	}
@@ -542,7 +542,7 @@ func (api *API) EvtClearLog(ChannelPath string) error {
 
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtcreatebookmark
 func (api *API) EvtCreateBookmark(BookmarkXml string) (evtapi.EventBookmarkHandle, error) {
-	var b mockBookmark
+	var b bookmark
 
 	// TODO: parse Xml to get record ID
 
@@ -554,13 +554,13 @@ func (api *API) EvtCreateBookmark(BookmarkXml string) (evtapi.EventBookmarkHandl
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtupdatebookmark
 func (api *API) EvtUpdateBookmark(Bookmark evtapi.EventBookmarkHandle, Event evtapi.EventRecordHandle) error {
 	// Get bookmark
-	bookmark, err := api.getMockBookmarkByHandle(Bookmark)
+	bookmark, err := api.getBookmarkByHandle(Bookmark)
 	if err != nil {
 		return err
 	}
 
 	// get event
-	event, err := api.getMockEventRecordByHandle(Event)
+	event, err := api.getEventRecordByHandle(Event)
 	if err != nil {
 		return err
 	}

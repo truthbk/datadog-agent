@@ -110,7 +110,7 @@ func (s *LauncherTestSuite) TestReadEvents() {
 
 	totalEvents := uint(0)
 	for i := uint(0); i < s.numEvents; i++ {
-		msg := <- s.outputChan
+		msg := <-s.outputChan
 		require.NotEmpty(s.T(), msg.Content, "Message must not be empty")
 		totalEvents += 1
 	}
