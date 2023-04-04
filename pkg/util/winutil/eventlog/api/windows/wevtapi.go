@@ -20,15 +20,15 @@ import (
 var (
 	// New Event Log API
 	// https://learn.microsoft.com/en-us/windows/win32/wes/using-windows-event-log
-	wevtapi                = windows.NewLazySystemDLL("wevtapi.dll")
-	evtSubscribe           = wevtapi.NewProc("EvtSubscribe")
-	evtClose               = wevtapi.NewProc("EvtClose")
-	evtNext                = wevtapi.NewProc("EvtNext")
-	evtCreateBookmark      = wevtapi.NewProc("EvtCreateBookmark")
-	evtUpdateBookmark      = wevtapi.NewProc("EvtUpdateBookmark")
-	evtCreateRenderContext = wevtapi.NewProc("EvtCreateRenderContext")
-	evtRender              = wevtapi.NewProc("EvtRender")
-	evtClearLog            = wevtapi.NewProc("EvtClearLog")
+	wevtapi                  = windows.NewLazySystemDLL("wevtapi.dll")
+	evtSubscribe             = wevtapi.NewProc("EvtSubscribe")
+	evtClose                 = wevtapi.NewProc("EvtClose")
+	evtNext                  = wevtapi.NewProc("EvtNext")
+	evtCreateBookmark        = wevtapi.NewProc("EvtCreateBookmark")
+	evtUpdateBookmark        = wevtapi.NewProc("EvtUpdateBookmark")
+	evtCreateRenderContext   = wevtapi.NewProc("EvtCreateRenderContext")
+	evtRender                = wevtapi.NewProc("EvtRender")
+	evtClearLog              = wevtapi.NewProc("EvtClearLog")
 	evtOpenPublisherMetadata = wevtapi.NewProc("EvtOpenPublisherMetadata")
 	evtFormatMessage         = wevtapi.NewProc("EvtFormatMessage")
 
@@ -374,7 +374,6 @@ func (api *API) EvtFormatMessage(
 	MessageId uint,
 	Values evtapi.EvtVariantValues,
 	Flags uint) (string, error) {
-
 
 	var BufferUsed uint32
 

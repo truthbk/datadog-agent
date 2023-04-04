@@ -29,16 +29,16 @@ import (
 
 type LauncherTestSuite struct {
 	suite.Suite
-	configID        string
+	configID string
 
-	channelPath     string
-	eventSource     string
-	query           string
-	tailerType      string
-	testAPI         string
-	numEvents       uint
+	channelPath string
+	eventSource string
+	query       string
+	tailerType  string
+	testAPI     string
+	numEvents   uint
 
-	ti              eventlog_test.APITester
+	ti eventlog_test.APITester
 
 	outputChan       chan *message.Message
 	pipelineProvider pipeline.Provider
@@ -72,10 +72,10 @@ func (suite *LauncherTestSuite) SetupTest() {
 	suite.outputChan = suite.pipelineProvider.NextPipelineChan()
 	suite.source = sources.NewLogSource("",
 		&config.LogsConfig{
-			Type: suite.tailerType,
-			Identifier: suite.configID,
+			Type:        suite.tailerType,
+			Identifier:  suite.configID,
 			ChannelPath: suite.channelPath,
-			Query: suite.query})
+			Query:       suite.query})
 	suite.s = NewLauncher()
 	suite.s.evtapi = suite.ti.API()
 	status.InitStatus(util.CreateSources([]*sources.LogSource{suite.source}))

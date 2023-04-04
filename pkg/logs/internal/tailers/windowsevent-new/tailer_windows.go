@@ -96,7 +96,7 @@ func (t *Tailer) eventLoop() {
 					log.Debugf("No more events")
 					break
 				}
-				for _,eventRecord := range events {
+				for _, eventRecord := range events {
 					t.handleEvent(eventRecord.EventRecordHandle)
 					evtapi.EvtCloseRecord(t.evtapi, eventRecord.EventRecordHandle)
 				}

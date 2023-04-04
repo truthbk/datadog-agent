@@ -96,7 +96,7 @@ const (
 const (
 	// EVT_FORMAT_MESSAGE_FLAGS
 	// https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_format_message_flags
-	EvtFormatMessageEvent = iota+1
+	EvtFormatMessageEvent = iota + 1
 	EvtFormatMessageLevel
 	EvtFormatMessageTask
 	EvtFormatMessageOpcode

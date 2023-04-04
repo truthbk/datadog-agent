@@ -57,7 +57,7 @@ type Tailer struct {
 	stop       chan struct{}
 	done       chan struct{}
 
-	sub *evtsubscribe.PullSubscription
+	sub                 *evtsubscribe.PullSubscription
 	systemRenderContext evtapi.EventRenderContextHandle
 }
 
