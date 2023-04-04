@@ -1,7 +1,7 @@
 name "python3"
 
 if ohai["platform"] != "windows"
-  default_version "3.9.16"
+  default_version "3.11.2"
 
   dependency "libxcrypt"
   dependency "libffi"
@@ -15,7 +15,7 @@ if ohai["platform"] != "windows"
   dependency "libyaml"
 
   source :url => "https://python.org/ftp/python/#{version}/Python-#{version}.tgz",
-         :sha256 => "1ad539e9dbd2b42df714b69726e0693bc6b9d2d2c8e91c2e43204026605140c5"
+         :sha256 => "2411c74bda5bbcfcddaf4531f66d1adc73f247f529aee981b029513aefdbf849"
 
   relative_path "Python-#{version}"
 
@@ -55,7 +55,7 @@ if ohai["platform"] != "windows"
     command python_configure.join(" "), :env => env
     command "make -j #{workers}", :env => env
     command "make install", :env => env
-    delete "#{install_dir}/embedded/lib/python3.9/test"
+    delete "#{install_dir}/embedded/lib/python3.11/test"
 
     # There exists no configure flag to tell Python to not compile readline support :(
     major, minor, bugfix = version.split(".")
