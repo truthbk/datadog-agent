@@ -35,8 +35,15 @@ type mockEventLog struct {
 
 	nextRecordID *atomic.Uint64
 
+	sources map[string]*mockEventSource
+
 	// For notifying of new events
 	subscriptions map[evtapi.EventResultSetHandle]*mockSubscription
+}
+
+type mockEventSource struct {
+	name string
+	logName string
 }
 
 type mockSubscription struct {
@@ -87,6 +94,7 @@ func newMockEventLog(name string) *mockEventLog {
 	e.name = name
 	e.nextRecordID = atomic.NewUint64(0)
 	e.subscriptions = make(map[evtapi.EventResultSetHandle]*mockSubscription)
+	e.sources = make(map[string]*mockEventSource)
 	return &e
 }
 
@@ -130,11 +138,46 @@ func (api *API) RemoveEventLog(name string) error {
 	return nil
 }
 
-func (api *API) GenerateEvents(eventLogName string, numEvents uint) error {
+func (api *API) AddEventSource(channel string, source string) error {
 	// Get event log
-	eventLog, err := api.getMockEventLog(eventLogName)
+	log, err := api.getMockEventLog(channel)
 	if err != nil {
 		return err
+	}
+
+	_, exists := log.sources[source]
+	if !exists {
+		var s mockEventSource
+		s.name = source
+		s.logName = channel
+		log.sources[source] = &s
+	}
+
+	return nil
+}
+
+func (api *API) RemoveEventSource(channel string, name string) error {
+	// Get event log
+	log, err := api.getMockEventLog(channel)
+	if err != nil {
+		return err
+	}
+	delete(log.sources, name)
+	return nil
+}
+
+func (api *API) GenerateEvents(sourceName string, numEvents uint) error {
+	// find the log the source is registered to
+	var eventLog *mockEventLog
+	for _, log := range api.eventLogs {
+		_, ok := log.sources[sourceName]
+		if ok {
+			eventLog = log
+			break
+		}
+	}
+	if eventLog == nil {
+		return fmt.Errorf("Event source %v does not exist", sourceName)
 	}
 
 	// Add junk events
@@ -199,7 +242,7 @@ func (api *API) getMockEventLog(name string) (*mockEventLog, error) {
 	return v, nil
 }
 
-func (api *API) getMockEventLogByHandle(sourceHandle evtapi.EventSourceHandle) (*mockEventLog, error) {
+func (api *API) getMockEventSourceByHandle(sourceHandle evtapi.EventSourceHandle) (*mockEventLog, error) {
 	// lookup name using handle
 	v, ok := api.sourceHandles[sourceHandle]
 	if !ok {
@@ -419,20 +462,21 @@ func (api *API) EvtRenderBookmark(Fragment evtapi.EventBookmarkHandle) ([]uint16
 }
 
 func (api *API) RegisterEventSource(SourceName string) (evtapi.EventSourceHandle, error) {
-	// Ensure source/eventLog exists
-	eventLog, err := api.getMockEventLog(SourceName)
-	if err != nil {
-		return evtapi.EventSourceHandle(0), err
+	// find the log the source is registered to
+	for _, log := range api.eventLogs {
+		_, ok := log.sources[SourceName]
+		if ok {
+			// Create a handle
+			h := evtapi.EventSourceHandle(api.nextHandle.Inc())
+			api.sourceHandles[h] = log.name
+			return h, nil
+		}
 	}
-
-	// Create a handle
-	h := evtapi.EventSourceHandle(api.nextHandle.Inc())
-	api.sourceHandles[h] = eventLog.name
-	return h, nil
+	return evtapi.EventSourceHandle(0), fmt.Errorf("Event source %s not found", SourceName)
 }
 
 func (api *API) DeregisterEventSource(sourceHandle evtapi.EventSourceHandle) error {
-	_, err := api.getMockEventLogByHandle(sourceHandle)
+	_, err := api.getMockEventSourceByHandle(sourceHandle)
 	if err != nil {
 		return err
 	}
@@ -449,7 +493,7 @@ func (api *API) ReportEvent(
 	RawData []uint8) error {
 
 	// get event log
-	eventLog, err := api.getMockEventLogByHandle(EventLog)
+	eventLog, err := api.getMockEventSourceByHandle(EventLog)
 	if err != nil {
 		return err
 	}

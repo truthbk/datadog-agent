@@ -50,13 +50,11 @@ func (ti *MockAPITester) RemoveChannel(channel string) error {
 }
 
 func (ti *MockAPITester) InstallSource(channel string, source string) error {
-	// not needed
-	return nil
+	return ti.eventlogapi.AddEventSource(channel, source)
 }
 
 func (ti *MockAPITester) RemoveSource(channel string, source string) error {
-	// not needed
-	return nil
+	return ti.eventlogapi.RemoveEventSource(channel, source)
 }
 
 func (ti *MockAPITester) GenerateEvents(channelName string, numEvents uint) error {
