@@ -9,6 +9,7 @@ package mockevtapi
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"sort"
 	"text/template"
@@ -183,7 +184,7 @@ func (api *API) GenerateEvents(sourceName string, numEvents uint) error {
 	// Add junk events
 	for i := uint(0); i < numEvents; i += 1 {
 		event := eventLog.reportEvent(api, windows.EVENTLOG_INFORMATION_TYPE,
-			0, 1000, []string{"teststring"}, nil)
+			0, 1000, []string{"teststring1", "teststring2"}, []uint8("AABBCCDD"))
 		// TODO: Should only create a handle in the API when EvtNext is called
 		api.addEventRecord(event)
 	}
@@ -428,13 +429,24 @@ func (api *API) EvtRenderEventXml(Fragment evtapi.EventRecordHandle) ([]uint16, 
   <System>
 	<EventID>{{ .EventID }}</EventID>
 	<Channel>{{ .EventLog }}</Channel>
+	<EventRecordID>{{ .RecordID }}</EventRecordID>
   </System>
   <EventData>
-    <Data>{{ .Data }}</Data>
+    {{- range $v := .Strings}}
+    <Data>{{ $v }}</Data>
+    {{- end}}
+    {{- if .RawData}}
+    <Binary>{{ hexstring .RawData }}</Binary>
+    {{- end}}
   </EventData>
 </Event>
 `
-	t, err := template.New("eventRenderXML").Parse(tstr)
+
+	funcMap := template.FuncMap{
+		"hexstring": hex.EncodeToString,
+	}
+
+	t, err := template.New("eventRenderXML").Funcs(funcMap).Parse(tstr)
 	if err != nil {
 		return nil, err
 	}
