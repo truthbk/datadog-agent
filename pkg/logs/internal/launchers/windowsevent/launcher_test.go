@@ -6,7 +6,6 @@
 package windowsevent
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -46,58 +45,52 @@ type LauncherTestSuite struct {
 	s                *Launcher
 }
 
-func (suite *LauncherTestSuite) SetupSuite() {
+func (s *LauncherTestSuite) SetupSuite() {
 	var err error
-	// fmt.Println("SetupSuite")
 	// Enable logger
-	pkglog.SetupLogger(seelog.Default, "debug")
+	if s.numEvents == 0 {
+		pkglog.SetupLogger(seelog.Default, "debug")
+	}
 
-	suite.ti = eventlog_test.GetAPITesterByName(suite.testAPI, suite.T())
-	err = suite.ti.InstallChannel(suite.channelPath)
-	require.NoError(suite.T(), err)
-	err = suite.ti.InstallSource(suite.channelPath, suite.eventSource)
-	require.NoError(suite.T(), err)
-	err = suite.ti.API().EvtClearLog(suite.channelPath)
-	require.NoError(suite.T(), err)
+	s.ti = eventlog_test.GetAPITesterByName(s.testAPI, s.T())
+	err = s.ti.InstallChannel(s.channelPath)
+	require.NoError(s.T(), err)
+	err = s.ti.InstallSource(s.channelPath, s.eventSource)
+	require.NoError(s.T(), err)
+	err = s.ti.API().EvtClearLog(s.channelPath)
+	require.NoError(s.T(), err)
 }
 
-func (suite *LauncherTestSuite) TearDownSuite() {
-	// fmt.Println("TearDownSuite")
-	suite.ti.RemoveSource(suite.channelPath, suite.eventSource)
-	suite.ti.RemoveChannel(suite.channelPath)
+func (s *LauncherTestSuite) TearDownSuite() {
+	s.ti.RemoveSource(s.channelPath, s.eventSource)
+	s.ti.RemoveChannel(s.channelPath)
 }
 
-func (suite *LauncherTestSuite) SetupTest() {
-	suite.pipelineProvider = mock.NewMockProvider()
-	suite.outputChan = suite.pipelineProvider.NextPipelineChan()
-	suite.source = sources.NewLogSource("",
+func (s *LauncherTestSuite) SetupTest() {
+	s.pipelineProvider = mock.NewMockProvider()
+	s.outputChan = s.pipelineProvider.NextPipelineChan()
+	s.source = sources.NewLogSource("",
 		&config.LogsConfig{
-			Type:        suite.tailerType,
-			Identifier:  suite.configID,
-			ChannelPath: suite.channelPath,
-			Query:       suite.query})
-	suite.s = NewLauncher()
-	suite.s.evtapi = suite.ti.API()
-	status.InitStatus(util.CreateSources([]*sources.LogSource{suite.source}))
-	suite.s.Start(launchers.NewMockSourceProvider(), suite.pipelineProvider, auditor.NewRegistry())
-	// fmt.Println("sending source")
-	suite.s.sources <- suite.source
-	// fmt.Println("sent source")
-	if len(suite.s.tailers) != 1 {
+			Type:        s.tailerType,
+			Identifier:  s.configID,
+			ChannelPath: s.channelPath,
+			Query:       s.query})
+	s.s = NewLauncher()
+	s.s.evtapi = s.ti.API()
+	status.InitStatus(util.CreateSources([]*sources.LogSource{s.source}))
+	s.s.Start(launchers.NewMockSourceProvider(), s.pipelineProvider, auditor.NewRegistry())
+	s.s.sources <- s.source
+	if len(s.s.tailers) != 1 {
 		time.Sleep(500 * time.Millisecond)
 	}
-	if suite.source.Status.IsSuccess() {
-		// fmt.Println("success")
-	} else {
-		// fmt.Println("failure")
-		suite.FailNow("failed to create tailer")
+	if !s.source.Status.IsSuccess() {
+		s.FailNow("failed to create tailer")
 	}
 }
 
-func (suite *LauncherTestSuite) TearDownTest() {
-	// fmt.Println("TearDownTest")
+func (s *LauncherTestSuite) TearDownTest() {
 	status.Clear()
-	suite.s.Stop()
+	s.s.Stop()
 }
 
 func TestLauncherTestSuite(t *testing.T) {
@@ -107,17 +100,21 @@ func TestLauncherTestSuite(t *testing.T) {
 	s.query = "*"
 	s.tailerType = "windows_event"
 	s.testAPI = "Windows"
-	s.numEvents = 1
+	s.numEvents = 1000
 	suite.Run(t, &s)
 }
 
-func (suite *LauncherTestSuite) TestReadEvents() {
-	err := suite.ti.GenerateEvents(suite.eventSource, suite.numEvents)
-	require.NoError(suite.T(), err)
-	// fmt.Println("TestReadEvents")
-	msg := <-suite.outputChan
-	fmt.Println(msg)
-	suite.Equal("hello world", string(msg.Content))
+func (s *LauncherTestSuite) TestReadEvents() {
+	err := s.ti.GenerateEvents(s.eventSource, s.numEvents)
+	require.NoError(s.T(), err)
+
+	totalEvents := uint(0)
+	for i := uint(0); i < s.numEvents; i++ {
+		msg := <- s.outputChan
+		require.NotEmpty(s.T(), msg.Content, "Message must not be empty")
+		totalEvents += 1
+	}
+	require.Equal(s.T(), s.numEvents, totalEvents, "Received %d/%d events", totalEvents, s.numEvents)
 }
 
 func TestShouldSanitizeConfig(t *testing.T) {

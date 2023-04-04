@@ -8,6 +8,7 @@
 package evtlog
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
 	core "github.com/DataDog/datadog-agent/pkg/collector/corechecks"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
+	"github.com/DataDog/datadog-agent/pkg/util/hostname"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/api/windows"
 	"github.com/DataDog/datadog-agent/pkg/util/winutil/eventlog/subscription"
@@ -51,12 +53,12 @@ type Config struct {
 
 type instanceConfig struct {
 	ChannelPath        string `yaml:"path"`
-	Query              string `yaml:query`
-	Start              string `yaml:start`
-	Timeout            uint   `yaml:timeout`
-	Payload_size       uint   `yaml:payload_size`
-	Bookmark_frequency int    `yaml:bookmark_frequency`
-	Legacy_mode        bool   `yaml:legacy_mode`
+	Query              string `yaml:"query"`
+	Start              string `yaml:"start"`
+	Timeout            uint   `yaml:"timeout"`
+	Payload_size       uint   `yaml:"payload_size"`
+	Bookmark_frequency int    `yaml:"bookmark_frequency"`
+	Legacy_mode        bool   `yaml:"legacy_mode"`
 	Event_priority     string `yaml:"event_priority"`
 }
 
@@ -89,7 +91,7 @@ func (c *Check) Run() error {
 			}
 
 			// Render Windows event values into the DD event
-			c.renderEventValues(winevent, &ddevent)
+			_ = c.renderEventValues(winevent, &ddevent)
 
 			// submit
 			sender.Event(ddevent)
@@ -97,7 +99,6 @@ func (c *Check) Run() error {
 			// cleanup
 			evtapi.EvtCloseRecord(c.evtapi, winevent.EventRecordHandle)
 		}
-		break
 	}
 
 	sender.Commit()
@@ -148,7 +149,8 @@ func (c *Check) renderEventValues(winevent *evtapi.EventRecord, ddevent *metrics
 	fqdn, err := vals.String(evtapi.EvtSystemComputer)
 	if err != nil {
 		// default to DD hostname
-		// TODO: how to get? python self.hostname
+		fqdn, _ = hostname.Get(context.TODO())
+		// TODO: What to do on error?
 	}
 	ddevent.Host = fqdn
 	// Level
@@ -267,7 +269,7 @@ func (c *Check) Configure(integrationConfigDigest uint64, data integration.Data,
 	// Create a render context for System event values
 	c.systemRenderContext, err = c.evtapi.EvtCreateRenderContext(nil, evtapi.EvtRenderContextSystem)
 	if err != nil {
-		//return err
+		return err
 	}
 
 	return nil

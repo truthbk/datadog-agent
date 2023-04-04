@@ -117,7 +117,7 @@ func (api *API) EvtNext(
 // https://learn.microsoft.com/en-us/windows/win32/api/winevt/nf-winevt-evtclose
 func (api *API) EvtClose(h windows.Handle) {
 	if h != windows.Handle(0) {
-		evtClose.Call(uintptr(h))
+		_, _, _ = evtClose.Call(uintptr(h))
 	}
 }
 

@@ -57,6 +57,6 @@ func (r *reporter) ReportEvent(
 
 func (r *reporter) Close() {
 	if r.logHandle != evtapi.EventSourceHandle(0) {
-		r.eventLogAPI.DeregisterEventSource(r.logHandle)
+		_ = r.eventLogAPI.DeregisterEventSource(r.logHandle)
 	}
 }

@@ -592,7 +592,7 @@ func (s *GetEventsTestSuite) TestStartAfterBookmark() {
 	require.NoError(s.T(), err)
 
 	// Read the events
-	events, err = getEventHandles(s.T(), s.ti, sub, 2*s.numEvents)
+	_, err = getEventHandles(s.T(), s.ti, sub, 2*s.numEvents)
 	require.NoError(s.T(), err)
 	err = assertNoMoreEvents(s.T(), sub)
 	require.NoError(s.T(), err)
@@ -664,7 +664,7 @@ func (s *GetEventsTestSuite) TestStartAfterBookmarkNotFoundWithoutStrictFlag() {
 	require.NoError(s.T(), err)
 
 	// Read the events
-	events, err = getEventHandles(s.T(), s.ti, sub, s.numEvents)
+	_, err = getEventHandles(s.T(), s.ti, sub, s.numEvents)
 	require.NoError(s.T(), err)
 	err = assertNoMoreEvents(s.T(), sub)
 	require.NoError(s.T(), err)
@@ -736,7 +736,7 @@ func (s *GetEventsTestSuite) TestStartAfterBookmarkNotFoundWithStrictFlag() {
 	require.NoError(s.T(), err)
 
 	// Read the events
-	events, err = getEventHandles(s.T(), s.ti, sub, s.numEvents)
+	_, err = getEventHandles(s.T(), s.ti, sub, s.numEvents)
 	require.NoError(s.T(), err)
 	err = assertNoMoreEvents(s.T(), sub)
 	require.NoError(s.T(), err)

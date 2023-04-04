@@ -64,7 +64,7 @@ func (ti *WindowsAPITester) InstallChannel(channel string) error {
 	}
 	defer channelKey.Close()
 
-	// Increase the max size to accomodate more events
+	// Increase the max size to accommodate more events
 	// The default is 20MB, we increase it to 100MB
 	err = channelKey.SetDWordValue("MaxSize", 100*1024*1024)
 	if err != nil {
@@ -132,6 +132,7 @@ func (ti *WindowsAPITester) GenerateEvents(channelName string, numEvents uint) e
 	if err != nil {
 		return err
 	}
+	//nolint:errcheck
 	defer ti.eventlogapi.DeregisterEventSource(sourceHandle)
 
 	for i := uint(0); i < numEvents; i += 1 {
@@ -155,6 +156,3 @@ func channelRegistryKey(channel string) string {
 	return fmt.Sprintf(`%v\%v`, channelRootKey(), channel)
 }
 
-func sourceRegistryKey(channel string, source string) string {
-	return fmt.Sprintf(`%v\%v`, channelRegistryKey(channel), source)
-}

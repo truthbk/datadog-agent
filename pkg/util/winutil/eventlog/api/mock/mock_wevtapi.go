@@ -43,7 +43,7 @@ type mockEventLog struct {
 }
 
 type mockEventSource struct {
-	name string
+	name    string
 	logName string
 }
 
@@ -183,10 +183,8 @@ func (api *API) GenerateEvents(sourceName string, numEvents uint) error {
 
 	// Add junk events
 	for i := uint(0); i < numEvents; i += 1 {
-		event := eventLog.reportEvent(api, windows.EVENTLOG_INFORMATION_TYPE,
+		_ = eventLog.reportEvent(api, windows.EVENTLOG_INFORMATION_TYPE,
 			0, 1000, []string{"teststring1", "teststring2"}, []uint8("AABBCCDD"))
-		// TODO: Should only create a handle in the API when EvtNext is called
-		api.addEventRecord(event)
 	}
 
 	return nil
@@ -393,6 +391,7 @@ func (api *API) EvtNext(
 	events := eventLog.events[sub.nextEvent:end]
 	eventHandles := make([]evtapi.EventRecordHandle, len(events))
 	for i, e := range events {
+		api.addEventRecord(e)
 		eventHandles[i] = e.handle
 	}
 	sub.nextEvent = end
@@ -402,6 +401,11 @@ func (api *API) EvtNext(
 
 func (api *API) EvtClose(h windows.Handle) {
 	// is handle an event?
+	event, err := api.getMockEventRecordByHandle(evtapi.EventRecordHandle(h))
+	if err == nil {
+		delete(api.eventHandles, event.handle)
+		return
+	}
 	// TODO
 	// Is handle a subscription?
 	sub, err := api.getMockSubscriptionByHandle(evtapi.EventResultSetHandle(h))
@@ -411,6 +415,7 @@ func (api *API) EvtClose(h windows.Handle) {
 			return
 		}
 		delete(eventLog.subscriptions, sub.handle)
+		delete(api.subscriptions, sub.handle)
 		return
 	}
 }
@@ -510,15 +515,13 @@ func (api *API) ReportEvent(
 		return err
 	}
 
-	event := eventLog.reportEvent(
+	_ = eventLog.reportEvent(
 		api,
 		Type,
 		Category,
 		EventID,
 		Strings,
 		RawData)
-	// TODO: Should only create a handle in the API when EvtNext is called
-	api.addEventRecord(event)
 
 	return nil
 }

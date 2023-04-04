@@ -68,14 +68,14 @@ type PullSubscriptionOption func(*PullSubscription)
 
 func newSubscriptionWaitEvent() (evtapi.WaitEventHandle, error) {
 	// https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createeventa
-	// Manual reset, must be initally set, Windows will not set it for old events
+	// Manual reset, must be initially set, Windows will not set it for old events
 	hEvent, err := windows.CreateEvent(nil, 1, 1, nil)
 	return evtapi.WaitEventHandle(hEvent), err
 }
 
 func newStopWaitEvent() (evtapi.WaitEventHandle, error) {
 	// https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createeventa
-	// Manual reset, initally unset
+	// Manual reset, initially unset
 	hEvent, err := windows.CreateEvent(nil, 1, 0, nil)
 	return evtapi.WaitEventHandle(hEvent), err
 }
@@ -225,7 +225,7 @@ func (q *PullSubscription) notifyEventsAvailableLoop() {
 		dwWait, err := windows.WaitForMultipleObjects(waiters, false, windows.INFINITE)
 		if err != nil {
 			// WAIT_FAILED
-			pkglog.Errorf("WaitForMultipleObjects failed: %", err)
+			pkglog.Errorf("WaitForMultipleObjects failed: %v", err)
 			return
 		}
 		if dwWait == windows.WAIT_OBJECT_0 {
@@ -296,7 +296,7 @@ func (q *PullSubscription) synchronizeNoMoreItems() error {
 	// Reset the events ready event so notifyEventsAvailableLoop will wait again in WaitForMultipleObjects,
 	// then write to notifyNoMoreItemsComplete to tell the loop that the event has been reset and it
 	// can safely continue.
-	windows.ResetEvent(windows.Handle(q.waitEventHandle))
+	_ = windows.ResetEvent(windows.Handle(q.waitEventHandle))
 	select {
 	case <-q.notifyStop:
 		return fmt.Errorf("stop signal")
@@ -333,12 +333,10 @@ func (q *PullSubscription) GetEvents() ([]*evtapi.EventRecord, error) {
 		}
 		// not an error, there are just no more items
 		return nil, nil
-	} else {
-		pkglog.Errorf("EvtNext failed: %v", err)
-		return nil, err
 	}
 
-	return nil, nil
+	pkglog.Errorf("EvtNext failed: %v", err)
+	return nil, err
 }
 
 func (q *PullSubscription) parseEventRecordHandles(eventRecordHandles []evtapi.EventRecordHandle) []*evtapi.EventRecord {

@@ -48,7 +48,6 @@ func (v *evtVariantValues) String(index uint) (string, error) {
 	t := C.EVT_VARIANT_TYPE_MASK & value.Type
 	if t == evtapi.EvtVarTypeString {
 		return windows.UTF16PtrToString((*uint16)(C.dataptr(value))), nil
-	} else if t == evtapi.EvtVarTypeString {
 	}
 	return "", fmt.Errorf("invalid type %#x", t)
 }

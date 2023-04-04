@@ -89,6 +89,9 @@ func TestLaunchGetEventsTestSuite(t *testing.T) {
 
 	for _, tiName := range testerNames {
 		t.Run(fmt.Sprintf("%sAPI", tiName), func(t *testing.T) {
+			if tiName == "Mock" {
+				t.Skip("Mock does not implement EvtRenderValues")
+			}
 			var s GetEventsTestSuite
 			s.channelPath = "dd-test-channel-check"
 			s.eventSource = "dd-test-source-check"

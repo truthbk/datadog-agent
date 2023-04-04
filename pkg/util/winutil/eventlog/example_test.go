@@ -199,6 +199,9 @@ func TestExampleNotifyChannel(t *testing.T) {
 	numEvents := uint(10)
 	for _, tiName := range testInterfaceNames {
 		t.Run(fmt.Sprintf("%sAPI", tiName), func(t *testing.T) {
+			if tiName == "Mock" {
+				t.Skip("Mock does not implement EvtRenderValues")
+			}
 			ti := eventlog_test.GetAPITesterByName(tiName, t)
 			// Create some test events
 			createLog(t, ti, channelPath, eventSource)
