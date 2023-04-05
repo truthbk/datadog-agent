@@ -18,7 +18,7 @@ int __attribute__((always_inline)) approve_by_basename(struct dentry *dentry, u6
 }
 
 int __attribute__((always_inline)) basename_approver(struct syscall_cache_t *syscall, struct dentry *dentry, u64 event_type) {
-    if ((syscall->policy.flags & BASENAME) > 0) {
+    if ((syscall->policy.flags & CWS_BASENAME) > 0) {
         return approve_by_basename(dentry, event_type);
     }
     return 0;
@@ -53,11 +53,11 @@ int __attribute__((always_inline)) approve_mmap_by_protection(struct syscall_cac
 int __attribute__((always_inline)) mmap_approvers(struct syscall_cache_t *syscall) {
     int pass_to_userspace = 0;
 
-    if ((syscall->policy.flags & BASENAME) > 0 && syscall->mmap.dentry != NULL) {
+    if ((syscall->policy.flags & CWS_BASENAME) > 0 && syscall->mmap.dentry != NULL) {
         pass_to_userspace = approve_by_basename(syscall->mmap.dentry, EVENT_MMAP);
     }
 
-    if (!pass_to_userspace && (syscall->policy.flags & FLAGS) > 0) {
+    if (!pass_to_userspace && (syscall->policy.flags & CWS_FLAGS) > 0) {
         pass_to_userspace = approve_mmap_by_protection(syscall);
         if (!pass_to_userspace) {
             pass_to_userspace = approve_mmap_by_flags(syscall);
@@ -97,7 +97,7 @@ int __attribute__((always_inline)) approve_mprotect_by_req_protection(struct sys
 int __attribute__((always_inline)) mprotect_approvers(struct syscall_cache_t *syscall) {
     int pass_to_userspace = 0;
 
-    if ((syscall->policy.flags & FLAGS) > 0) {
+    if ((syscall->policy.flags & CWS_FLAGS) > 0) {
         int vm_protection_approved = approve_mprotect_by_vm_protection(syscall);
         int req_protection_approved = approve_mprotect_by_req_protection(syscall);
         pass_to_userspace = vm_protection_approved && req_protection_approved;
@@ -121,11 +121,11 @@ int __attribute__((always_inline)) approve_by_flags(struct syscall_cache_t *sysc
 int __attribute__((always_inline)) open_approvers(struct syscall_cache_t *syscall) {
     int pass_to_userspace = 0;
 
-    if ((syscall->policy.flags & BASENAME) > 0) {
+    if ((syscall->policy.flags & CWS_BASENAME) > 0) {
         pass_to_userspace = approve_by_basename(syscall->open.dentry, EVENT_OPEN);
     }
 
-    if (!pass_to_userspace && (syscall->policy.flags & FLAGS) > 0) {
+    if (!pass_to_userspace && (syscall->policy.flags & CWS_FLAGS) > 0) {
         pass_to_userspace = approve_by_flags(syscall);
     }
 
@@ -162,11 +162,11 @@ int __attribute__((always_inline)) approve_splice_by_exit_flags(struct syscall_c
 int __attribute__((always_inline)) splice_approvers(struct syscall_cache_t *syscall) {
     int pass_to_userspace = 0;
 
-    if ((syscall->policy.flags & BASENAME) > 0 && syscall->splice.dentry != NULL) {
+    if ((syscall->policy.flags & CWS_BASENAME) > 0 && syscall->splice.dentry != NULL) {
         pass_to_userspace = approve_by_basename(syscall->splice.dentry, EVENT_SPLICE);
     }
 
-    if (!pass_to_userspace && (syscall->policy.flags & FLAGS) > 0) {
+    if (!pass_to_userspace && (syscall->policy.flags & CWS_FLAGS) > 0) {
         pass_to_userspace = approve_splice_by_exit_flags(syscall);
         if (!pass_to_userspace) {
             pass_to_userspace = approve_splice_by_entry_flags(syscall);

@@ -31,6 +31,8 @@ const (
 var (
 	// allProbes contain the list of all the probes of the runtime security module
 	allProbes []*manager.Probe
+	// allCOREProbes contain the list of all the CORE probes of the runtime security module
+	allCOREProbes []*manager.Probe
 	// EventsPerfRingBufferSize is the buffer size of the perf buffers used for events.
 	// PLEASE NOTE: for the perf ring buffer usage metrics to be accurate, the provided value must have the
 	// following form: (1 + 2^n) * pages. Checkout https://github.com/DataDog/ebpf for more.
@@ -52,6 +54,17 @@ func computeDefaultEventsRingBufferSize() uint32 {
 	}
 
 	return uint32(32 * 256 * os.Getpagesize())
+}
+
+// AllCOREProbes returns the list of all the CORE probes of the runtime security module
+func AllCOREProbes() []*manager.Probe {
+	if len(allCOREProbes) > 0 {
+		return allCOREProbes
+	}
+
+	allCOREProbes = append(allCOREProbes, getSecurityProfileProbes()...)
+
+	return allCOREProbes
 }
 
 // AllProbes returns the list of all the probes of the runtime security module
@@ -180,6 +193,10 @@ func AllMapSpecEditors(numCPU int, tracedCgroupSize int, supportMmapableMaps, us
 			MaxEntries: uint32(securityProfileMaxCount),
 			EditorFlag: manager.EditMaxEntries,
 		},
+		"security_profile_process_cookies": {
+			MaxEntries: getMaxEntries(numCPU, minProcEntries, maxProcEntries),
+			EditorFlag: manager.EditMaxEntries,
+		},
 	}
 
 	if tracedCgroupSize > 0 {
@@ -233,6 +250,7 @@ func AllTailRoutes(ERPCDentryResolutionEnabled, networkEnabled, supportMmapableM
 	routes = append(routes, getExecTailCallRoutes()...)
 	routes = append(routes, getDentryResolverTailCallRoutes(ERPCDentryResolutionEnabled, supportMmapableMaps)...)
 	routes = append(routes, getSysExitTailCallRoutes()...)
+	routes = append(routes, getSecurityProfileTailCallRoutes()...)
 	if networkEnabled {
 		routes = append(routes, getTCTailCallRoutes()...)
 	}

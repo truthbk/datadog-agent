@@ -7,6 +7,7 @@
 #include "filter.h"
 #include "events_context.h"
 #include "process.h"
+#include "security_profile.h"
 
 struct syscall_monitor_entry_t {
     char syscalls[SYSCALL_ENCODING_TABLE_SIZE];
@@ -21,6 +22,7 @@ struct syscall_table_key_t {
 
 struct syscall_cache_t {
     struct policy_t policy;
+    struct security_profile_context_t security_profile;
     u64 type;
     u8 discarded;
     u8 async;

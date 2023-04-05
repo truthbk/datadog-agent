@@ -90,3 +90,8 @@ const (
 	// ExecParseArgsEnvsKey is the key to the program that parses arguments and then environment variables
 	ExecParseArgsEnvsKey
 )
+
+const (
+	// SecurityProfileExecKey is the key to the program that evaluates an execution event
+	SecurityProfileExecKey uint32 = iota
+)

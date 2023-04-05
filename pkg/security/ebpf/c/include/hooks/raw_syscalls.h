@@ -3,7 +3,7 @@
 
 #include "helpers/activity_dump.h"
 #include "helpers/raw_syscalls.h"
-#include "helpers/security_profile.h"
+#include "helpers/security_profile/workload_hardening.h"
 #include "helpers/syscalls.h"
 
 SEC("tracepoint/raw_syscalls/sys_enter")

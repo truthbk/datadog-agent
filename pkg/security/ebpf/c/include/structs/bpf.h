@@ -51,21 +51,21 @@ union bpf_attr_def {
 
 	struct { /* anonymous struct used by BPF_MAP_*_ELEM commands */
 		__u32		map_fd;
-		__aligned_u64	key;
+		__u64 __attribute__((aligned(8))) key;
 		union {
-			__aligned_u64 value;
-			__aligned_u64 next_key;
+			__u64 __attribute__((aligned(8))) value;
+			__u64 __attribute__((aligned(8))) next_key;
 		};
 		__u64		flags;
 	};
 
 	struct { /* struct used by BPF_MAP_*_BATCH commands */
-		__aligned_u64	in_batch;	/* start batch,
+		__u64 __attribute__((aligned(8))) in_batch;	/* start batch,
 						 * NULL to start from beginning
 						 */
-		__aligned_u64	out_batch;	/* output: next start batch */
-		__aligned_u64	keys;
-		__aligned_u64	values;
+		__u64 __attribute__((aligned(8))) out_batch;	/* output: next start batch */
+		__u64 __attribute__((aligned(8))) keys;
+		__u64 __attribute__((aligned(8))) values;
 		__u32		count;		/* input/output:
 						 * input: # of key/value
 						 * elements
@@ -79,11 +79,11 @@ union bpf_attr_def {
 	struct { /* anonymous struct used by BPF_PROG_LOAD command */
 		__u32		prog_type;	/* one of enum bpf_prog_type */
 		__u32		insn_cnt;
-		__aligned_u64	insns;
-		__aligned_u64	license;
+		__u64 __attribute__((aligned(8))) insns;
+		__u64 __attribute__((aligned(8))) license;
 		__u32		log_level;	/* verbosity level of verifier */
 		__u32		log_size;	/* size of user buffer */
-		__aligned_u64	log_buf;	/* user supplied buffer */
+		__u64 __attribute__((aligned(8))) log_buf;	/* user supplied buffer */
 		__u32		kern_version;	/* not used */
 		__u32		prog_flags;
 		char		prog_name[BPF_OBJ_NAME_LEN];
@@ -95,10 +95,10 @@ union bpf_attr_def {
 		__u32		expected_attach_type;
 		__u32		prog_btf_fd;	/* fd pointing to BTF type data */
 		__u32		func_info_rec_size;	/* userspace bpf_func_info size */
-		__aligned_u64	func_info;	/* func info */
+		__u64 __attribute__((aligned(8))) func_info;	/* func info */
 		__u32		func_info_cnt;	/* number of bpf_func_info records */
 		__u32		line_info_rec_size;	/* userspace bpf_line_info size */
-		__aligned_u64	line_info;	/* line info */
+		__u64 __attribute__((aligned(8))) line_info;	/* line info */
 		__u32		line_info_cnt;	/* number of bpf_line_info records */
 		__u32		attach_btf_id;	/* in-kernel BTF type id to attach to */
 		union {
@@ -108,11 +108,11 @@ union bpf_attr_def {
 			__u32		attach_btf_obj_fd;
 		};
 		__u32		:32;		/* pad */
-		__aligned_u64	fd_array;	/* array of FDs */
+		__u64 __attribute__((aligned(8))) fd_array;	/* array of FDs */
 	};
 
 	struct { /* anonymous struct used by BPF_OBJ_* commands */
-		__aligned_u64	pathname;
+		__u64 __attribute__((aligned(8))) pathname;
 		__u32		bpf_fd;
 		__u32		file_flags;
 	};
@@ -136,8 +136,8 @@ union bpf_attr_def {
 						 *   returns ENOSPC if data_out
 						 *   is too small.
 						 */
-		__aligned_u64	data_in;
-		__aligned_u64	data_out;
+		__u64 __attribute__((aligned(8))) data_in;
+		__u64 __attribute__((aligned(8))) data_out;
 		__u32		repeat;
 		__u32		duration;
 		__u32		ctx_size_in;	/* input: len of ctx_in */
@@ -145,8 +145,8 @@ union bpf_attr_def {
 						 *   returns ENOSPC if ctx_out
 						 *   is too small.
 						 */
-		__aligned_u64	ctx_in;
-		__aligned_u64	ctx_out;
+		__u64 __attribute__((aligned(8))) ctx_in;
+		__u64 __attribute__((aligned(8))) ctx_out;
 		__u32		flags;
 		__u32		cpu;
 	} test;
@@ -166,7 +166,7 @@ union bpf_attr_def {
 	struct { /* anonymous struct used by BPF_OBJ_GET_INFO_BY_FD */
 		__u32		bpf_fd;
 		__u32		info_len;
-		__aligned_u64	info;
+		__u64 __attribute__((aligned(8))) info;
 	} info;
 
 	struct { /* anonymous struct used by BPF_PROG_QUERY command */
@@ -174,7 +174,7 @@ union bpf_attr_def {
 		__u32		attach_type;
 		__u32		query_flags;
 		__u32		attach_flags;
-		__aligned_u64	prog_ids;
+		__u64 __attribute__((aligned(8))) prog_ids;
 		__u32		prog_cnt;
 	} query;
 
@@ -184,8 +184,8 @@ union bpf_attr_def {
 	} raw_tracepoint;
 
 	struct { /* anonymous struct for BPF_BTF_LOAD */
-		__aligned_u64	btf;
-		__aligned_u64	btf_log_buf;
+		__u64 __attribute__((aligned(8))) btf;
+		__u64 __attribute__((aligned(8))) btf_log_buf;
 		__u32		btf_size;
 		__u32		btf_log_size;
 		__u32		btf_log_level;
@@ -196,7 +196,7 @@ union bpf_attr_def {
 		__u32		fd;		/* input: fd */
 		__u32		flags;		/* input: flags */
 		__u32		buf_len;	/* input/output: buf len */
-		__aligned_u64	buf;		/* input/output:
+		__u64 __attribute__((aligned(8))) buf;		/* input/output:
 						 *   tp_name for tracepoint
 						 *   symbol for kprobe
 						 *   filename for uprobe
@@ -218,7 +218,7 @@ union bpf_attr_def {
 		union {
 			__u32		target_btf_id;	/* btf_id of target to attach to */
 			struct {
-				__aligned_u64	iter_info;	/* extra bpf_iter_link_info */
+				__u64 __attribute__((aligned(8))) iter_info;	/* extra bpf_iter_link_info */
 				__u32		iter_info_len;	/* iter_info length */
 			};
 			struct {

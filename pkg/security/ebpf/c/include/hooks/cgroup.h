@@ -108,6 +108,9 @@ static __attribute__((always_inline)) int trace__cgroup_write(struct pt_regs *ct
         };
         bpf_map_update_elem(&pid_cache, &pid, &new_pid_entry, BPF_ANY);
     }
+
+    // register that the current process has recently changed its cgroup
+    bpf_map_update_elem(&cgroup_write_pids, &pid, &pids, BPF_ANY);
     return 0;
 }
 

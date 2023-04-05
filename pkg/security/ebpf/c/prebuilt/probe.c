@@ -27,6 +27,10 @@
 #include <uapi/linux/tcp.h>
 #include <uapi/linux/utime.h>
 
+#ifdef COMPILE_RUNTIME
+#include <linux/cgroup.h>
+#endif
+
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #pragma clang diagnostic ignored "-Wunused-function"

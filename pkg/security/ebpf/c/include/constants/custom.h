@@ -86,10 +86,24 @@
 #define EXIT_SYSCALL_KEY 1
 #define EXECVE_SYSCALL_KEY 2
 
+#define SECURITY_PROFILE_PROCESS_LOOKUP_MAX_DEPTH 64 // has to be a power of 2
+
 #ifndef USE_RING_BUFFER
  #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)
   #define USE_RING_BUFFER 1
  #endif
+#endif
+
+#ifndef BPF_TAG_SIZE
+#define BPF_TAG_SIZE 8
+#endif
+
+#ifndef TASK_COMM_LEN
+#define TASK_COMM_LEN 16
+#endif
+
+#ifndef MODULE_NAME_LEN
+#define MODULE_NAME_LEN 56
 #endif
 
 #ifndef BPF_OBJ_NAME_LEN

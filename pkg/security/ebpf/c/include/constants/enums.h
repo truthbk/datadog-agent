@@ -47,13 +47,14 @@ enum event_type {
     EVENT_ANOMALY_DETECTION_SYSCALL,
     EVENT_MAX, // has to be the last one
 
-    EVENT_ALL = 0xffffffff // used as a mask for all the events
+    CWS_EVENT_ALL = 0xffffffff // used as a mask for all the events
 };
 
 enum {
     EVENT_FLAGS_ASYNC = 1<<0, // async, mostly io_uring
     EVENT_FLAGS_SAVED_BY_AD = 1<<1, // event send because of activity dump
     EVENT_FLAGS_ACTIVITY_DUMP_SAMPLE = 1<<2, // event is a AD sample
+    EVENT_FLAGS_MATCHED_PROFILE = 1<<3, // the event matched the profile
 };
 
 enum file_flags {
@@ -78,10 +79,10 @@ enum policy_mode {
 };
 
 enum policy_flags {
-    BASENAME = 1,
-    FLAGS = 2,
-    MODE = 4,
-    PARENT_NAME = 8,
+    CWS_BASENAME = 1,
+    CWS_FLAGS = 2,
+    CWS_MODE = 4,
+    CWS_PARENT_NAME = 8,
 };
 
 enum tls_format {
@@ -154,6 +155,11 @@ enum dr_tracepoint_progs {
     DR_MOUNT_CALLBACK_TRACEPOINT_KEY,
     DR_LINK_DST_CALLBACK_TRACEPOINT_KEY,
     DR_RENAME_CALLBACK_TRACEPOINT_KEY,
+};
+
+enum security_profile_eval_callback {
+    SECURITY_PROFILE_EXEC_KEY = 0,
+    SECURITY_PROFILE_EVAL_CALLBACK_MAX,
 };
 
 enum erpc_op {

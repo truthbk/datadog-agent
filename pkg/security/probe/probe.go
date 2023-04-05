@@ -30,6 +30,8 @@ import (
 	manager "github.com/DataDog/ebpf-manager"
 
 	aconfig "github.com/DataDog/datadog-agent/pkg/config"
+	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
+	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode"
 	"github.com/DataDog/datadog-agent/pkg/process/procutil"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
 	"github.com/DataDog/datadog-agent/pkg/security/config"
@@ -94,17 +96,19 @@ var (
 // setting up the required kProbes and decoding events sent from the kernel
 type Probe struct {
 	// Constants and configuration
-	Opts           Opts
-	Manager        *manager.Manager
-	managerOptions manager.Options
-	Config         *config.Config
-	StatsdClient   statsd.ClientInterface
-	startTime      time.Time
-	kernelVersion  *kernel.Version
-	_              uint32 // padding for goarch=386
-	ctx            context.Context
-	cancelFnc      context.CancelFunc
-	wg             sync.WaitGroup
+	Opts              Opts
+	Manager           *manager.Manager
+	managerOptions    manager.Options
+	BTFManager        *manager.Manager
+	btfManagerOptions manager.Options
+	Config            *config.Config
+	StatsdClient      statsd.ClientInterface
+	startTime         time.Time
+	kernelVersion     *kernel.Version
+	_                 uint32 // padding for goarch=386
+	ctx               context.Context
+	cancelFnc         context.CancelFunc
+	wg                sync.WaitGroup
 
 	// Events section
 	eventHandlers       [model.MaxAllEventType][]EventHandler
@@ -299,6 +303,21 @@ func (p *Probe) Init() error {
 
 	p.eventStream.SetMonitor(p.monitor.perfBufferMonitor)
 
+	if p.Config.RuntimeSecurity.SecurityProfileEnabled {
+		p.BTFManager, p.btfManagerOptions, err = ebpf.NewRuntimeSecurityBTFManager(p.Manager, p.managerOptions)
+		if err != nil {
+			return err
+		}
+
+		// initialize CO-RE manager
+		if err = ddebpf.LoadCOREAsset(&p.Config.Probe.Config, "runtime-security-core.o", func(reader bytecode.AssetReader, options manager.Options) error {
+			p.btfManagerOptions.VerifierOptions = options.VerifierOptions
+			return p.BTFManager.InitWithOptions(reader, p.btfManagerOptions)
+		}); err != nil {
+			seclog.Warnf("couldn't load BTF manager: %s", err)
+		}
+	}
+
 	return nil
 }
 
@@ -311,6 +330,12 @@ func (p *Probe) IsRuntimeCompiled() bool {
 func (p *Probe) Setup() error {
 	if err := p.Manager.Start(); err != nil {
 		return err
+	}
+
+	if p.Config.RuntimeSecurity.SecurityProfileEnabled {
+		if err := p.BTFManager.Start(); err != nil {
+			return err
+		}
 	}
 
 	p.applyDefaultFilterPolicies()
@@ -1173,6 +1198,12 @@ func (p *Probe) Close() error {
 	// Stopping the manager will stop the perf map reader and unload eBPF programs
 	if err := p.Manager.Stop(manager.CleanAll); err != nil {
 		return err
+	}
+
+	if p.Config.RuntimeSecurity.SecurityProfileEnabled {
+		if err := p.BTFManager.Stop(manager.CleanInternal); err != nil {
+			return err
+		}
 	}
 
 	// when we reach this point, we do not generate nor consume events anymore, we can close the resolvers

@@ -9,6 +9,13 @@
 
 #include "container.h"
 
+__attribute__((always_inline)) struct task_struct * get_current_task_struct() {
+    if (!bpf_helper_exists(BPF_FUNC_get_current_task)) {
+        return 0;
+    }
+    struct task_struct *cur_tsk = (struct task_struct *)bpf_get_current_task();
+}
+
 static __attribute__((always_inline)) u32 copy_tty_name(const char src[TTY_NAME_LEN], char dst[TTY_NAME_LEN]) {
     if (src[0] == 0) {
         return 0;
@@ -110,6 +117,12 @@ u32 __attribute__((always_inline)) get_root_nr_from_task_struct(struct task_stru
     struct pid *pid = NULL;
     bpf_probe_read(&pid, sizeof(pid), (void *)task + get_task_struct_pid_offset());
     return get_root_nr_from_pid_struct(pid);
+}
+
+u32 __attribute__((always_inline)) core_get_root_nr_from_task_struct(struct task_struct *task) {
+    struct upid numbers[1];
+    BPF_CORE_READ_INTO(&numbers, task, pid, numbers);
+    return BPF_CORE_READ(numbers[0], nr);
 }
 
 u32 __attribute__((always_inline)) get_namespace_nr_from_task_struct(struct task_struct *task) {

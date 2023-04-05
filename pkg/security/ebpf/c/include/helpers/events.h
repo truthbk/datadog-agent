@@ -22,7 +22,7 @@ static __attribute__((always_inline)) int is_event_enabled(enum event_type event
 }
 
 static __attribute__((always_inline)) void add_event_to_mask(u64 *mask, enum event_type event) {
-    if (event == EVENT_ALL) {
+    if (event == CWS_EVENT_ALL) {
         *mask = event;
     } else {
         *mask |= 1 << (event - EVENT_FIRST_DISCARDER);

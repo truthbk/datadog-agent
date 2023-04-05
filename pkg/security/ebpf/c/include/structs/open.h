@@ -7,6 +7,7 @@ struct openat2_open_how {
     u64 resolve;
 };
 
+#ifndef COMPILE_CORE
 struct open_flags {
     int open_flag;
     umode_t mode;
@@ -19,5 +20,6 @@ struct io_open {
     struct filename *filename;
     struct openat2_open_how how;
 };
+#endif
 
 #endif

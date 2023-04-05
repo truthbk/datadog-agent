@@ -9,6 +9,7 @@ struct kevent_t {
     u64 timestamp;
     u32 type;
     u32 flags;
+    u64 profile_cookie;
 };
 
 struct syscall_t {
