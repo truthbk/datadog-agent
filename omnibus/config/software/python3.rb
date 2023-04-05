@@ -66,7 +66,7 @@ if ohai["platform"] != "windows"
   end
 
 else
-  default_version "3.9.16-3ec1f3d"
+  default_version "3.11.2-2f3d9d5"
   dependency "vc_redist_14"
 
   if windows_arch_i386?
@@ -78,7 +78,7 @@ else
 
     # note that startring with 3.7.3 on Windows, the zip should be created without the built-in pip
     source :url => "https://dd-agent-omnibus.s3.amazonaws.com/python-windows-#{version}-x64.zip",
-         :sha256 => "E81AFDB421895ADCEDEFF0D24E926533CD1C234A4F986F4D092D3173BC376323".downcase
+         :sha256 => "8DA09BE1D6ABAD476577AA8943B948BBDC429E1CC6392C61EE5B5BAAA3FE084A".downcase
 
   end
   vcrt140_root = "#{Omnibus::Config.source_dir()}/vc_redist_140/expanded"
