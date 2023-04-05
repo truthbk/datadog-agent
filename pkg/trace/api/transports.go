@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/trace/log"
@@ -103,25 +104,31 @@ func (m *forwardingTransport) RoundTrip(req *http.Request) (rres *http.Response,
 		return nil, err
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(len(m.targets))
 	for i, u := range m.targets {
 		newreq := req.Clone(req.Context())
 		newreq.Body = io.NopCloser(bytes.NewReader(slurp))
 		setTarget(newreq, u, m.keys[i])
-		if i == 0 {
-			// given the way we construct the list of targets the main endpoint
-			// will be the first one called, we return its response and error
-			rres, rerr = m.rt.RoundTrip(newreq)
-			continue
-		}
+		go func(i int, req *http.Request) {
+			defer wg.Done()
+			if i == 0 {
+				// given the way we construct the list of targets the main endpoint
+				// will be the first one called, we return its response and error
+				rres, rerr = m.rt.RoundTrip(req)
+				return
+			}
 
-		if resp, err := m.rt.RoundTrip(newreq); err == nil {
-			// we discard responses for all subsequent requests
-			io.Copy(io.Discard, resp.Body) //nolint:errcheck
-			resp.Body.Close()
-		} else {
-			log.Error(err)
-		}
+			if resp, err := m.rt.RoundTrip(req); err == nil {
+				// we discard responses for all subsequent requests
+				io.Copy(io.Discard, resp.Body) //nolint:errcheck
+				resp.Body.Close()
+			} else {
+				log.Error(err)
+			}
+		}(i, newreq)
 	}
+	wg.Wait()
 	return rres, rerr
 }
 
