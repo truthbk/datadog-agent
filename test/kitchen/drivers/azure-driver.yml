@@ -97,6 +97,7 @@ platforms:
       end
 
       windows = platform_name.include?("win")
+      debian8 = platform_name.include?("debian-8")
       sles15 = platform_name.include?("sles-15")
       windows2008 = windows && platform_name.include?("2008")
 
@@ -163,14 +164,23 @@ platforms:
       <% end %>
     username: <%= vm_username %>
     password: <%= vm_password %>
-  <% if ENV['KITCHEN_CI_MOUNT_PATH'] && ENV['KITCHEN_CI_ROOT_PATH'] %>
+  <% if (ENV['KITCHEN_CI_MOUNT_PATH'] && ENV['KITCHEN_CI_ROOT_PATH']) || debian8 %>
   lifecycle:
     post_create:
+  <% end %>
+  <% if ENV['KITCHEN_CI_MOUNT_PATH'] && ENV['KITCHEN_CI_ROOT_PATH'] %>
     - remote: |
         sudo mkdir -p <%= ENV['KITCHEN_CI_MOUNT_PATH'] %>;
         sudo chmod a+rwx <%= ENV['KITCHEN_CI_MOUNT_PATH'] %>;
         sudo ln -s <%= ENV['KITCHEN_CI_MOUNT_PATH'] %> <%= ENV['KITCHEN_CI_ROOT_PATH'] %>;
   <% end %>
+  <% if debian8 %>
+      - local: |
+          echo "Stopping Azure Agent service on target VM."
+      - remote: |
+          sudo systemctl stop walinuxagent.service
+  <% end %>
+
 
   transport:
     <% if windows %>
