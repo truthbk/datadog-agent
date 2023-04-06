@@ -1,10 +1,8 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Xml.Linq;
 using Datadog.CustomActions;
-using Microsoft.Deployment.WindowsInstaller;
 using NineDigit.WixSharpExtensions;
 using WixSharp;
 using WixSharp.CommonTasks;
@@ -62,7 +60,10 @@ namespace WixSetup.Datadog
         public Project ConfigureProject()
         {
             var project = new ManagedProject("Datadog Agent",
-                new CustomActionRef("WixCloseApplications", When.Before, Step.RemoveFiles),
+                // Use 2 LaunchConditions, one for server versions,
+                // one for client versions.
+                MinimumSupportedWindowsVersion.WindowsServer2012 |
+                MinimumSupportedWindowsVersion.Windows8_1,
                 new Property("MsiLogging", "iwearucmop!"),
                 new Property("MSIRESTARTMANAGERCONTROL", "Disable"),
                 new Property("APIKEY")
@@ -167,6 +168,9 @@ namespace WixSetup.Datadog
                     ),
                     new Dir("logs")
                 );
+
+            project.SetNetFxPrerequisite(Condition.Net462_Installed, "This application requires the .Net Framework 4.6.2, or later to be installed.");
+
             // NineDigit.WixSharpExtensions SetProductInfo prohibits setting the revision, so we must do it here instead.
             // The revision is ignored by WiX during upgrades, so it is only useful for documentation purposes.
             project.Version = _agentVersion.Version;
@@ -324,7 +328,7 @@ namespace WixSetup.Datadog
                 // Tell MSI not to stop the services. We handle service stop manually in StopDDServices custom action.
                 StopOn = null,
                 Start = SvcStartType.auto,
-                DelayedAutoStart = false,
+                DelayedAutoStart = true,
                 RemoveOn = SvcEvent.Uninstall_Wait,
                 ServiceSid = ServiceSid.none,
                 FirstFailureActionType = FailureActionType.restart,
