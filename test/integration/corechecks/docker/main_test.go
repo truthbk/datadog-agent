@@ -105,7 +105,6 @@ func setup() error {
 	if err != nil {
 		return err
 	}
-	config.DetectFeatures()
 
 	store := workloadmeta.CreateGlobalStore(workloadmeta.NodeAgentCatalog)
 	store.Start(context.Background())

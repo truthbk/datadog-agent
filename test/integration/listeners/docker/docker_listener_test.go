@@ -44,7 +44,6 @@ type DockerListenerTestSuite struct {
 func (suite *DockerListenerTestSuite) SetupSuite() {
 	config.Datadog.SetDefault("ac_include", []string{"name:.*redis.*"})
 	config.Datadog.SetDefault("ac_exclude", []string{"image:datadog/docker-library:redis.*"})
-	config.DetectFeatures()
 	containers.ResetSharedFilter()
 
 	config.SetupLogger(

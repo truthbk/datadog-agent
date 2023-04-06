@@ -12,6 +12,7 @@ import "testing"
 
 // Setting a default list of features with what is widely used in unit tests.
 func init() {
+	disabledDetectionInTests = true
 	detectedFeatures = FeatureMap{}
 }
 
