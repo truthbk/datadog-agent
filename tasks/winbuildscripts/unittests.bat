@@ -7,6 +7,9 @@ if not exist c:\mnt\ goto nomntdir
 
 if NOT DEFINED PY_RUNTIMES set PY_RUNTIMES=%~1
 
+call %~p0extract-modcache.bat
+call %~p0extract-tools-modcache.bat
+
 @echo Starting mnt -> dev copy: %date% %time%
 
 mkdir \dev\go\src\github.com\DataDog\datadog-agent
@@ -14,8 +17,5 @@ cd \dev\go\src\github.com\DataDog\datadog-agent
 xcopy /e/s/h/q c:\mnt\*.*
 
 @echo Finished mnt -> dev copy: %date% %time%
-
-call %~p0extract-modcache.bat
-call %~p0extract-tools-modcache.bat
 
 Powershell -C "c:\mnt\tasks\winbuildscripts\unittests.ps1"
