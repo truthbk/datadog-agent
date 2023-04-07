@@ -110,7 +110,7 @@ test:
   stage: dev_container_deploy
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-builders/gitlab_agent_deploy:$DATADOG_AGENT_BUILDERS
   tags: ["runner:main"]
-  needs: ["dev_master-a7"]
+  needs: ["dca_dev_master"]
   script:
     - echo noop
 
