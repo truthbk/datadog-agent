@@ -1,7 +1,7 @@
 ---
 .windows_msi_base:
   stage: package_build
-  tags: ["runner:windows-docker", "windowsversion:1809"]
+  tags: ["runner:windows-docker", "windowsversion:1809_test"]
   needs: ["go_mod_tidy_check", "go_deps", "build_vcpkg_deps"]
   script:
     - $ErrorActionPreference = 'Stop'
@@ -13,7 +13,7 @@
     - !reference [.setup_python_mirror_win]
     - >
       docker run --rm
-      -m 4096M
+      -m 8192M
       -v "$(Get-Location):c:\mnt"
       -e CI_JOB_ID=${CI_JOB_ID}
       -e CI_PIPELINE_ID=${CI_PIPELINE_ID}
