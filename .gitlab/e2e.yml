@@ -107,7 +107,7 @@ k8s-e2e-cspm-main:
     - inv -e e2e-tests --agent-image=datadog/agent-dev:master-py3 --dca-image=datadog/cluster-agent-dev:master --argo-workflow=cspm
 
 test:
-  stage: e2e
+  stage: dev_container_deploy
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-builders/gitlab_agent_deploy:$DATADOG_AGENT_BUILDERS
   tags: ["runner:main"]
   needs: ["dev_master-a7"]
