@@ -25,7 +25,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const codecName = "vtproto"
+const VTProtoCodecName = "vtproto"
 
 // maybeVTCodec represents a codec able to encode and decode vt enabled proto messages
 type maybeVTCodec struct{}
@@ -65,7 +65,7 @@ func (maybeVTCodec) Unmarshal(data []byte, v interface{}) error {
 
 // Name returns the name of the codec
 func (maybeVTCodec) Name() string {
-	return codecName
+	return VTProtoCodecName
 }
 
 func init() {
