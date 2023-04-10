@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/sbom"
 	cutil "github.com/DataDog/datadog-agent/pkg/util/containerd"
+	"github.com/DataDog/datadog-agent/pkg/util/filesystem"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 
@@ -54,8 +55,10 @@ type ContainerdAccessor func() (cutil.ContainerdItf, error)
 
 // CollectorConfig allows to pass configuration
 type CollectorConfig struct {
-	CacheProvider     CacheProvider
-	ClearCacheOnClose bool
+	CacheProvider      CacheProvider
+	ClearCacheOnClose  bool
+	CheckDiskUsage     bool
+	MinAvailableDisk   uint64
 }
 
 // Collector uses trivy to generate a SBOM
@@ -67,6 +70,7 @@ type Collector struct {
 	dbConfig   db.Config
 	vulnClient vulnerability.Client
 	marshaler  *cyclonedx.Marshaler
+	disk       filesystem.Disk
 }
 
 var globalCollector *Collector
@@ -107,6 +111,8 @@ func DefaultCollectorConfig(cacheLocation string) CollectorConfig {
 
 	collectorConfig.CacheProvider = cacheProvider(cacheLocation, false)
 
+	collectorConfig.CheckDiskUsage = config.Datadog.GetBool("container_image_collection.sbom.check_disk_usage")
+	collectorConfig.MinAvailableDisk = uint64(config.Datadog.GetSizeInBytes("container_image_collection.sbom.min_available_disk"))
 	return collectorConfig
 }
 
@@ -177,6 +183,7 @@ func NewCollector(cfg config.Config) (*Collector, error) {
 		dbConfig:   dbConfig,
 		vulnClient: vulnerability.NewClient(dbConfig),
 		marshaler:  cyclonedx.NewMarshaler(""),
+		disk:       filesystem.NewDisk(),
 	}, nil
 }
 
@@ -217,6 +224,12 @@ func (c *Collector) ScanDockerImage(ctx context.Context, imgMeta *workloadmeta.C
 }
 
 func (c *Collector) ScanContainerdImage(ctx context.Context, imgMeta *workloadmeta.ContainerImageMetadata, img containerd.Image, client cutil.ContainerdItf, scanOptions sbom.ScanOptions) (sbom.Report, error) {
+	sbomAttempts.Inc(sourceContainerd, typeDaemon)
+	if err := c.hasDiskSpace(); err != nil {
+		sbomFailures.Inc(sourceContainerd, typeDaemon, reasonDiskSpace)
+		return nil, fmt.Errorf("error checking current disk usage, err: %w", err)
+	}
+
 	fanalImage, cleanup, err := convertContainerdImage(ctx, client.RawClient(), imgMeta, img)
 	if cleanup != nil {
 		defer cleanup()
@@ -229,6 +242,12 @@ func (c *Collector) ScanContainerdImage(ctx context.Context, imgMeta *workloadme
 }
 
 func (c *Collector) ScanContainerdImageFromFilesystem(ctx context.Context, imgMeta *workloadmeta.ContainerImageMetadata, img containerd.Image, client cutil.ContainerdItf, scanOptions sbom.ScanOptions) (sbom.Report, error) {
+	sbomAttempts.Inc(sourceContainerd, typeFilesystem)
+	if err := c.hasDiskSpace(); err != nil {
+		sbomFailures.Inc(sourceContainerd, typeFilesystem, reasonDiskSpace)
+		return nil, fmt.Errorf("error checking current disk usage, err: %w", err)
+	}
+
 	imagePath, err := os.MkdirTemp(os.TempDir(), fmt.Sprintf("containerd-image-*"))
 	if err != nil {
 		return nil, fmt.Errorf("unable to create temp dir, err: %w", err)
@@ -305,4 +324,21 @@ func (c *Collector) scanImage(ctx context.Context, fanalImage ftypes.Image, scan
 	}
 
 	return bom, nil
+}
+
+func (c *Collector) hasDiskSpace() error {
+	if !c.config.CheckDiskUsage {
+		return nil
+	}
+
+	usage, err := c.disk.GetUsage("/")
+	if err != nil {
+		return err
+	}
+
+	if usage.Available < c.config.MinAvailableDisk {
+		return fmt.Errorf("not enough disk space to safely collect sbom, %d available, %d required", usage.Available, c.config.MinAvailableDisk)
+	}
+
+	return nil
 }

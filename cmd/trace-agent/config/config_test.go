@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -1013,42 +1012,30 @@ func TestLoadEnv(t *testing.T) {
 func TestFargateConfig(t *testing.T) {
 	assert := assert.New(t)
 	type testData struct {
-		name         string
-		envKey       string
-		envValue     string
-		orchestrator config.FargateOrchestratorName
+		features             []coreconfig.Feature
+		expectedOrchestrator config.FargateOrchestratorName
 	}
 	for _, data := range []testData{
 		{
-			name:         "ecs_fargate",
-			envKey:       "ECS_FARGATE",
-			envValue:     "true",
-			orchestrator: config.OrchestratorECS,
+			features:             []coreconfig.Feature{coreconfig.ECSFargate},
+			expectedOrchestrator: config.OrchestratorECS,
 		},
 		{
-			name:         "eks_fargate",
-			envKey:       "DD_EKS_FARGATE",
-			envValue:     "true",
-			orchestrator: config.OrchestratorEKS,
+			features:             []coreconfig.Feature{coreconfig.EKSFargate},
+			expectedOrchestrator: config.OrchestratorEKS,
 		},
 		{
-			name:         "unknown",
-			envKey:       "ECS_FARGATE",
-			envValue:     "",
-			orchestrator: config.OrchestratorUnknown,
+			features:             []coreconfig.Feature{},
+			expectedOrchestrator: config.OrchestratorUnknown,
 		},
 	} {
 		t.Run("", func(t *testing.T) {
 			defer cleanConfig()()
-			t.Setenv(data.envKey, data.envValue)
+			coreconfig.SetFeatures(t, data.features...)
 			cfg, err := LoadConfigFile("./testdata/no_apm_config.yaml")
 			assert.NoError(err)
 
-			if runtime.GOOS == "darwin" {
-				assert.Equal(config.OrchestratorUnknown, cfg.FargateOrchestrator)
-			} else {
-				assert.Equal(data.orchestrator, cfg.FargateOrchestrator)
-			}
+			assert.Equal(data.expectedOrchestrator, cfg.FargateOrchestrator)
 		})
 	}
 }
@@ -1092,5 +1079,49 @@ func TestSetMaxMemCPU(t *testing.T) {
 		setMaxMemCPU(c, true)
 		assert.Equal(t, 0.3, c.MaxCPU)
 		assert.Equal(t, 300.0, c.MaxMemory)
+	})
+}
+
+func TestPeerServiceAggregation(t *testing.T) {
+	t.Run("disabled", func(t *testing.T) {
+		defer cleanConfig()
+		cfg := config.New()
+		err := applyDatadogConfig(cfg)
+
+		assert := assert.New(t)
+		assert.NoError(err)
+		assert.False(cfg.PeerServiceAggregation)
+	})
+	t.Run("enabled", func(t *testing.T) {
+		defer cleanConfig()
+		coreconfig.Datadog.Set("apm_config.peer_service_aggregation", true)
+		cfg := config.New()
+		err := applyDatadogConfig(cfg)
+
+		assert := assert.New(t)
+		assert.NoError(err)
+		assert.True(cfg.PeerServiceAggregation)
+	})
+}
+
+func TestComputeStatsBySpanKind(t *testing.T) {
+	t.Run("disabled", func(t *testing.T) {
+		defer cleanConfig()
+		cfg := config.New()
+		err := applyDatadogConfig(cfg)
+
+		assert := assert.New(t)
+		assert.NoError(err)
+		assert.False(cfg.ComputeStatsBySpanKind)
+	})
+	t.Run("enabled", func(t *testing.T) {
+		defer cleanConfig()
+		coreconfig.Datadog.Set("apm_config.compute_stats_by_span_kind", true)
+		cfg := config.New()
+		err := applyDatadogConfig(cfg)
+
+		assert := assert.New(t)
+		assert.NoError(err)
+		assert.True(cfg.ComputeStatsBySpanKind)
 	})
 }

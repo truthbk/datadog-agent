@@ -1125,6 +1125,8 @@ func InitConfig(config Config) {
 	config.BindEnvAndSetDefault("container_image_collection.sbom.scan_interval", 0)    // Integer seconds
 	config.BindEnvAndSetDefault("container_image_collection.sbom.scan_timeout", 10*60) // Integer seconds
 	config.BindEnvAndSetDefault("container_image_collection.sbom.analyzers", []string{"os"})
+	config.BindEnvAndSetDefault("container_image_collection.sbom.check_disk_usage", true)
+	config.BindEnvAndSetDefault("container_image_collection.sbom.min_available_disk", "1Gb")
 
 	// Datadog security agent (common)
 	config.BindEnvAndSetDefault("security_agent.cmd_port", 5010)
@@ -1480,7 +1482,7 @@ func LoadDatadogCustomWithKnownEnvVars(config Config, origin string, loadSecret 
 	defer func() {
 		// Environment feature detection needs to run before applying override funcs
 		// as it may provide such overrides
-		DetectFeatures()
+		detectFeatures()
 		applyOverrideFuncs(config)
 	}()
 
