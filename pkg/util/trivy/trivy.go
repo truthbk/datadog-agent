@@ -55,10 +55,10 @@ type ContainerdAccessor func() (cutil.ContainerdItf, error)
 
 // CollectorConfig allows to pass configuration
 type CollectorConfig struct {
-	CacheProvider      CacheProvider
-	ClearCacheOnClose  bool
-	CheckDiskUsage     bool
-	MinAvailableDisk   uint64
+	CacheProvider     CacheProvider
+	ClearCacheOnClose bool
+	CheckDiskUsage    bool
+	MinAvailableDisk  uint64
 }
 
 // Collector uses trivy to generate a SBOM
@@ -212,6 +212,12 @@ func (c *Collector) Close() error {
 }
 
 func (c *Collector) ScanDockerImage(ctx context.Context, imgMeta *workloadmeta.ContainerImageMetadata, client client.ImageAPIClient, scanOptions sbom.ScanOptions) (sbom.Report, error) {
+	sbomAttempts.Inc(sourceDocker, typeDaemon)
+	if err := c.hasDiskSpace(); err != nil {
+		sbomFailures.Inc(sourceDocker, typeDaemon, reasonDiskSpace)
+		return nil, fmt.Errorf("error checking current disk usage, err: %w", err)
+	}
+
 	fanalImage, cleanup, err := convertDockerImage(ctx, client, imgMeta)
 	if cleanup != nil {
 		defer cleanup()
