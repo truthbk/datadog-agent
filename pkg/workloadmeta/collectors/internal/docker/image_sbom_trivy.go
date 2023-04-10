@@ -14,18 +14,12 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
-	"github.com/DataDog/datadog-agent/pkg/util/docker"
+	"github.com/DataDog/datadog-agent/pkg/sbom"
+	"github.com/DataDog/datadog-agent/pkg/sbom/collectors/docker"
+	"github.com/DataDog/datadog-agent/pkg/sbom/scanner"
+	dutil "github.com/DataDog/datadog-agent/pkg/util/docker"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
-	"github.com/DataDog/datadog-agent/pkg/util/trivy"
 	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
-	"github.com/DataDog/datadog-agent/pkg/workloadmeta/telemetry"
-
-	"github.com/docker/docker/client"
-)
-
-// scan buffer needs to be very large as we cannot block containerd collector
-const (
-	imagesToScanBufferSize = 5000
 )
 
 func imageMetadataCollectionIsEnabled() bool {
@@ -43,14 +37,14 @@ func (c *collector) startSBOMCollection(ctx context.Context) error {
 
 	var err error
 	enabledAnalyzers := config.Datadog.GetStringSlice("container_image_collection.sbom.analyzers")
-	trivyConfiguration := trivy.DefaultCollectorConfig(enabledAnalyzers, config.Datadog.GetString("container_image_collection.sbom.cache_directory"))
-	trivyConfiguration.ClearCacheOnClose = config.Datadog.GetBool("container_image_collection.sbom.clear_cache_on_exit")
-	trivyConfiguration.DockerAccessor = func() (client.ImageAPIClient, error) {
-		return c.dockerUtil.RawClient(), nil
+	c.scanOptions = sbom.ScanOptions{
+		Analyzers: enabledAnalyzers,
+		Timeout:   scanningTimeout(),
+		WaitAfter: timeBetweenScans(),
 	}
 
-	c.trivyClient, err = trivy.NewCollector(trivyConfiguration)
-	if err != nil {
+	c.trivyScanner = scanner.GetGlobalScanner()
+	if c.trivyScanner == nil {
 		return fmt.Errorf("error initializing trivy client: %w", err)
 	}
 
@@ -64,14 +58,11 @@ func (c *collector) startSBOMCollection(ctx context.Context) error {
 		),
 	)
 
-	imagesToScanCh := make(chan *workloadmeta.ContainerImageMetadata, imagesToScanBufferSize)
-
 	go func() {
 		for {
 			select {
 			// We don't want to keep scanning if image channel is not empty but context is expired
 			case <-ctx.Done():
-				close(imagesToScanCh)
 				return
 
 			case eventBundle := <-imgEventsCh:
@@ -87,70 +78,61 @@ func (c *collector) startSBOMCollection(ctx context.Context) error {
 						continue
 					}
 
-					// Don't scan the image here. Enqueue it instead because we
-					// need to keep reading events from workloadmeta to avoid
-					// blocking it.
+					scanContext, cancel := context.WithTimeout(ctx, scanningTimeout())
+					if err := c.extractBOMWithTrivy(scanContext, image); err != nil {
+						log.Warnf("Error extracting SBOM for image: namespace=%s name=%s, err: %s", image.Namespace, image.Name, err)
+					}
 
-					imagesToScanCh <- image
+					cancel()
 				}
 			}
-		}
-	}()
-
-	go func() {
-		defer func() {
-			err := c.trivyClient.Close()
-			if err != nil {
-				log.Warnf("Unable to close trivy client: %v", err)
-			}
-		}()
-
-		for image := range imagesToScanCh {
-			scanContext, cancel := context.WithTimeout(ctx, scanningTimeout())
-			if err := c.extractBOMWithTrivy(scanContext, image); err != nil {
-				log.Warnf("Error extracting SBOM for image: namespace=%s name=%s, err: %s", image.Namespace, image.Name, err)
-			}
-			cancel()
-
-			time.Sleep(timeBetweenScans())
 		}
 	}()
 
 	return nil
 }
 
-func (c *collector) extractBOMWithTrivy(ctx context.Context, image *workloadmeta.ContainerImageMetadata) error {
-	scanFunc := c.trivyClient.ScanDockerImage
+func (c *collector) extractBOMWithTrivy(ctx context.Context, storedImage *workloadmeta.ContainerImageMetadata) error {
+	scanRequest := &docker.ScanRequest{
+		ImageMeta:      storedImage,
+		FromFilesystem: config.Datadog.GetBool("container_image_collection.sbom.use_mount"),
+	}
 
-	tStartScan := time.Now()
-	report, err := scanFunc(ctx, image)
-	if err != nil {
+	ch := make(chan sbom.ScanResult)
+	if err := c.trivyScanner.Scan(scanRequest, c.scanOptions, ch); err != nil {
 		return err
 	}
 
-	cycloneDXBOM, err := report.ToCycloneDX()
-	if err != nil {
-		return err
-	}
+	go func() {
+		select {
+		case <-ctx.Done():
+		case result := <-ch:
+			bom, err := result.Report.ToCycloneDX()
+			if err != nil {
+				log.Errorf("Failed to extract SBOM from report")
+				return
+			}
 
-	scanDuration := time.Since(tStartScan)
+			sbom := &workloadmeta.SBOM{
+				CycloneDXBOM:       bom,
+				GenerationTime:     result.CreatedAt,
+				GenerationDuration: result.Duration,
+			}
 
-	telemetry.SBOMGenerationDuration.Observe(scanDuration.Seconds())
+			// Updating workloadmeta entities directly is not thread-safe, that's why we
+			// generate an update event here instead.
+			event := &dutil.ImageEvent{
+				ImageID:   storedImage.ID,
+				Action:    dutil.ImageEventActionSbom,
+				Timestamp: time.Now(),
+			}
+			if err := c.handleImageEvent(ctx, event, sbom); err != nil {
+				log.Warnf("Error extracting SBOM for image: namespace=%s name=%s, err: %s", storedImage.Namespace, storedImage.Name, err)
+			}
+		}
+	}()
 
-	sbom := &workloadmeta.SBOM{
-		CycloneDXBOM:       cycloneDXBOM,
-		GenerationTime:     tStartScan,
-		GenerationDuration: scanDuration,
-	}
-
-	// Updating workloadmeta entities directly is not thread-safe, that's why we
-	// generate an update event here instead.
-	event := &docker.ImageEvent{
-		ImageID:   image.ID,
-		Action:    docker.ImageEventActionSbom,
-		Timestamp: time.Now(),
-	}
-	return c.handleImageEvent(ctx, event, sbom)
+	return nil
 }
 
 func scanningTimeout() time.Duration {

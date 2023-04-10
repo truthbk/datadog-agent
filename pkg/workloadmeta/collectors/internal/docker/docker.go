@@ -11,11 +11,13 @@ package docker
 import (
 	"context"
 	"fmt"
-	"github.com/DataDog/datadog-agent/pkg/util/trivy"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/DataDog/datadog-agent/pkg/sbom"
+	"github.com/DataDog/datadog-agent/pkg/sbom/scanner"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/image"
@@ -55,7 +57,8 @@ type collector struct {
 	handleImagesMut sync.Mutex
 
 	// SBOM Scanning
-	trivyClient trivy.Collector // nolint: unused
+	trivyScanner *scanner.Scanner // nolint: unused
+	scanOptions  sbom.ScanOptions // nolint: unused
 }
 
 func init() {
