@@ -55,16 +55,12 @@ func (c *Collector) Scan(ctx context.Context, request sbom.ScanRequest, opts sbo
 		return nil, fmt.Errorf("invalid request type '%s' for collector '%s'", reflect.TypeOf(request), collectorName)
 	}
 
-	if dockerScanRequest.FromFilesystem {
-		return nil, nil
-	} else {
-		return c.trivyCollector.ScanDockerImage(
-			ctx,
-			dockerScanRequest.ImageMeta,
-			dockerScanRequest.DockerClient,
-			opts,
-		)
-	}
+	return c.trivyCollector.ScanDockerImage(
+		ctx,
+		dockerScanRequest.ImageMeta,
+		dockerScanRequest.DockerClient,
+		opts,
+	)
 }
 
 func init() {
