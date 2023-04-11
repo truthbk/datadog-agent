@@ -94,6 +94,14 @@ Write-Host "Adding Windows Update certificates"
 
 Import-SSTFromWU
 
+Write-Host "Added Windows Update certificates"
+
+Write-Host LocalMachine certificates
+Get-Childitem cert:\LocalMachine\ -Recurse | Format-List
+
+Write-Host CurrentUser certificates
+Get-Childitem cert:\CurrentUser -Recurse | Format-List
+
 # NG installer unit tests
 if ($Env:DEBUG_CUSTOMACTION) {
     & inv -e msi.test --arch=$archflag --debug
