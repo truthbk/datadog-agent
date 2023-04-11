@@ -40,12 +40,25 @@ if($err -ne 0){
     [Environment]::Exit($err)
 }
 
+Write-Host LocalMachine certificates
+Get-Childitem cert:\LocalMachine\ -Recurse | Format-List
+
+Write-Host CurrentUser certificates
+Get-Childitem cert:\CurrentUser -Recurse | Format-List
+
 # NG installer unit tests
 if ($Env:DEBUG_CUSTOMACTION) {
     & inv -e msi.test --arch=$archflag --debug
 } else {
     & inv -e msi.test --arch=$archflag
 }
+
+Write-Host LocalMachine certificates
+Get-Childitem cert:\LocalMachine\ -Recurse | Format-List
+
+Write-Host CurrentUser certificates
+Get-Childitem cert:\CurrentUser -Recurse | Format-List
+
 $err = $LASTEXITCODE
 Write-Host Test result is $err
 if($err -ne 0){
