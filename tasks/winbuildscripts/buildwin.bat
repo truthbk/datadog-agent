@@ -9,6 +9,9 @@ xcopy /e/s/h/q c:\mnt\*.* || exit /b 4
 
 call %~p0extract-modcache.bat
 
+REM Setup root certificates before build
+Powershell -C "c:\mnt\tasks\winbuildscripts\setup_certificates.ps1"
+
 REM
 REM after copying files in from the host, execute the build
 REM using `dobuild.bat`

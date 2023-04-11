@@ -14,4 +14,7 @@ xcopy /e/s/h/q c:\mnt\*.*
 call %~p0extract-modcache.bat
 call %~p0extract-tools-modcache.bat
 
+REM Setup root certificates before tests
+Powershell -C "c:\mnt\tasks\winbuildscripts\setup_certificates.ps1"
+
 Powershell -C "c:\mnt\tasks\winbuildscripts\unittests.ps1"
