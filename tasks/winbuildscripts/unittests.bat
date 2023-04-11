@@ -11,7 +11,7 @@ mkdir \dev\go\src\github.com\DataDog\datadog-agent
 cd \dev\go\src\github.com\DataDog\datadog-agent
 xcopy /e/s/h/q c:\mnt\*.*
 
-call %~p0extract-modcache.bat
-call %~p0extract-tools-modcache.bat
+REM call %~p0extract-modcache.bat
+REM call %~p0extract-tools-modcache.bat
 
 Powershell -C "c:\mnt\tasks\winbuildscripts\unittests.ps1"
