@@ -582,6 +582,7 @@
       <?include Resources\assets\sitedlg.wxi ?>
       <?include Resources\assets\ddagentuserdlg.wxi ?>
       <?include Resources\assets\closedsource.wxi ?>
+      <?include Resources\assets\installdirdlgwithcost.wxi ?>
       <DialogRef Id="ErrorDlg" />
       <DialogRef Id="FatalError" />
       <DialogRef Id="FilesInUse" />
@@ -595,13 +596,14 @@
       <DialogRef Id="SiteDlg"/>
       <DialogRef Id="DDAgentUserDlg"/>
       <DialogRef Id="DDAgentUserInvalidDlg"/>
+      <DialogRef Id="InstallDirDlgWithCost"/>
       <DialogRef Id="LicenseAgreementDlg"/>
       <DialogRef Id="BrowseDlg" />
       <DialogRef Id="AllowClosedSourceDlg"/>
       <DialogRef Id="MaintenanceWelcomeDlg"/>
       <DialogRef Id="MaintenanceTypeDlg"/>
       <DialogRef Id="ResumeDlg"/>
-      <DialogRef Id="CustomizeDlg"/>
+      <DialogRef Id="DiskCostDlg" />
       <!-- Order of dialogs should be
            WelcomeDlg
            License Agreement IF NOT UPGRADE
@@ -619,21 +621,24 @@
 
       <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="AllowClosedSourceDlg">NOT PREVIOUSFOUND</Publish>
 
-      <Publish Dialog="AllowClosedSourceDlg" Control="Next" Event="NewDialog" Value="CustomizeDlg">1</Publish>
+      <Publish Dialog="AllowClosedSourceDlg" Control="Next" Event="NewDialog" Value="InstallDirDlgWithCost">(NOT (WixUI_InstallMode = "Change")) AND (NOT PREVIOUSFOUND)</Publish>
+      <Publish Dialog="AllowClosedSourceDlg" Control="Next" Event="NewDialog" Value="ApiKeyDlg">(NOT WixUI_InstallMode) AND (NOT PREVIOUSFOUND) AND (NOT DATADOGYAMLEXISTS)</Publish>
+      <Publish Dialog="AllowClosedSourceDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">WixUI_InstallMode OR PREVIOUSFOUND OR DATADOGYAMLEXISTS</Publish>
+
 
       <Publish Dialog="AllowClosedSourceDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg">(NOT WixUI_InstallMode) AND (NOT PREVIOUSFOUND)</Publish>
       <Publish Dialog="AllowClosedSourceDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg">(NOT WixUI_InstallMode) AND PREVIOUSFOUND</Publish>
       <Publish Dialog="AllowClosedSourceDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg"> WixUI_InstallMode </Publish>
 
 
-      <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="ApiKeyDlg">(NOT WixUI_InstallMode) AND (NOT PREVIOUSFOUND) AND (NOT DATADOGYAMLEXISTS)</Publish>
-      <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">WixUI_InstallMode OR PREVIOUSFOUND OR DATADOGYAMLEXISTS</Publish>
-      <Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="AllowClosedSourceDlg"> 1 </Publish>
+      <Publish Dialog="InstallDirDlgWithCost" Control="Next" Event="NewDialog" Value="ApiKeyDlg">(NOT WixUI_InstallMode) AND (NOT PREVIOUSFOUND) AND (NOT DATADOGYAMLEXISTS)</Publish>
+      <Publish Dialog="InstallDirDlgWithCost" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">WixUI_InstallMode OR PREVIOUSFOUND OR DATADOGYAMLEXISTS</Publish>
+      <Publish Dialog="InstallDirDlgWithCost" Control="Back" Event="NewDialog" Value="AllowClosedSourceDlg"> 1 </Publish>
       
-
+      <Publish Dialog="InstallDirDlgWithCost" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+      <Publish Dialog="InstallDirDlgWithCost" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2">1</Publish>
       
-      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="CustomizeDlg">(NOT WixUI_InstallMode) AND (PREVIOUSFOUND OR DATADOGYAMLEXISTS)</Publish>
-      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="CustomizeDlg">WixUI_InstallMode = "Change"</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="AllowClosedSourceDlg">(WixUI_InstallMode = "Change") OR (PREVIOUSFOUND OR DATADOGYAMLEXISTS)</Publish>
 
       <Publish Dialog="MaintenanceTypeDlg" Control="ChangeButton" Event="NewDialog" Value="AllowClosedSourceDlg">1</Publish>
 

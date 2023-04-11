@@ -6,7 +6,8 @@
                Text="Back">
           
         <Publish Event="NewDialog" Value="MaintenanceTypeDlg">WixUI_InstallMode = "Repair"</Publish>
-        <Publish Event="NewDialog" Value="CustomizeDlg">NOT INSTALLED</Publish>
+        <Publish Event="NewDialog" Value="AllowClosedSourceDlg">( WixUI_InstallMode = "Change") OR (PREVIOUSFOUND OR DATADOGYAMLEXISTS)</Publish>
+        <Publish Event="NewDialog" Value="InstallDirDlgWithCost">(NOT WixUI_InstallMode) AND (NOT (PREVIOUSFOUND OR DATADOGYAMLEXISTS))</Publish>
       </Control>
       <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes"
                Text="Next">
