@@ -297,6 +297,11 @@ workflow:
         USE_CACHING_PROXY_PYTHON: "false"
         USE_CACHING_PROXY_RUBY: "false"
         GO_DEPS_TAG: "runner:docker"
+    - if: $CI_COMMIT_BRANCH == "kserrania/test-workflow-tags"
+      variables:
+        USE_CACHING_PROXY_PYTHON: "false"
+        USE_CACHING_PROXY_RUBY: "false"
+        GO_DEPS_TAG: "runner:docker"
     - if: $CI_COMMIT_TAG == null
       variables:
         USE_CACHING_PROXY_PYTHON: "false"
