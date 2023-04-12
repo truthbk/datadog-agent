@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/DataDog/gopsutil/process"
@@ -24,10 +25,12 @@ import (
 	"golang.org/x/sys/unix"
 
 	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
-	"github.com/DataDog/datadog-agent/pkg/process/monitor"
+	//	"github.com/DataDog/datadog-agent/pkg/process/monitor"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
+
+const soCheckProcessAliveInterval = 10 * time.Second
 
 func toLibPath(data []byte) libPath {
 	return *(*libPath)(unsafe.Pointer(&data[0]))
@@ -94,12 +97,14 @@ type soRule struct {
 
 // soWatcher provides a way to tie callback functions to the lifecycle of shared libraries
 type soWatcher struct {
-	procRoot       string
-	all            *regexp.Regexp
-	rules          []soRule
-	loadEvents     *ddebpf.PerfHandler
-	processMonitor *monitor.ProcessMonitor
-	registry       *soRegistry
+	procRoot    string
+	thisPID     int
+	lastPIDSeen map[int]struct{}
+	all         *regexp.Regexp
+	rules       []soRule
+	loadEvents  *ddebpf.PerfHandler
+	//	processMonitor *monitor.ProcessMonitor
+	registry *soRegistry
 }
 
 type soRegistry struct {
@@ -119,16 +124,17 @@ func newSOWatcher(perfHandler *ddebpf.PerfHandler, rules ...soRule) *soWatcher {
 
 	all := regexp.MustCompile(fmt.Sprintf("(%s)", strings.Join(allFilters, "|")))
 	return &soWatcher{
-		procRoot:       util.GetProcRoot(),
-		all:            all,
-		rules:          rules,
-		loadEvents:     perfHandler,
-		processMonitor: monitor.GetProcessMonitor(),
+		procRoot:   util.GetProcRoot(),
+		all:        all,
+		rules:      rules,
+		loadEvents: perfHandler,
+		//		processMonitor: monitor.GetProcessMonitor(),
 		registry: &soRegistry{
 			byID:          make(map[pathIdentifier]*soRegistration),
 			byPID:         make(map[uint32]*soRegistration),
 			blocklistByID: make(map[pathIdentifier]struct{}),
 		},
+		lastPIDSeen: make(map[int]struct{}),
 	}
 }
 
@@ -164,15 +170,35 @@ func (w *soWatcher) processExit(pid uint32) {
 	w.registry.Unregister(pid)
 }
 
+func (w *soWatcher) checkProcessDone() {
+	seen := make(map[int]struct{}, len(w.lastPIDSeen))
+	_ = util.WithAllProcs(w.procRoot, func(pid int) error {
+		if pid == w.thisPID { // don't scan ourself
+			return nil
+		}
+		seen[pid] = struct{}{}
+		return nil
+	})
+
+	lastPIDSeen := w.lastPIDSeen
+	for pid := range lastPIDSeen {
+		if _, found := seen[pid]; !found {
+			delete(w.lastPIDSeen, pid)
+			w.processExit(uint32(pid))
+		}
+	}
+}
+
 // Start consuming shared-library events
 func (w *soWatcher) Start() {
-	thisPID, err := util.GetRootNSPID()
+	var err error
+	w.thisPID, err = util.GetRootNSPID()
 	if err != nil {
 		log.Warnf("soWatcher Start can't get root namespace pid %s", err)
 	}
 
 	_ = util.WithAllProcs(w.procRoot, func(pid int) error {
-		if pid == thisPID { // don't uprobes ourself
+		if pid == w.thisPID { // don't uprobes ourself
 			return nil
 		}
 
@@ -202,28 +228,37 @@ func (w *soWatcher) Start() {
 		return nil
 	})
 
-	if err := w.processMonitor.Initialize(); err != nil {
-		log.Errorf("can't initialize process monitor %s", err)
-		return
-	}
-	cleanupExit, err := w.processMonitor.Subscribe(&monitor.ProcessCallback{
-		Event:    monitor.EXIT,
-		Metadata: monitor.ANY,
-		Callback: w.processExit,
-	})
-	if err != nil {
-		log.Errorf("can't subscribe to process monitor exit event %s", err)
-		return
-	}
+	/*
+		if err := w.processMonitor.Initialize(); err != nil {
+			log.Errorf("can't initialize process monitor %s", err)
+			return
+		}
+		cleanupExit, err := w.processMonitor.Subscribe(&monitor.ProcessCallback{
+			Event:    monitor.EXIT,
+			Metadata: monitor.ANY,
+			Callback: w.processExit,
+		})
+		if err != nil {
+			log.Errorf("can't subscribe to process monitor exit event %s", err)
+			return
+		}
+	*/
 
 	go func() {
-		defer cleanupExit()
-		defer w.processMonitor.Stop()
+		tickerProcess := time.NewTicker(soCheckProcessAliveInterval)
+		defer tickerProcess.Stop()
+
+		//		defer cleanupExit()
+		//		defer w.processMonitor.Stop()
+
 		// cleanup all the uprobes
 		defer w.registry.cleanup()
 
 		for {
 			select {
+			case <-tickerProcess.C:
+				go w.checkProcessDone()
+
 			case event, ok := <-w.loadEvents.DataChannel:
 				if !ok {
 					return
@@ -239,7 +274,7 @@ func (w *soWatcher) Start() {
 				if strings.HasPrefix(libPath, w.procRoot) {
 					// don't scan ourself when we resolve offsets via debug.elf.Open()
 					// but make the unit test pass as the pid of the test and the tracer would be the same
-					// that why we don't filter by lib.Pid == uint32(thisPID) here
+					// that why we don't filter by lib.Pid == uint32(w.thisPID) here
 					continue
 				}
 
@@ -247,6 +282,8 @@ func (w *soWatcher) Start() {
 					if !r.re.Match(path) {
 						continue
 					}
+
+					w.lastPIDSeen[int(lib.Pid)] = struct{}{}
 
 					// use cwd of the process as root if the path is relative
 					if libPath[0] != '/' {
