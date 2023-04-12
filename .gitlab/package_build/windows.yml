@@ -1,7 +1,7 @@
 ---
 .windows_msi_base:
   stage: package_build
-  tags: ["runner:windows-docker", "windowsversion:1809_test_9x"]
+  tags: ["runner:windows-docker", "windowsversion:1809_test_9x_def"]
   needs: ["go_mod_tidy_check", "go_deps", "build_vcpkg_deps"]
   script:
     - $ErrorActionPreference = 'Stop'
