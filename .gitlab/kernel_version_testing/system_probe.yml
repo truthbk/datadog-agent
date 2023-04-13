@@ -139,7 +139,6 @@ kernel_matrix_testing_setup_env:
       - $LibvirtSSHKeyARM.pub
       - $STACK_DIR
       - $CI_PROJECT_DIR/stack.outputs
-      - $AWS_SSH_KEY
 
 kernel_matrix_testing_upload_deps:
   extends:
@@ -180,6 +179,10 @@ kernel_matrix_testing_run_tests:
   script:
     - INSTANCE_IP=$(cat $CI_PROJECT_DIR/stack.outputs | grep $ARCH-instance-ip | cut -d ' ' -f 2)
     - MICRO_VM_IP=$(cat $CI_PROJECT_DIR/stack.outputs | grep $ARCH-$TAG | cut -d ' ' -f 2)
+    - python -m pip install awscli
+    - set +x
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.aws_ec2_kitchen_ssh_key --with-decryption --query "Parameter.Value" --out text > $AWS_SSH_KEY
+    - set -x
     - chmod 400 $AWS_SSH_KEY
     - ssh -vvv -o StrictHostKeyChecking=no -i $AWS_SSH_KEY root@$INSTANCE_IP 'whoami'
     - ssh -vvv -o StrictHostKeyChecking=no -i $AWS_SSH_KEY root@$INSTANCE_IP "sudo ssh -i /home/kernel-version-testing/rootfs/ddvm_rsa root@${MICRO_VM_IP} ls -la /opt/kernel-version-testing"
