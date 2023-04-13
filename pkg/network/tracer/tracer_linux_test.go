@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cilium/ebpf"
 	"github.com/golang/mock/gomock"
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/assert"
@@ -34,20 +35,20 @@ import (
 	vnetns "github.com/vishvananda/netns"
 	"golang.org/x/sys/unix"
 
+	manager "github.com/DataDog/ebpf-manager"
+
 	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
 	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
-	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode"
-	rc "github.com/DataDog/datadog-agent/pkg/ebpf/bytecode/runtime"
 	"github.com/DataDog/datadog-agent/pkg/network"
 	"github.com/DataDog/datadog-agent/pkg/network/config"
 	"github.com/DataDog/datadog-agent/pkg/network/config/sysctl"
+	errtelemetry "github.com/DataDog/datadog-agent/pkg/network/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/network/testutil"
 	"github.com/DataDog/datadog-agent/pkg/network/tracer/connection"
 	"github.com/DataDog/datadog-agent/pkg/network/tracer/offsetguess"
 	tracertest "github.com/DataDog/datadog-agent/pkg/network/tracer/testutil"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
-	manager "github.com/DataDog/ebpf-manager"
 )
 
 var kv470 kernel.Version = kernel.VersionCode(4, 7, 0)
@@ -1767,58 +1768,83 @@ func TestPreexistingConnectionDirection(t *testing.T) {
 
 func TestEbpfConntrackerFallback(t *testing.T) {
 	type testCase struct {
-		enableRuntimeCompiler    bool
+		enableCORE            bool
+		enableRuntimeCompiler bool
+
+		allowRuntimeFallback     bool
 		allowPrecompiledFallback bool
-		rcError                  bool
-		prebuiltError            bool
+
+		coreError     bool
+		rcError       bool
+		prebuiltError bool
 
 		err        error
 		isPrebuilt bool
 	}
 
 	var tests = []testCase{
-		{false, false, false, false, nil, true},
-		{false, false, false, true, assert.AnError, false},
-		{false, false, true, false, nil, true},
-		{false, false, true, true, assert.AnError, false},
-		{false, true, false, false, nil, true},
-		{false, true, false, true, assert.AnError, false},
-		{false, true, true, false, nil, true},
-		{false, true, true, true, assert.AnError, false},
-		{true, false, false, false, nil, false},
-		{true, false, false, true, nil, false},
-		{true, false, true, false, assert.AnError, false},
-		{true, false, true, true, assert.AnError, false},
-		{true, true, false, false, nil, false},
-		{true, true, false, true, nil, false},
-		{true, true, true, false, nil, true},
-		{true, true, true, true, assert.AnError, false},
+		{isPrebuilt: true},
+		{prebuiltError: true, err: assert.AnError},
+		{rcError: true, isPrebuilt: true},
+		{rcError: true, prebuiltError: true, err: assert.AnError},
+		{allowPrecompiledFallback: true, isPrebuilt: true},
+		{allowPrecompiledFallback: true, prebuiltError: true, err: assert.AnError},
+		{allowPrecompiledFallback: true, rcError: true, isPrebuilt: true},
+		{allowPrecompiledFallback: true, rcError: true, prebuiltError: true, err: assert.AnError},
+		{enableRuntimeCompiler: true},
+		{enableRuntimeCompiler: true, prebuiltError: true},
+		{enableRuntimeCompiler: true, rcError: true, err: assert.AnError},
+		{enableRuntimeCompiler: true, rcError: true, prebuiltError: true, err: assert.AnError},
+		{enableRuntimeCompiler: true, allowPrecompiledFallback: true},
+		{enableRuntimeCompiler: true, allowPrecompiledFallback: true, prebuiltError: true},
+		{enableRuntimeCompiler: true, allowPrecompiledFallback: true, rcError: true, isPrebuilt: true},
+		{enableRuntimeCompiler: true, allowPrecompiledFallback: true, rcError: true, prebuiltError: true, err: assert.AnError},
+		{enableCORE: true},
+		{enableCORE: true, coreError: true, err: assert.AnError},
+		{enableCORE: true, enableRuntimeCompiler: true, allowRuntimeFallback: true, coreError: true},
+		{enableCORE: true, enableRuntimeCompiler: true, allowRuntimeFallback: true, coreError: true, rcError: true, err: assert.AnError},
+		{enableCORE: true, allowPrecompiledFallback: true, coreError: true, isPrebuilt: true},
+		{enableCORE: true, allowPrecompiledFallback: true, coreError: true, prebuiltError: true, err: assert.AnError},
+		{enableCORE: true, enableRuntimeCompiler: true, allowRuntimeFallback: true, allowPrecompiledFallback: true, coreError: true, rcError: true, isPrebuilt: true},
+		{enableCORE: true, enableRuntimeCompiler: true, allowRuntimeFallback: true, allowPrecompiledFallback: true, coreError: true, rcError: true, prebuiltError: true, err: assert.AnError},
 	}
 
 	cfg := testConfig()
 	constants, err := getTracerOffsets(t, cfg)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		ebpfConntrackerPrebuiltCreator = getPrebuiltConntracker
-		ebpfConntrackerRCCreator = getRuntimeCompiledConntracker
+		ebpfConntrackerCOREInit = initCORE
+		ebpfConntrackerRCInit = initRuntime
+		ebpfConntrackerPrebuiltInit = initPrebuilt
 	})
 
 	for _, te := range tests {
 		t.Run("", func(t *testing.T) {
 			t.Logf("%+v", te)
 
+			cfg.EnableCORE = te.enableCORE
 			cfg.EnableRuntimeCompiler = te.enableRuntimeCompiler
+			cfg.AllowRuntimeCompiledFallback = te.allowRuntimeFallback
 			cfg.AllowPrecompiledFallback = te.allowPrecompiledFallback
 
-			ebpfConntrackerPrebuiltCreator = getPrebuiltConntracker
-			ebpfConntrackerRCCreator = getRuntimeCompiledConntracker
+			ebpfConntrackerCOREInit = initCORE
+			ebpfConntrackerRCInit = initRuntime
+			ebpfConntrackerPrebuiltInit = initPrebuilt
+
 			if te.prebuiltError {
-				ebpfConntrackerPrebuiltCreator = func(c *config.Config, ce []manager.ConstantEditor) (bytecode.AssetReader, []manager.ConstantEditor, error) {
-					return nil, nil, assert.AnError
+				ebpfConntrackerPrebuiltInit = func(cfg *config.Config, mapEditors map[string]*ebpf.Map, bpfTelemetry *errtelemetry.EBPFTelemetry, constants []manager.ConstantEditor, initFunc conntrackInitFunc) error {
+					return assert.AnError
 				}
 			}
 			if te.rcError {
-				ebpfConntrackerRCCreator = func(cfg *config.Config) (rc.CompiledOutput, error) { return nil, assert.AnError }
+				ebpfConntrackerRCInit = func(cfg *config.Config, mapEditors map[string]*ebpf.Map, bpfTelemetry *errtelemetry.EBPFTelemetry, initFunc conntrackInitFunc) error {
+					return assert.AnError
+				}
+			}
+			if te.coreError {
+				ebpfConntrackerCOREInit = func(cfg *config.Config, mapEditors map[string]*ebpf.Map, bpfTelemetry *errtelemetry.EBPFTelemetry, constants []manager.ConstantEditor, initFunc conntrackInitFunc) error {
+					return assert.AnError
+				}
 			}
 
 			conntracker, err := NewEBPFConntracker(cfg, nil, constants)

@@ -157,6 +157,10 @@ func newTracer(config *config.Config) (*Tracer, error) {
 		if constantEditors, err = runOffsetGuessing(config, offsetBuf, offsetguess.NewTracerOffsetGuesser); err != nil {
 			return nil, fmt.Errorf("error guessing offsets: %s", err)
 		}
+	} else {
+		if config.CollectIPv6Conns {
+			constantEditors = append(constantEditors, manager.ConstantEditor{Name: "ipv6_enabled", Value: uint64(1)})
+		}
 	}
 
 	var bpfTelemetry *telemetry.EBPFTelemetry
@@ -257,11 +261,9 @@ func newConntracker(cfg *config.Config, bpfTelemetry *telemetry.EBPFTelemetry, c
 		return c, nil
 	}
 
-	if !cfg.EnableRuntimeCompiler || cfg.AllowPrecompiledFallback {
-		log.Warnf("error initializing ebpf conntracker, falling back to netlink version: %s", err)
-		if c, err = netlink.NewConntracker(cfg); err == nil {
-			return c, nil
-		}
+	log.Warnf("error initializing ebpf conntracker, falling back to netlink version: %s", err)
+	if c, err = netlink.NewConntracker(cfg); err == nil {
+		return c, nil
 	}
 
 	if cfg.IgnoreConntrackInitFailure {

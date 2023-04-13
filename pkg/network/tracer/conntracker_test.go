@@ -44,6 +44,7 @@ func TestConntrackers(t *testing.T) {
 		{"netlink", setupNetlinkConntracker},
 		{"eBPF-prebuilt", setupPrebuiltEBPFConntracker},
 		{"eBPF-runtime", setupRuntimeEBPFConntracker},
+		{"eBPF-CORE", setupCOREEBPFConntracker},
 	}
 	for _, conntracker := range conntrackers {
 		t.Run(conntracker.name, func(t *testing.T) {
@@ -113,8 +114,20 @@ func setupPrebuiltEBPFConntracker(t *testing.T, cfg *config.Config) (netlink.Con
 
 func setupRuntimeEBPFConntracker(t *testing.T, cfg *config.Config) (netlink.Conntracker, error) {
 	cfg.EnableRuntimeCompiler = true
+	cfg.EnableCORE = false
 	cfg.AllowPrecompiledFallback = false
 	return NewEBPFConntracker(cfg, nil, nil)
+}
+
+func setupCOREEBPFConntracker(t *testing.T, cfg *config.Config) (netlink.Conntracker, error) {
+	cfg.EnableCORE = true
+	cfg.AllowRuntimeCompiledFallback = false
+	cfg.AllowPrecompiledFallback = false
+	var consts []manager.ConstantEditor
+	if cfg.CollectIPv6Conns {
+		consts = append(consts, manager.ConstantEditor{Name: "ipv6_enabled", Value: uint64(1)})
+	}
+	return NewEBPFConntracker(cfg, nil, consts)
 }
 
 func setupNetlinkConntracker(t *testing.T, cfg *config.Config) (netlink.Conntracker, error) {

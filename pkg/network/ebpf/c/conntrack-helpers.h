@@ -1,9 +1,15 @@
 #ifndef __CONNTRACK_HELPERS_H
 #define __CONNTRACK_HELPERS_H
 
+#ifndef COMPILE_CORE
 #include <net/netfilter/nf_conntrack.h>
 #include <linux/types.h>
 #include <linux/sched.h>
+#else
+// source include/linux/socket.h
+#define AF_INET   2
+#define AF_INET6 10
+#endif
 
 #include "bpf_builtins.h"
 #include "tracer.h"
