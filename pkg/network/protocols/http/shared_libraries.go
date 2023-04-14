@@ -99,7 +99,7 @@ type soRule struct {
 type soWatcher struct {
 	procRoot    string
 	thisPID     int
-	lastPIDSeen map[int]struct{}
+	lastPIDSeen sync.Map
 	all         *regexp.Regexp
 	rules       []soRule
 	loadEvents  *ddebpf.PerfHandler
@@ -134,7 +134,6 @@ func newSOWatcher(perfHandler *ddebpf.PerfHandler, rules ...soRule) *soWatcher {
 			byPID:         make(map[uint32]*soRegistration),
 			blocklistByID: make(map[pathIdentifier]struct{}),
 		},
-		lastPIDSeen: make(map[int]struct{}),
 	}
 }
 
@@ -171,7 +170,12 @@ func (w *soWatcher) processExit(pid uint32) {
 }
 
 func (w *soWatcher) checkProcessDone() {
-	seen := make(map[int]struct{}, len(w.lastPIDSeen))
+	count := 0
+	w.lastPIDSeen.Range(func(k, v any) bool {
+		count++
+		return true
+	})
+	seen := make(map[int]struct{}, count)
 	_ = util.WithAllProcs(w.procRoot, func(pid int) error {
 		if pid == w.thisPID { // don't scan ourself
 			return nil
@@ -180,13 +184,14 @@ func (w *soWatcher) checkProcessDone() {
 		return nil
 	})
 
-	lastPIDSeen := w.lastPIDSeen
-	for pid := range lastPIDSeen {
+	w.lastPIDSeen.Range(func(k, v any) bool {
+		pid := k.(int)
 		if _, found := seen[pid]; !found {
-			delete(w.lastPIDSeen, pid)
+			w.lastPIDSeen.Delete(pid)
 			w.processExit(uint32(pid))
 		}
-	}
+		return true
+	})
 }
 
 // Start consuming shared-library events
@@ -283,7 +288,7 @@ func (w *soWatcher) Start() {
 						continue
 					}
 
-					w.lastPIDSeen[int(lib.Pid)] = struct{}{}
+					w.lastPIDSeen.Store(int(lib.Pid), struct{}{})
 
 					// use cwd of the process as root if the path is relative
 					if libPath[0] != '/' {
