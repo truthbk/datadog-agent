@@ -397,9 +397,9 @@ func (ev *Event) ResolveEventTimestamp() time.Time {
 	return ev.FieldHandlers.ResolveEventTimestamp(ev)
 }
 
-// GetProcessServiceTag uses the field handler
-func (ev *Event) GetProcessServiceTag() string {
-	return ev.FieldHandlers.GetProcessServiceTag(ev)
+// GetProcessService uses the field handler
+func (ev *Event) GetProcessService() string {
+	return ev.FieldHandlers.GetProcessService(ev)
 }
 
 // MatchedRules contains the identification of one rule that has match
@@ -1193,7 +1193,7 @@ func (pl *PathLeaf) MarshalBinary() ([]byte, error) {
 type ExtraFieldHandlers interface {
 	ResolveProcessCacheEntry(ev *Event) (*ProcessCacheEntry, bool)
 	ResolveEventTimestamp(ev *Event) time.Time
-	GetProcessServiceTag(ev *Event) string
+	GetProcessService(ev *Event) string
 }
 
 // ResolveProcessCacheEntry stub implementation
@@ -1206,7 +1206,7 @@ func (dfh *DefaultFieldHandlers) ResolveEventTimestamp(ev *Event) time.Time {
 	return ev.Timestamp
 }
 
-// GetProcessServiceTag stub implementation
-func (dfh *DefaultFieldHandlers) GetProcessServiceTag(ev *Event) string {
+// GetProcessService stub implementation
+func (dfh *DefaultFieldHandlers) GetProcessService(ev *Event) string {
 	return ""
 }
