@@ -188,8 +188,13 @@ func (m *Monitor) ProcessEvent(event *model.Event) {
 
 	// handle event errors
 	if event.Error != nil {
+		var notCritical *path.ErrPathResolutionNotCritical
+		if errors.As(event.Error, &notCritical) {
+			return
+		}
+
 		var err *path.ErrPathResolution
-		if !errors.As(event.Error, &err) {
+		if errors.As(event.Error, &err) {
 			m.probe.DispatchCustomEvent(
 				NewAbnormalPathEvent(event, m.probe, event.Error),
 			)

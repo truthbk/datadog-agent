@@ -841,7 +841,7 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 
 	// resolve the process cache entry
 	entry, isResolved := p.fieldHandlers.ResolveProcessCacheEntry(event)
-	if !isResolved {
+	if !isResolved && eventType != model.DNSEventType && eventType != model.LoadModuleEventType {
 		event.Error = errors.New("process context not resolved")
 	}
 	event.ProcessCacheEntry = entry
