@@ -98,7 +98,7 @@ platforms:
 
       windows = platform_name.include?("win")
       sles15 = platform_name.include?("sles-15")
-      oldwindows = windows && (platform_name.include?("2008") || platform_name.include?("2012"))
+      oldwindows = windows && platform_name.include?("2012")
 
       if windows
         windows_platforms << platform_name
@@ -152,7 +152,7 @@ platforms:
     <% if oldwindows %>
     winrm_powershell_script: |-
       winrm quickconfig -q
-      winrm set winrm/config/winrs '@{MaxMemoryPerShellMB="2048"}'
+      winrm set winrm/config/winrs '@{MaxMemoryPerShellMB="4096"}'
       winrm set winrm/config '@{MaxTimeoutms="1800000"}'
       winrm set winrm/config/service '@{AllowUnencrypted="true"}'
       winrm set winrm/config/service/auth '@{Basic="true"}'
