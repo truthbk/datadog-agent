@@ -103,7 +103,7 @@ type soWatcher struct {
 type soRegistry struct {
 	m     sync.Mutex
 	byID  map[pathIdentifier]*soRegistration
-	byPID map[uint32]*soRegistration
+	byPID map[uint32]map[pathIdentifier]struct{}
 
 	// if we can't register an uprobe we don't try more than once
 	blocklistByID map[pathIdentifier]struct{}
@@ -122,7 +122,7 @@ func newSOWatcher(perfHandler *ddebpf.PerfHandler, rules ...soRule) *soWatcher {
 		processMonitor: monitor.GetProcessMonitor(),
 		registry: &soRegistry{
 			byID:          make(map[pathIdentifier]*soRegistration),
-			byPID:         make(map[uint32]*soRegistration),
+			byPID:         make(map[uint32]map[pathIdentifier]struct{}),
 			blocklistByID: make(map[pathIdentifier]struct{}),
 		},
 	}
@@ -268,13 +268,19 @@ func (r *soRegistry) Unregister(pid uint32) {
 	r.m.Lock()
 	defer r.m.Unlock()
 
-	reg, found := r.byPID[pid]
+	paths, found := r.byPID[pid]
 	if !found {
 		return
 	}
-	if reg.Unregister() == true {
-		// we need to clean up our entries as there are no more processes using this ELF
-		delete(r.byID, reg.pathID)
+	for pathID := range paths {
+		reg, found := r.byID[pathID]
+		if !found {
+			continue
+		}
+		if reg.Unregister() == true {
+			// we need to clean up our entries as there are no more processes using this ELF
+			delete(r.byID, reg.pathID)
+		}
 	}
 	delete(r.byPID, pid)
 }
@@ -298,9 +304,9 @@ func (r *soRegistry) Register(root, libPath string, pid uint32, rule soRule) {
 	}
 
 	if reg, found := r.byID[pathID]; found {
-		if _, found := r.byPID[pid]; !found {
+		if _, found := r.byPID[pid][pathID]; !found {
 			reg.refcount++
-			r.byPID[pid] = reg
+			r.byPID[pid][pathID] = struct{}{}
 		}
 		return
 	}
@@ -321,7 +327,7 @@ func (r *soRegistry) Register(root, libPath string, pid uint32, rule soRule) {
 
 	reg := newRegistration(pathID, rule.unregisterCB)
 	r.byID[pathID] = reg
-	r.byPID[pid] = reg
+	r.byPID[pid][pathID] = struct{}{}
 
 	log.Debugf("registering library %s path %s by pid %d", pathID.String(), hostLibPath, pid)
 }
