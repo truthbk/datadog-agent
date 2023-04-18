@@ -99,6 +99,7 @@ platforms:
       windows = platform_name.include?("win")
       sles15 = platform_name.include?("sles-15")
       windows2008 = windows && platform_name.include?("2008")
+      windows2012 = windows && platform_name.include?("2012")
 
       if windows
         windows_platforms << platform_name
@@ -148,11 +149,21 @@ platforms:
     <% if windows2008 %>
     winrm_powershell_script: |-
       winrm quickconfig -q
-      winrm set winrm/config/winrs '@{MaxMemoryPerShellMB="512"}'
+      winrm set winrm/config/winrs '@{MaxMemoryPerShellMB="2048"}'
       winrm set winrm/config '@{MaxTimeoutms="1800000"}'
       winrm set winrm/config/service '@{AllowUnencrypted="true"}'
       winrm set winrm/config/service/auth '@{Basic="true"}'
       netsh advfirewall firewall set rule name="Windows Remote Management (HTTP-In)" profile=public protocol=tcp localport=5985 remoteip=localsubnet new remoteip=any
+    <% end %>
+    <% if windows2012 %>
+    winrm_powershell_script: |-
+      winrm quickconfig -q
+      winrm set winrm/config/winrs '@{MaxMemoryPerShellMB="4096"}'
+      winrm set winrm/config '@{MaxTimeoutms="1800000"}'
+      winrm set winrm/config/service '@{AllowUnencrypted="true"}'
+      winrm set winrm/config/service/auth '@{Basic="true"}'
+      netsh advfirewall firewall set rule name="Windows Remote Management (HTTP-In)" profile=public protocol=tcp localport=5985 remoteip=localsubnet new remoteip=any
+      Set-Item WSMan:\localhost\Plugin\Microsoft.PowerShell\Quotas\MaxMemoryPerShellMB 4096
     <% end %>
     <% else %>
     vm_name: dd-agent-testing-<%= platform[0] %>-azure
