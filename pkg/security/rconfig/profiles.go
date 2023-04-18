@@ -132,17 +132,6 @@ func (r *RCProfileProvider) SetOnNewProfileCallback(onNewProfileCallback func(se
 	r.onNewProfileCallback = onNewProfileCallback
 }
 
-func (r *RCProfileProvider) nextClusterName() string {
-	name := r.tags[r.nextTag]
-
-	r.nextTag++
-	if r.nextTag >= len(r.tags) {
-		r.nextTag = 0
-	}
-
-	return name
-}
-
 // NewRCPolicyProvider returns a new Remote Config based policy provider
 func NewRCProfileProvider() (*RCProfileProvider, error) {
 	agentVersion, err := utils.GetAgentSemverVersion()
