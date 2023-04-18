@@ -29,10 +29,9 @@ func NewCIProfile() (Profile, error) {
 
 	// Set Pulumi password
 	passVal, err := secretStore.Get(parameters.PulumiPassword)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get pulumi state password, err: %w", err)
+	if err == nil {
+		os.Setenv("PULUMI_CONFIG_PASSPHRASE", passVal)
 	}
-	os.Setenv("PULUMI_CONFIG_PASSPHRASE", passVal)
 
 	// Building name prefix
 	pipelineID := os.Getenv("CI_PIPELINE_ID")
