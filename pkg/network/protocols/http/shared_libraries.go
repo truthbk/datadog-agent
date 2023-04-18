@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"strings"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -95,7 +94,6 @@ type soRule struct {
 // soWatcher provides a way to tie callback functions to the lifecycle of shared libraries
 type soWatcher struct {
 	procRoot       string
-	all            *regexp.Regexp
 	rules          []soRule
 	loadEvents     *ddebpf.PerfHandler
 	processMonitor *monitor.ProcessMonitor
@@ -107,7 +105,7 @@ type soRegistry struct {
 	byID  map[pathIdentifier]*soRegistration
 	byPID map[uint32]*soRegistration
 
-	// if we can't register a uprobe we don't try more than once
+	// if we can't register an uprobe we don't try more than once
 	blocklistByID map[pathIdentifier]struct{}
 }
 
@@ -117,10 +115,8 @@ func newSOWatcher(perfHandler *ddebpf.PerfHandler, rules ...soRule) *soWatcher {
 		allFilters[i] = r.re.String()
 	}
 
-	all := regexp.MustCompile(fmt.Sprintf("(%s)", strings.Join(allFilters, "|")))
 	return &soWatcher{
 		procRoot:       util.GetProcRoot(),
-		all:            all,
 		rules:          rules,
 		loadEvents:     perfHandler,
 		processMonitor: monitor.GetProcessMonitor(),
@@ -160,10 +156,6 @@ func newRegistration(pathID pathIdentifier, unregister func(pathIdentifier) erro
 	}
 }
 
-func (w *soWatcher) processExit(pid uint32) {
-	w.registry.Unregister(pid)
-}
-
 // Start consuming shared-library events
 func (w *soWatcher) Start() {
 	thisPID, err := util.GetRootNSPID()
@@ -172,7 +164,7 @@ func (w *soWatcher) Start() {
 	}
 
 	_ = util.WithAllProcs(w.procRoot, func(pid int) error {
-		if pid == thisPID { // don't uprobes ourself
+		if pid == thisPID { // don't scan ourself
 			return nil
 		}
 
@@ -209,7 +201,7 @@ func (w *soWatcher) Start() {
 	cleanupExit, err := w.processMonitor.Subscribe(&monitor.ProcessCallback{
 		Event:    monitor.EXIT,
 		Metadata: monitor.ANY,
-		Callback: w.processExit,
+		Callback: w.registry.Unregister,
 	})
 	if err != nil {
 		log.Errorf("can't subscribe to process monitor exit event %s", err)
@@ -219,7 +211,7 @@ func (w *soWatcher) Start() {
 	go func() {
 		defer cleanupExit()
 		defer w.processMonitor.Stop()
-		// cleanup all the uprobes
+		// cleanup all uprobes
 		defer w.registry.cleanup()
 
 		for {
@@ -230,36 +222,29 @@ func (w *soWatcher) Start() {
 				}
 
 				lib := toLibPath(event.Data)
+				if int(lib.Pid) == thisPID {
+					// don't scan ourself
+					event.Done()
+					continue
+				}
+
 				path := lib.Bytes()
 				libPath := string(path)
 				procPid := fmt.Sprintf("%s/%d", w.procRoot, lib.Pid)
 				root := procPid + "/root"
-				cwd := procPid + "/cwd"
-
-				if strings.HasPrefix(libPath, w.procRoot) {
-					// don't scan ourself when we resolve offsets via debug.elf.Open()
-					// but make the unit test pass as the pid of the test and the tracer would be the same
-					// that why we don't filter by lib.Pid == uint32(thisPID) here
-					continue
+				// use cwd of the process as root if the path is relative
+				if libPath[0] != '/' {
+					root = procPid + "/cwd"
+					libPath = "/" + libPath
 				}
 
 				for _, r := range w.rules {
-					if !r.re.Match(path) {
-						continue
+					if r.re.Match(path) {
+						w.registry.Register(root, libPath, lib.Pid, r)
+						break
 					}
-
-					// use cwd of the process as root if the path is relative
-					if libPath[0] != '/' {
-						root = cwd
-						libPath = "/" + libPath
-					}
-
-					w.registry.Register(root, libPath, lib.Pid, r)
-					break
 				}
-
 				event.Done()
-
 			case <-w.loadEvents.LostChannel:
 				// Nothing to do in this case
 				break
@@ -278,7 +263,7 @@ func (r *soRegistry) cleanup() {
 	}
 }
 
-// Unregister a pid if exist, unregisterCB will be called if his refcount == 0
+// Unregister a pid if exists, unregisterCB will be called if his refcount == 0
 func (r *soRegistry) Unregister(pid uint32) {
 	r.m.Lock()
 	defer r.m.Unlock()
@@ -288,7 +273,7 @@ func (r *soRegistry) Unregister(pid uint32) {
 		return
 	}
 	if reg.Unregister() == true {
-		// we need to cleanup our entries as there are no more processes using this ELF
+		// we need to clean up our entries as there are no more processes using this ELF
 		delete(r.byID, reg.pathID)
 	}
 	delete(r.byPID, pid)
@@ -296,7 +281,7 @@ func (r *soRegistry) Unregister(pid uint32) {
 
 // Register a ELF library root/libPath as be used by the pid
 // Only one registration will be done per ELF (system wide)
-func (r *soRegistry) Register(root string, libPath string, pid uint32, rule soRule) {
+func (r *soRegistry) Register(root, libPath string, pid uint32, rule soRule) {
 	hostLibPath := root + libPath
 	pathID, err := newPathIdentifier(hostLibPath)
 	if err != nil {
@@ -313,20 +298,22 @@ func (r *soRegistry) Register(root string, libPath string, pid uint32, rule soRu
 	}
 
 	if reg, found := r.byID[pathID]; found {
-		reg.refcount++
-		r.byPID[pid] = reg
+		if _, found := r.byPID[pid]; !found {
+			reg.refcount++
+			r.byPID[pid] = reg
+		}
 		return
 	}
 
 	if err := rule.registerCB(pathID, root, libPath); err != nil {
 		log.Debugf("error registering library (adding to blocklist) %s path %s by pid %d : %s", pathID.String(), hostLibPath, pid, err)
-		// we calling unregisterCB here as some uprobe could be already attached, unregisterCB will cleanup those entries
+		// we are calling unregisterCB here as some uprobes could be already attached, unregisterCB cleanup those entries
 		if rule.unregisterCB != nil {
 			if err := rule.unregisterCB(pathID); err != nil {
 				log.Debugf("unregisterCB library %s path %s : %s", pathID.String(), hostLibPath, err)
 			}
 		}
-		// save sentinel value so we don't attempt to re-register shared
+		// save sentinel value, so we don't attempt to re-register shared
 		// libraries that are problematic for some reason
 		r.blocklistByID[pathID] = struct{}{}
 		return

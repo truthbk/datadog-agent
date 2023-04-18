@@ -127,7 +127,7 @@ func TestSharedLibraryDetectionWithPIDandRootNameSpace(t *testing.T) {
 	// assert that soWatcher detected foo.so being opened and triggered the callback
 	require.Equal(t, libpath, pathDetected)
 
-	// must failed on the host
+	// must fail on the host
 	_, err = os.Stat(libpath)
 	require.Error(t, err)
 }
@@ -172,7 +172,7 @@ func TestSameInodeRegression(t *testing.T) {
 // we use this helper to open files for two reasons:
 // * `touch` calls openat(2) which is what we trace in the shared library eBPF program;
 // * `exec.Command` spawns a separate process; we need to do that because we filter out
-// libraries being openened from system-probe process
+// libraries being opened from system-probe process
 func simulateOpenAt(path string) {
 	cmd := exec.Command("touch", path)
 	cmd.Run()
