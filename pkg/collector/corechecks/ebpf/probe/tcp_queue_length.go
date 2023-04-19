@@ -122,6 +122,7 @@ func (t *TCPQueueLengthTracer) GetAndFlush() TCPQueueLengthStats {
 
 	result := make(TCPQueueLengthStats)
 
+	var keys []C.struct_stats_key
 	var statsKey C.struct_stats_key
 	statsValue := make([]C.struct_stats_value, nbCpus)
 	it := t.statsMap.Iterate()
@@ -143,14 +144,17 @@ func (t *TCPQueueLengthTracer) GetAndFlush() TCPQueueLengthStats {
 			}
 		}
 		result[cgroupName] = max
-
-		if err := t.statsMap.Delete(unsafe.Pointer(&statsKey)); err != nil {
-			log.Warnf("failed to delete stat: %s", err)
-		}
+		keys = append(keys, statsKey)
 	}
 
 	if err := it.Err(); err != nil {
 		log.Warnf("failed to iterate on TCP queue length stats while flushing: %s", err)
+	}
+
+	for _, k := range keys {
+		if err := t.statsMap.Delete(unsafe.Pointer(&k)); err != nil {
+			log.Warnf("failed to delete stat: %s", err)
+		}
 	}
 
 	return result

@@ -9,7 +9,7 @@
 package probe
 
 import (
-	"fmt"
+	"context"
 	"os"
 	"os/exec"
 	"regexp"
@@ -33,12 +33,8 @@ while True:
 	l.append("." * (1024 * 1024))
 `
 
-const oomKilledBashScript = `
-exec systemd-run --scope -p MemoryLimit=1M python3 %v # replace shell, so that the process launched by Go is the one getting oom-killed
-`
-
-func writeTempFile(pattern string, content string) (*os.File, error) {
-	f, err := os.CreateTemp("", pattern)
+func writeTempFile(t *testing.T, pattern string, content string) (*os.File, error) {
+	f, err := os.CreateTemp(t.TempDir(), pattern)
 	if err != nil {
 		return nil, err
 	}
@@ -77,62 +73,47 @@ func TestOOMKillProbe(t *testing.T) {
 
 	cfg := testConfig()
 	oomKillProbe, err := NewOOMKillProbe(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer oomKillProbe.Close()
+	require.NoError(t, err)
+	t.Cleanup(oomKillProbe.Close)
 
-	pf, err := writeTempFile("oom-kill-py", oomKilledPython)
-	if err != nil {
-		t.Fatal(err)
-	}
+	pf, err := writeTempFile(t, "oom-kill-py", oomKilledPython)
+	require.NoError(t, err)
 	defer os.Remove(pf.Name())
 
-	bf, err := writeTempFile("oom-trigger-sh", fmt.Sprintf(oomKilledBashScript, pf.Name()))
-	if err != nil {
-		t.Fatal(err)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+	cmd := exec.CommandContext(ctx, "systemd-run", "--scope", "-p", "MemoryLimit=1M", "python3", pf.Name())
+
+	output, err := cmd.CombinedOutput()
+	require.Error(t, err, "command should exit with error")
+	exiterr, ok := err.(*exec.ExitError)
+	require.True(t, ok, "err is not *exec.ExitError (type %T): %s (output: %s)", err, err, string(output))
+	status, ok := exiterr.Sys().(syscall.WaitStatus)
+	require.True(t, ok, "exiterr.Sys() should be syscall.WaitStatus (type %T): %s (output: %s)", err, err, string(output))
+	if status.Signaled() {
+		require.Equal(t, unix.SIGKILL, status.Signal(), "expected SIGKILL signal: %s (output: %s)", err, string(output))
+	} else {
+		require.Equal(t, 137, status.ExitStatus(), "expected exit code 137: %s (output: %s)", err, string(output))
 	}
-	defer os.Remove(bf.Name())
 
-	cmd := exec.Command("bash", bf.Name())
-
-	oomKilled := false
-	if err := cmd.Run(); err != nil {
-		if exiterr, ok := err.(*exec.ExitError); ok {
-			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-				if (status.Signaled() && status.Signal() == unix.SIGKILL) || status.ExitStatus() == 137 {
-					oomKilled = true
-				}
+	var result OOMKillStats
+	require.Eventually(t, func() bool {
+		results := oomKillProbe.GetAndFlush()
+		for _, r := range results {
+			if r.TPid == uint32(cmd.Process.Pid) {
+				result = r
+				return true
 			}
 		}
+		return false
+	}, 1*time.Second, 200*time.Millisecond, "failed to find an OOM killed process with pid %d", cmd.Process.Pid)
 
-		if !oomKilled {
-			output, _ := cmd.CombinedOutput()
-			t.Fatalf("expected process to be killed: %s (output: %s)", err, string(output))
-		}
-	}
-
-	time.Sleep(3 * time.Second)
-
-	found := false
-	results := oomKillProbe.GetAndFlush()
-	for _, result := range results {
-		if result.TPid == uint32(cmd.Process.Pid) {
-			found = true
-
-			assert.Regexp(t, regexp.MustCompile("run-([0-9|a-z]*).scope"), result.CgroupName, "cgroup name")
-			assert.Equal(t, result.TPid, result.Pid, "tpid == pid")
-			assert.Equal(t, "python3", result.FComm, "fcomm")
-			assert.Equal(t, "python3", result.TComm, "tcomm")
-			assert.NotZero(t, result.Pages, "pages")
-			assert.Equal(t, uint32(1), result.MemCgOOM, "memcg oom")
-			break
-		}
-	}
-
-	if !found {
-		t.Errorf("failed to find an OOM killed process with pid %d in %+v", cmd.Process.Pid, results)
-	}
+	assert.Regexp(t, regexp.MustCompile("run-([0-9|a-z]*).scope"), result.CgroupName, "cgroup name")
+	assert.Equal(t, result.TPid, result.Pid, "tpid == pid")
+	assert.Equal(t, "python3", result.FComm, "fcomm")
+	assert.Equal(t, "python3", result.TComm, "tcomm")
+	assert.NotZero(t, result.Pages, "pages")
+	assert.Equal(t, uint32(1), result.MemCgOOM, "memcg oom")
 }
 
 func testConfig() *ebpf.Config {
