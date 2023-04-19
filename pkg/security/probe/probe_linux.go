@@ -302,18 +302,38 @@ func (p *Probe) Start() error {
 	})
 }
 
-func (p *Probe) SendAnomalyDetection(event *model.Event) {
-	evtType := event.GetEventType()
-	if evtType != model.DNSEventType &&
-		evtType != model.ExecEventType {
-		return // at least, files, bind, fork and exit
+func (p *Probe) HandleAnomalyDetection(event *model.Event) {
+	if !event.SecurityProfileContext.Status.IsEnabled(model.AnomalyDetection) {
+		return
 	}
 
-	p.DispatchCustomEvent(
-		events.NewCustomRule(events.AnomalyDetectionRuleID),
-		events.NewCustomEventLazy(event.GetEventType(), p.EventMarshallerCtor(event)),
-	)
-	p.anomalyDetectionSent[evtType].Inc()
+	if !model.IsAnomalyDetectionEvent(event.GetType()) {
+		return
+	}
+
+	getTags := func() []string {
+		tags := p.GetEventTags(event)
+		if service := p.GetService(event); service != "" {
+			tags = append(tags, "service:"+service)
+		}
+		return tags
+	}
+
+	if event.GetEventType() == model.SyscallsEventType {
+		p.monitor.securityProfileManager.FillProfileContextFromContainerID(event.ProcessContext.ContainerID, &event.SecurityProfileContext)
+
+		p.DispatchCustomEvent(
+			events.NewCustomRule(events.AnomalyDetectionRuleID),
+			events.NewCustomEventLazy(event.GetEventType(), p.EventMarshallerCtor(event), getTags()...),
+		)
+		p.anomalyDetectionSent[event.GetEventType()].Inc()
+	} else if !event.IsInProfile() {
+		p.DispatchCustomEvent(
+			events.NewCustomRule(events.AnomalyDetectionRuleID),
+			events.NewCustomEventLazy(event.GetEventType(), p.EventMarshallerCtor(event), getTags()...),
+		)
+		p.anomalyDetectionSent[event.GetEventType()].Inc()
+	}
 }
 
 // AddActivityDumpHandler set the probe activity dump handler
@@ -342,9 +362,8 @@ func (p *Probe) DispatchEvent(event *model.Event) {
 		handler.HandleEvent(event)
 	}
 
-	if event.SecurityProfileContext.Status.IsEnabled(model.AnomalyDetection) && !event.IsInProfile() && event.GetEventType() != model.SyscallsEventType {
-		p.SendAnomalyDetection(event)
-	}
+	// handle anomaly detection
+	p.HandleAnomalyDetection(event)
 
 	// if a profile is already present for this event, dont even try to add it to a dump
 	if !event.HasProfile() {
@@ -432,6 +451,10 @@ func (p *Probe) invalidateDentry(mountID uint32, inode uint64) {
 
 	seclog.Tracef("remove dentry cache entry for inode %d", inode)
 	p.resolvers.DentryResolver.DelCacheEntry(mountID, inode)
+}
+
+func eventWithNoProcessContext(eventType model.EventType) bool {
+	return eventType == model.DNSEventType || eventType == model.LoadModuleEventType || eventType == model.UnloadModuleEventType
 }
 
 // UnmarshalProcessCacheEntry unmarshal a Process
@@ -841,8 +864,8 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 
 	// resolve the process cache entry
 	entry, isResolved := p.fieldHandlers.ResolveProcessCacheEntry(event)
-	if !isResolved && eventType != model.DNSEventType && eventType != model.LoadModuleEventType {
-		event.Error = errors.New("process context not resolved")
+	if !isResolved && !eventWithNoProcessContext(eventType) {
+		event.Error = &ErrProcessContext{Err: errors.New("process context not resolved")}
 	}
 	event.ProcessCacheEntry = entry
 
@@ -858,22 +881,6 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 	}
 
 	p.DispatchEvent(event)
-
-	// anomaly detection events
-	if model.IsAnomalyDetectionEvent(event.GetType()) {
-		p.monitor.securityProfileManager.FillProfileContextFromContainerID(event.ProcessContext.ContainerID, &event.SecurityProfileContext)
-
-		tags := p.GetEventTags(event)
-		if service := p.GetService(event); service != "" {
-			tags = append(tags, "service:"+service)
-		}
-
-		p.DispatchCustomEvent(
-			events.NewCustomRule(events.AnomalyDetectionRuleID),
-			events.NewCustomEventLazy(event.GetEventType(), p.EventMarshallerCtor(event), tags...),
-		)
-		p.anomalyDetectionSent[event.GetEventType()].Inc()
-	}
 
 	// flush exited process
 	p.resolvers.ProcessResolver.DequeueExited()

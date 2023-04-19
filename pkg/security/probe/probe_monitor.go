@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DataDog/datadog-agent/pkg/security/events"
 	"github.com/DataDog/datadog-agent/pkg/security/proto/api"
 	"github.com/DataDog/datadog-agent/pkg/security/resolvers/path"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
@@ -193,10 +194,17 @@ func (m *Monitor) ProcessEvent(event *model.Event) {
 			return
 		}
 
-		var err *path.ErrPathResolution
-		if errors.As(event.Error, &err) {
+		var pathErr *path.ErrPathResolution
+		if errors.As(event.Error, &pathErr) {
 			m.probe.DispatchCustomEvent(
-				NewAbnormalPathEvent(event, m.probe, event.Error),
+				NewAbnormalEvent(events.AbnormalPathRuleID, event, m.probe, event.Error),
+			)
+		}
+
+		var processErr *ErrProcessContext
+		if errors.As(event.Error, &processErr) {
+			m.probe.DispatchCustomEvent(
+				NewAbnormalEvent(events.ProcessContextErrorRuleID, event, m.probe, event.Error),
 			)
 		}
 

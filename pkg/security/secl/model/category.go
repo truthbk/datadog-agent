@@ -77,5 +77,7 @@ func GetEventTypePerCategory() map[EventCategory][]eval.EventType {
 func IsAnomalyDetectionEvent(eventyType eval.EventType) bool {
 	return slices.Contains([]eval.EventType{
 		"anomaly_detection_syscall",
+		"dns",
+		"exec",
 	}, eventyType)
 }
