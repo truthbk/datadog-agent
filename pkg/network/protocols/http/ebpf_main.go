@@ -27,7 +27,6 @@ import (
 )
 
 const (
-	httpInFlightMap  = "http_in_flight"
 	http2InFlightMap = "http2_in_flight"
 
 	// ELF section of the BPF_PROG_TYPE_SOCKET_FILTER program used
@@ -48,7 +47,7 @@ const (
 	kafkaLastTCPSeqPerConnectionMap = "kafka_last_tcp_seq_per_connection"
 )
 
-type ebpfProgram struct {
+type EbpfProgram struct {
 	*errtelemetry.Manager
 	cfg             *config.Config
 	offsets         []manager.ConstantEditor
@@ -99,10 +98,10 @@ var http2TailCall = manager.TailCallRoute{
 	},
 }
 
-func newEBPFProgram(c *config.Config, offsets []manager.ConstantEditor, sockFD *ebpf.Map, bpfTelemetry *errtelemetry.EBPFTelemetry) (*ebpfProgram, error) {
+func newEBPFProgram(c *config.Config, offsets []manager.ConstantEditor, sockFD *ebpf.Map, bpfTelemetry *errtelemetry.EBPFTelemetry) (*EbpfProgram, error) {
 	mgr := &manager.Manager{
 		Maps: []*manager.Map{
-			{Name: httpInFlightMap},
+			//{Name: httpInFlightMap},
 			{Name: sslSockByCtxMap},
 			{Name: protocolDispatcherProgramsMap},
 			{Name: "ssl_read_args"},
@@ -158,15 +157,7 @@ func newEBPFProgram(c *config.Config, offsets []manager.ConstantEditor, sockFD *
 		subprograms = append(subprograms, openSSLProg)
 	}
 
-	tailCalls := []manager.TailCallRoute{
-		{
-			ProgArrayName: protocolDispatcherProgramsMap,
-			Key:           uint32(ProtocolHTTP),
-			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				EBPFFuncName: "socket__http_filter",
-			},
-		},
-	}
+	var tailCalls []manager.TailCallRoute
 
 	if c.EnableHTTP2Monitoring {
 		tailCalls = append(tailCalls, http2TailCall)
@@ -191,7 +182,7 @@ func newEBPFProgram(c *config.Config, offsets []manager.ConstantEditor, sockFD *
 			})
 	}
 
-	program := &ebpfProgram{
+	program := &EbpfProgram{
 		Manager:         errtelemetry.NewManager(mgr, bpfTelemetry),
 		cfg:             c,
 		offsets:         offsets,
@@ -203,7 +194,7 @@ func newEBPFProgram(c *config.Config, offsets []manager.ConstantEditor, sockFD *
 	return program, nil
 }
 
-func (e *ebpfProgram) Init() error {
+func (e *EbpfProgram) Init() error {
 	var undefinedProbes []manager.ProbeIdentificationPair
 	for _, tc := range e.tailCallRouter {
 		undefinedProbes = append(undefinedProbes, tc.ProbeIdentificationPair)
@@ -249,7 +240,7 @@ func (e *ebpfProgram) Init() error {
 	return e.initPrebuilt()
 }
 
-func (e *ebpfProgram) Start() error {
+func (e *EbpfProgram) Start() error {
 	err := e.Manager.Start()
 	if err != nil {
 		return err
@@ -259,12 +250,12 @@ func (e *ebpfProgram) Start() error {
 		s.Start()
 	}
 
-	e.setupMapCleaner()
+	//e.setupMapCleaner()
 
 	return nil
 }
 
-func (e *ebpfProgram) Close() error {
+func (e *EbpfProgram) Close() error {
 	e.mapCleaner.Stop()
 	err := e.Stop(manager.CleanAll)
 	for _, s := range e.subprograms {
@@ -273,12 +264,12 @@ func (e *ebpfProgram) Close() error {
 	return err
 }
 
-func (e *ebpfProgram) initCORE() error {
+func (e *EbpfProgram) initCORE() error {
 	assetName := getAssetName("http", e.cfg.BPFDebug)
 	return ddebpf.LoadCOREAsset(&e.cfg.Config, assetName, e.init)
 }
 
-func (e *ebpfProgram) initRuntimeCompiler() error {
+func (e *EbpfProgram) initRuntimeCompiler() error {
 	bc, err := getRuntimeCompiledHTTP(e.cfg)
 	if err != nil {
 		return err
@@ -287,7 +278,7 @@ func (e *ebpfProgram) initRuntimeCompiler() error {
 	return e.init(bc, manager.Options{})
 }
 
-func (e *ebpfProgram) initPrebuilt() error {
+func (e *EbpfProgram) initPrebuilt() error {
 	bc, err := netebpf.ReadHTTPModule(e.cfg.BPFDir, e.cfg.BPFDebug)
 	if err != nil {
 		return err
@@ -296,33 +287,33 @@ func (e *ebpfProgram) initPrebuilt() error {
 	return e.init(bc, manager.Options{})
 }
 
-func (e *ebpfProgram) setupMapCleaner() {
-	httpMap, _, _ := e.GetMap(httpInFlightMap)
-	httpMapCleaner, err := ddebpf.NewMapCleaner(httpMap, new(netebpf.ConnTuple), new(ebpfHttpTx))
-	if err != nil {
-		log.Errorf("error creating map cleaner: %s", err)
-		return
-	}
+//func (e *EbpfProgram) setupMapCleaner() {
+//	httpMap, _, _ := e.GetMap(httpInFlightMap)
+//	httpMapCleaner, err := ddebpf.NewMapCleaner(httpMap, new(netebpf.ConnTuple), new(ebpfHttpTx))
+//	if err != nil {
+//		log.Errorf("error creating map cleaner: %s", err)
+//		return
+//	}
+//
+//	ttl := e.cfg.HTTPIdleConnectionTTL.Nanoseconds()
+//	httpMapCleaner.Clean(e.cfg.HTTPMapCleanerInterval, func(now int64, key, val interface{}) bool {
+//		httpTxn, ok := val.(*ebpfHttpTx)
+//		if !ok {
+//			return false
+//		}
+//
+//		if updated := int64(httpTxn.ResponseLastSeen()); updated > 0 {
+//			return (now - updated) > ttl
+//		}
+//
+//		started := int64(httpTxn.RequestStarted())
+//		return started > 0 && (now-started) > ttl
+//	})
+//
+//	e.mapCleaner = httpMapCleaner
+//}
 
-	ttl := e.cfg.HTTPIdleConnectionTTL.Nanoseconds()
-	httpMapCleaner.Clean(e.cfg.HTTPMapCleanerInterval, func(now int64, key, val interface{}) bool {
-		httpTxn, ok := val.(*ebpfHttpTx)
-		if !ok {
-			return false
-		}
-
-		if updated := int64(httpTxn.ResponseLastSeen()); updated > 0 {
-			return (now - updated) > ttl
-		}
-
-		started := int64(httpTxn.RequestStarted())
-		return started > 0 && (now-started) > ttl
-	})
-
-	e.mapCleaner = httpMapCleaner
-}
-
-func (e *ebpfProgram) init(buf bytecode.AssetReader, options manager.Options) error {
+func (e *EbpfProgram) init(buf bytecode.AssetReader, options manager.Options) error {
 	kprobeAttachMethod := manager.AttachKprobeWithPerfEventOpen
 	if e.cfg.AttachKprobesWithKprobeEventsABI {
 		kprobeAttachMethod = manager.AttachKprobeWithKprobeEvents
@@ -334,11 +325,11 @@ func (e *ebpfProgram) init(buf bytecode.AssetReader, options manager.Options) er
 	}
 
 	options.MapSpecEditors = map[string]manager.MapSpecEditor{
-		httpInFlightMap: {
-			Type:       ebpf.Hash,
-			MaxEntries: uint32(e.cfg.MaxTrackedConnections),
-			EditorFlag: manager.EditMaxEntries,
-		},
+		//httpInFlightMap: {
+		//	Type:       ebpf.Hash,
+		//	MaxEntries: uint32(e.cfg.MaxTrackedConnections),
+		//	EditorFlag: manager.EditMaxEntries,
+		//},
 		http2InFlightMap: {
 			Type:       ebpf.Hash,
 			MaxEntries: uint32(e.cfg.MaxTrackedConnections),
@@ -391,7 +382,7 @@ func (e *ebpfProgram) init(buf bytecode.AssetReader, options manager.Options) er
 	}
 
 	// Configure event streams
-	events.Configure("http", e.Manager.Manager, &options)
+	//events.Configure("http", e.Manager.Manager, &options)
 
 	if e.cfg.EnableHTTP2Monitoring {
 		events.Configure("http2", e.Manager.Manager, &options)

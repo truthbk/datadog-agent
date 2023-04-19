@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
+	"github.com/DataDog/datadog-agent/pkg/network/protocols"
 	"syscall"
 	"unsafe"
 
@@ -46,12 +47,12 @@ var (
 // * Consuming HTTP transaction "events" that are sent from Kernel space;
 // * Aggregating and emitting metrics based on the received HTTP transactions;
 type Monitor struct {
-	httpConsumer    *events.Consumer
-	http2Consumer   *events.Consumer
-	ebpfProgram     *ebpfProgram
-	httpTelemetry   *telemetry
-	http2Telemetry  *telemetry
-	statkeeper      *httpStatKeeper
+	//httpConsumer    *events.Consumer
+	http2Consumer *events.Consumer
+	ebpfProgram   *EbpfProgram
+	//httpTelemetry   *telemetry
+	http2Telemetry *telemetry
+	//statkeeper      *httpStatKeeper
 	http2Statkeeper *httpStatKeeper
 	processMonitor  *monitor.ProcessMonitor
 
@@ -65,6 +66,8 @@ type Monitor struct {
 	kafkaStatkeeper *kafka.KafkaStatKeeper
 	// termination
 	closeFilterFn func()
+
+	protocols []protocols.Protocol
 }
 
 // The staticTableEntry represents an entry in the static table that contains an index in the table and a value.
@@ -86,6 +89,17 @@ func NewMonitor(c *config.Config, offsets []manager.ConstantEditor, sockFD *ebpf
 			startupError = err
 		}
 	}()
+
+	// Initialize the enabled protocols
+	var enabledProtocols []protocols.Protocol
+
+	if c.EnableHTTPMonitoring {
+		httpProtocol, err := NewHTTPProtocol(c)
+		if err != nil {
+			return nil, err
+		}
+		enabledProtocols = append(enabledProtocols, httpProtocol)
+	}
 
 	if !c.EnableHTTPMonitoring {
 		state = Disabled
@@ -129,13 +143,13 @@ func NewMonitor(c *config.Config, offsets []manager.ConstantEditor, sockFD *ebpf
 		return nil, fmt.Errorf("error enabling HTTP traffic inspection: %s", err)
 	}
 
-	httpTelemetry, err := newTelemetry()
-	if err != nil {
-		closeFilterFn()
-		return nil, err
-	}
+	//httpTelemetry, err := newTelemetry()
+	//if err != nil {
+	//	closeFilterFn()
+	//	return nil, err
+	//}
 
-	statkeeper := newHTTPStatkeeper(c, httpTelemetry)
+	//statkeeper := newHTTPStatkeeper(c, httpTelemetry)
 	processMonitor := monitor.GetProcessMonitor()
 
 	var http2Statkeeper *httpStatKeeper
@@ -153,11 +167,11 @@ func NewMonitor(c *config.Config, offsets []manager.ConstantEditor, sockFD *ebpf
 	state = Running
 
 	httpMonitor := &Monitor{
-		ebpfProgram:     mgr,
-		httpTelemetry:   httpTelemetry,
-		http2Telemetry:  http2Telemetry,
-		closeFilterFn:   closeFilterFn,
-		statkeeper:      statkeeper,
+		ebpfProgram: mgr,
+		//httpTelemetry:   httpTelemetry,
+		http2Telemetry: http2Telemetry,
+		closeFilterFn:  closeFilterFn,
+		//statkeeper:      statkeeper,
 		processMonitor:  processMonitor,
 		http2Enabled:    c.EnableHTTP2Monitoring,
 		http2Statkeeper: http2Statkeeper,
@@ -197,15 +211,15 @@ func (m *Monitor) Start() error {
 		}
 	}()
 
-	m.httpConsumer, err = events.NewConsumer(
-		"http",
-		m.ebpfProgram.Manager.Manager,
-		m.processHTTP,
-	)
-	if err != nil {
-		return err
-	}
-	m.httpConsumer.Start()
+	//m.httpConsumer, err = events.NewConsumer(
+	//	"http",
+	//	m.ebpfProgram.Manager.Manager,
+	//	m.processHTTP,
+	//)
+	//if err != nil {
+	//	return err
+	//}
+	//m.httpConsumer.Start()
 
 	if m.http2Enabled {
 		m.http2Consumer, err = events.NewConsumer(
@@ -259,17 +273,17 @@ func (m *Monitor) GetUSMStats() map[string]interface{} {
 	return response
 }
 
-// GetHTTPStats returns a map of HTTP stats stored in the following format:
-// [source, dest tuple, request path] -> RequestStats object
-func (m *Monitor) GetHTTPStats() map[Key]*RequestStats {
-	if m == nil {
-		return nil
-	}
-
-	m.httpConsumer.Sync()
-	m.httpTelemetry.log()
-	return m.statkeeper.GetAndResetAllStats()
-}
+//// GetHTTPStats returns a map of HTTP stats stored in the following format:
+//// [source, dest tuple, request path] -> RequestStats object
+//func (m *Monitor) GetHTTPStats() map[Key]*RequestStats {
+//	if m == nil {
+//		return nil
+//	}
+//
+//	m.httpConsumer.Sync()
+//	m.httpTelemetry.log()
+//	return m.statkeeper.GetAndResetAllStats()
+//}
 
 // GetHTTP2Stats returns a map of HTTP2 stats stored in the following format:
 // [source, dest tuple, request path] -> RequestStats object
@@ -303,7 +317,7 @@ func (m *Monitor) Stop() {
 	m.processMonitor.Stop()
 	m.ebpfProgram.Close()
 
-	m.httpConsumer.Stop()
+	//m.httpConsumer.Stop()
 	if m.http2Enabled {
 		m.http2Consumer.Stop()
 	}
@@ -313,11 +327,11 @@ func (m *Monitor) Stop() {
 	m.closeFilterFn()
 }
 
-func (m *Monitor) processHTTP(data []byte) {
-	tx := (*ebpfHttpTx)(unsafe.Pointer(&data[0]))
-	m.httpTelemetry.count(tx)
-	m.statkeeper.Process(tx)
-}
+//func (m *Monitor) processHTTP(data []byte) {
+//	tx := (*ebpfHttpTx)(unsafe.Pointer(&data[0]))
+//	m.httpTelemetry.count(tx)
+//	m.statkeeper.Process(tx)
+//}
 
 func (m *Monitor) processHTTP2(data []byte) {
 	tx := (*ebpfHttp2Tx)(unsafe.Pointer(&data[0]))
@@ -338,7 +352,7 @@ func (m *Monitor) DumpMaps(maps ...string) (string, error) {
 }
 
 // createStaticTable creates a static table for http2 monitor.
-func (m *Monitor) createStaticTable(mgr *ebpfProgram) error {
+func (m *Monitor) createStaticTable(mgr *EbpfProgram) error {
 	staticTable, _, _ := mgr.GetMap(probes.StaticTableMap)
 	if staticTable == nil {
 		return errors.New("http2 static table is null")
