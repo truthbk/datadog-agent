@@ -57,6 +57,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
 	"github.com/DataDog/datadog-agent/pkg/security/security_profile/dump"
+	"github.com/DataDog/datadog-agent/pkg/security/security_profile/profile"
 	"github.com/DataDog/datadog-agent/pkg/security/serializers"
 	"github.com/DataDog/datadog-agent/pkg/security/utils"
 	utilkernel "github.com/DataDog/datadog-agent/pkg/util/kernel"
@@ -320,7 +321,7 @@ func (p *Probe) handleAnomalyDetection(event *model.Event) {
 		return
 	}
 
-	if !model.IsAnomalyDetectionEvent(event.GetType()) {
+	if !profile.IsAnomalyDetectionEvent(event.GetEventType()) {
 		return
 	}
 
