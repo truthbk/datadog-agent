@@ -118,11 +118,11 @@ func (a *sumValuesAggregator) accumulate(metric ksmstore.DDMetric) {
 
 		labelValues[i] = metric.Labels[allowedLabel]
 	}
-
 	a.accumulator[labelValues] += metric.Val
 }
 
 func (a *countObjectsAggregator) accumulate(metric ksmstore.DDMetric) {
+
 	var labelValues [maxNumberOfAllowedLabels]string
 
 	for i, allowedLabel := range a.allowedLabels {
@@ -225,15 +225,15 @@ func defaultMetricAggregators() map[string]metricAggregator {
 	cronJobAggregator := newLastCronJobAggregator()
 
 	return map[string]metricAggregator{
-		"kube_apiservice_labels": newCountObjectsAggregator(
-			"apiservice.count",
-			"kube_apiservice_labels",
-			[]string{},
+		"kube_configmap_info": newCountObjectsAggregator(
+			"configmap.count",
+			"kube_configmap_info",
+			[]string{"namespace"},
 		),
-		"kube_customresourcedefinition_labels": newCountObjectsAggregator(
-			"crd.count",
-			"kube_customresourcedefinition_labels",
-			[]string{},
+		"kube_secret_info": newCountObjectsAggregator(
+			"secret.count",
+			"kube_secret_info",
+			[]string{"namespace"},
 		),
 		"kube_persistentvolume_status_phase": newSumValuesAggregator(
 			"persistentvolumes.by_phase",
