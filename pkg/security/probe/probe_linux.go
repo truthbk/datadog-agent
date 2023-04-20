@@ -325,8 +325,6 @@ func (p *Probe) handleAnomalyDetection(event *model.Event) {
 		return
 	}
 
-	fmt.Printf("Handle Profile: %v %v\n", event.GetEventType() == model.SyscallsEventType, event.IsInProfile())
-
 	if event.GetEventType() == model.SyscallsEventType {
 		p.monitor.securityProfileManager.FillProfileContextFromContainerID(event.ProcessContext.ContainerID, &event.SecurityProfileContext)
 		p.sendAnomalyDetection(event)
