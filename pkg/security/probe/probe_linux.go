@@ -302,7 +302,20 @@ func (p *Probe) Start() error {
 	})
 }
 
-func (p *Probe) HandleAnomalyDetection(event *model.Event) {
+func (p *Probe) sendAnomalyDetection(event *model.Event) {
+	tags := p.GetEventTags(event)
+	if service := p.GetService(event); service != "" {
+		tags = append(tags, "service:"+service)
+	}
+
+	p.DispatchCustomEvent(
+		events.NewCustomRule(events.AnomalyDetectionRuleID),
+		events.NewCustomEventLazy(event.GetEventType(), p.EventMarshallerCtor(event), tags...),
+	)
+	p.anomalyDetectionSent[event.GetEventType()].Inc()
+}
+
+func (p *Probe) handleAnomalyDetection(event *model.Event) {
 	if !event.SecurityProfileContext.Status.IsEnabled(model.AnomalyDetection) {
 		return
 	}
@@ -311,28 +324,13 @@ func (p *Probe) HandleAnomalyDetection(event *model.Event) {
 		return
 	}
 
-	getTags := func() []string {
-		tags := p.GetEventTags(event)
-		if service := p.GetService(event); service != "" {
-			tags = append(tags, "service:"+service)
-		}
-		return tags
-	}
+	fmt.Printf("Handle Profile: %v %v\n", event.GetEventType() == model.SyscallsEventType, event.IsInProfile())
 
 	if event.GetEventType() == model.SyscallsEventType {
 		p.monitor.securityProfileManager.FillProfileContextFromContainerID(event.ProcessContext.ContainerID, &event.SecurityProfileContext)
-
-		p.DispatchCustomEvent(
-			events.NewCustomRule(events.AnomalyDetectionRuleID),
-			events.NewCustomEventLazy(event.GetEventType(), p.EventMarshallerCtor(event), getTags()...),
-		)
-		p.anomalyDetectionSent[event.GetEventType()].Inc()
+		p.sendAnomalyDetection(event)
 	} else if !event.IsInProfile() {
-		p.DispatchCustomEvent(
-			events.NewCustomRule(events.AnomalyDetectionRuleID),
-			events.NewCustomEventLazy(event.GetEventType(), p.EventMarshallerCtor(event), getTags()...),
-		)
-		p.anomalyDetectionSent[event.GetEventType()].Inc()
+		p.sendAnomalyDetection(event)
 	}
 }
 
@@ -363,13 +361,10 @@ func (p *Probe) DispatchEvent(event *model.Event) {
 	}
 
 	// handle anomaly detection
-	p.HandleAnomalyDetection(event)
+	p.handleAnomalyDetection(event)
 
-	// if a profile is already present for this event, dont even try to add it to a dump
-	if !event.HasProfile() {
-		// Process after evaluation because some monitors need the DentryResolver to have been called first.
-		p.monitor.ProcessEvent(event)
-	}
+	// Process after evaluation because some monitors need the DentryResolver to have been called first.
+	p.monitor.ProcessEvent(event)
 }
 
 // DispatchCustomEvent sends a custom event to the probe event handler
