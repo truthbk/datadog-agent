@@ -4,6 +4,7 @@ import (
 	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/config"
 	netebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
+	"github.com/DataDog/datadog-agent/pkg/network/protocols"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/events"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	manager "github.com/DataDog/ebpf-manager"
@@ -25,7 +26,7 @@ type HttpProtocol struct {
 	mapCleaner *ddebpf.MapCleaner
 }
 
-func NewHTTPProtocol(config *config.Config) (*HttpProtocol, error) {
+func NewHTTPProtocol(config *config.Config) (protocols.Protocol, error) {
 	telemetry, err := newTelemetry()
 	if err != nil {
 		return nil, err

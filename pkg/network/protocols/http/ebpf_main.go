@@ -49,12 +49,12 @@ const (
 
 type EbpfProgram struct {
 	*errtelemetry.Manager
-	cfg             *config.Config
-	offsets         []manager.ConstantEditor
-	subprograms     []subprogram
-	probesResolvers []probeResolver
-	mapCleaner      *ddebpf.MapCleaner
-	tailCallRouter  []manager.TailCallRoute
+	cfg     *config.Config
+	offsets []manager.ConstantEditor
+	//subprograms     []subprogram
+	//probesResolvers []probeResolver
+	//mapCleaner     *ddebpf.MapCleaner
+	//tailCallRouter []manager.TailCallRoute
 }
 
 type probeResolver interface {
@@ -246,9 +246,9 @@ func (e *EbpfProgram) Start() error {
 		return err
 	}
 
-	for _, s := range e.subprograms {
-		s.Start()
-	}
+	//for _, s := range e.subprograms {
+	//	s.Start()
+	//}
 
 	//e.setupMapCleaner()
 

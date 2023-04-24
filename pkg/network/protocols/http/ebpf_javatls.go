@@ -10,6 +10,7 @@ package http
 
 import (
 	"fmt"
+	"github.com/DataDog/datadog-agent/pkg/network/protocols"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -61,10 +62,7 @@ type JavaTLSProgram struct {
 	cleanupExec    func()
 }
 
-// Static evaluation to make sure we are not breaking the interface.
-var _ subprogram = &JavaTLSProgram{}
-
-func newJavaTLSProgram(c *config.Config) *JavaTLSProgram {
+func newJavaTLSProgram(c *config.Config) protocols.EbpfProgram {
 	var err error
 
 	if !c.EnableJavaTLSSupport || !c.EnableHTTPSMonitoring || !HTTPSSupported(c) {
@@ -108,13 +106,13 @@ func newJavaTLSProgram(c *config.Config) *JavaTLSProgram {
 	}
 }
 
-func (p *JavaTLSProgram) ConfigureManager(m *nettelemetry.Manager) {
-	p.manager = m
+func (p *JavaTLSProgram) ConfigureEbpfManager(program *EbpfProgram, options *manager.Options) error {
+	p.manager = program.Manager
 	p.manager.Maps = append(p.manager.Maps, []*manager.Map{
 		{Name: javaTLSConnectionsMap},
 	}...)
 
-	p.manager.Probes = append(m.Probes,
+	p.manager.Probes = append(p.manager.Probes,
 		&manager.Probe{ProbeIdentificationPair: manager.ProbeIdentificationPair{
 			EBPFFuncName: "kprobe__do_vfs_ioctl",
 			UID:          probeUID,
@@ -124,9 +122,7 @@ func (p *JavaTLSProgram) ConfigureManager(m *nettelemetry.Manager) {
 	)
 	rand.Seed(int64(os.Getpid()) + time.Now().UnixMicro())
 	authID = rand.Int63()
-}
 
-func (p *JavaTLSProgram) ConfigureOptions(options *manager.Options) {
 	options.MapSpecEditors[javaTLSConnectionsMap] = manager.MapSpecEditor{
 		Type:       ebpf.Hash,
 		MaxEntries: uint32(p.cfg.MaxTrackedConnections),
@@ -139,10 +135,38 @@ func (p *JavaTLSProgram) ConfigureOptions(options *manager.Options) {
 				UID:          probeUID,
 			},
 		})
+
+	return nil
 }
 
-func (p *JavaTLSProgram) GetAllUndefinedProbes() []manager.ProbeIdentificationPair {
-	return []manager.ProbeIdentificationPair{{EBPFFuncName: "kprobe__do_vfs_ioctl"}}
+func (p *JavaTLSProgram) PreStart(program *EbpfProgram) error {
+	return nil
+}
+
+func (p *JavaTLSProgram) PostStart(program *EbpfProgram) error {
+	var err error
+	p.cleanupExec, err = p.processMonitor.Subscribe(&monitor.ProcessCallback{
+		Event:    monitor.EXEC,
+		Metadata: monitor.NAME,
+		Regex:    regexp.MustCompile("^java$"),
+		Callback: newJavaProcess,
+	})
+	if err != nil {
+		log.Errorf("process monitor Subscribe() error: %s", err)
+		return err
+	}
+	return nil
+}
+
+func (p *JavaTLSProgram) PreClose(program *EbpfProgram) error {
+	return nil
+}
+
+func (p *JavaTLSProgram) PostClose(program *EbpfProgram) error {
+	if p.cleanupExec != nil {
+		p.cleanupExec()
+	}
+	return nil
 }
 
 // isAttachmentAllowed will return true if the pid can be attached
@@ -202,24 +226,5 @@ func newJavaProcess(pid uint32) {
 	args := strings.Join(allArgs, ",")
 	if err := java.InjectAgent(int(pid), javaUSMAgentJarPath, args); err != nil {
 		log.Error(err)
-	}
-}
-
-func (p *JavaTLSProgram) Start() {
-	var err error
-	p.cleanupExec, err = p.processMonitor.Subscribe(&monitor.ProcessCallback{
-		Event:    monitor.EXEC,
-		Metadata: monitor.NAME,
-		Regex:    regexp.MustCompile("^java$"),
-		Callback: newJavaProcess,
-	})
-	if err != nil {
-		log.Errorf("process monitor Subscribe() error: %s", err)
-	}
-}
-
-func (p *JavaTLSProgram) Stop() {
-	if p.cleanupExec != nil {
-		p.cleanupExec()
 	}
 }
