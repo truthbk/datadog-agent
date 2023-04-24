@@ -256,7 +256,8 @@ func BuildHTTPEndpointsWithConfig(logsConfig *LogsConfigKeys, endpointPrefix str
 		main.Port = port
 		main.UseSSL = !defaultNoSSL
 	} else {
-		main.Host = coreConfig.GetMainEndpoint(endpointPrefix, logsConfig.getConfigKey("dd_url"))
+		host := coreConfig.GetMainEndpoint(endpointPrefix, logsConfig.getConfigKey("dd_url"))
+		main.Host = strings.Replace(host, "https://", "", 1)
 		main.UseSSL = !logsConfig.devModeNoSSL()
 	}
 
@@ -293,6 +294,7 @@ func BuildHTTPEndpointsWithConfig(logsConfig *LogsConfigKeys, endpointPrefix str
 
 // parseAddress returns the host and the port of the address.
 func parseAddress(address string) (string, int, error) {
+	address = strings.Replace(address, "https://", "", 1)
 	host, portString, err := net.SplitHostPort(address)
 	if err != nil {
 		return "", 0, err
