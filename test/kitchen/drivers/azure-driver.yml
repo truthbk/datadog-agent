@@ -164,6 +164,7 @@ platforms:
       winrm set winrm/config/service/auth '@{Basic="true"}'
       netsh advfirewall firewall set rule name="Windows Remote Management (HTTP-In)" profile=public protocol=tcp localport=5985 remoteip=localsubnet new remoteip=any
       Set-Item WSMan:\localhost\Plugin\Microsoft.PowerShell\Quotas\MaxMemoryPerShellMB 4096
+      Restart-Service winrm
     <% end %>
     <% else %>
     vm_name: dd-agent-testing-<%= platform[0] %>-azure
