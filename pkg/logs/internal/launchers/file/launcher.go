@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/internal/decoder"
 	"github.com/DataDog/datadog-agent/pkg/logs/internal/launchers"
 	fileprovider "github.com/DataDog/datadog-agent/pkg/logs/internal/launchers/file/provider"
+	"github.com/DataDog/datadog-agent/pkg/logs/internal/tailers"
 	tailer "github.com/DataDog/datadog-agent/pkg/logs/internal/tailers/file"
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
 	"github.com/DataDog/datadog-agent/pkg/logs/pipeline"
@@ -73,7 +74,7 @@ func NewLauncher(tailingLimit int, tailerSleepDuration time.Duration, validatePo
 }
 
 // Start starts the Launcher
-func (s *Launcher) Start(sourceProvider launchers.SourceProvider, pipelineProvider pipeline.Provider, registry auditor.Registry) {
+func (s *Launcher) Start(sourceProvider launchers.SourceProvider, pipelineProvider pipeline.Provider, registry auditor.Registry, tailers *tailers.TailerTracker) {
 	s.pipelineProvider = pipelineProvider
 	s.addedSources, s.removedSources = sourceProvider.SubscribeForType(config.FileType)
 	s.registry = registry

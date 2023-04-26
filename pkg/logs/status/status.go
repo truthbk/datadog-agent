@@ -13,6 +13,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/logs/config"
 	"github.com/DataDog/datadog-agent/pkg/logs/internal/metrics"
+	"github.com/DataDog/datadog-agent/pkg/logs/internal/tailers"
 	"github.com/DataDog/datadog-agent/pkg/logs/sources"
 )
 
@@ -64,10 +65,10 @@ type Status struct {
 }
 
 // Init instantiates the builder that builds the status on the fly.
-func Init(isRunning *atomic.Bool, endpoints *config.Endpoints, sources *sources.LogSources, logExpVars *expvar.Map) {
+func Init(isRunning *atomic.Bool, endpoints *config.Endpoints, sources *sources.LogSources, tailers *tailers.TailerTracker, logExpVars *expvar.Map) {
 	warnings = config.NewMessages()
 	errors = config.NewMessages()
-	builder = NewBuilder(isRunning, endpoints, sources, warnings, errors, logExpVars)
+	builder = NewBuilder(isRunning, endpoints, sources, tailers, warnings, errors, logExpVars)
 }
 
 // Clear clears the status which means it needs to be initialized again to be used.

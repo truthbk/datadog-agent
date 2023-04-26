@@ -13,6 +13,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/logs/config"
 	"github.com/DataDog/datadog-agent/pkg/logs/internal/status"
+	"github.com/DataDog/datadog-agent/pkg/logs/internal/tailers"
 	sourcesPkg "github.com/DataDog/datadog-agent/pkg/logs/sources"
 	"github.com/DataDog/datadog-agent/pkg/util"
 )
@@ -22,17 +23,19 @@ type Builder struct {
 	isRunning   *atomic.Bool
 	endpoints   *config.Endpoints
 	sources     *sourcesPkg.LogSources
+	tailers     *tailers.TailerTracker
 	warnings    *config.Messages
 	errors      *config.Messages
 	logsExpVars *expvar.Map
 }
 
 // NewBuilder returns a new builder.
-func NewBuilder(isRunning *atomic.Bool, endpoints *config.Endpoints, sources *sourcesPkg.LogSources, warnings *config.Messages, errors *config.Messages, logExpVars *expvar.Map) *Builder {
+func NewBuilder(isRunning *atomic.Bool, endpoints *config.Endpoints, sources *sourcesPkg.LogSources, tailers *tailers.TailerTracker, warnings *config.Messages, errors *config.Messages, logExpVars *expvar.Map) *Builder {
 	return &Builder{
 		isRunning:   isRunning,
 		endpoints:   endpoints,
 		sources:     sources,
+		tailers:     tailers,
 		warnings:    warnings,
 		errors:      errors,
 		logsExpVars: logExpVars,
