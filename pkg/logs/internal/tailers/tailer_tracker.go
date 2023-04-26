@@ -17,6 +17,16 @@ func (t *TailerTracker) Add(container AnyTailerContainer) {
 	t.containers = append(t.containers, container)
 }
 
+func (t *TailerTracker) All() []Tailer {
+	t.RLock()
+	defer t.RUnlock()
+	tailers := []Tailer{}
+	for _, container := range t.containers {
+		tailers = append(tailers, container.Tailers()...)
+	}
+	return tailers
+}
+
 type AnyTailerContainer interface {
 	Tailers() []Tailer
 }

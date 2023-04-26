@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 
 	"github.com/DataDog/datadog-agent/pkg/logs/internal/decoder"
+	"github.com/DataDog/datadog-agent/pkg/logs/internal/status"
 	"github.com/DataDog/datadog-agent/pkg/logs/internal/tag"
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
 	"github.com/DataDog/datadog-agent/pkg/logs/sources"
@@ -94,6 +95,8 @@ type Tailer struct {
 	// didFileRotate is true when we are tailing a file after it has been rotated
 	didFileRotate *atomic.Bool
 
+	bytesRead *status.CountInfo
+
 	// stop is monitored by the readForever component, and causes it to stop reading
 	// and close the channel to the decoder.
 	stop chan struct{}
@@ -150,6 +153,7 @@ func NewTailer(outputChan chan *message.Message, file *File, sleepDuration time.
 		stopForward:            stopForward,
 		isFinished:             atomic.NewBool(false),
 		didFileRotate:          atomic.NewBool(false),
+		bytesRead:              status.NewCountInfo("Bytes Read"),
 	}
 }
 
@@ -320,7 +324,7 @@ func (t *Tailer) wait() {
 }
 
 func (t *Tailer) recordBytes(n int64) {
-	t.file.Source.RecordBytes(n)
+	t.bytesRead.Add(n)
 }
 
 // ReplaceSource replaces the current source
@@ -337,6 +341,10 @@ func (t *Tailer) GetId() string {
 	return t.file.GetScanKey()
 }
 
-func (t *Tailer) GetStatus() map[string][]string {
-	return make(map[string][]string)
+func (t *Tailer) GetType() string {
+	return "file"
+}
+
+func (t *Tailer) GetInfo() []status.InfoProvider {
+	return []status.InfoProvider{t.bytesRead}
 }

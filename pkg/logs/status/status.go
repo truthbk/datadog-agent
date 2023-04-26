@@ -46,6 +46,12 @@ type Source struct {
 	Info          map[string][]string    `json:"info"`
 }
 
+type Tailer struct {
+	Id   string              `json:"id"`
+	Type string              `json:"type"`
+	Info map[string][]string `json:"info"`
+}
+
 // Integration provides some information about a logs integration.
 type Integration struct {
 	Name    string   `json:"name"`
@@ -59,6 +65,7 @@ type Status struct {
 	StatusMetrics    map[string]int64  `json:"metrics"`
 	ProcessFileStats map[string]uint64 `json:"process_file_stats"`
 	Integrations     []Integration     `json:"integrations"`
+	Tailers          []Tailer          `json:"tailers"`
 	Errors           []string          `json:"errors"`
 	Warnings         []string          `json:"warnings"`
 	UseHTTP          bool              `json:"use_http"`

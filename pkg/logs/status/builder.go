@@ -48,6 +48,7 @@ func (b *Builder) BuildStatus() Status {
 		IsRunning:        b.getIsRunning(),
 		Endpoints:        b.getEndpoints(),
 		Integrations:     b.getIntegrations(),
+		Tailers:          b.getTailers(),
 		StatusMetrics:    b.getMetricsStatus(),
 		ProcessFileStats: b.getProcessFileStats(),
 		Warnings:         b.getWarnings(),
@@ -104,6 +105,28 @@ func (b *Builder) getIntegrations() []Integration {
 		})
 	}
 	return integrations
+}
+
+// getTailers returns all the information about the logs integrations.
+func (b *Builder) getTailers() []Tailer {
+	var tailers []Tailer
+	for _, tailer := range b.tailers.All() {
+
+		info := make(map[string][]string)
+		for _, v := range tailer.GetInfo() {
+			if len(v.Info()) == 0 {
+				continue
+			}
+			info[v.InfoKey()] = v.Info()
+		}
+
+		tailers = append(tailers, Tailer{
+			Id:   tailer.GetId(),
+			Type: tailer.GetType(),
+			Info: info,
+		})
+	}
+	return tailers
 }
 
 // groupSourcesByName groups all logs sources by name so that they get properly displayed
