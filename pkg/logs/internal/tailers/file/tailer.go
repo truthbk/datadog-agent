@@ -332,3 +332,11 @@ func (t *Tailer) ReplaceSource(newSource *sources.LogSource) {
 func (t *Tailer) Source() *sources.LogSource {
 	return t.file.Source.UnderlyingSource()
 }
+
+func (t *Tailer) GetId() string {
+	return t.file.GetScanKey()
+}
+
+func (t *Tailer) GetStatus() map[string][]string {
+	return make(map[string][]string)
+}
