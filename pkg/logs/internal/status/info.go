@@ -71,9 +71,9 @@ func (c *CountInfo) Info() []string {
 
 // MappedInfo collects multiple info messages with a unique key
 type MappedInfo struct {
+	sync.Mutex
 	key      string
 	messages map[string]string
-	lock     sync.Mutex
 }
 
 // NewMappedInfo creates a new MappedInfo instance
@@ -86,15 +86,15 @@ func NewMappedInfo(key string) *MappedInfo {
 
 // SetMessage sets a message with a unique key
 func (m *MappedInfo) SetMessage(key string, message string) {
-	defer m.lock.Unlock()
-	m.lock.Lock()
+	defer m.Unlock()
+	m.Lock()
 	m.messages[key] = message
 }
 
 // RemoveMessage removes a message with a unique key
 func (m *MappedInfo) RemoveMessage(key string) {
-	defer m.lock.Unlock()
-	m.lock.Lock()
+	defer m.Unlock()
+	m.Lock()
 	delete(m.messages, key)
 }
 
@@ -105,11 +105,40 @@ func (m *MappedInfo) InfoKey() string {
 
 // Info returns the info
 func (m *MappedInfo) Info() []string {
-	defer m.lock.Unlock()
-	m.lock.Lock()
+	defer m.Unlock()
+	m.Lock()
 	info := []string{}
 	for _, v := range m.messages {
 		info = append(info, v)
 	}
 	return info
+}
+
+// MessageInfo records a string message
+type MessageInfo struct {
+	sync.Mutex
+	key   string
+	value string
+}
+
+// NewMessageInfo creates a new MappedInfo instance
+func NewMessageInfo(key string) *MessageInfo {
+	return &MessageInfo{
+		key:   key,
+		value: "",
+	}
+}
+
+// Set sets the value
+func (m *MessageInfo) Set(v string) {
+	m.Lock()
+	defer m.Unlock()
+	m.value = v
+}
+
+// Info returns the info
+func (m *MessageInfo) Info() []string {
+	defer m.Unlock()
+	m.Lock()
+	return []string{m.value}
 }

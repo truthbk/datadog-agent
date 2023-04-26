@@ -324,6 +324,7 @@ func (t *Tailer) wait() {
 }
 
 func (t *Tailer) recordBytes(n int64) {
+	t.Source().BytesRead.Add(n)
 	t.bytesRead.Add(n)
 }
 

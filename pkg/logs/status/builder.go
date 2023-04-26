@@ -43,12 +43,16 @@ func NewBuilder(isRunning *atomic.Bool, endpoints *config.Endpoints, sources *so
 }
 
 // BuildStatus returns the status of the logs-agent.
-func (b *Builder) BuildStatus() Status {
+func (b *Builder) BuildStatus(verbose bool) Status {
+	tailers := []Tailer{}
+	if verbose {
+		tailers = b.getTailers()
+	}
 	return Status{
 		IsRunning:        b.getIsRunning(),
 		Endpoints:        b.getEndpoints(),
 		Integrations:     b.getIntegrations(),
-		Tailers:          b.getTailers(),
+		Tailers:          tailers,
 		StatusMetrics:    b.getMetricsStatus(),
 		ProcessFileStats: b.getProcessFileStats(),
 		Warnings:         b.getWarnings(),
