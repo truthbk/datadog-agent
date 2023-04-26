@@ -88,12 +88,12 @@ Logs Agent
       {{- end }}
   {{- end }}
   {{- end }}
-
-{{ if gt (len .tailers) 1 }}
+{{ if .tailers }}
   =======
   Tailers
   =======
   {{- range .tailers }}
+
     - ID: {{ .id }}
       Type: {{ .type }}
       {{- if .info }}
