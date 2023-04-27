@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/internal/decoder"
 	"github.com/DataDog/datadog-agent/pkg/logs/internal/launchers"
 	fileprovider "github.com/DataDog/datadog-agent/pkg/logs/internal/launchers/file/provider"
+	"github.com/DataDog/datadog-agent/pkg/logs/internal/status"
 	"github.com/DataDog/datadog-agent/pkg/logs/internal/tailers"
 	tailer "github.com/DataDog/datadog-agent/pkg/logs/internal/tailers/file"
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
@@ -336,11 +337,13 @@ func (s *Launcher) restartTailerAfterFileRotation(tailer *tailer.Tailer, file *t
 
 // createTailer returns a new initialized tailer
 func (s *Launcher) createTailer(file *tailer.File, outputChan chan *message.Message) *tailer.Tailer {
-	return tailer.NewTailer(outputChan, file, s.tailerSleepDuration, decoder.NewDecoderFromSource(file.Source))
+	tailerInfo := status.NewInfoRegistry()
+	return tailer.NewTailer(outputChan, file, s.tailerSleepDuration, decoder.NewDecoderFromSource(file.Source, tailerInfo), tailerInfo)
 }
 
 func (s *Launcher) createRotatedTailer(t *tailer.Tailer, file *tailer.File, pattern *regexp.Regexp) *tailer.Tailer {
-	return t.NewRotatedTailer(file, decoder.NewDecoderFromSourceWithPattern(file.Source, pattern))
+	tailerInfo := status.NewInfoRegistry()
+	return t.NewRotatedTailer(file, decoder.NewDecoderFromSourceWithPattern(file.Source, pattern, tailerInfo), tailerInfo)
 }
 
 func CheckProcessTelemetry(stats *util.ProcessFileStats) {

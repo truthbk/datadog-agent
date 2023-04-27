@@ -7,7 +7,6 @@ package status
 
 import (
 	"fmt"
-	"sort"
 	"sync"
 
 	"go.uber.org/atomic"
@@ -151,38 +150,36 @@ func (m *MessageInfo) Info() []string {
 
 type InfoRegistry struct {
 	sync.Mutex
-	info      map[string]IndexedValue[InfoProvider]
-	lastIndex int
+	keyOrder []string
+	info     map[string]InfoProvider
 }
 
 func NewInfoRegistry() *InfoRegistry {
 	return &InfoRegistry{
-		info: make(map[string]IndexedValue[InfoProvider]),
+		keyOrder: []string{},
+		info:     make(map[string]InfoProvider),
 	}
 }
 
 func (i *InfoRegistry) Register(info InfoProvider) {
 	i.Lock()
 	defer i.Unlock()
+	key := info.InfoKey()
 
-	if v, ok := i.info[info.InfoKey()]; ok {
-		v.value = info
-		i.info[info.InfoKey()] = v
+	if _, ok := i.info[key]; ok {
+		i.info[key] = info
 		return
 	}
 
-	i.info[info.InfoKey()] = IndexedValue[InfoProvider]{
-		value: info,
-		index: i.lastIndex,
-	}
-	i.lastIndex += 1
+	i.keyOrder = append(i.keyOrder, key)
+	i.info[key] = info
 }
 
 func (i *InfoRegistry) Get(key string) InfoProvider {
 	i.Lock()
 	defer i.Unlock()
 	if val, ok := i.info[key]; ok {
-		return val.value
+		return val
 	}
 	return nil
 }
@@ -190,17 +187,9 @@ func (i *InfoRegistry) Get(key string) InfoProvider {
 func (i *InfoRegistry) All() []InfoProvider {
 	i.Lock()
 	defer i.Unlock()
-	indexedInfo := []IndexedValue[InfoProvider]{}
-	for _, v := range i.info {
-		indexedInfo = append(indexedInfo, v)
-	}
-	sort.Slice(indexedInfo, func(i, j int) bool {
-		return indexedInfo[i].index < indexedInfo[j].index
-	})
-
 	info := []InfoProvider{}
-	for _, v := range indexedInfo {
-		info = append(info, v.value)
+	for _, key := range i.keyOrder {
+		info = append(info, i.info[key])
 	}
 
 	return info

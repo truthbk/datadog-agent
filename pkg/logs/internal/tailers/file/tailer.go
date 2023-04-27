@@ -125,7 +125,7 @@ type Tailer struct {
 //
 // The Tailer must poll for content in the file.  The `sleepDuration` parameter
 // specifies how long the tailer should wait between polls.
-func NewTailer(outputChan chan *message.Message, file *File, sleepDuration time.Duration, decoder *decoder.Decoder) *Tailer {
+func NewTailer(outputChan chan *message.Message, file *File, sleepDuration time.Duration, decoder *decoder.Decoder, info *status.InfoRegistry) *Tailer {
 
 	var tagProvider tag.Provider
 	if file.Source.Config().Identifier != "" {
@@ -138,7 +138,6 @@ func NewTailer(outputChan chan *message.Message, file *File, sleepDuration time.
 	closeTimeout := coreConfig.Datadog.GetDuration("logs_config.close_timeout") * time.Second
 	windowsOpenFileTimeout := coreConfig.Datadog.GetDuration("logs_config.windows_open_file_timeout") * time.Second
 
-	info := status.NewInfoRegistry()
 	bytesRead := status.NewCountInfo("Bytes Read")
 	info.Register(bytesRead)
 
@@ -165,8 +164,8 @@ func NewTailer(outputChan chan *message.Message, file *File, sleepDuration time.
 
 // NewRotatedTailer creates a new tailer that replaces this one, writing
 // messages to the same channel but using an updated file and decoder.
-func (t *Tailer) NewRotatedTailer(file *File, decoder *decoder.Decoder) *Tailer {
-	return NewTailer(t.outputChan, file, t.sleepDuration, decoder)
+func (t *Tailer) NewRotatedTailer(file *File, decoder *decoder.Decoder, info *status.InfoRegistry) *Tailer {
+	return NewTailer(t.outputChan, file, t.sleepDuration, decoder, info)
 }
 
 // Identifier returns a string that identifies this tailer in the registry.
