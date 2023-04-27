@@ -10,9 +10,9 @@ import (
 	"sync"
 
 	"github.com/gogo/protobuf/jsonpb"
+	"github.com/twmb/murmur3"
 
 	model "github.com/DataDog/agent-payload/v5/process"
-
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/network"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/telemetry"
@@ -78,9 +78,10 @@ func modelConnections(conns *network.Connections) *model.Connections {
 	ipc := make(ipCache, len(conns.Conns)/2)
 	dnsFormatter := newDNSFormatter(conns, ipc)
 	tagsSet := network.NewTagsSet()
+	mm := murmur3.New32()
 
 	for i, conn := range conns.Conns {
-		agentConns[i] = FormatConnection(conn, routeIndex, httpEncoder, http2Encoder, kafkaEncoder, dnsFormatter, ipc, tagsSet)
+		agentConns[i] = FormatConnection(conn, routeIndex, httpEncoder, http2Encoder, kafkaEncoder, dnsFormatter, ipc, tagsSet, mm)
 	}
 
 	if httpEncoder != nil && httpEncoder.orphanEntries > 0 {

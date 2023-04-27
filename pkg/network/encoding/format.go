@@ -6,13 +6,13 @@
 package encoding
 
 import (
+	"hash"
 	"math"
 	"reflect"
 	"sync"
 	"unsafe"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/twmb/murmur3"
 
 	model "github.com/DataDog/agent-payload/v5/process"
 	"github.com/DataDog/datadog-agent/pkg/network"
@@ -55,6 +55,7 @@ func FormatConnection(
 	dnsFormatter *dnsFormatter,
 	ipc ipCache,
 	tagsSet *network.TagsSet,
+	mm hash.Hash32,
 ) *model.Connection {
 	c := connPool.Get().(*model.Connection)
 	c.Pid = int32(conn.Pid)
@@ -101,7 +102,7 @@ func FormatConnection(
 	}
 
 	conn.StaticTags |= staticTags
-	c.Tags, c.TagsChecksum = formatTags(tagsSet, conn, dynamicTags)
+	c.Tags, c.TagsChecksum = formatTags(tagsSet, conn, dynamicTags, mm)
 
 	return c
 }
@@ -268,8 +269,7 @@ func routeKey(v *network.Via) string {
 	return v.Subnet.Alias
 }
 
-func formatTags(tagsSet *network.TagsSet, c network.ConnectionStats, connDynamicTags map[string]struct{}) (tagsIdx []uint32, checksum uint32) {
-	mm := murmur3.New32()
+func formatTags(tagsSet *network.TagsSet, c network.ConnectionStats, connDynamicTags map[string]struct{}, mm hash.Hash32) (tagsIdx []uint32, checksum uint32) {
 	for _, tag := range network.GetStaticTags(c.StaticTags) {
 		mm.Reset()
 		_, _ = mm.Write(unsafeStringSlice(tag))
