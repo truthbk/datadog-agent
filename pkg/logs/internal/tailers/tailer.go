@@ -5,12 +5,11 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/startstop"
 )
 
-type TailerType string
-
+// Tailer the base interface for a tailer.
 type Tailer interface {
 	startstop.Stoppable
 
 	GetId() string
 	GetType() string
-	GetInfo() []status.InfoProvider
+	GetInfo() *status.InfoRegistry
 }

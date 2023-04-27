@@ -7,10 +7,16 @@ package status
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 
 	"go.uber.org/atomic"
 )
+
+type IndexedValue[T any] struct {
+	index int
+	value T
+}
 
 // InfoProvider is a general interface to provide info about a log source.
 // It is used in the agent status page. The expected usage is for a piece of code that
@@ -141,4 +147,74 @@ func (m *MessageInfo) Info() []string {
 	defer m.Unlock()
 	m.Lock()
 	return []string{m.value}
+}
+
+type InfoRegistry struct {
+	sync.Mutex
+	info      map[string]IndexedValue[InfoProvider]
+	lastIndex int
+}
+
+func NewInfoRegistry() *InfoRegistry {
+	return &InfoRegistry{
+		info: make(map[string]IndexedValue[InfoProvider]),
+	}
+}
+
+func (i *InfoRegistry) Register(info InfoProvider) {
+	i.Lock()
+	defer i.Unlock()
+
+	if v, ok := i.info[info.InfoKey()]; ok {
+		v.value = info
+		i.info[info.InfoKey()] = v
+		return
+	}
+
+	i.info[info.InfoKey()] = IndexedValue[InfoProvider]{
+		value: info,
+		index: i.lastIndex,
+	}
+	i.lastIndex += 1
+}
+
+func (i *InfoRegistry) Get(key string) InfoProvider {
+	i.Lock()
+	defer i.Unlock()
+	if val, ok := i.info[key]; ok {
+		return val.value
+	}
+	return nil
+}
+
+func (i *InfoRegistry) All() []InfoProvider {
+	i.Lock()
+	defer i.Unlock()
+	indexedInfo := []IndexedValue[InfoProvider]{}
+	for _, v := range i.info {
+		indexedInfo = append(indexedInfo, v)
+	}
+	sort.Slice(indexedInfo, func(i, j int) bool {
+		return indexedInfo[i].index < indexedInfo[j].index
+	})
+
+	info := []InfoProvider{}
+	for _, v := range indexedInfo {
+		info = append(info, v.value)
+	}
+
+	return info
+}
+
+func (i *InfoRegistry) Rendered() map[string][]string {
+	info := make(map[string][]string)
+	all := i.All()
+
+	for _, v := range all {
+		if len(v.Info()) == 0 {
+			continue
+		}
+		info[v.InfoKey()] = v.Info()
+	}
+	return info
 }

@@ -116,13 +116,7 @@ func (b *Builder) getTailers() []Tailer {
 	var tailers []Tailer
 	for _, tailer := range b.tailers.All() {
 
-		info := make(map[string][]string)
-		for _, v := range tailer.GetInfo() {
-			if len(v.Info()) == 0 {
-				continue
-			}
-			info[v.InfoKey()] = v.Info()
-		}
+		info := tailer.GetInfo().Rendered()
 
 		tailers = append(tailers, Tailer{
 			Id:   tailer.GetId(),

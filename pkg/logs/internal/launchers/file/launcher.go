@@ -185,7 +185,7 @@ func (s *Launcher) scan() {
 
 	for _, file := range files {
 		scanKey := file.GetScanKey()
-		_, isTailed := s.tailers.Get(scanKey)
+		isTailed := s.tailers.Contains(scanKey)
 		if !isTailed && tailersLen < s.tailingLimit {
 			// create a new tailer tailing from the beginning of the file if no offset has been recorded
 			succeeded := s.startNewTailer(file, config.Beginning)

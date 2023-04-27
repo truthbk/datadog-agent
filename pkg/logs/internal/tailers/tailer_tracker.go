@@ -20,7 +20,7 @@ func (t *TailerTracker) Add(container AnyTailerContainer) {
 	t.containers = append(t.containers, container)
 }
 
-// All returns all active tailers in the agent.
+// All returns all active tailers.
 func (t *TailerTracker) All() []Tailer {
 	t.RLock()
 	defer t.RUnlock()
