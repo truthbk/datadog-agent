@@ -43,7 +43,7 @@ func NewAgent(sources *sources.LogSources, services *service.Services, tailers *
 	pipelineProvider := pipeline.NewServerlessProvider(config.NumberOfPipelines, auditor, processingRules, endpoints, destinationsCtx)
 
 	// setup the sole launcher for this agent
-	lnchrs := launchers.NewLaunchers(sources, pipelineProvider, auditor)
+	lnchrs := launchers.NewLaunchers(sources, pipelineProvider, auditor, tailers)
 	lnchrs.AddLauncher(channel.NewLauncher())
 
 	return &Agent{
@@ -54,7 +54,6 @@ func NewAgent(sources *sources.LogSources, services *service.Services, tailers *
 		destinationsCtx:           destinationsCtx,
 		pipelineProvider:          pipelineProvider,
 		launchers:                 lnchrs,
-		tailers:                   tailers,
 		health:                    health,
 		diagnosticMessageReceiver: diagnosticMessageReceiver,
 	}
