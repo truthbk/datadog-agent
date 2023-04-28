@@ -54,6 +54,30 @@ func InstallAgent(client *ssh.Client, installer string, args string, logpath str
 	return installerr
 }
 
+func InstallAgentWithDefaultUser(client *ssh.Client, installer string, args string, logpath string) error {
+	hostinfo, err := windows.GetHostInfo(client)
+	if err != nil {
+		return err
+	}
+
+	userargs := ""
+	// Create default user if on domain controller
+	if hostinfo.IsDomainController() {
+		username, userdomain, _ := DefaultAgentUser(hostinfo)
+		password := "123!@#QWEqwe"
+		userexists, err := windows.LocalUserExists(client, username)
+		if !userexists {
+			err = windows.CreateLocalUser(client, username, password)
+			if err != nil {
+				return err
+			}
+		}
+		userargs = fmt.Sprintf("DDAGENTUSER_NAME=%s\\%s DDAGENTUSER_PASSWORD=%s", userdomain, username, password)
+	}
+
+	return InstallAgent(client, installer, userargs + " " + args, logpath)
+}
+
 func GetDatadogAgentProductCode(client *ssh.Client) (string, error) {
 	return GetProductCodeByName(client, "Datadog Agent")
 }
@@ -104,4 +128,18 @@ func GetAllowClosedSource(client *ssh.Client) (string, error) {
 		return "", err
 	}
 	return val, nil
+}
+
+func DefaultAgentUser(hostinfo *windows.HostInfo) (string, string, string) {
+	if hostinfo.IsDomainController() {
+		username := "ddagentuser"
+		userdomain := windows.NetBIOSName(hostinfo.Domain)
+		serviceuser := fmt.Sprintf("%s\\%s", userdomain, username)
+		return username, userdomain, serviceuser
+	} else {
+		username := "ddagentuser"
+		userdomain := windows.NetBIOSName(hostinfo.Hostname)
+		serviceuser := ".\\ddagentuser"
+		return username, userdomain, serviceuser
+	}
 }

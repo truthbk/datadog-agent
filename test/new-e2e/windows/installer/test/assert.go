@@ -29,12 +29,13 @@ func AssertAllowClosedSource(a *assert.Assertions, client *ssh.Client, expected 
 
 func AssertDefaultInstalledUser(a *assert.Assertions, client *ssh.Client) bool {
 	// get hostname
-	hostname, err := windows.PsExec(client, "[Environment]::MachineName")
+	hostinfo, err := windows.GetHostInfo(client)
 	if !a.NoError(err) {
 		return false
 	}
+	username, userdomain, serviceuser := installer.DefaultAgentUser(hostinfo)
 
-	return AssertInstalledUser(a, client, "ddagentuser", hostname, ".\\ddagentuser")
+	return AssertInstalledUser(a, client, username, userdomain, serviceuser)
 }
 
 func AssertInstalledUser(a *assert.Assertions, client *ssh.Client, expectedusername string, expecteddomain string, expectedserviceuser string) bool {

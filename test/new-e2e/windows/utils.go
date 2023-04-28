@@ -20,10 +20,12 @@ func LocalUserExists(client *ssh.Client, user string) (bool, error) {
 	return out == "True", nil
 }
 
-func GetHostname(client *ssh.Client) (string, error) {
-	hostname, err := PsExec(client, "[Environment]::MachineName")
+func CreateLocalUser(client *ssh.Client, user string, password string) error {
+	cmd := fmt.Sprintf("net.exe user '%s' '%s' /ADD", user, password)
+	out, err := PsExec(client, cmd)
 	if err != nil {
-		return "", err
+		fmt.Println(out)
+		return fmt.Errorf("Failed to create user '%s': %v", user, err)
 	}
-	return hostname, nil
+	return nil
 }

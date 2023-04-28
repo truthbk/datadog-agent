@@ -51,16 +51,27 @@ func TestWindowsInstaller(t *testing.T) {
 	// TODO: use new-e2e/pulumi for provisioning
 	prevstableinstaller := "ddagent-cli-7.43.1.msi"
 	testinstaller := "datadog-agent-7.45.0-rc.3-1.x86_64.msi"
-	h := testHost{
-		host:     "172.23.224.26:22",
-		username: "user",
-		password: "user",
-		vmname:   "Windows 10",
-		snapshot: "ssh",
+
+	hosts := []testHost{
+		{
+			host:     "172.23.224.26:22",
+			username: "user",
+			password: "user",
+			vmname:   "Windows 10",
+			snapshot: "ssh",
+		},
+		{
+			host:     "172.23.238.202:22",
+			username: "DDEV\\Administrator",
+			password: "123!@#QWEqwe",
+			vmname:   "Windows Server 2019",
+			snapshot: "ddev-ssh",
+		},
 	}
+	testhostid := 1
 
 	suite.Run(t, &windowsInstallerSuite{
-		target:              &h,
+		target:              &hosts[testhostid],
 		suiteoutputdir:      filepath.Join("./output", time.Now().Format(time.RFC3339)),
 		prevstableinstaller: prevstableinstaller,
 		installer:           testinstaller,
@@ -100,7 +111,7 @@ func (s *windowsInstallerSuite) SetupTest() {
 	s.sshclient = sshclient
 	s.T().Cleanup(func() {
 		fmt.Println("closing ssh")
-		s.sshclient.Close()
+		sshclient.Close()
 	})
 
 	output, err := windows.PsExec(s.sshclient, "ipconfig")
@@ -184,7 +195,7 @@ func (s *windowsInstallerSuite) TestAllowClosedSourceArgs() {
 }
 
 func (s *windowsInstallerSuite) TestUpgradeWithNPM() {
-	err := installer.InstallAgent(s.sshclient, s.prevstableinstaller, "ADDLOCAL=NPM",
+	err := installer.InstallAgentWithDefaultUser(s.sshclient, s.prevstableinstaller, "ADDLOCAL=NPM",
 		filepath.Join(s.testoutputdir, "install.log"))
 	s.Require().NoError(err)
 
@@ -204,7 +215,7 @@ func (s *windowsInstallerSuite) TestUpgradeWithNPM() {
 }
 
 func (s *windowsInstallerSuite) TestDisableAllowClosedSource() {
-	err := installer.InstallAgent(s.sshclient,
+	err := installer.InstallAgentWithDefaultUser(s.sshclient,
 		s.prevstableinstaller, "ADDLOCAL=NPM",
 		filepath.Join(s.testoutputdir, "install.log"))
 	s.Require().NoError(err)
@@ -226,10 +237,7 @@ func (s *windowsInstallerSuite) TestDisableAllowClosedSource() {
 }
 
 func (s *windowsInstallerSuite) TestUpgradeChangeUser() {
-	hostname, err := windows.GetHostname(s.sshclient)
-	s.Require().NoError(err)
-
-	err = installer.InstallAgent(s.sshclient,
+	err := installer.InstallAgentWithDefaultUser(s.sshclient,
 		s.prevstableinstaller, "",
 		filepath.Join(s.testoutputdir, "install.log"))
 	s.Require().NoError(err)
@@ -237,10 +245,11 @@ func (s *windowsInstallerSuite) TestUpgradeChangeUser() {
 	s.Require().True(AssertDefaultInstalledUser(s.Assert(), s.sshclient))
 
 	username := "testuser"
+	password := "123!@#QWEqwe"
 	t, err := NewTester(s.sshclient,
 		WithInstallUser(username),
-		WithInstallPassword("123!@#QWEqwe"),
-		WithExpectedAgentUser(hostname, username, fmt.Sprintf(".\\%s", username)))
+		WithInstallPassword(password),
+		WithExpectedAgentUserFromUsername(s.sshclient, username, password))
 	s.Require().NoError(err)
 
 	err = t.InstallAgent(s.sshclient,
@@ -251,33 +260,51 @@ func (s *windowsInstallerSuite) TestUpgradeChangeUser() {
 	s.Require().True(t.AssertExpectations(s.Assert(), s.sshclient))
 }
 
-func (s *windowsInstallerSuite) TestAgentUserOnClient() {
-	hostname, err := windows.GetHostname(s.sshclient)
+func (s *windowsInstallerSuite) TestAgentUser() {
+	hostinfo, err := windows.GetHostInfo(s.sshclient)
 	s.Require().NoError(err)
+
+	var domainpart string
+	var servicedomainpart string
+	if hostinfo.IsDomainController() {
+		domainpart = windows.NetBIOSName(hostinfo.Domain)
+		servicedomainpart = windows.NetBIOSName(hostinfo.Domain)
+	} else {
+		domainpart = windows.NetBIOSName(hostinfo.Hostname)
+		servicedomainpart = "."
+	}
 
 	tcs := []struct {
 		testname            string
+		builtinaccount      bool
 		username            string
 		expecteddomain      string
 		expecteduser        string
 		expectedserviceuser string
 	}{
-		{"user_only", "testuser", hostname, "testuser", ".\\testuser"},
-		{"dotslash_user", ".\\testuser", hostname, "testuser", ".\\testuser"},
-		{"hostname_user", fmt.Sprintf("%s\\testuser", hostname), hostname, "testuser", ".\\testuser"},
-		{"LocalSystem", "LocalSystem", "NT AUTHORITY", "SYSTEM", "LocalSystem"},
-		{"SYSTEM", "SYSTEM", "NT AUTHORITY", "SYSTEM", "LocalSystem"},
+		{"user_only", false, "testuser", domainpart, "testuser", fmt.Sprintf("%s\\testuser", servicedomainpart)},
+		{"dotslash_user", false, ".\\testuser", domainpart, "testuser", fmt.Sprintf("%s\\testuser", servicedomainpart)},
+		{"domain_user", false, fmt.Sprintf("%s\\testuser", domainpart), domainpart, "testuser", fmt.Sprintf("%s\\testuser", servicedomainpart)},
+		{"LocalSystem", true, "LocalSystem", "NT AUTHORITY", "SYSTEM", "LocalSystem"},
+		{"SYSTEM", true, "SYSTEM", "NT AUTHORITY", "SYSTEM", "LocalSystem"},
 	}
 
+	userpassword := "123!@#QWEqwe"
 	for tc_i, tc := range tcs {
 		s.Run(tc.testname, func() {
 			if tc_i > 0 {
 				s.SetupTest()
 			}
 
+			if hostinfo.IsDomainController() && !tc.builtinaccount {
+				// user must exist on domain controllers
+				err = windows.CreateLocalUser(s.sshclient, tc.expecteduser, userpassword)
+				s.Require().NoError(err)
+			}
+
 			t, err := NewTester(s.sshclient,
 				WithInstallUser(tc.username),
-				WithInstallPassword("123!@#QWEqwe"),
+				WithInstallPassword(userpassword),
 				WithExpectedAgentUser(tc.expecteddomain, tc.expecteduser, tc.expectedserviceuser))
 			s.Require().NoError(err)
 
@@ -294,16 +321,20 @@ func (s *windowsInstallerSuite) TestAgentUserOnClient() {
 func setNetworkConfig(client *ssh.Client, npmEnabled bool) error {
 	sftpclient, err := sftp.NewClient(client)
 	if err != nil {
-		return err
+		return fmt.Errorf("sftp connection failed: %v", err)
 	}
 	defer sftpclient.Close()
 
-	err = sftpclient.MkdirAll(installer.DefaultConfigPath)
+	configPath := installer.DefaultConfigPath
+	err = sftpclient.MkdirAll(configPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create config dir: %v", err)
 	}
 	err = windows.WriteFile(sftpclient,
-		filepath.Join(installer.DefaultConfigPath, "system-probe.yaml"),
+		filepath.Join(configPath, "system-probe.yaml"),
 		[]byte(fmt.Sprintf("network_config:\n  enabled: %v", npmEnabled)))
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to write config: %v", err)
+	}
+	return nil
 }

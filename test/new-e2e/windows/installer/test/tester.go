@@ -16,7 +16,7 @@ import (
 )
 
 type Tester struct {
-	hostname string
+	hostinfo *windows.HostInfo
 
 	installUser     string
 	installPassword string
@@ -36,14 +36,12 @@ func NewTester(client *ssh.Client, options ...TesterOption) (*Tester, error) {
 
 	var err error
 
-	t.hostname, err = windows.GetHostname(client)
+	t.hostinfo, err = windows.GetHostInfo(client)
 	if err != nil {
 		return nil, err
 	}
 
-	t.username = "ddagentuser"
-	t.userdomain = t.hostname
-	t.serviceuser = ".\\ddagentuser"
+	t.username, t.userdomain, t.serviceuser = installer.DefaultAgentUser(t.hostinfo)
 
 	t.expectedAllowClosedSource = installer.AllowClosedSourceNo
 
@@ -69,6 +67,29 @@ func WithExpectedAgentUser(domain string, username string, serviceuser string) T
 		t.username = username
 		t.userdomain = domain
 		t.serviceuser = serviceuser
+	}
+}
+
+func WithExpectedAgentUserFromUsername(client *ssh.Client, username string, password string) TesterOption {
+	return func(t *Tester) {
+		var domainpart string
+		var servicedomainpart string
+		if t.hostinfo.IsDomainController() {
+			domainpart = windows.NetBIOSName(t.hostinfo.Domain)
+			servicedomainpart = windows.NetBIOSName(t.hostinfo.Domain)
+			// user must exist on domain controllers
+			userexists, err := windows.LocalUserExists(client, username)
+			if err == nil && !userexists {
+				windows.CreateLocalUser(client, username, password)
+				// TODO: return error
+			}
+		} else {
+			domainpart = windows.NetBIOSName(t.hostinfo.Hostname)
+			servicedomainpart = "."
+		}
+		t.username = username
+		t.userdomain = domainpart
+		t.serviceuser = fmt.Sprintf("%s\\%s", servicedomainpart, username)
 	}
 }
 
@@ -172,13 +193,19 @@ func (t *Tester) AssertExpectations(a *assert.Assertions, client *ssh.Client) bo
 }
 
 func (t *Tester) InstallAgent(client *ssh.Client, installerpath string, args string, logfile string) error {
-	if t.installUser != "" {
-		args = args + fmt.Sprintf(" DDAGENTUSER_NAME=%s", t.installUser)
-	}
-	if t.installPassword != "" {
-		args = args + fmt.Sprintf(" DDAGENTUSER_PASSWORD=%s", t.installPassword)
+	var err error
+
+	if t.installUser != "" || t.installPassword != "" {
+		if t.installUser != "" {
+			args = args + fmt.Sprintf(" DDAGENTUSER_NAME=%s", t.installUser)
+		}
+		if t.installPassword != "" {
+			args = args + fmt.Sprintf(" DDAGENTUSER_PASSWORD=%s", t.installPassword)
+		}
+		err = installer.InstallAgent(client, installerpath, args, logfile)
+	} else {
+		err = installer.InstallAgentWithDefaultUser(client, installerpath, args, logfile)
 	}
 
-	err := installer.InstallAgent(client, installerpath, args, logfile)
 	return err
 }
