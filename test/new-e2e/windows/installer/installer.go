@@ -30,14 +30,14 @@ func InstallAgent(client *ssh.Client, installer string, args string, logpath str
 	defer sftpclient.Close()
 
 	fmt.Printf("Transferring installer...")
-	err = windows.PutFile(sftpclient, installer, "C:\\TEMP\\agent.msi")
+	err = windows.PutFile(sftpclient, installer, "C:\\Windows\\Temp\\agent.msi")
 	if err != nil {
 		return err
 	}
 	fmt.Println("done")
 
 	fmt.Printf("Running installer...")
-	output, installerr := windows.PsExec(client, fmt.Sprintf("start-process -wait msiexec.exe -argumentList '/i C:\\TEMP\\agent.msi /qn /l*v C:\\TEMP\\install.log %s'", args))
+	output, installerr := windows.PsExec(client, fmt.Sprintf("start-process -wait msiexec.exe -argumentList '/i C:\\Windows\\Temp\\agent.msi /qn /l*v C:\\Windows\\Temp\\install.log %s'", args))
 	if installerr != nil {
 		fmt.Println(output)
 		// ignore error, we still want to collect the log
@@ -45,7 +45,7 @@ func InstallAgent(client *ssh.Client, installer string, args string, logpath str
 	fmt.Println("done")
 
 	fmt.Printf("Collecting installer log...")
-	err = windows.GetFile(sftpclient, "C:\\TEMP\\install.log", logpath)
+	err = windows.GetFile(sftpclient, "C:\\Windows\\Temp\\install.log", logpath)
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func UninstallAgent(client *ssh.Client, logpath string) error {
 	}
 
 	fmt.Printf("Uninstalling %s...", productcode)
-	output, uninstallerr := windows.PsExec(client, fmt.Sprintf("start-process -wait msiexec.exe -argumentList /x,'%s',/qn,/l*v,C:\\TEMP\\uninstall.log", productcode))
+	output, uninstallerr := windows.PsExec(client, fmt.Sprintf("start-process -wait msiexec.exe -argumentList /x,'%s',/qn,/l*v,C:\\Windows\\Temp\\uninstall.log", productcode))
 	if uninstallerr != nil {
 		fmt.Println(output)
 		// ignore error, we still want to collect the log
@@ -89,7 +89,7 @@ func UninstallAgent(client *ssh.Client, logpath string) error {
 	defer sftpclient.Close()
 
 	fmt.Printf("Collecting installer log...")
-	err = windows.GetFile(sftpclient, "C:\\TEMP\\uninstall.log", logpath)
+	err = windows.GetFile(sftpclient, "C:\\Windows\\Temp\\uninstall.log", logpath)
 	if err != nil {
 		return err
 	}
