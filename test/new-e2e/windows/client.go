@@ -6,6 +6,7 @@
 package windows
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -43,6 +44,20 @@ func PutFile(client *sftp.Client, localpath string, remotepath string) error {
 	defer fdst.Close()
 
 	_, err = fdst.ReadFrom(fsrc)
+	return err
+}
+
+func WriteFile(client *sftp.Client, remotepath string, data []byte) error {
+	r := bytes.NewReader(data)
+
+	// remote
+	fdst, err := client.Create(remotepath)
+	if err != nil {
+		return err
+	}
+	defer fdst.Close()
+
+	_, err = fdst.ReadFrom(r)
 	return err
 }
 

@@ -26,6 +26,7 @@ type Tester struct {
 	serviceuser string
 
 	expectedAllowClosedSource string
+	expectedNPMRunning bool
 }
 
 type TesterOption func(*Tester)
@@ -77,6 +78,12 @@ func WithExpectedAllowClosedSource(val string) TesterOption {
 	}
 }
 
+func WithExpectNPMRunning(val bool) TesterOption {
+	return func(t *Tester) {
+		t.expectedNPMRunning = val
+	}
+}
+
 func (t *Tester) SetOptions(options ...TesterOption) {
 	for _, o := range options {
 		o(t)
@@ -92,17 +99,32 @@ func (t *Tester) assertAllowClosedSource(a *assert.Assertions, client *ssh.Clien
 }
 
 func (t *Tester) assertServices(a *assert.Assertions, client *ssh.Client) bool {
-	svcs := []struct {
+	type expectedService struct {
 		name      string
 		starttype int
 		status    int
-	}{
-		{"datadogagent", windows.SERVICE_AUTO_START, windows.SERVICE_RUNNING},
+		depends   []string
+	}
+
+	svcs := []expectedService {
+		{"datadogagent", windows.SERVICE_AUTO_START, windows.SERVICE_RUNNING, nil},
 		// TODO: figure out why trace-agent is sometimes running and sometimes not
 		// {"datadog-trace-agent", windows.SERVICE_DEMAND_START, windows.SERVICE_STOPPED},
-		{"datadog-system-probe", windows.SERVICE_DEMAND_START, windows.SERVICE_STOPPED},
-		{"datadog-process-agent", windows.SERVICE_DEMAND_START, windows.SERVICE_RUNNING},
+		{"datadog-process-agent", windows.SERVICE_DEMAND_START, windows.SERVICE_RUNNING, []string{"datadogagent"}},
 	}
+
+	if t.expectedNPMRunning {
+		svcs = append(svcs, []expectedService{
+			{"ddnpm", windows.SERVICE_DEMAND_START, windows.SERVICE_RUNNING, nil},
+			{"datadog-system-probe", windows.SERVICE_DEMAND_START, windows.SERVICE_RUNNING, []string{"datadogagent"}},
+		}...)
+	} else {
+		svcs = append(svcs, []expectedService{
+			{"ddnpm", windows.SERVICE_DISABLED, windows.SERVICE_STOPPED, nil},
+			{"datadog-system-probe", windows.SERVICE_DEMAND_START, windows.SERVICE_STOPPED, []string{"datadogagent"}},
+		}...)
+	}
+
 	for _, svc := range svcs {
 		info, err := windows.GetServiceInfo(client, svc.name)
 		if !a.NoError(err) {
@@ -114,21 +136,38 @@ func (t *Tester) assertServices(a *assert.Assertions, client *ssh.Client) bool {
 		if !a.Equal(svc.status, int(info["Status"].(float64)), fmt.Sprintf("%s service Status should be %d", svc.name, svc.status)) {
 			return false
 		}
+		var dependentServices []string
+		for _, o := range []any(info["ServicesDependedOn"].([]any)) {
+			dep := map[string]any(o.(map[string]any))
+			dependentServices = append(dependentServices, string(dep["ServiceName"].(string)))
+		}
+		if !a.ElementsMatch(svc.depends, dependentServices, "%s should depend on %v", svc.name, svc.depends) {
+			return false
+		}
 	}
 
 	return true
 }
 
 func (t *Tester) AssertExpectations(a *assert.Assertions, client *ssh.Client) bool {
+	fmt.Printf("Checking closed source flag...")
 	if !t.assertAllowClosedSource(a, client) {
 		return false
 	}
+	fmt.Println("done")
+
+	fmt.Printf("Checking agent user...")
 	if !t.assertAgentUser(a, client) {
 		return false
 	}
+	fmt.Println("done")
+
+	fmt.Printf("Checking agent services...")
 	if !t.assertServices(a, client) {
 		return false
 	}
+	fmt.Println("done")
+
 	return true
 }
 

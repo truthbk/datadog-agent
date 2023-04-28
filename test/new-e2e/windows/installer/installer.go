@@ -15,6 +15,9 @@ import (
 )
 
 const (
+	DefaultInstallPath = `C:\Program Files\Datadog\Datadog Agent`
+	DefaultConfigPath = `C:\ProgramData\Datadog`
+
 	AllowClosedSourceNo  = "0"
 	AllowClosedSourceYes = "1"
 )

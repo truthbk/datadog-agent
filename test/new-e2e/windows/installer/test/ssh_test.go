@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-agent/test/new-e2e/windows/installer"
 
 	"github.com/stretchr/testify/suite"
+	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -49,7 +50,7 @@ func TestWindowsInstaller(t *testing.T) {
 	// TODO: make all this configurable
 	// TODO: use new-e2e/pulumi for provisioning
 	prevstableinstaller := "ddagent-cli-7.43.1.msi"
-	testinstaller := "datadog-agent-ng-7.45.0-rc.1.git.23.f274ee9.pipeline.15137088-1-x86_64.msi"
+	testinstaller := "datadog-agent-7.45.0-rc.3-1.x86_64.msi"
 	h := testHost{
 		host:     "172.23.224.26:22",
 		username: "user",
@@ -69,6 +70,10 @@ func TestWindowsInstaller(t *testing.T) {
 func (s *windowsInstallerSuite) SetupSuite() {
 	// create output dir
 	os.MkdirAll(s.suiteoutputdir, os.ModePerm)
+}
+
+func (s *windowsInstallerSuite) TearDownSuite() {
+	fmt.Printf("Output directory: %s\n", s.suiteoutputdir)
 }
 
 func (s *windowsInstallerSuite) SetupTest() {
@@ -145,20 +150,36 @@ func (s *windowsInstallerSuite) TestAllowClosedSourceArgs() {
 		{"ADDLOCAL_NPM", "ADDLOCAL=NPM", installer.AllowClosedSourceYes},
 	}
 
-	for _, tc := range tcs {
-		s.Run(tc.testname, func() {
-			s.SetupTest()
+	firstTest := true
+	for _, npmEnabled := range []bool{false, true} {
+		for _, tc := range tcs {
+			var tcname string
+			if npmEnabled {
+				tcname = fmt.Sprintf("%s/NPMEnabled", tc.testname)
+			} else {
+				tcname = fmt.Sprintf("%s/NPMDisabled", tc.testname)
+			}
+			s.Run(tcname, func() {
+				if !firstTest {
+					s.SetupTest()
+				}
+				firstTest = false
 
-			t, err := NewTester(s.sshclient,
-				WithExpectedAllowClosedSource(tc.expected))
-			s.Require().NoError(err)
+				t, err := NewTester(s.sshclient,
+					WithExpectedAllowClosedSource(tc.expected),
+					WithExpectNPMRunning(npmEnabled))
+				s.Require().NoError(err)
 
-			err = t.InstallAgent(s.sshclient, s.installer, tc.args,
-				filepath.Join(s.testoutputdir, "install.log"))
-			s.Require().NoError(err)
+				err = setNetworkConfig(s.sshclient, npmEnabled)
+				s.Require().NoError(err)
 
-			s.Require().True(t.AssertExpectations(s.Assert(), s.sshclient))
-		})
+				err = t.InstallAgent(s.sshclient, s.installer, tc.args,
+					filepath.Join(s.testoutputdir, "install.log"))
+				s.Require().NoError(err)
+
+				s.Require().True(t.AssertExpectations(s.Assert(), s.sshclient))
+			})
+		}
 	}
 }
 
@@ -167,8 +188,12 @@ func (s *windowsInstallerSuite) TestUpgradeWithNPM() {
 		filepath.Join(s.testoutputdir, "install.log"))
 	s.Require().NoError(err)
 
+	err = setNetworkConfig(s.sshclient, true)
+	s.Require().NoError(err)
+
 	t, err := NewTester(s.sshclient,
-		WithExpectedAllowClosedSource(installer.AllowClosedSourceYes))
+		WithExpectedAllowClosedSource(installer.AllowClosedSourceYes),
+		WithExpectNPMRunning(true))
 	s.Require().NoError(err)
 
 	err = t.InstallAgent(s.sshclient, s.installer, "",
@@ -184,8 +209,12 @@ func (s *windowsInstallerSuite) TestDisableAllowClosedSource() {
 		filepath.Join(s.testoutputdir, "install.log"))
 	s.Require().NoError(err)
 
+	err = setNetworkConfig(s.sshclient, true)
+	s.Require().NoError(err)
+
 	t, err := NewTester(s.sshclient,
-		WithExpectedAllowClosedSource(installer.AllowClosedSourceNo))
+		WithExpectedAllowClosedSource(installer.AllowClosedSourceNo),
+		WithExpectNPMRunning(false))
 	s.Require().NoError(err)
 
 	err = t.InstallAgent(s.sshclient,
@@ -240,9 +269,11 @@ func (s *windowsInstallerSuite) TestAgentUserOnClient() {
 		{"SYSTEM", "SYSTEM", "NT AUTHORITY", "SYSTEM", "LocalSystem"},
 	}
 
-	for _, tc := range tcs {
+	for tc_i, tc := range tcs {
 		s.Run(tc.testname, func() {
-			s.SetupTest()
+			if tc_i > 0 {
+				s.SetupTest()
+			}
 
 			t, err := NewTester(s.sshclient,
 				WithInstallUser(tc.username),
@@ -258,4 +289,21 @@ func (s *windowsInstallerSuite) TestAgentUserOnClient() {
 			s.Require().True(t.AssertExpectations(s.Assert(), s.sshclient))
 		})
 	}
+}
+
+func setNetworkConfig(client *ssh.Client, npmEnabled bool) error {
+	sftpclient, err := sftp.NewClient(client)
+	if err != nil {
+		return err
+	}
+	defer sftpclient.Close()
+
+	err = sftpclient.MkdirAll(installer.DefaultConfigPath)
+	if err != nil {
+		return err
+	}
+	err = windows.WriteFile(sftpclient,
+		filepath.Join(installer.DefaultConfigPath, "system-probe.yaml"),
+		[]byte(fmt.Sprintf("network_config:\n  enabled: %v", npmEnabled)))
+	return err
 }
