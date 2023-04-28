@@ -22,11 +22,15 @@ func PsExec(client *ssh.Client, command string) (string, error) {
 	}
 	defer s.Close()
 
+	var outstr string
 	out, err := s.CombinedOutput(fmt.Sprintf("powershell.exe -Command %s", command))
-	if err != nil {
-		return "", err
+	if out != nil {
+		outstr = strings.TrimSuffix(string(out), "\r\n")
 	}
-	return strings.TrimSuffix(string(out), "\r\n"), nil
+	if err != nil {
+		return outstr, err
+	}
+	return outstr, nil
 }
 
 func PutFile(client *sftp.Client, localpath string, remotepath string) error {
