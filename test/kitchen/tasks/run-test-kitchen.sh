@@ -160,7 +160,9 @@ for attempt in $(seq 0 "${KITCHEN_INFRASTRUCTURE_FLAKES_RETRY:-2}"); do
   # Then, destroy the kitchen machines
   # Do not fail on kitchen destroy, it breaks the infra failures filter
   set +e
-  bundle exec kitchen destroy "$test_suites" --no-log-overwrite
+  if [[ $KITCHEN_OSVERS != "ubuntu-16-04-4.4" || $KITCHEN_PROVIDER != "ec2" ]]; then
+      bundle exec kitchen destroy "$test_suites" --no-log-overwrite
+  fi
   destroy_result=$?
   set -e
 
