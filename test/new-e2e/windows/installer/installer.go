@@ -16,7 +16,7 @@ import (
 
 const (
 	DefaultInstallPath = `C:\Program Files\Datadog\Datadog Agent`
-	DefaultConfigPath = `C:\ProgramData\Datadog`
+	DefaultConfigPath  = `C:\ProgramData\Datadog`
 
 	AllowClosedSourceNo  = "0"
 	AllowClosedSourceYes = "1"
@@ -75,7 +75,7 @@ func InstallAgentWithDefaultUser(client *ssh.Client, installer string, args stri
 		userargs = fmt.Sprintf("DDAGENTUSER_NAME=%s\\%s DDAGENTUSER_PASSWORD=%s", userdomain, username, password)
 	}
 
-	return InstallAgent(client, installer, userargs + " " + args, logpath)
+	return InstallAgent(client, installer, userargs+" "+args, logpath)
 }
 
 func GetDatadogAgentProductCode(client *ssh.Client) (string, error) {

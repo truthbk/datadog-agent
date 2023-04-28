@@ -16,8 +16,8 @@ import (
 	"github.com/DataDog/datadog-agent/test/new-e2e/windows/hyperv"
 	"github.com/DataDog/datadog-agent/test/new-e2e/windows/installer"
 
-	"github.com/stretchr/testify/suite"
 	"github.com/pkg/sftp"
+	"github.com/stretchr/testify/suite"
 	"golang.org/x/crypto/ssh"
 )
 

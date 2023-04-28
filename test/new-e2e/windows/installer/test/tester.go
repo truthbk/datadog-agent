@@ -26,7 +26,7 @@ type Tester struct {
 	serviceuser string
 
 	expectedAllowClosedSource string
-	expectedNPMRunning bool
+	expectedNPMRunning        bool
 }
 
 type TesterOption func(*Tester)
@@ -127,7 +127,7 @@ func (t *Tester) assertServices(a *assert.Assertions, client *ssh.Client) bool {
 		depends   []string
 	}
 
-	svcs := []expectedService {
+	svcs := []expectedService{
 		{"datadogagent", windows.SERVICE_AUTO_START, windows.SERVICE_RUNNING, nil},
 		// TODO: figure out why trace-agent is sometimes running and sometimes not
 		// {"datadog-trace-agent", windows.SERVICE_DEMAND_START, windows.SERVICE_STOPPED},

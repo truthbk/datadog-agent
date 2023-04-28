@@ -24,16 +24,16 @@ type HostInfo struct {
 // https://learn.microsoft.com/en-us/windows/win32/cimwin32prov/win32-operatingsystem
 type OSInfo struct {
 	WindowsDirectory string `json:"WindowsDirectory"`
-	Version string `json:"Version"`
-	SystemDrive string `json:"SystemDrive"`
-	SystemDirectory string `json:"SystemDirectory"`
-	ProductType int `json:"ProductType"`
-	OSType int `json:"OSType"`
-	OSProductSuite int `json:"OSProductSuite"`
-	OSLanguage int `json:"OSLanguage"`
-	Locale string `json:"Locale"`
-	BuildNumber string `json:"BuildNumber"`
-	Caption string `json:"Caption"`
+	Version          string `json:"Version"`
+	SystemDrive      string `json:"SystemDrive"`
+	SystemDirectory  string `json:"SystemDirectory"`
+	ProductType      int    `json:"ProductType"`
+	OSType           int    `json:"OSType"`
+	OSProductSuite   int    `json:"OSProductSuite"`
+	OSLanguage       int    `json:"OSLanguage"`
+	Locale           string `json:"Locale"`
+	BuildNumber      string `json:"BuildNumber"`
+	Caption          string `json:"Caption"`
 }
 
 func GetHostInfo(client *ssh.Client) (*HostInfo, error) {
