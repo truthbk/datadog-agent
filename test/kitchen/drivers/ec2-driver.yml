@@ -33,7 +33,7 @@ driver:
   aws_ssh_key_id: <%= ENV['KITCHEN_EC2_SSH_KEY_ID'] %>
   <% end %>
   <% if ENV['KITCHEN_EC2_SG_IDS'] %>
-  security_group_ids: <%= [ENV['KITCHEN_EC2_SG_IDS']] %>
+  security_group_ids: <%= ENV['KITCHEN_EC2_SG_IDS'].split(' ') %>
   <% else %>
   security_group_ids: [ "sg-7fedd80a","sg-46506837" ]
   <% end %>
@@ -175,7 +175,7 @@ platforms:
     name: winrm
     elevated: true
     username: administrator
-    
+
     <% else %>
     connection_retries: 30
     connection_retry_sleep: 2
