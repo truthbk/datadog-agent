@@ -33,6 +33,7 @@ func savePolicy(filename string, testPolicy *PolicyDef) error {
 }
 
 func TestMacroMerge(t *testing.T) {
+	rs := newRuleSet()
 	testPolicy := &PolicyDef{
 		Rules: []*RuleDefinition{{
 			ID:         "test_rule",
@@ -72,14 +73,13 @@ func TestMacroMerge(t *testing.T) {
 	}
 	loader := NewPolicyLoader(provider)
 
-	evaluationSet, _ := newEvaluationSet([]eval.RuleSetTagValue{DefaultRuleSetTagValue})
-	if errs := evaluationSet.LoadPolicies(loader, PolicyLoaderOpts{}); errs.ErrorOrNil() != nil {
+	if errs := rs.LoadPolicies(loader, PolicyLoaderOpts{}); errs.ErrorOrNil() != nil {
 		t.Error(err)
 	}
 
-	macro := evaluationSet.RuleSets[DefaultRuleSetTagValue].evalOpts.MacroStore.Get("test_macro")
+	macro := rs.evalOpts.MacroStore.Get("test_macro")
 	if macro == nil {
-		t.Fatalf("failed to find test_macro in ruleset: %+v", evaluationSet.RuleSets[DefaultRuleSetTagValue].evalOpts.MacroStore.List())
+		t.Fatalf("failed to find test_macro in ruleset: %+v", rs.evalOpts.MacroStore.List())
 	}
 
 	testPolicy2.Macros[0].Combine = ""
@@ -88,12 +88,14 @@ func TestMacroMerge(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := evaluationSet.LoadPolicies(loader, PolicyLoaderOpts{}); err == nil {
+	if err := rs.LoadPolicies(loader, PolicyLoaderOpts{}); err == nil {
 		t.Error("expected macro ID conflict")
 	}
 }
 
 func TestRuleMerge(t *testing.T) {
+	rs := newRuleSet()
+
 	testPolicy := &PolicyDef{
 		Rules: []*RuleDefinition{{
 			ID:         "test_rule",
@@ -125,12 +127,11 @@ func TestRuleMerge(t *testing.T) {
 	}
 	loader := NewPolicyLoader(provider)
 
-	evaluationSet, _ := newEvaluationSet([]eval.RuleSetTagValue{DefaultRuleSetTagValue})
-	if errs := evaluationSet.LoadPolicies(loader, PolicyLoaderOpts{}); errs.ErrorOrNil() != nil {
+	if errs := rs.LoadPolicies(loader, PolicyLoaderOpts{}); errs.ErrorOrNil() != nil {
 		t.Error(err)
 	}
 
-	rule := evaluationSet.RuleSets[DefaultRuleSetTagValue].GetRules()["test_rule"]
+	rule := rs.GetRules()["test_rule"]
 	if rule == nil {
 		t.Fatal("failed to find test_rule in ruleset")
 	}
@@ -141,12 +142,14 @@ func TestRuleMerge(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := evaluationSet.LoadPolicies(loader, PolicyLoaderOpts{}); err == nil {
+	if err := rs.LoadPolicies(loader, PolicyLoaderOpts{}); err == nil {
 		t.Error("expected rule ID conflict")
 	}
 }
 
 func TestActionSetVariable(t *testing.T) {
+	rs := newRuleSet()
+
 	testPolicy := &PolicyDef{
 		Rules: []*RuleDefinition{{
 			ID:         "test_rule",
@@ -243,12 +246,11 @@ func TestActionSetVariable(t *testing.T) {
 	}
 	loader := NewPolicyLoader(provider)
 
-	evaluationSet, _ := newEvaluationSet([]eval.RuleSetTagValue{DefaultRuleSetTagValue})
-	if errs := evaluationSet.LoadPolicies(loader, PolicyLoaderOpts{}); errs.ErrorOrNil() != nil {
+	if errs := rs.LoadPolicies(loader, PolicyLoaderOpts{}); errs.ErrorOrNil() != nil {
 		t.Error(err)
 	}
 
-	rule := evaluationSet.RuleSets[DefaultRuleSetTagValue].GetRules()["test_rule"]
+	rule := rs.GetRules()["test_rule"]
 	if rule == nil {
 		t.Fatal("failed to find test_rule in ruleset")
 	}
@@ -261,22 +263,22 @@ func TestActionSetVariable(t *testing.T) {
 	event.SetFieldValue("open.file.path", "/tmp/test2")
 	event.SetFieldValue("open.flags", syscall.O_RDONLY)
 
-	if evaluationSet.RuleSets[DefaultRuleSetTagValue].Evaluate(event) {
+	if rs.Evaluate(event) {
 		t.Errorf("Expected event to match no rule")
 	}
 
 	event.SetFieldValue("open.file.path", "/tmp/test")
 
-	if !evaluationSet.RuleSets[DefaultRuleSetTagValue].Evaluate(event) {
+	if !rs.Evaluate(event) {
 		t.Errorf("Expected event to match rule")
 	}
 
 	event.SetFieldValue("open.file.path", "/tmp/test2")
-	if !evaluationSet.RuleSets[DefaultRuleSetTagValue].Evaluate(event) {
+	if !rs.Evaluate(event) {
 		t.Errorf("Expected event to match rule")
 	}
 
-	scopedVariables := evaluationSet.RuleSets[DefaultRuleSetTagValue].scopedVariables["process"].(*eval.ScopedVariables)
+	scopedVariables := rs.scopedVariables["process"].(*eval.ScopedVariables)
 
 	assert.Equal(t, scopedVariables.Len(), 1)
 	event.(*model.Event).ProcessCacheEntry.Release()
@@ -284,6 +286,8 @@ func TestActionSetVariable(t *testing.T) {
 }
 
 func TestActionSetVariableConflict(t *testing.T) {
+	rs := newRuleSet()
+
 	testPolicy := &PolicyDef{
 		Rules: []*RuleDefinition{{
 			ID:         "test_rule",
@@ -318,10 +322,28 @@ func TestActionSetVariableConflict(t *testing.T) {
 	}
 	loader := NewPolicyLoader(provider)
 
-	evaluationSet, _ := newEvaluationSet([]eval.RuleSetTagValue{DefaultRuleSetTagValue})
-	if errs := evaluationSet.LoadPolicies(loader, PolicyLoaderOpts{}); errs.ErrorOrNil() == nil {
+	if errs := rs.LoadPolicies(loader, PolicyLoaderOpts{}); errs.ErrorOrNil() == nil {
 		t.Error("expected policy to fail to load")
 	}
+}
+
+func loadPolicy(t *testing.T, testPolicy *PolicyDef, policyOpts PolicyLoaderOpts) (*RuleSet, *multierror.Error) {
+	rs := newRuleSet()
+
+	tmpDir := t.TempDir()
+
+	if err := savePolicy(filepath.Join(tmpDir, "test.policy"), testPolicy); err != nil {
+		t.Fatal(err)
+	}
+
+	provider, err := NewPoliciesDirProvider(tmpDir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	loader := NewPolicyLoader(provider)
+
+	return rs, rs.LoadPolicies(loader, policyOpts)
 }
 
 func TestRuleErrorLoading(t *testing.T) {
@@ -342,8 +364,7 @@ func TestRuleErrorLoading(t *testing.T) {
 		},
 	}
 
-	es, err := loadPolicyIntoProbeEvaluationRuleSet(t, testPolicy, PolicyLoaderOpts{})
-	rs := es.RuleSets[DefaultRuleSetTagValue]
+	rs, err := loadPolicy(t, testPolicy, PolicyLoaderOpts{})
 	assert.NotNil(t, err)
 	assert.Len(t, err.Errors, 2)
 	assert.ErrorContains(t, err.Errors[0], "rule `testA` error: multiple definition with the same ID")
@@ -481,9 +502,7 @@ func TestRuleAgentConstraint(t *testing.T) {
 		},
 	}
 
-	es, err := loadPolicyIntoProbeEvaluationRuleSet(t, testPolicy, policyOpts)
-	rs := es.RuleSets[DefaultRuleSetTagValue]
-
+	rs, err := loadPolicy(t, testPolicy, policyOpts)
 	for _, err := range err.(*multierror.Error).Errors {
 		if rerr, ok := err.(*ErrRuleLoad); ok {
 			if rerr.Definition.ID != "basic" && rerr.Definition.ID != "range_not" {
@@ -503,6 +522,35 @@ func TestRuleAgentConstraint(t *testing.T) {
 	}
 }
 
+func TestRuleIDFilter(t *testing.T) {
+	testPolicy := &PolicyDef{
+		Rules: []*RuleDefinition{
+			{
+				ID:         "test1",
+				Expression: `open.file.path == "/tmp/test"`,
+			},
+			{
+				ID:         "test2",
+				Expression: `open.file.path != "/tmp/test"`,
+			},
+		},
+	}
+
+	policyOpts := PolicyLoaderOpts{
+		RuleFilters: []RuleFilter{
+			&RuleIDFilter{
+				ID: "test2",
+			},
+		},
+	}
+
+	rs, err := loadPolicy(t, testPolicy, policyOpts)
+	assert.Nil(t, err)
+
+	assert.NotContains(t, rs.rules, "test1")
+	assert.Contains(t, rs.rules, "test2")
+}
+
 func TestActionSetVariableInvalid(t *testing.T) {
 	t.Run("both-field-and-value", func(t *testing.T) {
 		testPolicy := &PolicyDef{
@@ -519,7 +567,7 @@ func TestActionSetVariableInvalid(t *testing.T) {
 			}},
 		}
 
-		if _, err := loadPolicyIntoProbeEvaluationRuleSet(t, testPolicy, PolicyLoaderOpts{}); err == nil {
+		if _, err := loadPolicy(t, testPolicy, PolicyLoaderOpts{}); err == nil {
 			t.Error("policy should fail to load")
 		} else {
 			t.Log(err)
@@ -544,7 +592,7 @@ func TestActionSetVariableInvalid(t *testing.T) {
 			}},
 		}
 
-		if _, err := loadPolicyIntoProbeEvaluationRuleSet(t, testPolicy, PolicyLoaderOpts{}); err == nil {
+		if _, err := loadPolicy(t, testPolicy, PolicyLoaderOpts{}); err == nil {
 			t.Error("expected policy to fail to load")
 		} else {
 			t.Log(err)
@@ -569,7 +617,7 @@ func TestActionSetVariableInvalid(t *testing.T) {
 			}},
 		}
 
-		if _, err := loadPolicyIntoProbeEvaluationRuleSet(t, testPolicy, PolicyLoaderOpts{}); err == nil {
+		if _, err := loadPolicy(t, testPolicy, PolicyLoaderOpts{}); err == nil {
 			t.Error("expected policy to fail to load")
 		} else {
 			t.Log(err)
@@ -590,7 +638,7 @@ func TestActionSetVariableInvalid(t *testing.T) {
 			}},
 		}
 
-		if _, err := loadPolicyIntoProbeEvaluationRuleSet(t, testPolicy, PolicyLoaderOpts{}); err == nil {
+		if _, err := loadPolicy(t, testPolicy, PolicyLoaderOpts{}); err == nil {
 			t.Error("expected policy to fail to load")
 		} else {
 			t.Log(err)
@@ -622,7 +670,7 @@ func TestActionSetVariableInvalid(t *testing.T) {
 			}},
 		}
 
-		if _, err := loadPolicyIntoProbeEvaluationRuleSet(t, testPolicy, PolicyLoaderOpts{}); err == nil {
+		if _, err := loadPolicy(t, testPolicy, PolicyLoaderOpts{}); err == nil {
 			t.Error("expected policy to fail to load")
 		} else {
 			t.Log(err)
@@ -653,7 +701,7 @@ func TestActionSetVariableInvalid(t *testing.T) {
 			}},
 		}
 
-		if _, err := loadPolicyIntoProbeEvaluationRuleSet(t, testPolicy, PolicyLoaderOpts{}); err == nil {
+		if _, err := loadPolicy(t, testPolicy, PolicyLoaderOpts{}); err == nil {
 			t.Error("expected policy to fail to load")
 		} else {
 			t.Log(err)
@@ -685,7 +733,7 @@ func TestActionSetVariableInvalid(t *testing.T) {
 			}},
 		}
 
-		if _, err := loadPolicyIntoProbeEvaluationRuleSet(t, testPolicy, PolicyLoaderOpts{}); err == nil {
+		if _, err := loadPolicy(t, testPolicy, PolicyLoaderOpts{}); err == nil {
 			t.Error("expected policy to fail to load")
 		} else {
 			t.Log(err)

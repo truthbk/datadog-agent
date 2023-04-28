@@ -6,6 +6,7 @@
 package rules
 
 import (
+	"errors"
 	"sort"
 
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
@@ -21,7 +22,7 @@ type RuleBucket struct {
 func (rb *RuleBucket) AddRule(rule *Rule) error {
 	for _, r := range rb.rules {
 		if r.ID == rule.ID {
-			return &ErrRuleLoad{Definition: rule.Definition, Err: ErrDefinitionIDConflict}
+			return &ErrRuleLoad{Definition: rule.Definition, Err: errors.New("multiple definition with the same ID")}
 		}
 	}
 

@@ -7,10 +7,11 @@ package rules
 
 import (
 	"fmt"
+	"io"
+
 	"github.com/DataDog/datadog-agent/pkg/security/secl/validators"
 	"github.com/hashicorp/go-multierror"
 	"gopkg.in/yaml.v2"
-	"io"
 )
 
 // PolicyDef represents a policy file definition
@@ -34,7 +35,7 @@ func (p *Policy) AddMacro(def *MacroDefinition) {
 	p.Macros = append(p.Macros, def)
 }
 
-// AddRule adds a rule to the policy
+// AddRule add a rule to the policy
 func (p *Policy) AddRule(def *RuleDefinition) {
 	def.Policy = p
 	p.Rules = append(p.Rules, def)
@@ -88,7 +89,6 @@ RULES:
 			if err != nil {
 				errs = multierror.Append(errs, &ErrRuleLoad{Definition: ruleDef, Err: err})
 			}
-
 			if !isRuleAccepted {
 				// we do not fail directly because one of the rules with the same id can load properly
 				if _, ok := filter.(*AgentVersionFilter); ok {
@@ -126,7 +126,6 @@ RULES:
 
 LOOP:
 	for _, s := range skipped {
-		// For every skipped rule, if it doesn't match an ID of a policy rule, add an error.
 		for _, r := range policy.Rules {
 			if s.ruleDefinition.ID == r.ID {
 				continue LOOP

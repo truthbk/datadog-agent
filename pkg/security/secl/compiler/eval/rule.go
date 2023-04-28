@@ -15,9 +15,6 @@ import (
 // RuleID - ID of a Rule
 type RuleID = string
 
-// RuleSetTagValue - Value of the "ruleset" tag
-type RuleSetTagValue = string
-
 // Rule - Rule object identified by an `ID` containing a SECL `Expression`
 type Rule struct {
 	ID         RuleID
