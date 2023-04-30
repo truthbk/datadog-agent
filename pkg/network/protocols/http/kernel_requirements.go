@@ -25,7 +25,7 @@ var HTTP2MinimumKernelVersion kernel.Version
 
 func init() {
 	MinimumKernelVersion = kernel.VersionCode(4, 14, 0)
-	HTTP2MinimumKernelVersion = kernel.VersionCode(5, 2, 0)
+	HTTP2MinimumKernelVersion = kernel.VersionCode(4, 14, 0)
 }
 
 func runningOnARM() bool {
