@@ -39,7 +39,7 @@ if ($Credential -eq [System.Management.Automation.PSCredential]::Empty) {
     $Credential = Get-Credential
 }
 
-$s = New-PSSession -VMName $VMName -Credential $VMCreds
+$s = New-PSSession -VMName $VMName -Credential $Credential
 
 # Install OpenSSH Server
 Invoke-Command -Session $s -ScriptBlock {
