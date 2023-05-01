@@ -17,7 +17,6 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/network/config"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
-	filterpkg "github.com/DataDog/datadog-agent/pkg/network/filter"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/events"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/http"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/kafka"
@@ -63,7 +62,7 @@ type Monitor struct {
 	kafkaTelemetry  *kafka.Telemetry
 	kafkaStatkeeper *kafka.KafkaStatKeeper
 	// termination
-	closeFilterFn func()
+	closeCBs []func()
 }
 
 // The staticTableEntry represents an entry in the static table that contains an index in the table and a value.
@@ -123,14 +122,16 @@ func NewMonitor(c *config.Config, connectionProtocolMap, sockFD *ebpf.Map, bpfTe
 		return nil, fmt.Errorf("error retrieving socket filter")
 	}
 
-	closeFilterFn, err := filterpkg.HeadlessSocketFilter(c, filter)
-	if err != nil {
-		return nil, fmt.Errorf("error enabling HTTP traffic inspection: %s", err)
+	closeCBs := AttachFilterToAllNamespaces(filter)
+	if len(closeCBs) == 0 {
+		return nil, fmt.Errorf("error enabling HTTP traffic inspection: failed to attach socket filter")
 	}
 
 	httpTelemetry, err := http.NewTelemetry()
 	if err != nil {
-		closeFilterFn()
+		for _, closeFilterFn := range closeCBs {
+			closeFilterFn()
+		}
 		return nil, err
 	}
 
@@ -142,7 +143,9 @@ func NewMonitor(c *config.Config, connectionProtocolMap, sockFD *ebpf.Map, bpfTe
 	if c.EnableHTTP2Monitoring {
 		http2Telemetry, err = http.NewTelemetry()
 		if err != nil {
-			closeFilterFn()
+			for _, closeFilterFn := range closeCBs {
+				closeFilterFn()
+			}
 			return nil, err
 		}
 		// for now the max HTTP2 entries would be taken from the maxHTTPEntries.
@@ -155,7 +158,7 @@ func NewMonitor(c *config.Config, connectionProtocolMap, sockFD *ebpf.Map, bpfTe
 		ebpfProgram:     mgr,
 		httpTelemetry:   httpTelemetry,
 		http2Telemetry:  http2Telemetry,
-		closeFilterFn:   closeFilterFn,
+		closeCBs:        closeCBs,
 		httpStatkeeper:  statkeeper,
 		processMonitor:  processMonitor,
 		http2Enabled:    c.EnableHTTP2Monitoring,
@@ -312,7 +315,10 @@ func (m *Monitor) Stop() {
 	if m.http2Statkeeper != nil {
 		m.http2Statkeeper.Close()
 	}
-	m.closeFilterFn()
+
+	for _, closeFilterFn := range m.closeCBs {
+		closeFilterFn()
+	}
 }
 
 func (m *Monitor) processHTTP(data []byte) {

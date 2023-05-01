@@ -196,8 +196,12 @@ func loadTracerFromAsset(buf bytecode.AssetReader, runtimeTracer, coreTracer boo
 			return nil, fmt.Errorf("error retrieving protocol classifier socket filter")
 		}
 
-		var err error
-		closeProtocolClassifierSocketFilterFn, err = filter.HeadlessSocketFilter(config, socketFilterProbe)
+		rootNS, err := config.GetRootNetNs()
+		if err != nil {
+			return nil, fmt.Errorf("error enabling protocol classifier: %s", err)
+		}
+
+		closeProtocolClassifierSocketFilterFn, err = filter.HeadlessSocketFilter(rootNS, socketFilterProbe)
 		if err != nil {
 			return nil, fmt.Errorf("error enabling protocol classifier: %w", err)
 		}
