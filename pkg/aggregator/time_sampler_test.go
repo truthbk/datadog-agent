@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/aggregator/ckey"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/internal/limiter"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/internal/tags"
+	"github.com/DataDog/datadog-agent/pkg/aggregator/internal/tags_limiter"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
 	"github.com/DataDog/datadog-agent/pkg/tagset"
 	"github.com/DataDog/opentelemetry-mapping-go/pkg/quantile"
@@ -35,7 +36,7 @@ func generateSerieContextKey(serie *metrics.Serie) ckey.ContextKey {
 }
 
 func testTimeSampler() *TimeSampler {
-	sampler := NewTimeSampler(TimeSamplerID(0), 10, tags.NewStore(false, "test"), nil, "host")
+	sampler := NewTimeSampler(TimeSamplerID(0), 10, tags.NewStore(false, "test"), nil, nil, "host")
 	return sampler
 }
 
@@ -516,7 +517,7 @@ func TestBucketSamplingWithSketchAndSeries(t *testing.T) {
 }
 
 func benchmarkTimeSampler(b *testing.B, store *tags.Store) {
-	sampler := NewTimeSampler(TimeSamplerID(0), 10, store, nil, "host")
+	sampler := NewTimeSampler(TimeSamplerID(0), 10, store, nil, nil, "host")
 
 	sample := metrics.MetricSample{
 		Name:       "my.metric.name",
@@ -555,8 +556,9 @@ func BenchmarkTimeSamplerWithLimiter(b *testing.B) {
 	for limit := range []int{0, 1, 2, 3} {
 		store := tags.NewStore(false, "test")
 		limiter := limiter.New(limit, "pod", []string{"pod"})
+		tagsLimiter := tags_limiter.New(5)
 		fmt.Println(limiter)
-		sampler := NewTimeSampler(TimeSamplerID(0), 10, store, limiter, "host")
+		sampler := NewTimeSampler(TimeSamplerID(0), 10, store, limiter, tagsLimiter, "host")
 
 		b.Run(fmt.Sprintf("limit=%d", limit), func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
