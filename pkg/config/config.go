@@ -1598,10 +1598,7 @@ func setupFipsEndpoints(config Config) error {
 		runtimeSecurity            = 13
 	)
 
-	localAddress, err := isLocalAddress(config.GetString("fips.local_address"))
-	if err != nil {
-		return fmt.Errorf("fips.local_address: %s", err)
-	}
+	localAddress := config.GetString("fips.local_address")
 
 	portRangeStart := config.GetInt("fips.port_range_start")
 	urlFor := func(port int) string { return net.JoinHostPort(localAddress, strconv.Itoa(portRangeStart+port)) }
