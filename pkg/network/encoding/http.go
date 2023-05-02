@@ -15,6 +15,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/network"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/http"
 	"github.com/DataDog/datadog-agent/pkg/network/types"
+	"github.com/DataDog/datadog-agent/pkg/util/common"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 var (
@@ -67,6 +69,7 @@ func (e *httpEncoder) GetHTTPAggregationsAndTags(c network.ConnectionStats) ([]b
 	}
 
 	connectionData := e.byConnection.Find(c)
+	logHTTP(c, connectionData)
 	if connectionData == nil || len(connectionData.Data) == 0 || connectionData.IsPIDCollision(c) {
 		return nil, 0, nil
 	}
@@ -166,4 +169,18 @@ func (e *httpEncoder) reset() {
 
 	e.toRelease = e.toRelease[:0]
 	e.aggregations.EndpointAggregations = e.aggregations.EndpointAggregations[:0]
+}
+
+func logHTTP(c network.ConnectionStats, connData *USMConnectionData[http.Key, *http.RequestStats]) {
+	if connData == nil || len(connData.Data) == 0 {
+		return
+	}
+
+	set := common.NewStringSet()
+	for _, kv := range connData.Data {
+		path := kv.Key.Path
+		set.Add(path.Content)
+	}
+
+	log.Debugf("connection=%s paths=%v", c, set.GetAll())
 }
