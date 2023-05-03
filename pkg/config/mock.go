@@ -28,7 +28,7 @@ func (c *MockConfig) Set(key string, value interface{}) {
 }
 
 // Mock is creating and returning a mock config
-func Mock(t *testing.T) *MockConfig {
+func Mock(t testing.TB) *MockConfig {
 	// We only check isConfigMocked when registering a cleanup function. 'isConfigMocked' avoids nested calls to
 	// Mock to reset the config to a blank state. This way we have only one mock per test and test helpers can call
 	// Mock.
@@ -58,7 +58,7 @@ func Mock(t *testing.T) *MockConfig {
 }
 
 // MockSystemProbe is creating and returning a mock system-probe config
-func MockSystemProbe(t *testing.T) *MockConfig {
+func MockSystemProbe(t testing.TB) *MockConfig {
 	// We only check isConfigMocked when registering a cleanup function. 'isConfigMocked' avoids nested calls to
 	// Mock to reset the config to a blank state. This way we have only one mock per test and test helpers can call
 	// Mock.
