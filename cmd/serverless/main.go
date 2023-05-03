@@ -9,6 +9,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -29,9 +30,11 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/serverless/proxy"
 	"github.com/DataDog/datadog-agent/pkg/serverless/random"
 	"github.com/DataDog/datadog-agent/pkg/serverless/registration"
+
 	"github.com/DataDog/datadog-agent/pkg/serverless/trace"
 	"github.com/DataDog/datadog-agent/pkg/serverless/trace/inferredspan"
 	"github.com/DataDog/datadog-agent/pkg/trace/pb"
+	"github.com/DataDog/datadog-agent/pkg/util/profiling"
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -43,6 +46,7 @@ var (
 	logLevelEnvVar             = "DD_LOG_LEVEL"
 	flushStrategyEnvVar        = "DD_SERVERLESS_FLUSH_STRATEGY"
 	logsLogsTypeSubscribed     = "DD_LOGS_CONFIG_LAMBDA_LOGS_TYPE"
+	internalProfilingEnabled   = "DD_INTERNAL_PROFILING"
 
 	// AWS Lambda is writing the Lambda function files in /var/task, we want the
 	// configuration file to be at the root of this directory.
@@ -219,6 +223,14 @@ func runAgent(stopCh chan struct{}) (serverlessDaemon *daemon.Daemon, err error)
 	serverlessDaemon.SetStatsdServer(metricAgent)
 	serverlessDaemon.SetupLogCollectionHandler(logsAPICollectionRoute, logChannel, config.Datadog.GetBool("serverless.logs_enabled"), config.Datadog.GetBool("enhanced_metrics"), initDurationChan)
 
+
+	if pcfg := profilingConfig(); pcfg != nil {
+	    if err := profiling.Start(*pcfg); err != nil {
+		    log.Warn(err)
+	    } else {
+		    log.Infof("Internal profiling enabled: %s.", pcfg)
+	    }
+	}
 	// Concurrently start heavyweight features
 	var wg sync.WaitGroup
 
@@ -371,5 +383,28 @@ func handleSignals(serverlessDaemon *daemon.Daemon, stopCh chan struct{}) {
 			stopCh <- struct{}{}
 			return
 		}
+	}
+}
+
+func profilingConfig() *profiling.Settings {
+	if os.Getenv(internalProfilingEnabled)!= "" {
+		log.Debugf("[ASTUYVE] INTERNAL PROFILING DISABLED")
+		return nil
+	}
+	endpoint := config.Datadog.GetString("internal_profiling.profile_dd_url")
+	if endpoint == "" {
+		endpoint = fmt.Sprintf(profiling.ProfilingURLTemplate, "datadoghq.com")
+	}
+	return &profiling.Settings{
+		ProfilingURL: endpoint,
+
+		// remaining configuration parameters use the top-level `internal_profiling` config
+		Period:               config.Datadog.GetDuration("internal_profiling.period"),
+		CPUDuration:          config.Datadog.GetDuration("internal_profiling.cpu_duration"),
+		MutexProfileFraction: config.Datadog.GetInt("internal_profiling.mutex_profile_fraction"),
+		Service:	      fmt.Sprintf(os.Getenv("DD_SERVICE"),"-extension"), 
+		BlockProfileRate:     config.Datadog.GetInt("internal_profiling.block_profile_rate"),
+		WithGoroutineProfile: config.Datadog.GetBool("internal_profiling.enable_goroutine_stacktraces"),
+		Tags:                 []string{"version: sls-version"},
 	}
 }
