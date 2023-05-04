@@ -1629,14 +1629,18 @@ func testEdgeCasesProtocolClassification(t *testing.T, tr *Tracer, clientHost, t
 }
 
 func waitForConnectionsWithProtocol(t *testing.T, tr *Tracer, targetAddr, serverAddr string, expectedProtocol network.ProtocolType, expectedTLS bool) {
+	t.Logf("looking for outgoing connection with dest address %+v", targetAddr)
+	t.Logf("looking for incoming connection with source address %+v", serverAddr)
 	var outgoing, incoming *network.ConnectionStats
-	assert.Eventually(t, func() bool {
+	failed := !assert.Eventually(t, func() bool {
 		conns := getConnections(t, tr)
 		if outgoing == nil {
 			for _, c := range searchConnections(conns, func(cs network.ConnectionStats) bool {
 				return cs.Direction == network.OUTGOING && cs.Type == network.TCP && fmt.Sprintf("%s:%d", cs.Dest, cs.DPort) == targetAddr
 			}) {
+				t.Logf("found potential outgoing connection %+v", c)
 				if c.Protocol == expectedProtocol && expectedTLS == isTLSTag(c.StaticTags) {
+					t.Logf("found matching outgoing connection %+v", c)
 					outgoing = &c
 					break
 				}
@@ -1647,7 +1651,9 @@ func waitForConnectionsWithProtocol(t *testing.T, tr *Tracer, targetAddr, server
 			for _, c := range searchConnections(conns, func(cs network.ConnectionStats) bool {
 				return cs.Direction == network.INCOMING && cs.Type == network.TCP && fmt.Sprintf("%s:%d", cs.Source, cs.SPort) == serverAddr
 			}) {
+				t.Logf("found potential incoming connection %+v", c)
 				if c.Protocol == expectedProtocol && expectedTLS == isTLSTag(c.StaticTags) {
+					t.Logf("found matching incoming connection %+v", c)
 					incoming = &c
 					break
 				}
@@ -1656,8 +1662,11 @@ func waitForConnectionsWithProtocol(t *testing.T, tr *Tracer, targetAddr, server
 
 		failed := !(incoming != nil && outgoing != nil)
 		if failed {
-			t.Log(conns)
+			t.Log(conns.Conns)
 		}
 		return !failed
-	}, 5*time.Second, 500*time.Millisecond, "could not find incoming or outgoing connections, incoming=%+v outgoing=%+v", incoming, outgoing)
+	}, 5*time.Second, 500*time.Millisecond, "could not find incoming or outgoing connections")
+	if failed {
+		t.Logf("incoming=%+v, outgoing=%+v", incoming, outgoing)
+	}
 }
