@@ -7,14 +7,14 @@ go 1.18
 // TODO: Implement hard check in CI
 
 require (
-	github.com/DataDog/test-infra-definitions v0.0.0-20230425145020-b5cd6299342e
+	github.com/DataDog/test-infra-definitions v0.0.0-20230504092215-633981e3a1f8
 	github.com/aws/aws-sdk-go-v2 v1.17.7
 	github.com/aws/aws-sdk-go-v2/config v1.18.19
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.33.2
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/pulumi/pulumi-command/sdk v0.7.1
 	github.com/pulumi/pulumi/sdk/v3 v3.55.0
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	golang.org/x/crypto v0.6.0
 	gopkg.in/zorkian/go-datadog-api.v2 v2.30.0
 )
@@ -72,12 +72,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/pulumi/pulumi-aws/sdk/v5 v5.30.0 // indirect
 	github.com/pulumi/pulumi-awsx/sdk v1.0.2 // indirect
-	github.com/pulumi/pulumi-azure-native-sdk v1.95.0 // indirect
-	github.com/pulumi/pulumi-azure-native-sdk/compute v1.95.0 // indirect
-	github.com/pulumi/pulumi-azure-native-sdk/containerservice v1.95.0 // indirect
-	github.com/pulumi/pulumi-azure-native-sdk/network v1.95.0 // indirect
 	github.com/pulumi/pulumi-docker/sdk/v3 v3.6.1 // indirect
-	github.com/pulumi/pulumi-eks/sdk v1.0.1 // indirect
 	github.com/pulumi/pulumi-kubernetes/sdk/v3 v3.24.1 // indirect
 	github.com/pulumi/pulumi-libvirt/sdk v0.4.0 // indirect
 	github.com/pulumi/pulumi-random/sdk/v4 v4.11.2 // indirect
