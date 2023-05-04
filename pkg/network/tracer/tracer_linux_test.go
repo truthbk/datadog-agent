@@ -610,9 +610,13 @@ func TestGatewayLookupEnabled(t *testing.T) {
 	var conn *network.ConnectionStats
 	require.Eventually(t, func() bool {
 		var ok bool
-		conn, ok = findConnection(dnsClientAddr, dnsServerAddr, getConnections(t, tr))
+		conns := getConnections(t, tr)
+		conn, ok = findConnection(dnsClientAddr, dnsServerAddr, conns)
+		if !ok {
+			t.Log(conns.Conns)
+		}
 		return ok
-	}, 3*time.Second, 500*time.Millisecond)
+	}, 3*time.Second, 500*time.Millisecond, "connection not found for client addr=%s server addr=%s", dnsClientAddr, dnsServerAddr)
 
 	require.NotNil(t, conn.Via, "connection is missing via: %s", conn)
 	require.Equal(t, conn.Via.Subnet.Alias, fmt.Sprintf("subnet-%d", ifi.Index))
@@ -657,9 +661,13 @@ func TestGatewayLookupSubnetLookupError(t *testing.T) {
 	var c *network.ConnectionStats
 	require.Eventually(t, func() bool {
 		var ok bool
-		c, ok = findConnection(localAddr, remoteAddr, getConnections(t, tr))
+		conns := getConnections(t, tr)
+		c, ok = findConnection(localAddr, remoteAddr, conns)
+		if !ok {
+			t.Log(conns.Conns)
+		}
 		return ok
-	}, 3*time.Second, 500*time.Millisecond, "connection not found")
+	}, 3*time.Second, 500*time.Millisecond, "connection not found for local addr=%s remote addr=%s", localAddr, remoteAddr)
 	require.Nil(t, c.Via)
 
 	localAddr, remoteAddr = doDNSQuery(t, "google.com", "8.8.8.8")
@@ -770,9 +778,14 @@ func TestGatewayLookupCrossNamespace(t *testing.T) {
 
 		require.Eventually(t, func() bool {
 			var ok bool
-			conn, ok = findConnection(c.LocalAddr(), c.RemoteAddr(), getConnections(t, tr))
-			return ok && conn.Direction == network.OUTGOING
-		}, 2*time.Second, 500*time.Millisecond)
+			conns := getConnections(t, tr)
+			conn, ok = findConnection(c.LocalAddr(), c.RemoteAddr(), conns)
+			found := ok && conn.Direction == network.OUTGOING
+			if !found {
+				t.Log(conns.Conns)
+			}
+			return found
+		}, 2*time.Second, 500*time.Millisecond, "connection not found for local addr=%s remote addr=%s", c.LocalAddr(), c.RemoteAddr())
 
 		// conn.Via should be nil, since traffic is local
 		require.Nil(t, conn.Via)
@@ -819,9 +832,14 @@ func TestGatewayLookupCrossNamespace(t *testing.T) {
 
 		require.Eventually(t, func() bool {
 			var ok bool
-			conn, ok = findConnection(dnsClientAddr, dnsServerAddr, getConnections(t, tr))
-			return ok && conn.Direction == network.OUTGOING
-		}, 3*time.Second, 500*time.Millisecond)
+			conns := getConnections(t, tr)
+			conn, ok = findConnection(dnsClientAddr, dnsServerAddr, conns)
+			found := ok && conn.Direction == network.OUTGOING
+			if !found {
+				t.Log(conns.Conns)
+			}
+			return found
+		}, 3*time.Second, 500*time.Millisecond, "could not find connection with local addr=%s remote addr=%s", dnsClientAddr, dnsServerAddr)
 
 		require.NotNil(t, conn.Via)
 		require.Equal(t, fmt.Sprintf("subnet-%s", ifi.Name), conn.Via.Subnet.Alias)
