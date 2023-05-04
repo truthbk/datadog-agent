@@ -45,6 +45,10 @@ int kprobe__tcp_sendmsg(struct pt_regs *ctx) {
 #else
     struct sock *skp = (struct sock *)PT_REGS_PARM1(ctx);
 #endif
+
+    struct tcp_sock *tskp = tcp_sk(skp);
+    u32 packets_out_pre = tskp->packets_out;
+
     log_debug("kprobe/tcp_sendmsg: pid_tgid: %d, sock: %llx\n", pid_tgid, skp);
     bpf_map_update_with_telemetry(tcp_sendmsg_args, &pid_tgid, &skp, BPF_ANY);
     return 0;
