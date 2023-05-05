@@ -15,9 +15,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/DataDog/ebpf-manager/tracefs"
 	"github.com/cilium/ebpf"
 	"go.uber.org/atomic"
+
+	"github.com/DataDog/ebpf-manager/tracefs"
 
 	manager "github.com/DataDog/ebpf-manager"
 
@@ -766,6 +767,9 @@ func (t *Tracer) connectionExpired(conn *network.ConnectionStats, latestTime uin
 		}
 	}
 
+	if !exists {
+		log.Warnf("connection expired, does not exist in conntrack %+v", conn)
+	}
 	return !exists
 }
 
