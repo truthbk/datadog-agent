@@ -23,23 +23,23 @@ import (
 
 // StartServerTCPNs is identical to StartServerTCP, but it operates with the
 // network namespace provided by name.
-func StartServerTCPNs(t testing.TB, ip net.IP, port int, ns string) io.Closer {
+func StartServerTCPNs(t testing.TB, ip net.IP, port int, ns string) net.Listener {
 	h, err := netns.GetFromName(ns)
 	require.NoError(t, err)
 
-	var closer io.Closer
+	var l net.Listener
 	_ = util.WithNS(h, func() error {
-		closer = StartServerTCP(t, ip, port)
+		l = StartServerTCP(t, ip, port)
 		return nil
 	})
 
-	return closer
+	return l
 }
 
 // StartServerTCP starts a TCP server listening at provided IP address and port.
 // It will respond to any connection with "hello" and then close the connection.
 // It returns an io.Closer that should be Close'd when you are finished with it.
-func StartServerTCP(t testing.TB, ip net.IP, port int) io.Closer {
+func StartServerTCP(t testing.TB, ip net.IP, port int) net.Listener {
 	ch := make(chan struct{})
 	addr := fmt.Sprintf("%s:%d", ip, port)
 	network := "tcp"
