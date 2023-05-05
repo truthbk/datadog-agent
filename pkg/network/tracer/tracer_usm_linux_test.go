@@ -528,6 +528,8 @@ func TestProtocolClassification(t *testing.T) {
 		t.Skip("Classification is not supported")
 	}
 
+	cfg.BPFDebug = true
+
 	cfg.EnableGoTLSSupport = true
 	cfg.EnableHTTPSMonitoring = true
 	cfg.EnableHTTPMonitoring = true
