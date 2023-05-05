@@ -533,10 +533,11 @@ func TestProcessContext(t *testing.T) {
 	})
 
 	test.Run(t, "envs-overflow-list-50", func(t *testing.T, kind wrapperType, cmdFunc func(cmd string, args []string, envs []string) *exec.Cmd) {
-		args := []string{"-al"}
-
 		// force seed to have something we can reproduce
 		rand.Seed(1)
+
+		envExec := which(t, "env")
+		lsExec := which(t, "ls")
 
 		// number of envs overflow
 		nEnvs, envs := 1024, []string{"LD_LIBRARY_PATH=/tmp/lib"}
@@ -548,17 +549,12 @@ func TestProcessContext(t *testing.T) {
 			envs = append(envs, buf.String())
 		}
 
-		if kind == dockerWrapperType {
-			args = []string{"-u", "PATH", "-u", "HOSTNAME", "-u", "HOME", "ls", "-al"}
-		}
+		args := []string{"-i"}
+		args = append(args, envs...)
+		args = append(args, []string{lsExec, "-al"}...)
 
 		test.GetSignal(t, func() error {
-			bin := "ls"
-			if kind == dockerWrapperType {
-				bin = "env"
-			}
-			cmd := cmdFunc(bin, args, envs)
-			return cmd.Run()
+			return cmdFunc(envExec, args, nil).Run()
 		}, func(event *model.Event, rule *rules.Rule) {
 			execEnvp, err := event.GetFieldValue("exec.envp")
 			if err != nil {
@@ -584,10 +580,11 @@ func TestProcessContext(t *testing.T) {
 	})
 
 	test.Run(t, "envs-overflow-list-500", func(t *testing.T, kind wrapperType, cmdFunc func(cmd string, args []string, envs []string) *exec.Cmd) {
-		args := []string{"-al"}
-
 		// force seed to have something we can reproduce
 		rand.Seed(1)
+
+		envExec := which(t, "env")
+		lsExec := which(t, "ls")
 
 		// number of envs overflow
 		nEnvs, envs := 1024, []string{"LD_LIBRARY_PATH=/tmp/lib"}
@@ -599,17 +596,12 @@ func TestProcessContext(t *testing.T) {
 			envs = append(envs, buf.String())
 		}
 
-		if kind == dockerWrapperType {
-			args = []string{"-u", "PATH", "-u", "HOSTNAME", "-u", "HOME", "ls", "-al"}
-		}
+		args := []string{"-i"}
+		args = append(args, envs...)
+		args = append(args, []string{lsExec, "-al"}...)
 
 		test.GetSignal(t, func() error {
-			bin := "ls"
-			if kind == dockerWrapperType {
-				bin = "env"
-			}
-			cmd := cmdFunc(bin, args, envs)
-			return cmd.Run()
+			return cmdFunc(envExec, args, nil).Run()
 		}, func(event *model.Event, rule *rules.Rule) {
 			assertTriggeredRule(t, rule, "test_rule_args_envs")
 
