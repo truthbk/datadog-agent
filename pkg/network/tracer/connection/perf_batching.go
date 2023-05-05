@@ -18,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/network"
 	netebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 	manager "github.com/DataDog/ebpf-manager"
 )
 
@@ -93,6 +94,7 @@ func (p *perfBatchManager) GetPendingConns(buffer *network.ConnectionBuffer) {
 
 		err := p.batchMap.Lookup(unsafe.Pointer(&cpu), unsafe.Pointer(b))
 		if err != nil {
+			log.Warnf("could not get connection batch for cpu=%d: %s", cpu, err)
 			continue
 		}
 
