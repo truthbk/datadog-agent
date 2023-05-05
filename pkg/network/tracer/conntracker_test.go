@@ -212,11 +212,9 @@ func testConntracker(t *testing.T, serverIP, clientIP net.IP, ct netlink.Conntra
 func testConntrackerCrossNamespace(t *testing.T, ct netlink.Conntracker) {
 	ns := netlinktestutil.SetupCrossNsDNAT(t)
 
-	srv := nettestutil.StartServerTCPNs(t, net.ParseIP("2.2.2.4"), 0, ns)
+	closer := nettestutil.StartServerTCPNs(t, net.ParseIP("2.2.2.4"), 8080, ns)
 	laddr := nettestutil.PingTCP(t, net.ParseIP("2.2.2.4"), 80).LocalAddr().(*net.TCPAddr)
-	defer srv.Close()
-
-	srvPort := srv.Addr().(*net.TCPAddr).Port
+	defer closer.Close()
 
 	testNs, err := netns.GetFromName(ns)
 	require.NoError(t, err)
@@ -230,7 +228,7 @@ func testConntrackerCrossNamespace(t *testing.T, ct netlink.Conntracker) {
 		Source: util.AddressFromNetIP(laddr.IP),
 		SPort:  uint16(laddr.Port),
 		Dest:   util.AddressFromString("2.2.2.4"),
-		DPort:  uint16(srvPort),
+		DPort:  uint16(80),
 		Type:   network.TCP,
 		NetNS:  testIno,
 	}
@@ -239,7 +237,7 @@ func testConntrackerCrossNamespace(t *testing.T, ct netlink.Conntracker) {
 		return trans != nil
 	}, 5*time.Second, 1*time.Second, "timed out waiting for conntrack entry for %s", cs.String())
 
-	assert.Equal(t, uint16(srvPort), trans.ReplSrcPort)
+	assert.Equal(t, uint16(8080), trans.ReplSrcPort)
 }
 
 func testConntrackerCrossNamespaceNATonRoot(t *testing.T, ct netlink.Conntracker) {
@@ -249,10 +247,8 @@ func testConntrackerCrossNamespaceNATonRoot(t *testing.T, ct netlink.Conntracker
 	netlinktestutil.SetupDNAT(t)
 
 	// Setup TCP server on root namespace
-	srv := nettestutil.StartServerTCP(t, net.ParseIP("1.1.1.1"), 0)
+	srv := nettestutil.StartServerTCP(t, net.ParseIP("1.1.1.1"), 80)
 	defer srv.Close()
-
-	srvPort := srv.Addr().(*net.TCPAddr).Port
 
 	// Now switch to the test namespace and make a request to the root namespace server
 	var laddr *net.TCPAddr
@@ -275,7 +271,7 @@ func testConntrackerCrossNamespaceNATonRoot(t *testing.T, ct netlink.Conntracker
 		defer netns.Set(originalNS)
 		defer close(done)
 		netns.Set(testNS)
-		laddr = nettestutil.PingTCP(t, net.ParseIP("3.3.3.3"), srvPort).LocalAddr().(*net.TCPAddr)
+		laddr = nettestutil.PingTCP(t, net.ParseIP("3.3.3.3"), 80).LocalAddr().(*net.TCPAddr)
 	}()
 	<-done
 
@@ -286,7 +282,7 @@ func testConntrackerCrossNamespaceNATonRoot(t *testing.T, ct netlink.Conntracker
 		Source: util.AddressFromNetIP(laddr.IP),
 		SPort:  uint16(laddr.Port),
 		Dest:   util.AddressFromString("3.3.3.3"),
-		DPort:  uint16(srvPort),
+		DPort:  uint16(80),
 		Type:   network.TCP,
 		NetNS:  testIno,
 	}

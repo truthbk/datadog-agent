@@ -911,6 +911,7 @@ int kretprobe__inet_csk_accept(struct pt_regs *ctx) {
     pb.port = t.sport;
     add_port_bind(&pb, port_bindings);
 
+    log_debug("kretprobe/inet_csk_accept: sk: %llx\n", sk);
     log_debug("kretprobe/inet_csk_accept: netns: %u, sport: %u, dport: %u\n", t.netns, t.sport, t.dport);
     return 0;
 }
@@ -929,6 +930,7 @@ int kprobe__inet_csk_listen_stop(struct pt_regs *ctx) {
     pb.port = lport;
     remove_port_bind(&pb, &port_bindings);
 
+    log_debug("kprobe/inet_csk_listen_stop: sk: %llx\n", skp);
     log_debug("kprobe/inet_csk_listen_stop: net ns: %u, lport: %u\n", pb.netns, pb.port);
     return 0;
 }

@@ -291,6 +291,7 @@ static __always_inline int handle_skb_consume_udp(struct sock *sk, struct sk_buf
 }
 
 static __always_inline int handle_tcp_recv(u64 pid_tgid, struct sock *skp, int recv) {
+    log_debug("handle_tcp_recv: sk=%llx recv=%d\n", skp, recv);
     conn_tuple_t t = {};
     if (!read_conn_tuple(&t, skp, pid_tgid, CONN_TYPE_TCP)) {
         return 0;
