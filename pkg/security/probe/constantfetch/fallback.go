@@ -813,11 +813,7 @@ func getLinuxBinPrmPOffset(kv *kernel.Version) uint64 {
 	switch {
 	case kv.Code >= kernel.Kernel5_2:
 		offset = 24
-	case kv.IsRH8Kernel():
-		fallthrough
-	case kv.IsAmazonLinuxKernel() && kv.Code == kernel.Kernel4_14 &&
-		(kv.Code.Patch() == uint8(146) || kv.Code.Patch() == uint8(152) || kv.Code.Patch() == uint8(154) ||
-			kv.Code.Patch() == uint8(158) || kv.Code.Patch() == uint8(200) || kv.Code.Patch() == uint8(203)):
+	case (kv.IsRH7Kernel() || kv.IsRH8Kernel()) && kv.Code == kernel.Kernel4_18:
 		offset = 280
 	}
 
@@ -828,19 +824,15 @@ func getLinuxBinPrmArgcOffset(kv *kernel.Version) uint64 {
 	offset := uint64(192)
 
 	switch {
-	case kv.IsInRangeCloseOpen(kernel.Kernel4_19, kernel.Kernel5_0):
-		offset = 192
-	case kv.IsInRangeCloseOpen(kernel.Kernel5_0, kernel.Kernel5_2):
-		offset = 200
 	case kv.IsInRangeCloseOpen(kernel.Kernel5_2, kernel.Kernel5_8):
 		offset = 72
+	case kv.IsInRangeCloseOpen(kernel.Kernel5_0, kernel.Kernel5_2):
+		offset = 200
 	case kv.Code >= kernel.Kernel5_8:
 		offset = 88
 	case kv.IsRH8Kernel():
 		fallthrough
-	case kv.IsAmazonLinuxKernel() && kv.Code == kernel.Kernel4_14 &&
-		(kv.Code.Patch() == uint8(146) || kv.Code.Patch() == uint8(152) || kv.Code.Patch() == uint8(154) ||
-			kv.Code.Patch() == uint8(158) || kv.Code.Patch() == uint8(200) || kv.Code.Patch() == uint8(203)):
+	case (kv.IsRH7Kernel() || kv.IsRH8Kernel()) && kv.Code == kernel.Kernel4_18:
 		offset = 320
 	}
 
@@ -851,19 +843,13 @@ func getLinuxBinPrmEnvcOffset(kv *kernel.Version) uint64 {
 	offset := uint64(196)
 
 	switch {
-	case kv.IsInRangeCloseOpen(kernel.Kernel4_19, kernel.Kernel5_0):
-		offset = 196
-	case kv.IsInRangeCloseOpen(kernel.Kernel5_0, kernel.Kernel5_2):
-		offset = 204
 	case kv.IsInRangeCloseOpen(kernel.Kernel5_2, kernel.Kernel5_8):
 		offset = 76
+	case kv.IsInRangeCloseOpen(kernel.Kernel5_0, kernel.Kernel5_2):
+		offset = 204
 	case kv.Code >= kernel.Kernel5_8:
 		offset = 92
-	case kv.IsRH8Kernel():
-		fallthrough
-	case kv.IsAmazonLinuxKernel() && kv.Code == kernel.Kernel4_14 &&
-		(kv.Code.Patch() == uint8(146) || kv.Code.Patch() == uint8(152) || kv.Code.Patch() == uint8(154) ||
-			kv.Code.Patch() == uint8(158) || kv.Code.Patch() == uint8(200) || kv.Code.Patch() == uint8(203)):
+	case (kv.IsRH7Kernel() || kv.IsRH8Kernel()) && kv.Code == kernel.Kernel4_18:
 		offset = 324
 	}
 
