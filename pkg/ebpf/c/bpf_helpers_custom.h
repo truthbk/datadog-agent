@@ -6,11 +6,37 @@
 /* Macro to output debug logs to /sys/kernel/debug/tracing/trace_pipe
  */
 #ifdef DEBUG
+#if defined(COMPILE_RUNTIME)
+#include <linux/version.h>
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
+#define log_debug(fmt, ...)                                           \
+    ({                                                                \
+        static char ____fmt[] = fmt;                                  \
+        ____fmt[sizeof(____fmt)-2] = '\0';                            \
+        bpf_trace_printk(____fmt, sizeof(____fmt)-1, ##__VA_ARGS__);  \
+    })
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 2, 0)
+#define log_debug(fmt, ...)                                             \
+    ({                                                                  \
+        static char ____fmt[] = fmt;                                    \
+        bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__);      \
+    })
+#else
+#define log_debug(fmt, ...)                                             \
+    ({                                                                  \
+        char ____fmt[] = fmt;                                           \
+        bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__);      \
+    })
+#endif
+
+#else // COMPILE_RUNTIME
 #define log_debug(fmt, ...)                                        \
     ({                                                             \
         char ____fmt[] = fmt;                                      \
         bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__); \
     })
+#endif
 #else
 // No op
 #define log_debug(fmt, ...)
