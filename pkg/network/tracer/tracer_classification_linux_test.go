@@ -13,9 +13,17 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/DataDog/datadog-agent/pkg/network/tracer/testutil"
 )
 
 func testProtocolClassificationInner(t *testing.T, params protocolClassificationAttributes, tr *Tracer) {
+	defer func() {
+		if t.Failed() {
+			testutil.DumpTracePipe(t)
+		}
+	}()
+
 	if params.skipCallback != nil {
 		params.skipCallback(t, params.context)
 	}

@@ -539,7 +539,7 @@ func TestProtocolClassification(t *testing.T) {
 		// SetupDNAT sets up a NAT translation from 2.2.2.2 to 1.1.1.1
 		netlink.SetupDNAT(t)
 		testProtocolClassification(t, tr, "localhost", "2.2.2.2", "1.1.1.1")
-		//testHTTPSClassification(t, tr, "localhost", "2.2.2.2", "1.1.1.1")
+		testHTTPSClassification(t, tr, "localhost", "2.2.2.2", "1.1.1.1")
 		testProtocolConnectionProtocolMapCleanup(t, tr, "localhost", "2.2.2.2", "1.1.1.1:0")
 	})
 
