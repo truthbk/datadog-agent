@@ -16,8 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func DumpTracePipe(t *testing.T) {
-	f, err := os.Open("/sys/kernel/debug/tracing/trace_pipe")
+func DumpTrace(t *testing.T) {
+	f, err := os.Open("/sys/kernel/debug/tracing/trace")
 	require.NoError(t, err)
 	t.Cleanup(func() { f.Close() })
 	b, err := io.ReadAll(f)
