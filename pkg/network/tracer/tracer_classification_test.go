@@ -137,10 +137,10 @@ func testProtocolClassification(t *testing.T, tr *Tracer, clientHost, targetHost
 		name     string
 		testFunc func(t *testing.T, tr *Tracer, clientHost, targetHost, serverHost string)
 	}{
-		// {
-		// 	name:     "kafka",
-		// 	testFunc: testKafkaProtocolClassification,
-		// },
+		{
+			name:     "kafka",
+			testFunc: testKafkaProtocolClassification,
+		},
 		{
 			name:     "mysql",
 			testFunc: testMySQLProtocolClassification,
