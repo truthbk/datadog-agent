@@ -13,10 +13,13 @@ package api
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	stdLog "log"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
@@ -131,10 +134,41 @@ func StartServer(configService *remoteconfig.Service, flare flare.Component, dog
 
 	srv.ErrorLog = stdLog.New(logWriter, "Error from the agent http API server: ", 0) // log errors to seelog
 
+	pemPublicKey, err := getPEMCert(srv.TLSConfig)
+	if err == nil {
+		os.Setenv("IPC_PEM", pemPublicKey)
+	}
 	tlsListener := tls.NewListener(listener, srv.TLSConfig)
 
 	go srv.Serve(tlsListener) //nolint:errcheck
 	return nil
+}
+
+func getPEMCert(tlsConfig *tls.Config) (string, error) {
+	if len(tlsConfig.Certificates) == 0 {
+		return "", fmt.Errorf("No cert found")
+	}
+
+	certificate := tlsConfig.Certificates[0]
+	x509Cert, err := x509.ParseCertificate(certificate.Certificate[0])
+	if err != nil {
+		return "", fmt.Errorf("Failed to parse certificate: %v\n", err)
+	}
+
+	publicKeyBytes, err := x509.MarshalPKIXPublicKey(x509Cert.PublicKey)
+	if err != nil {
+		return "", fmt.Errorf("Failed to marshal public key: %v\n", err)
+	}
+
+	publicKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: publicKeyBytes,
+	})
+
+	publicKeyPEMStr := string(publicKeyPEM)
+	fmt.Printf("Public key PEM-encoded: \n%s\n", publicKeyPEMStr)
+	return publicKeyPEMStr, nil
+
 }
 
 // StopServer closes the connection and the server
