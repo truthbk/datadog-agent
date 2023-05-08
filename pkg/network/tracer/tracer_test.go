@@ -1328,7 +1328,9 @@ func TestTCPDirection(t *testing.T) {
 	tr := setupTracer(t, cfg)
 
 	// Start an HTTP server on localhost:8080
-	serverAddr := "127.0.0.1:8080"
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	serverAddr := l.Addr().String()
 	srv := &nethttp.Server{
 		Addr: serverAddr,
 		Handler: nethttp.HandlerFunc(func(w nethttp.ResponseWriter, req *nethttp.Request) {
@@ -1341,18 +1343,20 @@ func TestTCPDirection(t *testing.T) {
 	}
 	srv.SetKeepAlivesEnabled(false)
 	go func() {
-		_ = srv.ListenAndServe()
+		_ = srv.Serve(l)
 	}()
 	defer srv.Shutdown(context.Background())
 
-	// Allow the HTTP server time to get set up
-	time.Sleep(time.Millisecond * 500)
-
 	// Send a HTTP request to the test server
 	client := new(nethttp.Client)
-	resp, err := client.Get("http://" + serverAddr + "/test")
-	require.NoError(t, err)
-	resp.Body.Close()
+	require.Eventuallyf(t, func() bool {
+		resp, err := client.Get("http://" + serverAddr + "/test")
+		resp.Body.Close()
+		if err != nil {
+			t.Log(err)
+		}
+		return err == nil
+	}, 3*time.Second, 500*time.Millisecond, "client request failed")
 
 	// Iterate through active connections until we find connection created above
 	var outgoingConns []network.ConnectionStats
@@ -1370,7 +1374,12 @@ func TestTCPDirection(t *testing.T) {
 			})
 		}
 
-		return len(outgoingConns) == 1 && len(incomingConns) == 1
+		failed := !(len(outgoingConns) == 1 && len(incomingConns) == 1)
+		if failed {
+			t.Log(conns)
+		}
+
+		return !failed
 	}, 3*time.Second, 10*time.Millisecond, "couldn't find incoming and outgoing http connections matching: %s", serverAddr)
 
 	// Verify connection directions
