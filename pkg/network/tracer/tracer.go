@@ -352,6 +352,7 @@ func (t *Tracer) storeClosedConnections(connections []network.ConnectionStats) {
 	for i := range connections {
 		cs := &connections[i]
 		if t.shouldSkipConnection(cs) {
+			log.Warnf("storeClosedConnections: skipping connection %+v", cs)
 			connections[rejected], connections[i] = connections[i], connections[rejected]
 			rejected++
 			continue
@@ -435,8 +436,12 @@ func (t *Tracer) GetActiveConnections(clientID string) (*network.Connections, er
 	}
 	active := t.activeBuffer.Connections()
 
+	log.Warnf("active=%+v", active)
+
 	delta := t.state.GetDelta(clientID, latestTime, active, t.reverseDNS.GetDNSStats(), t.usmMonitor.GetHTTPStats(), t.usmMonitor.GetHTTP2Stats(), t.usmMonitor.GetKafkaStats())
 	t.activeBuffer.Reset()
+
+	log.Warnf("delta=%+v", delta.Conns)
 
 	ips := make([]util.Address, 0, len(delta.Conns)*2)
 	for _, conn := range delta.Conns {
@@ -576,6 +581,7 @@ func (t *Tracer) getConnections(activeBuffer *network.ConnectionBuffer) (latestU
 	}
 	tracerTelemetry.connStatsMapSize.Set(float64(entryCount))
 
+	log.Warnf("expired connections=%+v", expired)
 	// Remove expired entries
 	t.removeEntries(expired)
 
@@ -746,6 +752,7 @@ func (t *Tracer) DebugEBPFMaps(maps ...string) (string, error) {
 // UDP expires
 func (t *Tracer) connectionExpired(conn *network.ConnectionStats, latestTime uint64, ctr *cachedConntrack) bool {
 	timeout := t.timeoutForConn(conn)
+	log.Warnf("timeout %d for conn %+v", timeout, conn)
 	if !conn.IsExpired(latestTime, timeout) {
 		return false
 	}
