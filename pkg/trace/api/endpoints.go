@@ -101,6 +101,13 @@ var endpoints = []Endpoint{
 		IsEnabled: func(cfg *config.AgentConfig) bool { return cfg.TelemetryConfig.Enabled },
 	},
 	{
+		Pattern: "/openai/proxy/",
+		Handler: func(r *HTTPReceiver) http.Handler {
+			return http.StripPrefix("/openai/proxy", r.openaiProxyHandler())
+		},
+		IsEnabled: func(cfg *config.AgentConfig) bool { return cfg.OpenAIConfig.Enabled },
+	},
+	{
 		Pattern: "/v0.6/stats",
 		Handler: func(r *HTTPReceiver) http.Handler { return http.HandlerFunc(r.handleStats) },
 	},

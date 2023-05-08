@@ -16,6 +16,7 @@ type StatsClient interface {
 	Gauge(name string, value float64, tags []string, rate float64) error
 	Count(name string, value int64, tags []string, rate float64) error
 	Histogram(name string, value float64, tags []string, rate float64) error
+	Distribution(name string, value float64, tags []string, rate float64) error
 	Timing(name string, value time.Duration, tags []string, rate float64) error
 	Flush() error
 }
@@ -46,6 +47,14 @@ func Histogram(name string, value float64, tags []string, rate float64) error {
 		return nil // no-op
 	}
 	return Client.Histogram(name, value, tags, rate)
+}
+
+// Distribution calls Distribution on the global Client, if set.
+func Distribution(name string, value float64, tags []string, rate float64) error {
+	if Client == nil {
+		return nil // no-op
+	}
+	return Client.Distribution(name, value, tags, rate)
 }
 
 // Timing calls Timing on the global Client, if set.

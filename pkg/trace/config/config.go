@@ -185,6 +185,11 @@ type TelemetryConfig struct {
 	Endpoints []*Endpoint
 }
 
+// OpenAIConfig holds Instrumentation openaiEndpoints information
+type OpenAIConfig struct {
+	Enabled bool `mapstructure:"enabled"`
+}
+
 // JSONObfuscationConfig holds the obfuscation configuration for sensitive
 // data found in JSON objects.
 type JSONObfuscationConfig struct {
@@ -413,6 +418,9 @@ type AgentConfig struct {
 	// Telemetry settings
 	TelemetryConfig *TelemetryConfig
 
+	// OpenAI settings
+	OpenAIConfig *OpenAIConfig
+
 	// EVPProxy contains the settings for the EVPProxy proxy.
 	EVPProxy EVPProxy
 
@@ -516,6 +524,9 @@ func New() *AgentConfig {
 		ContainerTags: noopContainerTagsFunc,
 		TelemetryConfig: &TelemetryConfig{
 			Endpoints: []*Endpoint{{Host: TelemetryEndpointPrefix + "datadoghq.com"}},
+		},
+		OpenAIConfig: &OpenAIConfig{
+			Enabled: true,
 		},
 		EVPProxy: EVPProxy{
 			Enabled:        true,
