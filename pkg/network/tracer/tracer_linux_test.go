@@ -568,12 +568,6 @@ func TestGatewayLookupNotEnabled(t *testing.T) {
 }
 
 func TestGatewayLookupEnabled(t *testing.T) {
-	defer func() {
-		if t.Failed() {
-			tracertest.DumpTrace(t)
-		}
-	}()
-
 	ctrl := gomock.NewController(t)
 	m := NewMockcloudProvider(ctrl)
 	oldCloud := cloud
@@ -629,12 +623,6 @@ func TestGatewayLookupEnabled(t *testing.T) {
 }
 
 func TestGatewayLookupSubnetLookupError(t *testing.T) {
-
-	defer func() {
-		if t.Failed() {
-			tracertest.DumpTrace(t)
-		}
-	}()
 
 	ctrl := gomock.NewController(t)
 	m := NewMockcloudProvider(ctrl)
@@ -805,12 +793,6 @@ func TestGatewayLookupCrossNamespace(t *testing.T) {
 	})
 
 	t.Run("client in other namespace", func(t *testing.T) {
-		defer func() {
-			if t.Failed() {
-				tracertest.DumpTrace(t)
-			}
-		}()
-
 		// try connecting to server in test1 namespace
 		test2Ns, err := vnetns.GetFromName("test2")
 		require.NoError(t, err)

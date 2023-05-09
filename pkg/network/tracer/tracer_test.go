@@ -1363,6 +1363,7 @@ func TestTCPDirection(t *testing.T) {
 	var incomingConns []network.ConnectionStats
 	require.Eventuallyf(t, func() bool {
 		conns := getConnections(t, tr)
+		t.Log(conns)
 		if len(outgoingConns) == 0 {
 			outgoingConns = searchConnections(conns, func(cs network.ConnectionStats) bool {
 				return fmt.Sprintf("%s:%d", cs.Dest, cs.DPort) == serverAddr
@@ -1374,12 +1375,7 @@ func TestTCPDirection(t *testing.T) {
 			})
 		}
 
-		failed := !(len(outgoingConns) == 1 && len(incomingConns) == 1)
-		if failed {
-			t.Log(conns)
-		}
-
-		return !failed
+		return len(outgoingConns) == 1 && len(incomingConns) == 1
 	}, 3*time.Second, 10*time.Millisecond, "couldn't find incoming and outgoing http connections matching: %s", serverAddr)
 
 	// Verify connection directions

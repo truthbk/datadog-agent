@@ -80,11 +80,10 @@ const (
 	TCPReadSockReturn ProbeFuncName = "kretprobe__tcp_read_sock"
 
 	// TCPClose traces the tcp_close() system call
-	TCPClose ProbeFuncName = "kprobe__tcp_close"
-	// TCPCloseCleanProtocolsReturn traces the return of tcp_close() system call
-	TCPCloseCleanProtocolsReturn ProbeFuncName = "kretprobe__tcp_close_clean_protocols"
-	// TCPCloseFlushReturn traces the return of tcp_close() system call
-	TCPCloseFlushReturn ProbeFuncName = "kretprobe__tcp_close_flush"
+	TCPClose                   ProbeFuncName = "kprobe__tcp_close"
+	TCPCloseReturn             ProbeFuncName = "kretprobe__tcp_close"
+	ConnCloseBatchFlushProgram ProbeFuncName = "kretprobe__conn_close_batch_flush"
+	ProtoClassificationCleanup ProbeFuncName = "kretprobe__proto_classification_cleanup"
 
 	// We use the following two probes for UDP sends
 
@@ -210,6 +209,6 @@ const (
 	TLSConnectionMap                  BPFMapName = "tls_connection"
 	ConnectionTupleToSocketSKBConnMap BPFMapName = "conn_tuple_to_socket_skb_conn_tuple"
 	ClassificationProgsMap            BPFMapName = "classification_progs"
-	TCPCloseProgsMap                  BPFMapName = "tcp_close_progs"
+	CloseProgsMap                     BPFMapName = "close_progs"
 	StaticTableMap                    BPFMapName = "http2_static_table"
 )

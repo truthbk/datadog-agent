@@ -60,11 +60,22 @@ var (
 				UID:          probeUID,
 			},
 		},
+	}
+
+	tracerTailCalls = []manager.TailCallRoute{
 		{
-			ProgArrayName: probes.TCPCloseProgsMap,
+			ProgArrayName: probes.CloseProgsMap,
 			Key:           0,
 			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				EBPFFuncName: probes.TCPCloseFlushReturn,
+				EBPFFuncName: probes.ConnCloseBatchFlushProgram,
+				UID:          probeUID,
+			},
+		},
+		{
+			ProgArrayName: probes.CloseProgsMap,
+			Key:           1,
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				EBPFFuncName: probes.ProtoClassificationCleanup,
 				UID:          probeUID,
 			},
 		},
@@ -135,8 +146,6 @@ func LoadTracer(config *config.Config, m *manager.Manager, mgrOpts manager.Optio
 			if err == nil || errors.As(err, &ve) {
 				return closeFn, TracerTypeCORE, err
 			}
-			// do not use offset guessing constants with runtime compilation
-			mgrOpts.ConstantEditors = nil
 		}
 
 		if !config.AllowRuntimeCompiledFallback {
@@ -147,6 +156,8 @@ func LoadTracer(config *config.Config, m *manager.Manager, mgrOpts manager.Optio
 	}
 
 	if config.EnableRuntimeCompiler {
+		// do not use offset guessing constants with runtime compilation
+		mgrOpts.ConstantEditors = nil
 		closeFn, err := rcTracerLoader(config, m, mgrOpts, perfHandlerTCP)
 		if err == nil {
 			return closeFn, TracerTypeRuntimeCompiled, err
@@ -207,6 +218,8 @@ func loadTracerFromAsset(buf bytecode.AssetReader, runtimeTracer, coreTracer boo
 		}
 	}
 
+	mgrOpts.TailCallRouter = append(mgrOpts.TailCallRouter, tracerTailCalls...)
+
 	if err := errtelemetry.ActivateBPFTelemetry(m, undefinedProbes); err != nil {
 		return nil, fmt.Errorf("could not activate ebpf telemetry: %w", err)
 	}
@@ -224,12 +237,15 @@ func loadTracerFromAsset(buf bytecode.AssetReader, runtimeTracer, coreTracer boo
 		}
 	}
 
-	var tailCallsIdentifiersSet map[manager.ProbeIdentificationPair]struct{}
+	tailCallsIdentifiersSet := map[manager.ProbeIdentificationPair]struct{}{}
 	if classificationSupported {
-		tailCallsIdentifiersSet = make(map[manager.ProbeIdentificationPair]struct{}, len(protocolClassificationTailCalls))
 		for _, tailCall := range protocolClassificationTailCalls {
 			tailCallsIdentifiersSet[tailCall.ProbeIdentificationPair] = struct{}{}
 		}
+	}
+
+	for _, tailCall := range tracerTailCalls {
+		tailCallsIdentifiersSet[tailCall.ProbeIdentificationPair] = struct{}{}
 	}
 
 	for funcName := range enabledProbes {
