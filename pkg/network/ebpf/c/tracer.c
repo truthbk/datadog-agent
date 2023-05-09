@@ -182,10 +182,24 @@ int kretprobe__udp_sendpage(struct pt_regs *ctx) {
 
 SEC("kprobe/tcp_close")
 int kprobe__tcp_close(struct pt_regs *ctx) {
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
+    bpf_map_update_with_telemetry(tcp_close_args, &pid_tgid, &sk, BPF_ANY);
+    return 0;
+}
+
+SEC("kretprobe/tcp_close")
+int kretprobe__tcp_close(struct pt_regs *ctx) {
     struct sock *sk;
     conn_tuple_t t = {};
     u64 pid_tgid = bpf_get_current_pid_tgid();
-    sk = (struct sock *)PT_REGS_PARM1(ctx);
+    struct sock **skp = bpf_map_lookup_elem(&tcp_close_args, &pid_tgid);
+    if (!skp) {
+        return 0;
+    }
+
+    sk = *skp;
+    bpf_map_delete_elem(&tcp_close_args, &pid_tgid);
 
     // Should actually delete something only if the connection never got established & increment counter
     if (bpf_map_delete_elem(&tcp_ongoing_connect_pid, &sk) == 0) {
@@ -206,23 +220,26 @@ int kprobe__tcp_close(struct pt_regs *ctx) {
     // If protocol classification is disabled, then we don't have kretprobe__tcp_close_clean_protocols hook
     // so, there is no one to use the map and clean it.
     if (is_protocol_classification_supported()) {
-        bpf_map_update_with_telemetry(tcp_close_args, &pid_tgid, &t, BPF_ANY);
+        bpf_map_update_with_telemetry(proto_classification_tcp_close_args, &pid_tgid, &t, BPF_ANY);
+        bpf_tail_call_compat(ctx, &close_progs, 1);
+        return 0;
     }
+
+    bpf_tail_call_compat(ctx, &close_progs, 0);
     return 0;
 }
 
-SEC("kretprobe/tcp_close")
-int kretprobe__tcp_close_clean_protocols(struct pt_regs *ctx) {
+SEC("kretprobe/proto_classification_cleanup")
+int kretprobe__proto_classification_cleanup(struct pt_regs *ctx) {
     u64 pid_tgid = bpf_get_current_pid_tgid();
 
-    conn_tuple_t *tup_ptr = (conn_tuple_t*) bpf_map_lookup_elem(&tcp_close_args, &pid_tgid);
+    conn_tuple_t *tup_ptr = (conn_tuple_t*) bpf_map_lookup_elem(&proto_classification_tcp_close_args, &pid_tgid);
     if (tup_ptr) {
         clean_protocol_classification(tup_ptr);
-        bpf_map_delete_elem(&tcp_close_args, &pid_tgid);
+        bpf_map_delete_elem(&proto_classification_tcp_close_args, &pid_tgid);
     }
 
-    bpf_tail_call_compat(ctx, &tcp_close_progs, 0);
-
+    bpf_tail_call_compat(ctx, &close_progs, 0);
     return 0;
 }
 
@@ -969,8 +986,10 @@ static __always_inline int handle_udp_destroy_sock(struct sock *skp) {
 
 SEC("kprobe/udp_destroy_sock")
 int kprobe__udp_destroy_sock(struct pt_regs *ctx) {
+    __u64 tid = bpf_get_current_pid_tgid();
     struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
-    return handle_udp_destroy_sock(sk);
+    bpf_map_update_elem(&udp_destroy_sock_args, &tid, &sk, BPF_ANY);
+    return 0;
 }
 
 SEC("kprobe/udpv6_destroy_sock")
@@ -983,7 +1002,17 @@ int kprobe__udpv6_destroy_sock(struct pt_regs *ctx) {
 
 SEC("kretprobe/udp_destroy_sock")
 int kretprobe__udp_destroy_sock(struct pt_regs *ctx) {
-    flush_conn_close_if_full(ctx);
+    __u64 tid = bpf_get_current_pid_tgid();
+    struct sock **skp = bpf_map_lookup_elem(&udp_destroy_sock_args, &tid);
+    if (!skp) {
+        return 0;
+    }
+
+    struct sock *sk = *skp;
+    bpf_map_delete_elem(&udp_destroy_sock_args, &tid);
+
+    handle_udp_destroy_sock(sk);
+    bpf_tail_call_compat(ctx, &close_progs, 0);
     return 0;
 }
 

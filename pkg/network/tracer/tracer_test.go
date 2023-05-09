@@ -1359,6 +1359,7 @@ func TestTCPDirection(t *testing.T) {
 	var incomingConns []network.ConnectionStats
 	require.Eventuallyf(t, func() bool {
 		conns := getConnections(t, tr)
+		t.Log(conns)
 		if len(outgoingConns) == 0 {
 			outgoingConns = searchConnections(conns, func(cs network.ConnectionStats) bool {
 				return fmt.Sprintf("%s:%d", cs.Dest, cs.DPort) == serverAddr

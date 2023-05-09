@@ -96,7 +96,7 @@ func initManager(mgr *manager.Manager, config *config.Config, closedHandler *ebp
 		{Name: probes.HelperErrTelemetryMap},
 		{Name: probes.TcpRecvMsgArgsMap},
 		{Name: probes.ClassificationProgsMap},
-		{Name: probes.TCPCloseProgsMap},
+		{Name: probes.CloseProgsMap},
 	}
 	mgr.PerfMaps = []*manager.PerfMap{
 		{
