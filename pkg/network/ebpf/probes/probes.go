@@ -80,10 +80,11 @@ const (
 	TCPReadSockReturn ProbeFuncName = "kretprobe__tcp_read_sock"
 
 	// TCPClose traces the tcp_close() system call
-	TCPClose                   ProbeFuncName = "kprobe__tcp_close"
-	TCPCloseReturn             ProbeFuncName = "kretprobe__tcp_close"
-	ConnCloseBatchFlushProgram ProbeFuncName = "kretprobe__conn_close_batch_flush"
-	ProtoClassificationCleanup ProbeFuncName = "kretprobe__proto_classification_cleanup"
+	TCPClose                          ProbeFuncName = "kprobe__tcp_close"
+	TCPCloseReturn                    ProbeFuncName = "kretprobe__tcp_close"
+	ConnCloseBatchFlushProgram        ProbeFuncName = "kretprobe__conn_close_batch_flush"
+	ConnCloseBatchFlushProgramPre4110 ProbeFuncName = "kretprobe__conn_close_batch_flush__pre_4_11_0"
+	ProtoClassificationCleanup        ProbeFuncName = "kretprobe__proto_classification_cleanup"
 
 	// We use the following two probes for UDP sends
 

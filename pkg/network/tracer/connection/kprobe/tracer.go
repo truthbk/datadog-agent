@@ -218,6 +218,13 @@ func loadTracerFromAsset(buf bytecode.AssetReader, runtimeTracer, coreTracer boo
 		}
 	}
 
+	kv, err := kernel.HostVersion()
+	if err != nil {
+		return nil, err
+	}
+	if kv < kernel.VersionCode(4, 11, 0) {
+		tracerTailCalls[0].ProbeIdentificationPair.EBPFFuncName = probes.ConnCloseBatchFlushProgramPre4110
+	}
 	mgrOpts.TailCallRouter = append(mgrOpts.TailCallRouter, tracerTailCalls...)
 
 	if err := errtelemetry.ActivateBPFTelemetry(m, undefinedProbes); err != nil {

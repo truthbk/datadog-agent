@@ -119,7 +119,7 @@ static __always_inline void cleanup_conn(conn_tuple_t *tup, struct sock *sk) {
     }
 }
 
-static __always_inline void flush_conn_close_if_full(void *ctx) {
+static __always_inline void flush_conn_close_if_full__pre_4_11_0(void *ctx) {
     u32 cpu = bpf_get_smp_processor_id();
     batch_t *batch_ptr = bpf_map_lookup_elem(&conn_close_batch, &cpu);
     if (!batch_ptr) {
@@ -138,6 +138,18 @@ static __always_inline void flush_conn_close_if_full(void *ctx) {
         // we cannot use the telemetry macro here because of stack size constraints
         bpf_perf_event_output(ctx, &conn_close_event, cpu, &batch_copy, sizeof(batch_copy));
     }
+}
+
+static __always_inline void flush_conn_close_if_full(void *ctx) {
+    u32 cpu = bpf_get_smp_processor_id();
+    batch_t *batch_ptr = bpf_map_lookup_elem(&conn_close_batch, &cpu);
+    if (!batch_ptr) {
+        return;
+    }
+
+    bpf_perf_event_output(ctx, &conn_close_event, cpu, batch_ptr, sizeof(batch_t));
+    batch_ptr->len = 0;
+    batch_ptr->id++;
 }
 
 #endif // __TRACER_EVENTS_H

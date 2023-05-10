@@ -28,6 +28,7 @@ func enabledProbes(c *config.Config, runtimeTracer, coreTracer bool) (map[probes
 
 	kv410 := kernel.VersionCode(4, 1, 0)
 	kv470 := kernel.VersionCode(4, 7, 0)
+	kv4110 := kernel.VersionCode(4, 11, 0)
 	kv5190 := kernel.VersionCode(5, 19, 0)
 	kv, err := kernel.HostVersion()
 	if err != nil {
@@ -35,7 +36,7 @@ func enabledProbes(c *config.Config, runtimeTracer, coreTracer bool) (map[probes
 	}
 
 	enableProbe(enabled, probes.ProtoClassificationCleanup)
-	enableProbe(enabled, probes.ConnCloseBatchFlushProgram)
+	enableProbe(enabled, selectVersionBasedProbe(false, kv, probes.ConnCloseBatchFlushProgram, probes.ConnCloseBatchFlushProgramPre4110, kv4110))
 
 	if c.CollectTCPv4Conns || c.CollectTCPv6Conns {
 		if ClassificationSupported(c) {

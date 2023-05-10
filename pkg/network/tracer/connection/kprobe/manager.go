@@ -42,6 +42,7 @@ var mainProbes = []probes.ProbeFuncName{
 	probes.TCPCloseReturn,
 	probes.ProtoClassificationCleanup,
 	probes.ConnCloseBatchFlushProgram,
+	probes.ConnCloseBatchFlushProgramPre4110,
 	probes.TCPConnect,
 	probes.TCPFinishConnect,
 	probes.TCPSetState,

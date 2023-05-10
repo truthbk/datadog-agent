@@ -244,6 +244,12 @@ int kretprobe__proto_classification_cleanup(struct pt_regs *ctx) {
 }
 
 SEC("kretprobe/conn_close_batch_flush")
+int kretprobe__conn_close_batch_flush__pre_4_11_0(struct pt_regs *ctx) {
+    flush_conn_close_if_full__pre_4_11_0(ctx);
+    return 0;
+}
+
+SEC("kretprobe/conn_close_batch_flush")
 int kretprobe__conn_close_batch_flush(struct pt_regs *ctx) {
     flush_conn_close_if_full(ctx);
     return 0;
@@ -990,8 +996,10 @@ int kprobe__udp_destroy_sock(struct pt_regs *ctx) {
 
 SEC("kprobe/udpv6_destroy_sock")
 int kprobe__udpv6_destroy_sock(struct pt_regs *ctx) {
+    __u64 tid = bpf_get_current_pid_tgid();
     struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
-    return handle_udp_destroy_sock(sk);
+    bpf_map_update_elem(&udp_destroy_sock_args, &tid, &sk, BPF_ANY);
+    return 0;
 }
 
 SEC("kretprobe/udp_destroy_sock")
@@ -1009,9 +1017,20 @@ int kretprobe__udp_destroy_sock(struct pt_regs *ctx) {
     bpf_tail_call_compat(ctx, &close_progs, 0);
     return 0;
 }
+
 SEC("kretprobe/udpv6_destroy_sock")
 int kretprobe__udpv6_destroy_sock(struct pt_regs *ctx) {
-    flush_conn_close_if_full(ctx);
+    __u64 tid = bpf_get_current_pid_tgid();
+    struct sock **skp = bpf_map_lookup_elem(&udp_destroy_sock_args, &tid);
+    if (!skp) {
+        return 0;
+    }
+
+    struct sock *sk = *skp;
+    bpf_map_delete_elem(&udp_destroy_sock_args, &tid);
+
+    handle_udp_destroy_sock(sk);
+    bpf_tail_call_compat(ctx, &close_progs, 0);
     return 0;
 }
 
