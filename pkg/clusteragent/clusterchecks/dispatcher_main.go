@@ -22,9 +22,11 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-const firstRunnerStatsMinutes = 2  // collect runner stats after the first 2 minutes
-const secondRunnerStatsMinutes = 5 // collect runner stats after the first 7 minutes
-const finalRunnerStatsMinutes = 10 // collect runner stats endlessly every 10 minutes
+const (
+	firstRunnerStatsMinutes  = 2  // collect runner stats after the first 2 minutes
+	secondRunnerStatsMinutes = 5  // collect runner stats after the first 7 minutes
+	finalRunnerStatsMinutes  = 10 // collect runner stats endlessly every 10 minutes
+)
 
 // dispatcher holds the management logic for cluster-checks
 type dispatcher struct {
@@ -33,11 +35,13 @@ type dispatcher struct {
 	extraTags             []string
 	clcRunnersClient      clusteragent.CLCRunnerClientInterface
 	advancedDispatching   bool
+	excludedChecks        []string
 }
 
 func newDispatcher() *dispatcher {
 	d := &dispatcher{
-		store: newClusterStore(),
+		store:          newClusterStore(),
+		excludedChecks: config.Datadog.GetStringSlice("cluster_checks.exclude_checks"),
 	}
 	d.nodeExpirationSeconds = config.Datadog.GetInt64("cluster_checks.node_expiration_timeout")
 	d.extraTags = config.Datadog.GetStringSlice("cluster_checks.extra_tags")
@@ -75,6 +79,13 @@ func (d *dispatcher) Stop() {
 // Schedule implements the scheduler.Scheduler interface
 func (d *dispatcher) Schedule(configs []integration.Config) {
 	for _, c := range configs {
+		for _, excludedCheck := range d.excludedChecks {
+			if c.Name == excludedCheck {
+				log.Infof("Excluding check due to config: %s", c.Name)
+				continue
+			}
+		}
+
 		if !c.ClusterCheck {
 			continue // Ignore non cluster-check configs
 		}
