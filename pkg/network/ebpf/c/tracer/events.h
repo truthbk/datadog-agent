@@ -42,7 +42,7 @@ static __always_inline void clean_protocol_classification(conn_tuple_t *tup) {
     bpf_map_delete_elem(&conn_tuple_to_socket_skb_conn_tuple, &conn_tuple);
 }
 
-static __always_inline void cleanup_conn(conn_tuple_t *tup, struct sock *sk) {
+static __always_inline void cleanup_conn(void *ctx, conn_tuple_t *tup, struct sock *sk) {
     u32 cpu = bpf_get_smp_processor_id();
 
     // Will hold the full connection data to send through the perf buffer
@@ -109,6 +109,8 @@ static __always_inline void cleanup_conn(conn_tuple_t *tup, struct sock *sk) {
         return;
     }
 
+    bpf_perf_event_output(ctx, &conn_close_event, cpu, &conn, sizeof(conn));
+
     // If we hit this section it means we had one or more interleaved tcp_close calls.
     // This could result in a missed tcp_close event, so we track it using our telemetry map.
     if (is_tcp) {
@@ -147,9 +149,11 @@ static __always_inline void flush_conn_close_if_full(void *ctx) {
         return;
     }
 
-    bpf_perf_event_output(ctx, &conn_close_event, cpu, batch_ptr, sizeof(batch_t));
-    batch_ptr->len = 0;
-    batch_ptr->id++;
+    if (batch_ptr->len == CONN_CLOSED_BATCH_SIZE) {
+        bpf_perf_event_output(ctx, &conn_close_event, cpu, batch_ptr, sizeof(batch_t));
+        batch_ptr->len = 0;
+        batch_ptr->id++;
+    }
 }
 
 #endif // __TRACER_EVENTS_H

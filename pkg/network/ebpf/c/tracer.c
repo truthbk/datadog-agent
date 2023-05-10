@@ -215,7 +215,7 @@ int kretprobe__tcp_close(struct pt_regs *ctx) {
     }
     log_debug("kprobe/tcp_close: netns: %u, sport: %u, dport: %u\n", t.netns, t.sport, t.dport);
 
-    cleanup_conn(&t, sk);
+    cleanup_conn(ctx, &t, sk);
 
     // If protocol classification is disabled, then we don't have kretprobe__tcp_close_clean_protocols hook
     // so, there is no one to use the map and clean it.
@@ -958,14 +958,14 @@ int kprobe__inet_csk_listen_stop(struct pt_regs *ctx) {
     return 0;
 }
 
-static __always_inline int handle_udp_destroy_sock(struct sock *skp) {
+static __always_inline int handle_udp_destroy_sock(void *ctx, struct sock *skp) {
     conn_tuple_t tup = {};
     u64 pid_tgid = bpf_get_current_pid_tgid();
     int valid_tuple = read_conn_tuple(&tup, skp, pid_tgid, CONN_TYPE_UDP);
 
     __u16 lport = 0;
     if (valid_tuple) {
-        cleanup_conn(&tup, skp);
+        cleanup_conn(ctx, &tup, skp);
         lport = tup.sport;
     } else {
         lport = read_sport(skp);
@@ -1013,7 +1013,7 @@ int kretprobe__udp_destroy_sock(struct pt_regs *ctx) {
     struct sock *sk = *skp;
     bpf_map_delete_elem(&udp_destroy_sock_args, &tid);
 
-    handle_udp_destroy_sock(sk);
+    handle_udp_destroy_sock(ctx, sk);
     bpf_tail_call_compat(ctx, &close_progs, 0);
     return 0;
 }
@@ -1029,7 +1029,7 @@ int kretprobe__udpv6_destroy_sock(struct pt_regs *ctx) {
     struct sock *sk = *skp;
     bpf_map_delete_elem(&udp_destroy_sock_args, &tid);
 
-    handle_udp_destroy_sock(sk);
+    handle_udp_destroy_sock(ctx, sk);
     bpf_tail_call_compat(ctx, &close_progs, 0);
     return 0;
 }
