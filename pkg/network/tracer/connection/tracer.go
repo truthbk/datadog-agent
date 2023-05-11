@@ -272,6 +272,7 @@ func (t *tracer) FlushPending() {
 
 func (t *tracer) Stop() {
 	t.stopOnce.Do(func() {
+		close(t.exitTelemetry)
 		_ = t.m.Stop(manager.CleanAll)
 		t.closeConsumer.Stop()
 		if t.closeTracer != nil {
