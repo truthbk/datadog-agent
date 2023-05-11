@@ -78,11 +78,12 @@ func (d *dispatcher) Stop() {
 
 // Schedule implements the scheduler.Scheduler interface
 func (d *dispatcher) Schedule(configs []integration.Config) {
+OUTER:
 	for _, c := range configs {
 		for _, excludedCheck := range d.excludedChecks {
 			if c.Name == excludedCheck {
 				log.Infof("Excluding check due to config: %s", c.Name)
-				continue
+				continue OUTER
 			}
 		}
 
