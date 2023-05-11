@@ -278,7 +278,6 @@ func (t *tracer) Stop() {
 		if t.closeTracer != nil {
 			t.closeTracer()
 		}
-		close(t.exitTelemetry)
 	})
 }
 
