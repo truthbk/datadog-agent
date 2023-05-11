@@ -430,14 +430,12 @@ func (ns *networkState) storeClosedConnections(conns []ConnectionStats) {
 		for _, c := range conns {
 			if i, ok := client.closedConnectionsKeys[c.Cookie]; ok {
 				if ns.mergeConnectionStats(&client.closedConnections[i], &c) {
-					log.Warnf("cookie collision for connection stored=%+v new=%+v", client.closedConnections[i], c)
 					stateTelemetry.statsCookieCollisions.Inc()
 				}
 				continue
 			}
 
 			if len(client.closedConnections) >= ns.maxClosedConns {
-				log.Warnf("connection dropped %+v", c)
 				stateTelemetry.closedConnDropped.Inc()
 				continue
 			}

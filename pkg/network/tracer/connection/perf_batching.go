@@ -18,7 +18,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/network"
 	netebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
 	manager "github.com/DataDog/ebpf-manager"
 )
 
@@ -88,20 +87,17 @@ func (p *perfBatchManager) ExtractBatchInto(buffer *network.ConnectionBuffer, b 
 // It tracks which connections have been processed by this call, by batch id.
 // This prevents double-processing of connections between GetPendingConns and Extract.
 func (p *perfBatchManager) GetPendingConns(buffer *network.ConnectionBuffer) {
-	log.Warnf("getting pending connections")
 	b := new(netebpf.Batch)
 	for cpu := 0; cpu < len(p.stateByCPU); cpu++ {
 		cpuState := &p.stateByCPU[cpu]
 
 		err := p.batchMap.Lookup(unsafe.Pointer(&cpu), unsafe.Pointer(b))
 		if err != nil {
-			log.Warnf("could not get connection batch for cpu=%d: %s", cpu, err)
 			continue
 		}
 
 		batchLen := b.Len
 		if batchLen == 0 {
-			log.Warnf("skipping empty batch for cpu %d", cpu)
 			continue
 		}
 
@@ -133,7 +129,6 @@ type batchState struct {
 // ExtractBatchInto extract network.ConnectionStats objects from the given `batch` into the supplied `buffer`.
 // The `start` (inclusive) and `end` (exclusive) arguments represent the offsets of the connections we're interested in.
 func (p *perfBatchManager) extractBatchInto(buffer *network.ConnectionBuffer, b *netebpf.Batch, start, end uint16) {
-	log.Warnf("extracting batch for id=%d start=%d end=%d", b.Id, start, end)
 	if start >= end || end > netebpf.BatchSize {
 		return
 	}
@@ -168,7 +163,6 @@ func (p *perfBatchManager) cleanupExpiredState(now time.Time) {
 		cpuState := &p.stateByCPU[cpu]
 		for id, s := range cpuState.processed {
 			if now.Sub(s.updated) >= p.expiredStateInterval {
-				log.Warnf("clearing expired state for cpu=%d batch id=%d cpustate=%+v", cpu, id, s)
 				delete(cpuState.processed, id)
 			}
 		}
