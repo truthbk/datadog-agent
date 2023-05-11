@@ -130,4 +130,10 @@ typedef struct {
     };
 } ip_make_skb_args_t;
 
+typedef enum {
+    PROTO_CLASSIFICATION_CLEANUP = 0,
+    CONN_CLOSE_BATCH_FLUSH,
+    CLOSE_CONN_PROG_MAX
+} close_conn_prog_t;
+
 #endif

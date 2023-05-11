@@ -221,11 +221,11 @@ int kretprobe__tcp_close(struct pt_regs *ctx) {
     // so, there is no one to use the map and clean it.
     if (is_protocol_classification_supported()) {
         bpf_map_update_with_telemetry(proto_classification_tcp_close_args, &pid_tgid, &t, BPF_ANY);
-        bpf_tail_call_compat(ctx, &close_progs, 1);
+        bpf_tail_call_compat(ctx, &close_progs, PROTO_CLASSIFICATION_CLEANUP);
         return 0;
     }
 
-    bpf_tail_call_compat(ctx, &close_progs, 0);
+    bpf_tail_call_compat(ctx, &close_progs, CONN_CLOSE_BATCH_FLUSH);
     return 0;
 }
 
@@ -239,7 +239,7 @@ int kretprobe__proto_classification_cleanup(struct pt_regs *ctx) {
         bpf_map_delete_elem(&proto_classification_tcp_close_args, &pid_tgid);
     }
 
-    bpf_tail_call_compat(ctx, &close_progs, 0);
+    bpf_tail_call_compat(ctx, &close_progs, CONN_CLOSE_BATCH_FLUSH);
     return 0;
 }
 
@@ -1014,7 +1014,7 @@ int kretprobe__udp_destroy_sock(struct pt_regs *ctx) {
     bpf_map_delete_elem(&udp_destroy_sock_args, &tid);
 
     handle_udp_destroy_sock(ctx, sk);
-    bpf_tail_call_compat(ctx, &close_progs, 0);
+    bpf_tail_call_compat(ctx, &close_progs, CONN_CLOSE_BATCH_FLUSH);
     return 0;
 }
 
@@ -1030,7 +1030,7 @@ int kretprobe__udpv6_destroy_sock(struct pt_regs *ctx) {
     bpf_map_delete_elem(&udp_destroy_sock_args, &tid);
 
     handle_udp_destroy_sock(ctx, sk);
-    bpf_tail_call_compat(ctx, &close_progs, 0);
+    bpf_tail_call_compat(ctx, &close_progs, CONN_CLOSE_BATCH_FLUSH);
     return 0;
 }
 

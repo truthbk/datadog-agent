@@ -65,17 +65,17 @@ var (
 	tracerTailCalls = []manager.TailCallRoute{
 		{
 			ProgArrayName: probes.CloseProgsMap,
-			Key:           0,
+			Key:           uint32(netebpf.ProtoClassificationCleanup),
 			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				EBPFFuncName: probes.ConnCloseBatchFlushProgram,
+				EBPFFuncName: probes.ProtoClassificationCleanup,
 				UID:          probeUID,
 			},
 		},
 		{
 			ProgArrayName: probes.CloseProgsMap,
-			Key:           1,
+			Key:           uint32(netebpf.ConnCloseBatchFlush),
 			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				EBPFFuncName: probes.ProtoClassificationCleanup,
+				EBPFFuncName: probes.ConnCloseBatchFlushProgram,
 				UID:          probeUID,
 			},
 		},
@@ -223,7 +223,7 @@ func loadTracerFromAsset(buf bytecode.AssetReader, runtimeTracer, coreTracer boo
 		return nil, err
 	}
 	if kv < kernel.VersionCode(4, 11, 0) {
-		tracerTailCalls[0].ProbeIdentificationPair.EBPFFuncName = probes.ConnCloseBatchFlushProgramPre4110
+		tracerTailCalls[netebpf.ConnCloseBatchFlush].ProbeIdentificationPair.EBPFFuncName = probes.ConnCloseBatchFlushProgramPre4110
 	}
 	mgrOpts.TailCallRouter = append(mgrOpts.TailCallRouter, tracerTailCalls...)
 

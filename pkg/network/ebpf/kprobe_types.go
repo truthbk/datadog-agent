@@ -59,3 +59,10 @@ const (
 	ClassificationQueues ClassificationProgram = C.CLASSIFICATION_QUEUES_PROG
 	ClassificationDBs    ClassificationProgram = C.CLASSIFICATION_DBS_PROG
 )
+
+type CloseConnProg uint32
+
+const (
+	ProtoClassificationCleanup CloseConnProg = C.PROTO_CLASSIFICATION_CLEANUP
+	ConnCloseBatchFlush        CloseConnProg = C.CONN_CLOSE_BATCH_FLUSH
+)

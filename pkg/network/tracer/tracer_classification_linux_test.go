@@ -13,8 +13,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/DataDog/datadog-agent/pkg/network/tracer/testutil"
 )
 
 func testProtocolClassificationInner(t *testing.T, params protocolClassificationAttributes, tr *Tracer) {

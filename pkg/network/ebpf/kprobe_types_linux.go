@@ -104,3 +104,10 @@ const (
 	ClassificationQueues ClassificationProgram = 0x0
 	ClassificationDBs    ClassificationProgram = 0x1
 )
+
+type CloseConnProg uint32
+
+const (
+	ProtoClassificationCleanup CloseConnProg = 0x0
+	ConnCloseBatchFlush        CloseConnProg = 0x1
+)

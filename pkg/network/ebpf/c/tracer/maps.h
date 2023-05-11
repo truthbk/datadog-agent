@@ -4,6 +4,7 @@
 #include "map-defs.h"
 #include "bpf_helpers.h"
 
+#include "tracer/tracer.h"
 #include "conn_tuple.h"
 
 /* This is a key/value store with the keys being a conn_tuple_t for send & recv calls
@@ -109,7 +110,7 @@ BPF_HASH_MAP(ip_make_skb_args, __u64, ip_make_skb_args_t, 1024)
 // There is a limitation on number of instructions can be attached to a socket filter,
 // as we dispatching more protocols, we reached that limit, thus we workaround it
 // by using tail call.
-BPF_PROG_ARRAY(close_progs, 2)
+BPF_PROG_ARRAY(close_progs, CLOSE_CONN_PROG_MAX)
 
 BPF_HASH_MAP(tcp_close_args, __u64, struct sock*, 1024)
 BPF_HASH_MAP(udp_destroy_sock_args, __u64, struct sock*, 1024)
