@@ -79,7 +79,7 @@ kitchen_test_system_probe_linux_x64_ec2:
         KITCHEN_OSVERS: "ubuntu-18-04"
         KITCHEN_EC2_DEVICE_NAME: "/dev/sda1"
       - KITCHEN_PLATFORM: "ubuntu"
-        KITCHEN_OSVERS: "ubuntu-20-044"
+        KITCHEN_OSVERS: "ubuntu-20-04"
         KITCHEN_EC2_DEVICE_NAME: "/dev/sda1"
       - KITCHEN_PLATFORM: "ubuntu"
         KITCHEN_OSVERS: "ubuntu-22-04"
