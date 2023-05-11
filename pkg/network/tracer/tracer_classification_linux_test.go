@@ -18,12 +18,6 @@ import (
 )
 
 func testProtocolClassificationInner(t *testing.T, params protocolClassificationAttributes, tr *Tracer) {
-	defer func() {
-		if t.Failed() {
-			testutil.DumpTrace(t)
-		}
-	}()
-
 	if params.skipCallback != nil {
 		params.skipCallback(t, params.context)
 	}
