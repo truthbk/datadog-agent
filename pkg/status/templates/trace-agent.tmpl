@@ -24,7 +24,7 @@ APM Agent
 
   Receiver (previous minute)
   ==========================
-    {{- if eq (len .receiver) 0}}
+	  {{- if and (.receiver) (eq (len .receiver) 0) }}
     No traces received in the previous minute.
     {{- end -}}
     {{range $i, $ts := .receiver }}
