@@ -130,4 +130,9 @@ typedef struct {
     };
 } ip_make_skb_args_t;
 
+typedef struct {
+    struct sock *sk;
+    conn_tuple_t t;
+} close_args_t;
+
 #endif

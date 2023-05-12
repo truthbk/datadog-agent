@@ -184,22 +184,32 @@ SEC("kprobe/tcp_close")
 int kprobe__tcp_close(struct pt_regs *ctx) {
     u64 pid_tgid = bpf_get_current_pid_tgid();
     struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
-    bpf_map_update_with_telemetry(tcp_close_args, &pid_tgid, &sk, BPF_ANY);
+    if (!sk) {
+        return 0;
+    }
+
+    close_args_t args = {};
+    args.sk = sk;
+    if (!read_conn_tuple(&args.t, sk, pid_tgid, CONN_TYPE_TCP)) {
+        return 0;
+    }
+
+    bpf_map_update_with_telemetry(close_args, &pid_tgid, &args, BPF_ANY);
     return 0;
 }
 
 SEC("kretprobe/tcp_close")
 int kretprobe__tcp_close(struct pt_regs *ctx) {
-    struct sock *sk;
-    conn_tuple_t t = {};
     u64 pid_tgid = bpf_get_current_pid_tgid();
-    struct sock **skp = bpf_map_lookup_elem(&tcp_close_args, &pid_tgid);
-    if (!skp) {
+    close_args_t *args = bpf_map_lookup_elem(&close_args, &pid_tgid);
+    if (!args) {
         return 0;
     }
 
-    sk = *skp;
-    bpf_map_delete_elem(&tcp_close_args, &pid_tgid);
+    struct sock *sk = args->sk;
+    conn_tuple_t t = {};
+    bpf_probe_read_with_telemetry(&t, sizeof(t), &args->t);
+    bpf_map_delete_elem(&close_args, &pid_tgid);
 
     // Should actually delete something only if the connection never got established & increment counter
     if (bpf_map_delete_elem(&tcp_ongoing_connect_pid, &sk) == 0) {
@@ -210,9 +220,6 @@ int kretprobe__tcp_close(struct pt_regs *ctx) {
 
     // Get network namespace id
     log_debug("kprobe/tcp_close: tgid: %u, pid: %u\n", pid_tgid >> 32, pid_tgid & 0xFFFFFFFF);
-    if (!read_conn_tuple(&t, sk, pid_tgid, CONN_TYPE_TCP)) {
-        return 0;
-    }
     log_debug("kprobe/tcp_close: netns: %u, sport: %u, dport: %u\n", t.netns, t.sport, t.dport);
 
     cleanup_conn(&t, sk);
@@ -956,22 +963,23 @@ int kprobe__inet_csk_listen_stop(struct pt_regs *ctx) {
     return 0;
 }
 
-static __always_inline int handle_udp_destroy_sock(struct sock *skp) {
-    conn_tuple_t tup = {};
-    u64 pid_tgid = bpf_get_current_pid_tgid();
-    int valid_tuple = read_conn_tuple(&tup, skp, pid_tgid, CONN_TYPE_UDP);
-
+static __always_inline int handle_udp_destroy_sock(void *ctx, u64 pid_tgid, close_args_t *args) {
     __u16 lport = 0;
-    if (valid_tuple) {
-        cleanup_conn(&tup, skp);
-        lport = tup.sport;
+    struct sock *sk = args->sk;
+    conn_tuple_t t = {};
+    bpf_probe_read_with_telemetry(&t, sizeof(t), &args->t);
+    bpf_map_delete_elem(&close_args, &pid_tgid);
+
+    if (t.sport) {
+        cleanup_conn(&t, sk);
+        lport = t.sport;
     } else {
-        lport = read_sport(skp);
+        lport = read_sport(sk);
     }
 
     if (lport == 0) {
         log_debug("ERR(udp_destroy_sock): lport is 0\n");
-        return 0;
+        goto out;
     }
 
     // although we have net ns info, we don't use it in the key
@@ -981,55 +989,56 @@ static __always_inline int handle_udp_destroy_sock(struct sock *skp) {
     pb.netns = 0;
     pb.port = lport;
     remove_port_bind(&pb, &udp_port_bindings);
+
+out:
+    bpf_tail_call_compat(ctx, &close_progs, 0);
     return 0;
 }
 
 SEC("kprobe/udp_destroy_sock")
 int kprobe__udp_destroy_sock(struct pt_regs *ctx) {
     __u64 tid = bpf_get_current_pid_tgid();
-    struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
-    bpf_map_update_elem(&udp_destroy_sock_args, &tid, &sk, BPF_ANY);
+    close_args_t args = {};
+    args.sk = (struct sock *)PT_REGS_PARM1(ctx);
+    if (!read_conn_tuple(&args.t, args.sk, tid, CONN_TYPE_UDP)) {
+        return 0;
+    }
+    bpf_map_update_elem(&close_args, &tid, &args, BPF_ANY);
     return 0;
 }
 
 SEC("kprobe/udpv6_destroy_sock")
 int kprobe__udpv6_destroy_sock(struct pt_regs *ctx) {
     __u64 tid = bpf_get_current_pid_tgid();
-    struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
-    bpf_map_update_elem(&udp_destroy_sock_args, &tid, &sk, BPF_ANY);
+    close_args_t args = {};
+    args.sk = (struct sock *)PT_REGS_PARM1(ctx);
+    if (!read_conn_tuple(&args.t, args.sk, tid, CONN_TYPE_UDP)) {
+        return 0;
+    }
+    bpf_map_update_elem(&close_args, &tid, &args, BPF_ANY);
     return 0;
 }
 
 SEC("kretprobe/udp_destroy_sock")
 int kretprobe__udp_destroy_sock(struct pt_regs *ctx) {
     __u64 tid = bpf_get_current_pid_tgid();
-    struct sock **skp = bpf_map_lookup_elem(&udp_destroy_sock_args, &tid);
-    if (!skp) {
+    close_args_t *args = bpf_map_lookup_elem(&close_args, &tid);
+    if (!args) {
         return 0;
     }
 
-    struct sock *sk = *skp;
-    bpf_map_delete_elem(&udp_destroy_sock_args, &tid);
-
-    handle_udp_destroy_sock(sk);
-    bpf_tail_call_compat(ctx, &close_progs, 0);
-    return 0;
+    return handle_udp_destroy_sock(ctx, tid, args);
 }
 
 SEC("kretprobe/udpv6_destroy_sock")
 int kretprobe__udpv6_destroy_sock(struct pt_regs *ctx) {
     __u64 tid = bpf_get_current_pid_tgid();
-    struct sock **skp = bpf_map_lookup_elem(&udp_destroy_sock_args, &tid);
-    if (!skp) {
+    close_args_t *args = bpf_map_lookup_elem(&close_args, &tid);
+    if (!args) {
         return 0;
     }
 
-    struct sock *sk = *skp;
-    bpf_map_delete_elem(&udp_destroy_sock_args, &tid);
-
-    handle_udp_destroy_sock(sk);
-    bpf_tail_call_compat(ctx, &close_progs, 0);
-    return 0;
+    return handle_udp_destroy_sock(ctx, tid, args);
 }
 
 static __always_inline int sys_enter_bind(struct socket *sock, struct sockaddr *addr) {

@@ -140,9 +140,11 @@ static __always_inline void flush_conn_close_if_full(void *ctx) {
         return;
     }
 
-    bpf_perf_event_output(ctx, &conn_close_event, cpu, batch_ptr, sizeof(batch_t));
-    batch_ptr->len = 0;
-    batch_ptr->id++;
+    if (batch_ptr->len == CONN_CLOSED_BATCH_SIZE) {
+        bpf_perf_event_output(ctx, &conn_close_event, cpu, batch_ptr, sizeof(batch_t));
+        batch_ptr->len = 0;
+        batch_ptr->id++;
+    }
 }
 
 #endif // __TRACER_EVENTS_H
