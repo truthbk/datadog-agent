@@ -59,7 +59,7 @@ require (
 	github.com/DataDog/gopsutil v1.2.2
 	github.com/DataDog/nikos v1.12.0
 	github.com/DataDog/opentelemetry-mapping-go/pkg/otlp/attributes v0.2.0
-	github.com/DataDog/opentelemetry-mapping-go/pkg/otlp/metrics v0.2.0
+	github.com/DataDog/opentelemetry-mapping-go/pkg/otlp/metrics v0.2.1-0.20230510193549-706b93b474a7
 	github.com/DataDog/opentelemetry-mapping-go/pkg/quantile v0.2.0
 	github.com/DataDog/sketches-go v1.4.2
 	github.com/DataDog/viper v1.12.0
@@ -75,7 +75,6 @@ require (
 	github.com/alecthomas/participle v0.7.1
 	github.com/alecthomas/repr v0.2.0
 	github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137
-	github.com/aquasecurity/trivy v0.0.0-00010101000000-000000000000 // keep this proto version to not confuse dependabot
 	github.com/aquasecurity/trivy-db v0.0.0-20230105123735-5ce110fc82e1
 	github.com/avast/retry-go/v4 v4.3.4
 	github.com/aws/aws-lambda-go v1.37.0
@@ -576,7 +575,6 @@ require (
 	github.com/cloudflare/circl v1.1.0 // indirect
 	github.com/godror/knownpb v0.1.0 // indirect
 	github.com/rs/zerolog v1.29.0 // indirect
-	github.com/sigstore/rekor v1.0.1 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	go4.org/intern v0.0.0-20211027215823-ae77deb06f29 // indirect
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20220617031537-928513b29760 // indirect
