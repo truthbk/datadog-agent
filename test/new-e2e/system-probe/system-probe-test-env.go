@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/test-infra-definitions/aws"
 	"github.com/DataDog/test-infra-definitions/aws/scenarios/microVMs/microvms"
 	"github.com/DataDog/test-infra-definitions/command"
+	pulumiCommand "github.com/pulumi/pulumi-command/sdk/go/command"
 
 	"github.com/pulumi/pulumi-command/sdk/go/command/remote"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
@@ -128,7 +129,7 @@ func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *SystemProbe
 		var depends []pulumi.Resource
 		osCommand := command.NewUnixOSCommand()
 
-		commandProvider, err = command.NewProvider(ctx, "command-provider", &command.ProviderArgs{})
+		commandProvider, err := pulumiCommand.NewProvider(ctx, "command-provider", &command.ProviderArgs{})
 		if err != nil {
 			return fmt.Errorf("failed to get command provider: %w", err)
 		}
