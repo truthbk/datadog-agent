@@ -132,15 +132,18 @@ def follow_workflow_run(run_id):
             sleep(15)
             continue
 
+        url = run["html_url"]
         status = run["status"]
         conclusion = run["conclusion"]
 
         if status == "completed":
             if conclusion == "success":
                 print(color_message("Workflow run succeeded", "green"))
+                print(color_message(f"Check the GitHub Action logs at: {url}", "green"))
                 return
             else:
                 print(color_message(f"Workflow run ended with state: {conclusion}", "red"))
+                print(color_message(f"Check the GitHub Action logs at: {url}", "red"))
                 raise Exit(code=1)
         else:
             print(f"Workflow still running... ({minutes}m)")
