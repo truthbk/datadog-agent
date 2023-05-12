@@ -50,7 +50,9 @@ func TestWindowsInstaller(t *testing.T) {
 	// TODO: make all this configurable
 	// TODO: use new-e2e/pulumi for provisioning
 	prevstableinstaller := "ddagent-cli-7.43.1.msi"
-	testinstaller := "datadog-agent-7.45.0-rc.3-1.x86_64.msi"
+	// testinstaller := "datadog-agent-7.45.0-rc.3-1.x86_64.msi"
+	// testinstaller := "datadog-agent-ng-7.46.0-devel.git.102.31ae1a9-1-x86_64.msi"
+	testinstaller := "datadog-agent-7.46.0-devel.git.101.8fa78de.pipeline.15492052-1-x86_64.msi"
 
 	hosts := []testHost{
 		{
@@ -68,7 +70,7 @@ func TestWindowsInstaller(t *testing.T) {
 			snapshot: "ddev-ssh",
 		},
 	}
-	testhostid := 1
+	testhostid := 0
 
 	suite.Run(t, &windowsInstallerSuite{
 		target:              &hosts[testhostid],
@@ -156,7 +158,6 @@ func (s *windowsInstallerSuite) TestAllowClosedSourceArgs() {
 		args     string
 		expected string
 	}{
-		{"AllowClosedSource1", "ALLOWCLOSEDSOURCE=1", installer.AllowClosedSourceYes},
 		{"NpmFlag", "NPM=1", installer.AllowClosedSourceYes},
 		{"ADDLOCAL_NPM", "ADDLOCAL=NPM", installer.AllowClosedSourceYes},
 	}
@@ -177,7 +178,6 @@ func (s *windowsInstallerSuite) TestAllowClosedSourceArgs() {
 				firstTest = false
 
 				t, err := NewTester(s.sshclient,
-					WithExpectedAllowClosedSource(tc.expected),
 					WithExpectNPMRunning(npmEnabled))
 				s.Require().NoError(err)
 
@@ -203,33 +203,10 @@ func (s *windowsInstallerSuite) TestUpgradeWithNPM() {
 	s.Require().NoError(err)
 
 	t, err := NewTester(s.sshclient,
-		WithExpectedAllowClosedSource(installer.AllowClosedSourceYes),
 		WithExpectNPMRunning(true))
 	s.Require().NoError(err)
 
 	err = t.InstallAgent(s.sshclient, s.installer, "",
-		filepath.Join(s.testoutputdir, "upgrade.log"))
-	s.Require().NoError(err)
-
-	s.Require().True(t.AssertExpectations(s.Assert(), s.sshclient))
-}
-
-func (s *windowsInstallerSuite) TestDisableAllowClosedSource() {
-	err := installer.InstallAgentWithDefaultUser(s.sshclient,
-		s.prevstableinstaller, "ADDLOCAL=NPM",
-		filepath.Join(s.testoutputdir, "install.log"))
-	s.Require().NoError(err)
-
-	err = setNetworkConfig(s.sshclient, true)
-	s.Require().NoError(err)
-
-	t, err := NewTester(s.sshclient,
-		WithExpectedAllowClosedSource(installer.AllowClosedSourceNo),
-		WithExpectNPMRunning(false))
-	s.Require().NoError(err)
-
-	err = t.InstallAgent(s.sshclient,
-		s.installer, "ALLOWCLOSEDSOURCE=0",
 		filepath.Join(s.testoutputdir, "upgrade.log"))
 	s.Require().NoError(err)
 

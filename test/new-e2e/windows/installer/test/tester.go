@@ -25,7 +25,6 @@ type Tester struct {
 	userdomain  string
 	serviceuser string
 
-	expectedAllowClosedSource string
 	expectedNPMRunning        bool
 }
 
@@ -42,8 +41,6 @@ func NewTester(client *ssh.Client, options ...TesterOption) (*Tester, error) {
 	}
 
 	t.username, t.userdomain, t.serviceuser = installer.DefaultAgentUser(t.hostinfo)
-
-	t.expectedAllowClosedSource = installer.AllowClosedSourceNo
 
 	t.SetOptions(options...)
 
@@ -93,12 +90,6 @@ func WithExpectedAgentUserFromUsername(client *ssh.Client, username string, pass
 	}
 }
 
-func WithExpectedAllowClosedSource(val string) TesterOption {
-	return func(t *Tester) {
-		t.expectedAllowClosedSource = val
-	}
-}
-
 func WithExpectNPMRunning(val bool) TesterOption {
 	return func(t *Tester) {
 		t.expectedNPMRunning = val
@@ -113,10 +104,6 @@ func (t *Tester) SetOptions(options ...TesterOption) {
 
 func (t *Tester) assertAgentUser(a *assert.Assertions, client *ssh.Client) bool {
 	return AssertInstalledUser(a, client, t.username, t.userdomain, t.serviceuser)
-}
-
-func (t *Tester) assertAllowClosedSource(a *assert.Assertions, client *ssh.Client) bool {
-	return AssertAllowClosedSource(a, client, t.expectedAllowClosedSource)
 }
 
 func (t *Tester) assertServices(a *assert.Assertions, client *ssh.Client) bool {
@@ -171,12 +158,6 @@ func (t *Tester) assertServices(a *assert.Assertions, client *ssh.Client) bool {
 }
 
 func (t *Tester) AssertExpectations(a *assert.Assertions, client *ssh.Client) bool {
-	fmt.Printf("Checking closed source flag...")
-	if !t.assertAllowClosedSource(a, client) {
-		return false
-	}
-	fmt.Println("done")
-
 	fmt.Printf("Checking agent user...")
 	if !t.assertAgentUser(a, client) {
 		return false

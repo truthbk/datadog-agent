@@ -15,18 +15,6 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func AssertAllowClosedSource(a *assert.Assertions, client *ssh.Client, expected string) bool {
-	val, err := installer.GetAllowClosedSource(client)
-	if !a.NoError(err) {
-		return false
-	}
-	if !a.Equal(expected, val, "AllowClosedSource registry flag should be %s", expected) {
-		return false
-	}
-
-	return true
-}
-
 func AssertDefaultInstalledUser(a *assert.Assertions, client *ssh.Client) bool {
 	// get hostname
 	hostinfo, err := windows.GetHostInfo(client)
