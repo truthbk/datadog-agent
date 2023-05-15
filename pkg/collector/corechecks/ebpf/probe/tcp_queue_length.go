@@ -14,13 +14,11 @@ package probe
 import (
 	"fmt"
 	"math"
-	"unsafe"
 
 	"github.com/iovisor/gobpf/pkg/cpupossible"
 	"golang.org/x/sys/unix"
 
 	manager "github.com/DataDog/ebpf-manager"
-	bpflib "github.com/cilium/ebpf"
 
 	"github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode"
@@ -42,7 +40,7 @@ const (
 
 type TCPQueueLengthTracer struct {
 	m        *manager.Manager
-	statsMap *bpflib.Map
+	statsMap *ebpf.GenericMap[C.struct_stats_key, C.struct_stats_value]
 }
 
 func NewTCPQueueLengthTracer(cfg *ebpf.Config) (*TCPQueueLengthTracer, error) {
@@ -93,11 +91,9 @@ func startTCPQueueLengthProbe(buf bytecode.AssetReader, managerOptions manager.O
 		return nil, fmt.Errorf("failed to start manager: %w", err)
 	}
 
-	statsMap, ok, err := m.GetMap(statsMapName)
+	statsMap, err := ebpf.GetMap[C.struct_stats_key, C.struct_stats_value](m, statsMapName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get map '%s': %w", statsMapName, err)
-	} else if !ok {
-		return nil, fmt.Errorf("failed to get map '%s'", statsMapName)
 	}
 
 	return &TCPQueueLengthTracer{
@@ -125,7 +121,7 @@ func (t *TCPQueueLengthTracer) GetAndFlush() TCPQueueLengthStats {
 	var statsKey C.struct_stats_key
 	statsValue := make([]C.struct_stats_value, nbCpus)
 	it := t.statsMap.Iterate()
-	for it.Next(unsafe.Pointer(&statsKey), unsafe.Pointer(&statsValue[0])) {
+	for it.Next(&statsKey, &statsValue[0]) {
 		cgroupName := C.GoString(&statsKey.cgroup_name[0])
 		// This cannot happen because statsKey.cgroup_name is filled by bpf_probe_read_str which ensures a NULL-terminated string
 		if len(cgroupName) >= C.sizeof_struct_stats_key {
@@ -144,7 +140,7 @@ func (t *TCPQueueLengthTracer) GetAndFlush() TCPQueueLengthStats {
 		}
 		result[cgroupName] = max
 
-		if err := t.statsMap.Delete(unsafe.Pointer(&statsKey)); err != nil {
+		if err := t.statsMap.Delete(&statsKey); err != nil {
 			log.Warnf("failed to delete stat: %s", err)
 		}
 	}

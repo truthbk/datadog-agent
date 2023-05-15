@@ -14,7 +14,6 @@ import (
 	"math"
 	"sync"
 	"time"
-	"unsafe"
 
 	"github.com/cilium/ebpf"
 	"golang.org/x/sys/unix"
@@ -105,8 +104,8 @@ var ConnTracerTelemetry = struct {
 type tracer struct {
 	m *manager.Manager
 
-	conns    *ebpf.Map
-	tcpStats *ebpf.Map
+	conns    *ddebpf.GenericMap[netebpf.ConnTuple, netebpf.ConnStats]
+	tcpStats *ddebpf.GenericMap[netebpf.ConnTuple, netebpf.TCPStats]
 	config   *config.Config
 
 	// tcp_close events
@@ -201,21 +200,21 @@ func NewTracer(config *config.Config, constants []manager.ConstantEditor, bpfTel
 		exitTelemetry:  make(chan struct{}),
 	}
 
-	tr.conns, _, err = m.GetMap(probes.ConnMap)
+	tr.conns, err = ddebpf.GetMap[netebpf.ConnTuple, netebpf.ConnStats](m, probes.ConnMap)
 	if err != nil {
 		tr.Stop()
 		return nil, fmt.Errorf("error retrieving the bpf %s map: %s", probes.ConnMap, err)
 	}
 
-	tr.tcpStats, _, err = m.GetMap(probes.TCPStatsMap)
+	tr.tcpStats, err = ddebpf.GetMap[netebpf.ConnTuple, netebpf.TCPStats](m, probes.TCPStatsMap)
 	if err != nil {
 		tr.Stop()
 		return nil, fmt.Errorf("error retrieving the bpf %s map: %s", probes.TCPStatsMap, err)
 	}
 
 	if bpfTelemetry != nil {
-		bpfTelemetry.MapErrMap = tr.GetMap(probes.MapErrTelemetryMap)
-		bpfTelemetry.HelperErrMap = tr.GetMap(probes.HelperErrTelemetryMap)
+		bpfTelemetry.MapErrMap, _ = ddebpf.GetMap[uint64, nettelemetry.MapErrTelemetry](tr.m, probes.MapErrTelemetryMap)
+		bpfTelemetry.HelperErrMap, _ = ddebpf.GetMap[uint64, nettelemetry.HelperErrTelemetry](tr.m, probes.HelperErrTelemetryMap)
 	}
 
 	if err := bpfTelemetry.RegisterEBPFTelemetry(m); err != nil {
@@ -306,7 +305,7 @@ func (t *tracer) GetConnections(buffer *network.ConnectionBuffer, filter func(*n
 
 	var tcp4, tcp6, udp4, udp6 float64
 	entries := t.conns.Iterate()
-	for entries.Next(unsafe.Pointer(key), unsafe.Pointer(stats)) {
+	for entries.Next(key, stats) {
 		populateConnStats(conn, key, stats)
 
 		isTCP := conn.Type == network.TCP
@@ -387,7 +386,7 @@ func (t *tracer) Remove(conn *network.ConnectionStats) error {
 		t.removeTuple.Metadata |= uint32(netebpf.UDP)
 	}
 
-	err := t.conns.Delete(unsafe.Pointer(t.removeTuple))
+	err := t.conns.Delete(t.removeTuple)
 	if err != nil {
 		// If this entry no longer exists in the eBPF map it means `tcp_close` has executed
 		// during this function call. In that case state.StoreClosedConnection() was already called for this connection,
@@ -402,27 +401,27 @@ func (t *tracer) Remove(conn *network.ConnectionStats) error {
 	// We have to remove the PID to remove the element from the TCP Map since we don't use the pid there
 	t.removeTuple.Pid = 0
 	// We can ignore the error for this map since it will not always contain the entry
-	_ = t.tcpStats.Delete(unsafe.Pointer(t.removeTuple))
+	_ = t.tcpStats.Delete(t.removeTuple)
 
 	return nil
 }
 
 func (t *tracer) getEBPFTelemetry() *netebpf.Telemetry {
-	var zero uint64
-	mp, _, err := t.m.GetMap(probes.TelemetryMap)
+	var zero uint32
+	mp, err := ddebpf.GetMap[uint32, netebpf.Telemetry](t.m, probes.TelemetryMap)
 	if err != nil {
 		log.Warnf("error retrieving telemetry map: %s", err)
 		return nil
 	}
 
-	telemetry := &netebpf.Telemetry{}
-	if err := mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(telemetry)); err != nil {
+	tm := &netebpf.Telemetry{}
+	if err := mp.Lookup(&zero, tm); err != nil {
 		// This can happen if we haven't initialized the telemetry object yet
 		// so let's just use a trace log
 		log.Tracef("error retrieving the telemetry struct: %s", err)
 		return nil
 	}
-	return telemetry
+	return tm
 }
 
 func (t *tracer) RefreshProbeTelemetry() {
@@ -471,14 +470,14 @@ func initializePortBindingMaps(config *config.Config, m *manager.Manager) error 
 		return fmt.Errorf("failed to read initial TCP pid->port mapping: %s", err)
 	}
 
-	tcpPortMap, _, err := m.GetMap(probes.PortBindingsMap)
+	tcpPortMap, err := ddebpf.GetMap[netebpf.PortBinding, uint32](m, probes.PortBindingsMap)
 	if err != nil {
 		return fmt.Errorf("failed to get TCP port binding map: %w", err)
 	}
 	for p, count := range tcpPorts {
 		log.Debugf("adding initial TCP port binding: netns: %d port: %d", p.Ino, p.Port)
 		pb := netebpf.PortBinding{Netns: p.Ino, Port: p.Port}
-		err = tcpPortMap.Update(unsafe.Pointer(&pb), unsafe.Pointer(&count), ebpf.UpdateNoExist)
+		err = tcpPortMap.Update(&pb, &count, ebpf.UpdateNoExist)
 		if err != nil && !errors.Is(err, ebpf.ErrKeyExist) {
 			return fmt.Errorf("failed to update TCP port binding map: %w", err)
 		}
@@ -489,7 +488,7 @@ func initializePortBindingMaps(config *config.Config, m *manager.Manager) error 
 		return fmt.Errorf("failed to read initial UDP pid->port mapping: %s", err)
 	}
 
-	udpPortMap, _, err := m.GetMap(probes.UDPPortBindingsMap)
+	udpPortMap, err := ddebpf.GetMap[netebpf.PortBinding, uint32](m, probes.UDPPortBindingsMap)
 	if err != nil {
 		return fmt.Errorf("failed to get UDP port binding map: %w", err)
 	}
@@ -497,7 +496,7 @@ func initializePortBindingMaps(config *config.Config, m *manager.Manager) error 
 		log.Debugf("adding initial UDP port binding: netns: %d port: %d", p.Ino, p.Port)
 		// UDP port bindings currently do not have network namespace numbers
 		pb := netebpf.PortBinding{Netns: 0, Port: p.Port}
-		err = udpPortMap.Update(unsafe.Pointer(&pb), unsafe.Pointer(&count), ebpf.UpdateNoExist)
+		err = udpPortMap.Update(&pb, &count, ebpf.UpdateNoExist)
 		if err != nil && !errors.Is(err, ebpf.ErrKeyExist) {
 			return fmt.Errorf("failed to update UDP port binding map: %w", err)
 		}
@@ -516,7 +515,7 @@ func (t *tracer) getTCPStats(stats *netebpf.TCPStats, tuple *netebpf.ConnTuple, 
 	tuple.Pid = 0
 
 	*stats = netebpf.TCPStats{}
-	err := t.tcpStats.Lookup(unsafe.Pointer(tuple), unsafe.Pointer(stats))
+	err := t.tcpStats.Lookup(tuple, stats)
 	if err == nil {
 		// This is required to avoid (over)reporting retransmits for connections sharing the same socket.
 		if _, reported := seen[*tuple]; reported {

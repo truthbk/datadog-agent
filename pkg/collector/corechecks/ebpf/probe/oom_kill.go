@@ -14,12 +14,10 @@ package probe
 import (
 	"fmt"
 	"math"
-	"unsafe"
 
 	"golang.org/x/sys/unix"
 
 	manager "github.com/DataDog/ebpf-manager"
-	bpflib "github.com/cilium/ebpf"
 
 	"github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode"
@@ -40,7 +38,7 @@ const oomMapName = "oom_stats"
 
 type OOMKillProbe struct {
 	m      *manager.Manager
-	oomMap *bpflib.Map
+	oomMap *ebpf.GenericMap[uint32, C.struct_oom_stats]
 }
 
 func NewOOMKillProbe(cfg *ebpf.Config) (*OOMKillProbe, error) {
@@ -122,11 +120,9 @@ func startOOMKillProbe(buf bytecode.AssetReader, managerOptions manager.Options)
 		return nil, fmt.Errorf("failed to start manager: %w", err)
 	}
 
-	oomMap, ok, err := m.GetMap(oomMapName)
+	oomMap, err := ebpf.GetMap[uint32, C.struct_oom_stats](m, oomMapName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get map '%s': %w", oomMapName, err)
-	} else if !ok {
-		return nil, fmt.Errorf("failed to get map '%s'", oomMapName)
 	}
 
 	return &OOMKillProbe{
@@ -145,10 +141,10 @@ func (k *OOMKillProbe) GetAndFlush() (results []OOMKillStats) {
 	var pid uint32
 	var stat C.struct_oom_stats
 	it := k.oomMap.Iterate()
-	for it.Next(unsafe.Pointer(&pid), unsafe.Pointer(&stat)) {
+	for it.Next(&pid, &stat) {
 		results = append(results, convertStats(stat))
 
-		if err := k.oomMap.Delete(unsafe.Pointer(&pid)); err != nil {
+		if err := k.oomMap.Delete(&pid); err != nil {
 			log.Warnf("failed to delete stat: %s", err)
 		}
 	}

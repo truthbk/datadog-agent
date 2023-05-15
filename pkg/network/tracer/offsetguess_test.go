@@ -13,7 +13,6 @@ import (
 	"net"
 	"testing"
 	"time"
-	"unsafe"
 
 	"github.com/cilium/ebpf"
 	"github.com/stretchr/testify/assert"
@@ -22,6 +21,7 @@ import (
 
 	manager "github.com/DataDog/ebpf-manager"
 
+	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode/runtime"
 	netebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/tracer/offsetguess"
@@ -270,7 +270,7 @@ func TestOffsetGuess(t *testing.T) {
 	_, err = unix.GetsockoptByte(int(f.Fd()), unix.IPPROTO_TCP, unix.TCP_INFO)
 	require.NoError(t, err)
 
-	mp, _, err := mgr.GetMap("offsets")
+	mp, err := ddebpf.GetMap[offsetT, uint64](mgr, "offsets")
 	require.NoError(t, err)
 
 	kv, err := kernel.HostVersion()
@@ -292,7 +292,7 @@ func TestOffsetGuess(t *testing.T) {
 
 		var offset uint64
 		var name offsetT = o
-		require.NoError(t, mp.Lookup(unsafe.Pointer(&name), unsafe.Pointer(&offset)))
+		require.NoError(t, mp.Lookup(&name, &offset))
 		assert.Equal(t, offset, consts[o], "unexpected offset for %s", o)
 	}
 }

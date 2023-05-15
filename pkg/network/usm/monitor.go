@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"unsafe"
 
+	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
 
 	"github.com/cilium/ebpf"
@@ -340,7 +341,7 @@ func (m *Monitor) DumpMaps(maps ...string) (string, error) {
 
 // createStaticTable creates a static table for http2 monitor.
 func (m *Monitor) createStaticTable(mgr *ebpfProgram) error {
-	staticTable, _, _ := mgr.GetMap(probes.StaticTableMap)
+	staticTable, _ := ddebpf.GetMap[uint64, http.StaticTableValue](mgr.Manager.Manager, probes.StaticTableMap)
 	if staticTable == nil {
 		return errors.New("http2 static table is null")
 	}
@@ -425,7 +426,7 @@ func (m *Monitor) createStaticTable(mgr *ebpfProgram) error {
 	}
 
 	for _, entry := range staticTableEntries {
-		err := staticTable.Put(unsafe.Pointer(&entry.Index), unsafe.Pointer(&entry.Value))
+		err := staticTable.Put(&entry.Index, &entry.Value)
 
 		if err != nil {
 			return err

@@ -12,15 +12,16 @@ import (
 	"fmt"
 	"hash/fnv"
 	"syscall"
-	"unsafe"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/asm"
 
+	manager "github.com/DataDog/ebpf-manager"
+
+	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
-	manager "github.com/DataDog/ebpf-manager"
 )
 
 const (
@@ -44,8 +45,8 @@ var helperNames = map[int]string{readIndx: "bpf_probe_read", readUserIndx: "bpf_
 // EBPFTelemetry struct contains all the maps that
 // are registered to have their telemetry collected.
 type EBPFTelemetry struct {
-	MapErrMap    *ebpf.Map
-	HelperErrMap *ebpf.Map
+	MapErrMap    *ddebpf.GenericMap[uint64, MapErrTelemetry]
+	HelperErrMap *ddebpf.GenericMap[uint64, HelperErrTelemetry]
 	mapKeys      map[string]uint64
 	probeKeys    map[string]uint64
 }
@@ -227,7 +228,7 @@ func (b *EBPFTelemetry) initializeMapErrTelemetryMap(maps []*manager.Map) error 
 
 		h.Write([]byte(m.Name))
 		key := h.Sum64()
-		err := b.MapErrMap.Put(unsafe.Pointer(&key), unsafe.Pointer(z))
+		err := b.MapErrMap.Put(&key, z)
 		if err != nil {
 			return fmt.Errorf("failed to initialize telemetry struct for map %s", m.Name)
 		}
@@ -253,7 +254,7 @@ func (b *EBPFTelemetry) initializeHelperErrTelemetryMap(probes []*manager.Probe)
 
 		h.Write([]byte(p.EBPFFuncName))
 		key := h.Sum64()
-		err := b.HelperErrMap.Put(unsafe.Pointer(&key), unsafe.Pointer(z))
+		err := b.HelperErrMap.Put(&key, z)
 		if err != nil {
 			return fmt.Errorf("failed to initialize telemetry struct for map %s", p.EBPFFuncName)
 		}

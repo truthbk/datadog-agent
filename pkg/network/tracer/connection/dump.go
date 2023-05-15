@@ -17,6 +17,7 @@ import (
 
 	manager "github.com/DataDog/ebpf-manager"
 
+	pkgebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 	ddebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
 	"github.com/DataDog/datadog-agent/pkg/network/tracer/offsetguess"
@@ -165,10 +166,10 @@ func dumpMapsHandler(manager *manager.Manager, mapName string, currentMap *ebpf.
 
 	case "pending_bind": // maps/pending_bind (BPF_MAP_TYPE_HASH), key C.__u64, value C.bind_syscall_args_t
 		output.WriteString("Map: '" + mapName + "', key: 'C.__u64', value: 'C.bind_syscall_args_t'\n")
-		iter := currentMap.Iterate()
+		iter := pkgebpf.Map[uint64, ddebpf.BindSyscallArgs](currentMap).Iterate()
 		var key uint64
 		var value ddebpf.BindSyscallArgs
-		for iter.Next(unsafe.Pointer(&key), unsafe.Pointer(&value)) {
+		for iter.Next(&key, &value) {
 			output.WriteString(spew.Sdump(key, value))
 		}
 
