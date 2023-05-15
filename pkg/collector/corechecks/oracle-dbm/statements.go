@@ -430,6 +430,8 @@ func (c *Check) StatementMetrics() (int, error) {
 				continue
 			}
 
+			diff.UserIOWaitTime = 11
+
 			startSQLText := time.Now()
 			queryRow := QueryRow{}
 			var queryHashCol string
