@@ -25,6 +25,7 @@
     <PackageReference Include="WixSharp.bin" Version="1.20.3" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Bootstrapper\Bootstrapper.csproj" />
     <ProjectReference Include="..\CustomActions\CustomActions.csproj" />
   </ItemGroup>
   <ItemGroup>
@@ -32,5 +33,10 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="wix\" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="BootstrapperCore.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>
