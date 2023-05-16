@@ -144,7 +144,7 @@ func (c *ConnectionsCheck) Run(nextGroupID func() int32, _ *RunOptions) (RunResu
 	}
 
 	// Filter out (in-place) connection data associated with docker-proxy
-	err = c.processData.Fetch()
+	_, err = c.processData.Fetch()
 	if err != nil {
 		log.Warnf("error collecting processes for filter and extraction: %s", err)
 	} else {

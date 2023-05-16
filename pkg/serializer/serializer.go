@@ -14,10 +14,15 @@ import (
 	"strconv"
 	"time"
 
+	model "github.com/DataDog/agent-payload/v5/process"
+
 	forwarder "github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder/transaction"
 	"github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/config/resolver"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
+	"github.com/DataDog/datadog-agent/pkg/process/runner"
+	apicfg "github.com/DataDog/datadog-agent/pkg/process/util/api/config"
 	"github.com/DataDog/datadog-agent/pkg/process/util/api/headers"
 	metricsserializer "github.com/DataDog/datadog-agent/pkg/serializer/internal/metrics"
 	"github.com/DataDog/datadog-agent/pkg/serializer/internal/stream"
@@ -99,6 +104,7 @@ type MetricSerializer interface {
 	SendAgentchecksMetadata(m marshaler.JSONMarshaler) error
 	SendOrchestratorMetadata(msgs []ProcessMessageBody, hostName, clusterID string, payloadType int) error
 	SendOrchestratorManifests(msgs []ProcessMessageBody, hostName, clusterID string) error
+	SendProcesses(msgs []model.MessageBody) error
 }
 
 // Serializer serializes metrics to the correct format and routes the payloads to the correct endpoint in the Forwarder
@@ -106,6 +112,7 @@ type Serializer struct {
 	clock                 clock.Clock
 	Forwarder             forwarder.Forwarder
 	orchestratorForwarder forwarder.Forwarder
+	processForwarder      forwarder.Forwarder
 
 	seriesJSONPayloadBuilder *stream.JSONPayloadBuilder
 
@@ -127,11 +134,21 @@ type Serializer struct {
 }
 
 // NewSerializer returns a new Serializer initialized
-func NewSerializer(forwarder, orchestratorForwarder forwarder.Forwarder) *Serializer {
+func NewSerializer(fwd, orchestratorForwarder forwarder.Forwarder) *Serializer {
+	// Forwarder initialization: this creates an import cycle: FIX IT
+	processAPIEndpoints, err := runner.GetAPIEndpoints(config.Datadog)
+	if err != nil {
+		log.Error("CANT CREATE PROCESS FWD")
+	}
+	processForwarderOpts := forwarder.NewOptionsWithResolvers(config.Datadog, resolver.NewSingleDomainResolvers(apicfg.KeysPerDomains(nil)))
+	processForwarderOpts.DisableAPIKeyChecking = true
+	processForwarder := forwarder.NewDefaultForwarder(config.Datadog, processForwarderOpts)
+
 	s := &Serializer{
 		clock:                         clock.New(),
-		Forwarder:                     forwarder,
+		Forwarder:                     fwd,
 		orchestratorForwarder:         orchestratorForwarder,
+		processForwarder:              processForwarder,
 		seriesJSONPayloadBuilder:      stream.NewJSONPayloadBuilder(config.Datadog.GetBool("enable_json_stream_shared_compressor_buffers")),
 		enableEvents:                  config.Datadog.GetBool("enable_payloads.events"),
 		enableSeries:                  config.Datadog.GetBool("enable_payloads.series"),
@@ -481,6 +498,33 @@ func (s *Serializer) SendOrchestratorManifests(msgs []ProcessMessageBody, hostNa
 
 		}
 	}
+	return nil
+}
+
+func (s *Serializer) SendProcesses(msgs []model.MessageBody) error {
+	log.Info("METRIC SERIALIZER: SEND PROCESSES")
+
+	//if s.orchestratorForwarder == nil {
+	//	return errors.New("orchestrator forwarder is not setup")
+	//}
+	//for _, m := range msgs {
+	//	payloads, extraHeaders, err := makeOrchestratorPayloads(m, hostName, clusterID)
+	//	if err != nil {
+	//		log.Errorf("Unable to encode message: %s", err)
+	//		continue
+	//	}
+	//
+	//	responses, err := s.orchestratorForwarder.SubmitOrchestratorManifests(payloads, extraHeaders)
+	//	if err != nil {
+	//		return log.Errorf("Unable to submit payload: %s", err)
+	//	}
+	//
+	//	// Consume the responses so that writers to the channel do not become blocked
+	//	// we don't need the bodies here though
+	//	for range responses {
+	//
+	//	}
+	//}
 	return nil
 }
 

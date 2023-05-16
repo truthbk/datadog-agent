@@ -69,11 +69,13 @@ func TestProcessDataFetch(t *testing.T) {
 			if tc.wantErr {
 				probe.On("ProcessesByPID", mock.Anything, mock.Anything).
 					Return(nil, fmt.Errorf("unable to retrieve process data"))
-				assert.Error(t, p.Fetch())
+				_, err := p.Fetch()
+				assert.Error(t, err)
 			} else {
 				probe.On("ProcessesByPID", mock.Anything, mock.Anything).
 					Return(processesByPid, nil)
-				assert.NoError(t, p.Fetch())
+				_, err := p.Fetch()
+				assert.NoError(t, err)
 				for _, e := range tc.extractors {
 					assert.Equal(t, 1, e.called)
 					assert.Equal(t, processesByPid, e.procs)

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	model "github.com/DataDog/agent-payload/v5/process"
+
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	forwarder "github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder/transaction"
@@ -483,6 +484,62 @@ func (s *CheckSubmitter) messagesToCheckResult(start time.Time, name string, mes
 			log.Debugf("the request id of the current message: %s", requestID)
 			extraHeaders.Set(headers.RequestIDHeader, requestID)
 		}
+
+		payloads = append(payloads, checkPayload{
+			body:    body,
+			headers: extraHeaders,
+		})
+
+		sizeInBytes += len(body)
+	}
+
+	return &checkResult{
+		name:        name,
+		payloads:    payloads,
+		sizeInBytes: int64(sizeInBytes),
+	}
+}
+
+func MessagesToCheckResult(start time.Time, name string, messages []model.MessageBody) *checkResult {
+	if len(messages) == 0 {
+		return nil
+	}
+
+	payloads := make([]checkPayload, 0, len(messages))
+	sizeInBytes := 0
+
+	for messageIndex, m := range messages {
+		body, err := api.EncodePayload(m)
+		if err != nil {
+			log.Errorf("Unable to encode message: %s", err)
+			continue
+		}
+
+		agentVersion, _ := version.Agent()
+		extraHeaders := make(http.Header)
+		extraHeaders.Set(headers.TimestampHeader, strconv.Itoa(int(start.Unix())))
+		extraHeaders.Set(headers.HostHeader, s.hostname)
+		extraHeaders.Set(headers.ProcessVersionHeader, agentVersion.GetNumber())
+		extraHeaders.Set(headers.ContainerCountHeader, strconv.Itoa(getContainerCount(m)))
+		extraHeaders.Set(headers.ContentTypeHeader, headers.ProtobufContentType)
+
+		if s.orchestrator.OrchestrationCollectionEnabled {
+			if cid, err := clustername.GetClusterID(); err == nil && cid != "" {
+				extraHeaders.Set(headers.ClusterIDHeader, cid)
+			}
+			extraHeaders.Set(headers.EVPOriginHeader, "process-agent")
+			extraHeaders.Set(headers.EVPOriginVersionHeader, version.AgentVersion)
+		}
+
+		//switch name {
+		//case checks.ProcessEventsCheckName:
+		//	extraHeaders.Set(headers.EVPOriginHeader, "process-agent")
+		//	extraHeaders.Set(headers.EVPOriginVersionHeader, version.AgentVersion)
+		//case checks.ConnectionsCheckName, checks.ProcessCheckName:
+		//	requestID := s.getRequestID(start, messageIndex)
+		//	log.Debugf("the request id of the current message: %s", requestID)
+		//	extraHeaders.Set(headers.RequestIDHeader, requestID)
+		//}
 
 		payloads = append(payloads, checkPayload{
 			body:    body,

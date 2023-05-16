@@ -73,6 +73,7 @@ func (s *senders) GetDefaultSender() (Sender, error) {
 			s.agg.orchestratorMetadataIn,
 			s.agg.orchestratorManifestIn,
 			s.agg.eventPlatformIn,
+			s.agg.processesIn,
 		)
 	})
 	return s.defaultSender, nil

@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	model "github.com/DataDog/agent-payload/v5/process"
+
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
 	"github.com/DataDog/datadog-agent/pkg/serializer"
@@ -40,6 +42,8 @@ type Sender interface {
 	FinalizeCheckServiceTag()
 	OrchestratorMetadata(msgs []serializer.ProcessMessageBody, clusterID string, nodeType int)
 	OrchestratorManifest(msgs []serializer.ProcessMessageBody, clusterID string)
+	// RK: this will add a new dependency in the core-agent: agent-payload
+	ProcessData(msgs []model.MessageBody)
 }
 
 // RawSender interface to submit samples to aggregator directly
@@ -63,6 +67,7 @@ type checkSender struct {
 	orchestratorMetadataOut chan<- senderOrchestratorMetadata
 	orchestratorManifestOut chan<- senderOrchestratorManifest
 	eventPlatformOut        chan<- senderEventPlatformEvent
+	processesOut            chan<- senderProcesses
 	checkTags               []string
 	service                 string
 }
@@ -108,6 +113,11 @@ type senderOrchestratorManifest struct {
 	clusterID string
 }
 
+type senderProcesses struct {
+	msgs []model.MessageBody
+	//clusterID string
+}
+
 type checkSenderPool struct {
 	agg     *BufferedAggregator
 	senders map[check.ID]Sender
@@ -123,6 +133,7 @@ func newCheckSender(
 	orchestratorMetadataOut chan<- senderOrchestratorMetadata,
 	orchestratorManifestOut chan<- senderOrchestratorManifest,
 	eventPlatformOut chan<- senderEventPlatformEvent,
+	processesOut chan<- senderProcesses,
 ) *checkSender {
 	return &checkSender{
 		id:                      id,
@@ -135,6 +146,7 @@ func newCheckSender(
 		orchestratorMetadataOut: orchestratorMetadataOut,
 		orchestratorManifestOut: orchestratorManifestOut,
 		eventPlatformOut:        eventPlatformOut,
+		processesOut:            processesOut,
 	}
 }
 
@@ -427,6 +439,14 @@ func (s *checkSender) OrchestratorManifest(msgs []serializer.ProcessMessageBody,
 	s.orchestratorManifestOut <- om
 }
 
+func (s *checkSender) ProcessData(msgs []model.MessageBody) {
+	log.Info("SEND PROCESS OUT")
+	p := senderProcesses{
+		msgs: msgs,
+	}
+	s.processesOut <- p
+}
+
 func (sp *checkSenderPool) getSender(id check.ID) (Sender, error) {
 	sp.m.Lock()
 	defer sp.m.Unlock()
@@ -451,6 +471,7 @@ func (sp *checkSenderPool) mkSender(id check.ID) (Sender, error) {
 		sp.agg.orchestratorMetadataIn,
 		sp.agg.orchestratorManifestIn,
 		sp.agg.eventPlatformIn,
+		sp.agg.processesIn,
 	)
 	sp.senders[id] = sender
 	return sender, err

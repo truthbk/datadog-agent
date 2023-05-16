@@ -14,13 +14,15 @@ import (
 	"strings"
 	"testing"
 
+	model "github.com/DataDog/agent-payload/v5/process"
+	"github.com/stretchr/testify/require"
+	"github.com/tinylib/msgp/msgp"
+
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
 	"github.com/DataDog/datadog-agent/pkg/serializer"
 	"github.com/DataDog/datadog-agent/pkg/serializer/marshaler"
 	"github.com/DataDog/datadog-agent/pkg/trace/pb"
-	"github.com/stretchr/testify/require"
-	"github.com/tinylib/msgp/msgp"
 )
 
 var statsPayloads = []pb.ClientStatsPayload{
@@ -201,5 +203,8 @@ func (m *MockSerializer) SendOrchestratorMetadata(_ []serializer.ProcessMessageB
 }
 
 func (m *MockSerializer) SendOrchestratorManifests(_ []serializer.ProcessMessageBody, _, _ string) error {
+	return nil
+}
+func (m *MockSerializer) SendProcesses(_ []model.MessageBody) error {
 	return nil
 }

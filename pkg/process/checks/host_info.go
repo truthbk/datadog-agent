@@ -40,9 +40,13 @@ func CollectHostInfo(config config.ConfigReader) (*HostInfo, error) {
 		return nil, err
 	}
 
-	hostName, err := resolveHostName(config)
-	if err != nil {
-		return nil, err
+	hostName := "moises-test"
+	if config != nil {
+		hostName, err = resolveHostName(config)
+		if err != nil {
+			return nil, err
+		}
+
 	}
 
 	return &HostInfo{

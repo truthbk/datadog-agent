@@ -356,6 +356,36 @@ func createProcCtrMessages(
 	return messages, totalProcs, totalContainers
 }
 
+func CreateProcCtrMessages(
+	hostInfo *HostInfo,
+	procsByCtr map[string][]*model.Process,
+	containers []*model.Container,
+	maxBatchSize int,
+	groupID int32,
+) ([]model.MessageBody, int, int) {
+	// TODO: remove batch size hardcoding
+	collectorProcs, totalProcs, totalContainers := chunkProcessesAndContainers(procsByCtr, containers, maxBatchSize, 128000)
+	// fill in GroupSize for each CollectorProc and convert them to final messages
+	// also count containers and processes
+	messages := make([]model.MessageBody, 0, len(*collectorProcs))
+	for idx := range *collectorProcs {
+		m := &(*collectorProcs)[idx]
+		m.GroupSize = int32(len(*collectorProcs))
+		m.HostName = hostInfo.HostName
+		//m.NetworkId = networkID
+		m.Info = hostInfo.SystemInfo
+		m.GroupId = groupID
+		m.ContainerHostType = hostInfo.ContainerHostType
+		//m.Hints = &model.CollectorProc_HintMask{HintMask: hints}
+
+		messages = append(messages, m)
+	}
+
+	log.Tracef("Created %d process messages", len(messages))
+
+	return messages, totalProcs, totalContainers
+}
+
 func chunkProcessesAndContainers(
 	procsByCtr map[string][]*model.Process,
 	containers []*model.Container,
@@ -431,6 +461,59 @@ func fmtProcesses(
 	}
 
 	scrubber.IncrementCacheAge()
+
+	return procsByCtr
+}
+
+// TODO:
+// - add scrubber
+// - add connections data
+// - add ctrByProcs
+// - add lookupIdProbe
+// FormatProcesses goes through each process, converts them to process object and group them by containers
+// non-container processes would be in a single group with key as empty string ""
+func FormatProcesses(
+	procs, lastProcs map[int32]*procutil.Process,
+	syst2, syst1 cpu.TimesStat,
+	lastRun time.Time,
+) map[string][]*model.Process {
+	procsByCtr := make(map[string][]*model.Process)
+
+	for _, fp := range procs {
+		//if skipProcess(disallowList, fp, lastProcs) {
+		//	continue
+		//}
+
+		// Hide disallow-listed args if the Scrubber is enabled
+		//fp.Cmdline = scrubber.ScrubProcessCommand(fp)
+
+		proc := &model.Process{
+			Pid:                    fp.Pid,
+			NsPid:                  fp.NsPid,
+			Command:                formatCommand(fp),
+			User:                   formatUser(fp, nil),
+			Memory:                 formatMemory(fp.Stats),
+			Cpu:                    formatCPU(fp.Stats, lastProcs[fp.Pid].Stats, syst2, syst1),
+			CreateTime:             fp.Stats.CreateTime,
+			OpenFdCount:            fp.Stats.OpenFdCount,
+			State:                  model.ProcessState(model.ProcessState_value[fp.Stats.Status]),
+			IoStat:                 formatIO(fp.Stats, lastProcs[fp.Pid].Stats.IOStat, lastRun),
+			VoluntaryCtxSwitches:   uint64(fp.Stats.CtxSwitches.Voluntary),
+			InvoluntaryCtxSwitches: uint64(fp.Stats.CtxSwitches.Involuntary),
+			//ContainerId:            ctrByProc[int(fp.Pid)],
+		}
+
+		//if connRates != nil {
+		//	proc.Networks = connRates[fp.Pid]
+		//}
+		_, ok := procsByCtr[proc.ContainerId]
+		if !ok {
+			procsByCtr[proc.ContainerId] = make([]*model.Process, 0)
+		}
+		procsByCtr[proc.ContainerId] = append(procsByCtr[proc.ContainerId], proc)
+	}
+
+	//scrubber.IncrementCacheAge()
 
 	return procsByCtr
 }

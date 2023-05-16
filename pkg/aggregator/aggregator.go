@@ -202,6 +202,7 @@ type BufferedAggregator struct {
 	orchestratorMetadataIn chan senderOrchestratorMetadata
 	orchestratorManifestIn chan senderOrchestratorManifest
 	eventPlatformIn        chan senderEventPlatformEvent
+	processesIn            chan senderProcesses
 
 	// metricSamplePool is a pool of slices of metric sample to avoid allocations.
 	// Used by the Dogstatsd Batcher.
@@ -277,6 +278,7 @@ func NewBufferedAggregator(s serializer.MetricSerializer, eventPlatformForwarder
 		orchestratorMetadataIn: make(chan senderOrchestratorMetadata, bufferSize),
 		orchestratorManifestIn: make(chan senderOrchestratorManifest, bufferSize),
 		eventPlatformIn:        make(chan senderEventPlatformEvent, bufferSize),
+		processesIn:            make(chan senderProcesses, bufferSize),
 
 		tagsStore:                   tagsStore,
 		checkSamplers:               make(map[check.ID]*CheckSampler),
@@ -764,6 +766,9 @@ func (agg *BufferedAggregator) run() {
 			// each resource send manifests but as it's the same message
 			// we can use the aggregator to buffer them
 			agg.addOrchestratorManifest(&orchestratorManifest)
+		case msg := <-agg.processesIn:
+			log.Info("AGGREGATOR RECEIVED PROCESS DATA")
+			agg.serializer.SendProcesses(msg.msgs)
 		case event := <-agg.eventPlatformIn:
 			state := stateOk
 			tlmProcessed.Add(1, event.eventType)

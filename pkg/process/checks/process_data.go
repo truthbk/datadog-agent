@@ -28,16 +28,16 @@ func NewProcessData(cfg config.ConfigReader) *ProcessData {
 }
 
 // Fetch retrieves process data from the system and notifies registered extractors
-func (p *ProcessData) Fetch() error {
+func (p *ProcessData) Fetch() (map[int32]*procutil.Process, error) {
 	procs, err := p.probe.ProcessesByPID(time.Now(), false)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	notifyExtractors(procs, p.extractors)
 
-	return nil
+	return procs, nil
 }
 
 // Register adds an Extractor which will be notified for metadata extraction

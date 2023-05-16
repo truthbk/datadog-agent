@@ -27,6 +27,7 @@ type senderWithChans struct {
 	orchestratorChan         chan senderOrchestratorMetadata
 	orchestratorManifestChan chan senderOrchestratorManifest
 	eventPlatformEventChan   chan senderEventPlatformEvent
+	processesChan            chan senderProcesses
 	sender                   *checkSender
 }
 
@@ -37,7 +38,8 @@ func initSender(id check.ID, defaultHostname string) (s senderWithChans) {
 	s.orchestratorChan = make(chan senderOrchestratorMetadata, 10)
 	s.orchestratorManifestChan = make(chan senderOrchestratorManifest, 10)
 	s.eventPlatformEventChan = make(chan senderEventPlatformEvent, 10)
-	s.sender = newCheckSender(id, defaultHostname, s.itemChan, s.serviceCheckChan, s.eventChan, s.orchestratorChan, s.orchestratorManifestChan, s.eventPlatformEventChan)
+	s.processesChan = make(chan senderEventPlatformEvent, 10)
+	s.sender = newCheckSender(id, defaultHostname, s.itemChan, s.serviceCheckChan, s.eventChan, s.orchestratorChan, s.orchestratorManifestChan, s.eventPlatformEventChan, s.processesChan)
 	return s
 }
 
@@ -172,7 +174,8 @@ func TestGetAndSetSender(t *testing.T) {
 	orchestratorChan := make(chan senderOrchestratorMetadata, 10)
 	orchestratorManifestChan := make(chan senderOrchestratorManifest, 10)
 	eventPlatformChan := make(chan senderEventPlatformEvent, 10)
-	testCheckSender := newCheckSender(checkID1, "", itemChan, serviceCheckChan, eventChan, orchestratorChan, orchestratorManifestChan, eventPlatformChan)
+	processesChan := make(chan senderProcesses, 10)
+	testCheckSender := newCheckSender(checkID1, "", itemChan, serviceCheckChan, eventChan, orchestratorChan, orchestratorManifestChan, eventPlatformChan, processesChan)
 
 	err := demux.SetSender(testCheckSender, checkID1)
 	assert.Nil(t, err)
