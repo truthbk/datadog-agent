@@ -1,13 +1,31 @@
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Windows;
+using System.Windows.Documents;
+using Bootstrapper;
 using Microsoft.Tools.WindowsInstallerXml.Bootstrapper;
 
 namespace Bootstrapper
 {
     public class MainViewModel : BaseViewModel
-    {
-        public MainViewModel(BootstrapperApplication bootstrapper)
+{
+    private BaseViewModel _currentPage;
 
+        public BaseViewModel CurrentPage
         {
+            get => _currentPage;
+            set
+            {
+                _currentPage = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public MainViewModel(BootstrapperApplication bootstrapper)
+        {
+            Debugger.Launch();
+            CurrentPage = new WelcomeViewModel(this);
+
             IsBusy = false;
 
             Bootstrapper = bootstrapper;
@@ -32,19 +50,6 @@ namespace Bootstrapper
             set
             {
                 installEnabled = value;
-                OnPropertyChanged();
-            }
-        }
-
-        string userInput = "User input content...";
-
-        public string UserInput
-        {
-            get => userInput;
-
-            set
-            {
-                userInput = value;
                 OnPropertyChanged();
             }
         }

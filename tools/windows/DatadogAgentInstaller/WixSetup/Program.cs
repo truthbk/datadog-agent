@@ -1,10 +1,12 @@
 using System;
 using System.IO;
+using System.Linq;
 using Bootstrapper;
 using Datadog.CustomActions;
 using WixSharp;
 using WixSetup.Datadog;
 using WixSharp.Bootstrapper;
+using File = System.IO.File;
 
 namespace WixSetup
 {
@@ -48,7 +50,10 @@ namespace WixSetup
             bootstrapper.Version = new Version("1.0.0.0");
             bootstrapper.UpgradeCode = new Guid("F3B0657C-2C48-4F25-BEB7-654D4A0CF5FE");
             bootstrapper.Include(WixExtension.Util);
-            bootstrapper.Application = new ManagedBootstrapperApplication(typeof(ManagedBA).Assembly.Location, "BootstrapperCore.config");
+            bootstrapper.Application = new ManagedBootstrapperApplication(
+                typeof(ManagedBA).Assembly.Location,
+                "BootstrapperCore.config",
+                Path.Combine(Path.GetDirectoryName(typeof(ManagedBA).Assembly.Location), "CommunityToolkit.Mvvm.dll"));
             bootstrapper.PreserveTempFiles = true;
             // Name of the WXS, without the extension
             bootstrapper.OutFileName = "DatadogAgentBootstrapper";

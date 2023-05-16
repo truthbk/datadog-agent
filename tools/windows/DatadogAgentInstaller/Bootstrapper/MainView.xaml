@@ -4,15 +4,65 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Bootstrapper"
+        xmlns:pages="clr-namespace:Bootstrapper.Pages"
         mc:Ignorable="d"
-        Title="MainView"
+        Title="Datadog Agent Installer"
         Width="800"
         Height="600"
         MinWidth="800"
         MinHeight="600"
         WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        d:DataContext="{d:DesignInstance local:MainViewModel}"
         >
+    <Window.Resources>
+        <DataTemplate DataType="{x:Type local:WelcomeViewModel}">
+            <pages:Welcome />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type local:LicenseAgreementViewModel}">
+            <pages:LicenseAgreement />
+        </DataTemplate>
+    </Window.Resources>
     <Grid>
-        
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="200" />
+            <ColumnDefinition  Width="3*" />
+        </Grid.ColumnDefinitions>
+        <StackPanel
+            Grid.Row="0"
+            Grid.Column="0"
+            Background="#FF632CA6"
+        >
+            <Image Width="100" Height="100" Margin="0, 20">
+                <Image.Source>
+                    <BitmapImage UriSource="Resources/Images/dd_logo_v_white.png" />
+                </Image.Source>
+            </Image>
+            <!--
+            <TextBlock Text="Datadog Agent Installer" Foreground="White" FontSize="24" TextWrapping="Wrap" TextAlignment="Center" />
+            -->
+
+            <StackPanel VerticalAlignment="Center" Margin="0,100">
+                <StackPanel.Resources>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="FontFamily" Value="Noto Sans" />
+                        <Setter Property="Foreground" Value="White" />
+                        <Setter Property="HorizontalAlignment" Value="Left" />
+                        <Setter Property="FontSize" Value="16" />
+                        <Setter Property="Margin" Value="5" />
+                    </Style>
+                </StackPanel.Resources>
+                <TextBlock Text="Presentation"/>
+                <TextBlock Text="License Agreement" Foreground="LightGray"/>
+                <TextBlock Text="Features selection" Foreground="LightGray"/>
+                <TextBlock Text="Installation" Foreground="LightGray"/>
+                <TextBlock Text="Summary" Foreground="LightGray"/>
+            </StackPanel>
+        </StackPanel>
+        <ContentControl 
+            Grid.Row="0"
+            Grid.Column="1"
+            Margin="15"
+            Content="{Binding CurrentPage}" />
     </Grid>
 </Window>
