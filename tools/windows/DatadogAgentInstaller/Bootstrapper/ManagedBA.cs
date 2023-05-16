@@ -1,13 +1,8 @@
 using Microsoft.Tools.WindowsInstallerXml.Bootstrapper;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
 
 namespace Bootstrapper
 {
+    // ReSharper disable once InconsistentNaming
     public class ManagedBA : BootstrapperApplication
     {
         /// <summary>
@@ -15,9 +10,7 @@ namespace Bootstrapper
         /// </summary>
         protected override void Run()
         {
-            Engine.Log(LogLevel.Verbose, "Running the TestBA.");
-            MessageBox.Show("It works !");
-            //new MainView(this).ShowDialog();
+            new MainView(this).ShowDialog();
             Engine.Quit(0);
         }
     }
