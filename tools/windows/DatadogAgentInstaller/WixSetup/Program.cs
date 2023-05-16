@@ -10,7 +10,7 @@ namespace WixSetup
 {
     internal abstract class Program
     {
-        private static string BuildMsi(string version = null)
+        private static string BuildMsi(string version = null, bool rebuild = true)
         {
             // Print this line during the CI build so we can check that the CiInfo class picked up the
             // %PACKAGE_VERSION% environment variable correctly.
@@ -20,7 +20,7 @@ namespace WixSetup
 
             var msiPath = Path.Combine(project.OutDir, $"{project.OutFileName}.msi");
             // In debug mode, don't rebuild the MSI every time
-            if (System.IO.File.Exists(msiPath))
+            if (System.IO.File.Exists(msiPath) && !rebuild)
             {
                 return msiPath;
             }
@@ -66,7 +66,7 @@ namespace WixSetup
             // Useful to produce multiple versions of the installer for testing.
             BuildMsi("7.43.0~rc.3+git.485.14b9337");
 #endif
-            BuildBootstrapper(BuildMsi());
+            BuildBootstrapper(BuildMsi(rebuild: false));
         }
     }
 
