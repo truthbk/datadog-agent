@@ -5,6 +5,7 @@
 #include "helpers/discarders.h"
 #include "helpers/filesystem.h"
 #include "helpers/syscalls.h"
+#include "helpers/path_resolver.h"
 
 int __attribute__((always_inline)) trace__sys_chmod(umode_t mode) {
     struct policy_t policy = fetch_policy(EVENT_CHMOD);
@@ -47,7 +48,7 @@ int __attribute__((always_inline)) sys_chmod_ret(void *ctx, int retval) {
         return 0;
     }
 
-    if (is_pipefs_mount_id(syscall->setattr.file.path_key.mount_id)) {
+    if (is_pipefs_mount_id(syscall->setattr.file.dentry_key.mount_id)) {
         return 0;
     }
 

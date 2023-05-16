@@ -17,19 +17,19 @@ int __attribute__((always_inline)) handle_exec_event(ctx_t *ctx, struct syscall_
     // set mount_id to 0 is this is a fileless exec, meaning that the vfs type is tmpfs and that is an internal mount
     u32 mount_id = is_tmpfs(syscall->exec.dentry) && get_path_mount_flags(path) & MNT_INTERNAL ? 0 : get_path_mount_id(path);
 
-    syscall->exec.file.path_key.ino = get_inode_ino(inode);
-    syscall->exec.file.path_key.mount_id = mount_id;
-    syscall->exec.file.path_key.path_id = get_path_id(mount_id, 0);
+    syscall->exec.file.dentry_key.ino = get_inode_ino(inode);
+    syscall->exec.file.dentry_key.mount_id = mount_id;
+    syscall->exec.file.dentry_key.path_id = get_path_id(syscall->exec.file.dentry_key.mount_id, 0);
 
     // resolve dentry
-    syscall->resolver.key = syscall->exec.file.path_key;
+    syscall->resolver.key = syscall->exec.file.dentry_key;
     syscall->resolver.dentry = syscall->exec.dentry;
     syscall->resolver.discarder_type = 0;
-    syscall->resolver.callback = DR_NO_CALLBACK;
+    syscall->resolver.callback = PR_PROGKEY_CB_EXECUTABLE_KPROBE;
     syscall->resolver.iteration = 0;
     syscall->resolver.ret = 0;
 
-    resolve_dentry(ctx, DR_KPROBE_OR_FENTRY);
+    resolve_path(ctx, DR_KPROBE_OR_FENTRY);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_syscall(EVENT_EXEC);

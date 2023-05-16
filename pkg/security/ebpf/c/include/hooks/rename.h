@@ -5,6 +5,7 @@
 #include "helpers/approvers.h"
 #include "helpers/filesystem.h"
 #include "helpers/syscalls.h"
+#include "helpers/path_resolver.h"
 
 int __attribute__((always_inline)) trace__sys_rename(u8 async) {
     struct syscall_cache_t syscall = {
@@ -47,7 +48,7 @@ int hook_vfs_rename(ctx_t *ctx) {
     }
 
     // if second pass, ex: overlayfs, just cache the inode that will be used in ret
-    if (syscall->rename.target_file.path_key.ino) {
+    if (syscall->rename.target_file.dentry_key.ino) {
         return 0;
     }
 
@@ -78,12 +79,12 @@ int hook_vfs_rename(ctx_t *ctx) {
     set_file_inode(src_dentry, &syscall->rename.target_file, 1);
 
     // we generate a fake source key as the inode is (can be ?) reused
-    syscall->rename.src_file.path_key.ino = FAKE_INODE_MSW<<32 | bpf_get_prandom_u32();
+    syscall->rename.src_file.dentry_key.ino = FAKE_INODE_MSW<<32 | bpf_get_prandom_u32();
 
     // if destination already exists invalidate
     u64 inode = get_dentry_ino(target_dentry);
     if (inode) {
-        expire_inode_discarders(syscall->rename.target_file.path_key.mount_id, inode);
+        expire_inode_discarders(syscall->rename.target_file.dentry_key.mount_id, inode);
     }
 
     // always return after any invalidate_inode call
@@ -96,19 +97,30 @@ int hook_vfs_rename(ctx_t *ctx) {
         return mark_as_discarded(syscall);
     }
 
-    // the mount id of path_key is resolved by kprobe/mnt_want_write. It is already set by the time we reach this probe.
+    // the mount id of dentry_key is resolved by kprobe/mnt_want_write. It is already set by the time we reach this probe.
     syscall->resolver.dentry = syscall->rename.src_dentry;
-    syscall->resolver.key = syscall->rename.src_file.path_key;
+    syscall->resolver.key = syscall->rename.src_file.dentry_key;
     syscall->resolver.discarder_type = 0;
-    syscall->resolver.callback = DR_NO_CALLBACK;
+    syscall->resolver.callback = PR_PROGKEY_CB_RENAME_SRC;
     syscall->resolver.iteration = 0;
     syscall->resolver.ret = 0;
 
-    resolve_dentry(ctx, DR_KPROBE_OR_FENTRY);
+    resolve_path(ctx, DR_KPROBE_OR_FENTRY);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_syscall(EVENT_RENAME);
 
+    return 0;
+}
+
+SEC("kprobe/dr_rename_src_callback")
+int kprobe_dr_rename_src_callback(struct pt_regs *ctx) {
+    struct syscall_cache_t *syscall = peek_syscall(EVENT_RENAME);
+    if (!syscall) {
+        return 0;
+    }
+
+    fill_path_ring_buffer_ref(&syscall->rename.src_file.path_ref);
     return 0;
 }
 
@@ -126,34 +138,34 @@ int __attribute__((always_inline)) sys_rename_ret(void *ctx, int retval, int dr_
     u64 inode = get_dentry_ino(syscall->rename.src_dentry);
 
     // remove discarder inode from src dentry to handle ovl folder
-    if (syscall->rename.target_file.path_key.ino != inode && retval >= 0) {
-        expire_inode_discarders(syscall->rename.target_file.path_key.mount_id, inode);
+    if (syscall->rename.target_file.dentry_key.ino != inode && retval >= 0) {
+        expire_inode_discarders(syscall->rename.target_file.dentry_key.mount_id, inode);
     }
 
     int pass_to_userspace = !syscall->discarded && is_event_enabled(EVENT_RENAME);
 
     // invalid discarder + path_id
     if (retval >= 0) {
-        expire_inode_discarders(syscall->rename.target_file.path_key.mount_id, syscall->rename.target_file.path_key.ino);
+        expire_inode_discarders(syscall->rename.target_file.dentry_key.mount_id, syscall->rename.target_file.dentry_key.ino);
 
         if (S_ISDIR(syscall->rename.target_file.metadata.mode)) {
             // remove all discarders on the mount point as the rename could invalidate a child discarder in case of a
             // folder rename. For the inode the discarder is invalidated in the ret.
-            bump_mount_discarder_revision(syscall->rename.target_file.path_key.mount_id);
+            bump_mount_discarder_revision(syscall->rename.target_file.dentry_key.mount_id);
         }
     }
 
     if (pass_to_userspace) {
         // for centos7, use src dentry for target resolution as the pointers have been swapped
-        syscall->resolver.key = syscall->rename.target_file.path_key;
+        syscall->resolver.key = syscall->rename.target_file.dentry_key;
         syscall->resolver.dentry = syscall->rename.src_dentry;
         syscall->resolver.discarder_type = 0;
-        syscall->resolver.callback = select_dr_key(dr_type, DR_RENAME_CALLBACK_KPROBE_KEY, DR_RENAME_CALLBACK_TRACEPOINT_KEY);
+        syscall->resolver.callback = PR_PROGKEY_CB_RENAME_DST;
         syscall->resolver.iteration = 0;
         syscall->resolver.ret = 0;
         syscall->resolver.sysretval = retval;
 
-        resolve_dentry(ctx, dr_type);
+        resolve_path(ctx, dr_type);
     }
 
     // if the tail call failed we need to pop the syscall cache entry
@@ -209,6 +221,7 @@ int __attribute__((always_inline)) dr_rename_callback(void *ctx) {
     struct proc_cache_t *entry = fill_process_context(&event.process);
     fill_container_context(entry, &event.container);
     fill_span_context(&event.span);
+    fill_path_ring_buffer_ref(&event.new.path_ref);
 
     send_event(ctx, EVENT_RENAME, event);
 

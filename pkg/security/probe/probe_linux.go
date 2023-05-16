@@ -575,7 +575,7 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 
 		// TODO: this should be moved in the resolver itself in order to handle the fallbacks
 		if event.Mount.GetFSType() == "nsfs" {
-			nsid := uint32(event.Mount.RootPathKey.Inode)
+			nsid := uint32(event.Mount.RootDentryKey.Inode)
 			mountPath, err := p.resolvers.MountResolver.ResolveMountPath(event.Mount.MountID, event.PIDContext.Pid, event.ContainerContext.ID)
 			if err != nil {
 				seclog.Debugf("failed to get mount path: %v", err)
@@ -594,7 +594,7 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 		// we can skip this error as this is for the umount only and there is no impact on the filepath resolution
 		mount, _ := p.resolvers.MountResolver.ResolveMount(event.Umount.MountID, event.PIDContext.Pid, event.ContainerContext.ID)
 		if mount != nil && mount.GetFSType() == "nsfs" {
-			nsid := uint32(mount.RootPathKey.Inode)
+			nsid := uint32(mount.RootDentryKey.Inode)
 			if namespace := p.resolvers.NamespaceResolver.ResolveNetworkNamespace(nsid); namespace != nil {
 				p.FlushNetworkNamespace(namespace)
 			}
@@ -1324,9 +1324,11 @@ func (p *Probe) handleNewMount(ev *model.Event, m *model.Mount) error {
 		return err
 	}
 	// Resolve root
-	if err := p.resolvers.PathResolver.SetMountRoot(ev, m); err != nil {
-		seclog.Debugf("failed to set mount root: %v", err)
-		return err
+	if ev.Type != uint32(model.UnshareMountNsEventType) {
+		if err := p.resolvers.PathResolver.SetMountRoot(ev, m); err != nil {
+			seclog.Debugf("failed to set mount root: %v", err)
+			return err
+		}
 	}
 
 	// Insert new mount point in cache, passing it a copy of the mount that we got from the event
@@ -1435,7 +1437,7 @@ func NewProbe(config *config.Config, opts Opts) (*Probe, error) {
 	}
 
 	useRingBuffers := p.UseRingBuffers()
-	useMmapableMaps := p.kernelVersion.HaveMmapableMaps()
+	haveMmapableMaps := p.kernelVersion.HaveMmapableMaps()
 
 	p.Manager = ebpf.NewRuntimeSecurityManager(useRingBuffers, p.useFentry)
 
@@ -1451,7 +1453,7 @@ func NewProbe(config *config.Config, opts Opts) (*Probe, error) {
 	p.managerOptions.MapSpecEditors = probes.AllMapSpecEditors(numCPU, probes.MapSpecEditorOpts{
 		TracedCgroupSize:        p.Config.RuntimeSecurity.ActivityDumpTracedCgroupsCount,
 		UseRingBuffers:          useRingBuffers,
-		UseMmapableMaps:         useMmapableMaps,
+		UseMmapableMaps:         haveMmapableMaps,
 		RingBufferSize:          uint32(p.Config.Probe.EventStreamBufferSize),
 		PathResolutionEnabled:   p.Opts.PathResolutionEnabled,
 		SecurityProfileMaxCount: p.Config.RuntimeSecurity.SecurityProfileMaxCount,
@@ -1604,8 +1606,8 @@ func NewProbe(config *config.Config, opts Opts) (*Probe, error) {
 	}
 
 	// tail calls
-	p.managerOptions.TailCallRouter = probes.AllTailRoutes(p.Config.Probe.ERPCDentryResolutionEnabled, p.Config.Probe.NetworkEnabled, useMmapableMaps, p.useFentry)
-	if !p.Config.Probe.ERPCDentryResolutionEnabled || useMmapableMaps {
+	p.managerOptions.TailCallRouter = probes.AllTailRoutes(p.Config.Probe.ERPCDentryResolutionEnabled, p.Config.Probe.NetworkEnabled, haveMmapableMaps, p.useFentry)
+	if !p.Config.Probe.ERPCDentryResolutionEnabled || haveMmapableMaps {
 		// exclude the programs that use the bpf_probe_write_user helper
 		p.managerOptions.ExcludedFunctions = probes.AllBPFProbeWriteUserProgramFunctions()
 	}
@@ -1628,9 +1630,10 @@ func NewProbe(config *config.Config, opts Opts) (*Probe, error) {
 	p.scrubber.AddCustomSensitiveWords(config.Probe.CustomSensitiveWords)
 
 	resolversOpts := resolvers.ResolversOpts{
-		PathResolutionEnabled: opts.PathResolutionEnabled,
-		TagsResolver:          opts.TagsResolver,
-		UseRingBuffer:         useRingBuffers,
+		PathResolutionEnabled:          opts.PathResolutionEnabled,
+		TagsResolver:                   opts.TagsResolver,
+		UseRingBufferEventStream:       useRingBuffers,
+		UseMMapablePathRingsResolution: haveMmapableMaps,
 	}
 	p.resolvers, err = resolvers.NewResolvers(config, p.Manager, p.StatsdClient, p.scrubber, p.Erpc, resolversOpts)
 	if err != nil {

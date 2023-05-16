@@ -85,7 +85,7 @@ type Resolver struct {
 	limiter        *rate.Limiter
 	cgroupResolver *cgroup.Resolver
 
-	cache *lru.Cache[model.PathKey, *LRUCacheEntry]
+	cache *lru.Cache[model.DentryKey, *LRUCacheEntry]
 
 	// stats
 	hashCount    map[model.EventType]map[model.HashAlgorithm]*atomic.Uint64
@@ -103,10 +103,10 @@ func NewResolver(c *config.RuntimeSecurityConfig, statsdClient statsd.ClientInte
 		}, nil
 	}
 
-	var cache *lru.Cache[model.PathKey, *LRUCacheEntry]
+	var cache *lru.Cache[model.DentryKey, *LRUCacheEntry]
 	if c.HashResolverCacheSize > 0 {
 		var err error
-		cache, err = lru.New[model.PathKey, *LRUCacheEntry](c.HashResolverCacheSize)
+		cache, err = lru.New[model.DentryKey, *LRUCacheEntry](c.HashResolverCacheSize)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't create hash resolver cache: %w", err)
 		}
@@ -208,7 +208,7 @@ func (resolver *Resolver) hash(eventType model.EventType, process *model.Process
 
 	// check if the hash(es) of this file is in cache
 	if resolver.cache != nil {
-		cacheEntry, ok := resolver.cache.Get(file.PathKey)
+		cacheEntry, ok := resolver.cache.Get(file.DentryKey)
 		if ok {
 			file.HashState = cacheEntry.state
 			file.Hashes = cacheEntry.hashes
@@ -305,7 +305,7 @@ func (resolver *Resolver) hash(eventType model.EventType, process *model.Process
 			hashes: make([]string, len(file.Hashes)),
 		}
 		copy(cacheEntry.hashes, file.Hashes)
-		resolver.cache.Add(file.PathKey, cacheEntry)
+		resolver.cache.Add(file.DentryKey, cacheEntry)
 	}
 	return nil
 }

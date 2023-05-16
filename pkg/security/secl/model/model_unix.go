@@ -363,8 +363,9 @@ type FileFields struct {
 	CTime uint64 `field:"change_time"`                                                 // SECLDoc[change_time] Definition:`Change time of the file`
 	MTime uint64 `field:"modification_time"`                                           // SECLDoc[modification_time] Definition:`Modification time of the file`
 
-	PathKey
-	InUpperLayer bool `field:"in_upper_layer,handler:ResolveFileFieldsInUpperLayer"` // SECLDoc[in_upper_layer] Definition:`Indicator of the file layer, for example, in an OverlayFS`
+	DentryKey
+	PathRef      PathRingBufferRef `field:"-" json:"-"`
+	InUpperLayer bool              `field:"in_upper_layer,handler:ResolveFileFieldsInUpperLayer"` // SECLDoc[in_upper_layer] Definition:`Indicator of the file layer, for example, in an OverlayFS`
 
 	NLink uint32 `field:"-" json:"-"`
 	Flags int32  `field:"-" json:"-"`
@@ -480,15 +481,27 @@ type ArgsEnvsEvent struct {
 
 // Mount represents a mountpoint (used by MountEvent and UnshareMountNSEvent)
 type Mount struct {
-	MountID        uint32  `field:"-"`
-	Device         uint32  `field:"-"`
-	ParentPathKey  PathKey `field:"-"`
-	RootPathKey    PathKey `field:"-"`
-	BindSrcMountID uint32  `field:"-"`
-	FSType         string  `field:"fs_type"` // SECLDoc[fs_type] Definition:`Type of the mounted file system`
-	MountPointStr  string  `field:"-"`
-	RootStr        string  `field:"-"`
-	Path           string  `field:"-"`
+	MountID           uint32 `field:"-"`
+	Device            uint32 `field:"-"`
+	MountPointPathRef PathRingBufferRef
+	RootStrPathRef    PathRingBufferRef
+	ParentDentryKey   DentryKey `field:"-"`
+	RootDentryKey     DentryKey `field:"-"`
+	BindSrcMountID    uint32    `field:"-"`
+	FSType            string    `field:"fs_type"` // SECLDoc[fs_type] Definition:`Type of the mounted file system`
+	MountPointStr     string    `field:"-"`
+	RootStr           string    `field:"-"`
+	Path              string    `field:"-"`
+}
+
+// GetFSType returns the filesystem type of the mountpoint
+func (m *Mount) GetFSType() string {
+	return m.FSType
+}
+
+// IsOverlayFS returns whether it is an overlay fs
+func (m *Mount) IsOverlayFS() bool {
+	return m.GetFSType() == "overlay"
 }
 
 // MountEvent represents a mount event
@@ -506,16 +519,6 @@ type MountEvent struct {
 // UnshareMountNSEvent represents a mount cloned from a newly created mount namespace
 type UnshareMountNSEvent struct {
 	Mount
-}
-
-// GetFSType returns the filesystem type of the mountpoint
-func (m *Mount) GetFSType() string {
-	return m.FSType
-}
-
-// IsOverlayFS returns whether it is an overlay fs
-func (m *Mount) IsOverlayFS() bool {
-	return m.GetFSType() == "overlay"
 }
 
 // OpenEvent represents an open event
@@ -811,68 +814,19 @@ type AnomalyDetectionSyscallEvent struct {
 	SyscallID Syscall
 }
 
-// PathKey identifies an entry in the dentry cache
-type PathKey struct {
+type PathRingBufferRef struct {
+	Watermark  uint64 `field:"-"`
+	ReadCursor uint32 `field:"-"`
+	Length     uint32 `field:"-"`
+	CPU        uint32 `field:"-"`
+}
+
+type DentryKey struct {
 	Inode   uint64 `field:"inode"`    // SECLDoc[inode] Definition:`Inode of the file`
 	MountID uint32 `field:"mount_id"` // SECLDoc[mount_id] Definition:`Mount ID of the file`
 	PathID  uint32 `field:"-"`
 }
 
-func (p *PathKey) Write(buffer []byte) {
-	ByteOrder.PutUint64(buffer[0:8], p.Inode)
-	ByteOrder.PutUint32(buffer[8:12], p.MountID)
-	ByteOrder.PutUint32(buffer[12:16], p.PathID)
-}
-
-// IsNull returns true if a key is invalid
-func (p *PathKey) IsNull() bool {
-	return p.Inode == 0 && p.MountID == 0
-}
-
-func (p *PathKey) String() string {
-	return fmt.Sprintf("%x/%x", p.MountID, p.Inode)
-}
-
-// MarshalBinary returns the binary representation of a path key
-func (p *PathKey) MarshalBinary() ([]byte, error) {
-	if p.IsNull() {
-		return nil, &ErrInvalidKeyPath{Inode: p.Inode, MountID: p.MountID}
-	}
-
-	buff := make([]byte, 16)
-	p.Write(buff)
-
-	return buff, nil
-}
-
-// PathLeafSize defines path_leaf struct size
-const PathLeafSize = PathKeySize + MaxSegmentLength + 1 + 2 + 6 // path_key + name + len + padding
-
-// PathLeaf is the go representation of the eBPF path_leaf_t structure
-type PathLeaf struct {
-	Parent PathKey
-	Name   [MaxSegmentLength + 1]byte
-	Len    uint16
-}
-
-// GetName returns the path value as a string
-func (pl *PathLeaf) GetName() string {
-	return NullTerminatedString(pl.Name[:])
-}
-
-// GetName returns the path value as a string
-func (pl *PathLeaf) SetName(name string) {
-	copy(pl.Name[:], []byte(name))
-	pl.Len = uint16(len(name) + 1)
-}
-
-// MarshalBinary returns the binary representation of a path key
-func (pl *PathLeaf) MarshalBinary() ([]byte, error) {
-	buff := make([]byte, PathLeafSize)
-
-	pl.Parent.Write(buff)
-	copy(buff[16:], pl.Name[:])
-	ByteOrder.PutUint16(buff[16+len(pl.Name):], pl.Len)
-
-	return buff, nil
+type DentryLeaf struct {
+	Parent DentryKey
 }

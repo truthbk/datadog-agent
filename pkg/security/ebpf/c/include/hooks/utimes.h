@@ -4,6 +4,7 @@
 #include "constants/syscall_macro.h"
 #include "helpers/discarders.h"
 #include "helpers/syscalls.h"
+#include "helpers/path_resolver.h"
 
 int __attribute__((always_inline)) trace__sys_utimes() {
     struct policy_t policy = fetch_policy(EVENT_UTIME);

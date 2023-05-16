@@ -45,7 +45,7 @@ func newMountFromMountInfo(mnt *mountinfo.Info) *model.Mount {
 	return &model.Mount{
 		MountID: uint32(mnt.ID),
 		Device:  uint32(unix.Mkdev(uint32(mnt.Major), uint32(mnt.Minor))),
-		ParentPathKey: model.PathKey{
+		ParentDentryKey: model.DentryKey{
 			MountID: uint32(mnt.Parent),
 		},
 		FSType:        mnt.FSType,
@@ -160,7 +160,7 @@ func (mr *Resolver) finalize(first *model.Mount) {
 
 		// finalize children
 		for _, child := range mr.mounts {
-			if child.ParentPathKey.MountID == curr.MountID {
+			if child.ParentDentryKey.MountID == curr.MountID {
 				openQueue = append(openQueue, child)
 			}
 		}
@@ -300,11 +300,11 @@ func (mr *Resolver) _getMountPath(mountID uint32, cache map[uint32]bool) (string
 	}
 	cache[mountID] = true
 
-	if mount.ParentPathKey.MountID == 0 {
+	if mount.ParentDentryKey.MountID == 0 {
 		return "", ErrMountUndefined
 	}
 
-	parentMountPath, err := mr._getMountPath(mount.ParentPathKey.MountID, cache)
+	parentMountPath, err := mr._getMountPath(mount.ParentDentryKey.MountID, cache)
 	if err != nil {
 		return "", err
 	}

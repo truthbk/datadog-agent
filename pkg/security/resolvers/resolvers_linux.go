@@ -16,6 +16,7 @@ import (
 
 	"github.com/DataDog/datadog-go/v5/statsd"
 	manager "github.com/DataDog/ebpf-manager"
+	"github.com/hashicorp/go-multierror"
 
 	"github.com/DataDog/datadog-agent/pkg/process/procutil"
 	"github.com/DataDog/datadog-agent/pkg/security/config"
@@ -41,9 +42,10 @@ import (
 
 // ResolversOpts defines common options
 type ResolversOpts struct {
-	PathResolutionEnabled bool
-	TagsResolver          tags.Resolver
-	UseRingBuffer         bool
+	PathResolutionEnabled          bool
+	TagsResolver                   tags.Resolver
+	UseRingBufferEventStream       bool
+	UseMMapablePathRingsResolution bool
 }
 
 // Resolvers holds the list of the event attribute resolvers
@@ -122,7 +124,12 @@ func NewResolvers(config *config.Config, manager *manager.Manager, statsdClient 
 
 	var pathResolver path.ResolverInterface
 	if opts.PathResolutionEnabled {
-		pathResolver = path.NewResolver(dentryResolver, mountResolver)
+		pathResolverOpts := path.ResolverOpts{
+			UseCache:       false,
+			UseRingBuffers: opts.UseMMapablePathRingsResolution,
+			UseERPC:        !opts.UseMMapablePathRingsResolution,
+		}
+		pathResolver = path.NewPathRingsResolver(pathResolverOpts, mountResolver, eRPC, statsdClient)
 	} else {
 		pathResolver = &path.NoResolver{}
 	}
@@ -172,6 +179,10 @@ func (r *Resolvers) Start(ctx context.Context) error {
 	}
 
 	if err := r.DentryResolver.Start(r.manager); err != nil {
+		return err
+	}
+
+	if err := r.PathResolver.Start(r.manager); err != nil {
 		return err
 	}
 
@@ -265,6 +276,14 @@ func (r *Resolvers) snapshot() error {
 
 // Close cleans up any underlying resolver that requires a cleanup
 func (r *Resolvers) Close() error {
-	// clean up the dentry resolver eRPC segment
-	return r.DentryResolver.Close()
+	var errs *multierror.Error
+	if err := r.DentryResolver.Close(); err != nil {
+		// clean up the dentry resolver eRPC segment
+		errs = multierror.Append(err, errs)
+	}
+	if err := r.PathResolver.Close(); err != nil {
+		// clean up the path resolver eRPC segment
+		errs = multierror.Append(err, errs)
+	}
+	return errs
 }

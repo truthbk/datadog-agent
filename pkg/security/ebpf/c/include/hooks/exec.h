@@ -63,14 +63,47 @@ int __attribute__((always_inline)) handle_interpreted_exec_event(void *ctx, stru
     syscall->resolver.key = syscall->exec.linux_binprm.interpreter;
     syscall->resolver.dentry = get_file_dentry(file);
     syscall->resolver.discarder_type = 0;
-    syscall->resolver.callback = DR_NO_CALLBACK;
+    syscall->resolver.callback = PR_PROGKEY_CB_INTERPRETER_KPROBE;
     syscall->resolver.iteration = 0;
     syscall->resolver.ret = 0;
 
-    resolve_dentry(ctx, DR_KPROBE_OR_FENTRY);
+    resolve_path(ctx, DR_KPROBE_OR_FENTRY);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_current_or_impersonated_exec_syscall();
+    
+    return 0;
+}
+
+SEC("kprobe/handle_executable_path_cb")
+int kprobe_handle_executable_path_cb(struct pt_regs *ctx) {
+    struct syscall_cache_t *syscall = peek_syscall(EVENT_EXEC);
+    if (!syscall) {
+        return 0;
+    }
+
+    u32 zero = 0;
+    struct pr_ring_buffer_ctx *ringbuf_ctx = bpf_map_lookup_elem(&pr_ringbuf_ctx, &zero);
+    if (!ringbuf_ctx) {
+        return 0;
+    }
+
+    syscall->exec.file.path_ref.read_cursor = ringbuf_ctx->read_cursor;
+    syscall->exec.file.path_ref.watermark = ringbuf_ctx->watermark;
+    syscall->exec.file.path_ref.len = ringbuf_ctx->len;
+    syscall->exec.file.path_ref.cpu = ringbuf_ctx->cpu;
+
+    return 0;
+}
+
+SEC("kprobe/handle_interpreter_path_cb")
+int kprobe_handle_interpreter_path_cb(struct pt_regs *ctx) {
+    struct syscall_cache_t *syscall = peek_syscall(EVENT_EXEC);
+    if (!syscall) {
+        return 0;
+    }
+
+    fill_path_ring_buffer_ref(&syscall->exec.linux_binprm.path_ref);
 
     return 0;
 }
@@ -613,12 +646,18 @@ int __attribute__((always_inline)) send_exec_event(ctx_t *ctx) {
     struct proc_cache_t pc = {
         .entry = {
             .executable = {
-                .path_key = {
-                    .ino = syscall->exec.file.path_key.ino,
-                    .mount_id = syscall->exec.file.path_key.mount_id,
-                    .path_id = syscall->exec.file.path_key.path_id,
+                .dentry_key = {
+                    .ino = syscall->exec.file.dentry_key.ino,
+                    .mount_id = syscall->exec.file.dentry_key.mount_id,
+                    .path_id = syscall->exec.file.dentry_key.path_id,
                 },
-                .flags = syscall->exec.file.flags
+                .flags = syscall->exec.file.flags,
+                .path_ref = {
+                    .read_cursor = syscall->exec.file.path_ref.read_cursor,
+                    .watermark = syscall->exec.file.path_ref.watermark,
+                    .len = syscall->exec.file.path_ref.len,
+                    .cpu = syscall->exec.file.path_ref.cpu,
+                },
             },
             .exec_timestamp = bpf_ktime_get_ns(),
         },
@@ -684,6 +723,7 @@ int __attribute__((always_inline)) send_exec_event(ctx_t *ctx) {
 
     // add interpreter path info
     event->linux_binprm.interpreter = syscall->exec.linux_binprm.interpreter;
+    event->linux_binprm.path_ref = syscall->exec.linux_binprm.path_ref;
 
     // send the entry to maintain userspace cache
     send_event_ptr(ctx, EVENT_EXEC, event);

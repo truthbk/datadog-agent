@@ -113,7 +113,7 @@ func AllMaps() []*manager.Map {
 		{Name: "inode_disc_revisions"},
 		{Name: "basename_approvers"},
 		// Dentry resolver table
-		{Name: "pathnames"},
+		{Name: "dentries"},
 		// Snapshot table
 		{Name: "exec_file_cache"},
 		// Open tables
@@ -188,7 +188,7 @@ func AllMapSpecEditors(numCPU int, opts MapSpecEditorOpts) map[string]manager.Ma
 	}
 
 	if opts.PathResolutionEnabled {
-		editors["pathnames"] = manager.MapSpecEditor{
+		editors["dentries"] = manager.MapSpecEditor{
 			MaxEntries: getMaxEntries(numCPU, minPathnamesEntries, maxPathnamesEntries),
 			EditorFlag: manager.EditMaxEntries,
 		}
@@ -217,6 +217,17 @@ func AllMapSpecEditors(numCPU int, opts MapSpecEditorOpts) map[string]manager.Ma
 			EditorFlag: manager.EditMaxEntries | manager.EditType | manager.EditKeyValue,
 		}
 	}
+
+	pathRingBufsSpecs := manager.MapSpecEditor{
+		MaxEntries: uint32(numCPU),
+		EditorFlag: manager.EditMaxEntries,
+	}
+	if opts.UseMmapableMaps {
+		pathRingBufsSpecs.Flags = unix.BPF_F_MMAPABLE
+		pathRingBufsSpecs.EditorFlag |= manager.EditFlags
+	}
+	editors["pr_ringbufs"] = pathRingBufsSpecs
+
 	return editors
 }
 
@@ -244,6 +255,7 @@ func AllTailRoutes(ERPCDentryResolutionEnabled, networkEnabled, supportMmapableM
 
 	routes = append(routes, getExecTailCallRoutes()...)
 	routes = append(routes, getDentryResolverTailCallRoutes(ERPCDentryResolutionEnabled, supportMmapableMaps, fentry)...)
+	routes = append(routes, getPathResolverTailCallRoutes(ERPCDentryResolutionEnabled, supportMmapableMaps)...)
 	routes = append(routes, getSysExitTailCallRoutes()...)
 	if networkEnabled {
 		routes = append(routes, getTCTailCallRoutes()...)
@@ -255,12 +267,10 @@ func AllTailRoutes(ERPCDentryResolutionEnabled, networkEnabled, supportMmapableM
 // AllBPFProbeWriteUserProgramFunctions returns the list of program functions that use the bpf_probe_write_user helper
 func AllBPFProbeWriteUserProgramFunctions() []string {
 	return []string{
-		"kprobe_dentry_resolver_erpc_write_user",
 		"kprobe_dentry_resolver_parent_erpc_write_user",
-		"kprobe_dentry_resolver_segment_erpc_write_user",
-		"fentry_dentry_resolver_erpc_write_user",
 		"fentry_dentry_resolver_parent_erpc_write_user",
-		"fentry_dentry_resolver_segment_erpc_write_user",
+		"kprobe_erpc_resolve_path_watermark_reader",
+		"kprobe_erpc_resolve_path_segment_reader",
 	}
 }
 

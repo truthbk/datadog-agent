@@ -6,6 +6,7 @@
 #include "helpers/discarders.h"
 #include "helpers/filesystem.h"
 #include "helpers/syscalls.h"
+#include "helpers/path_resolver.h"
 
 long __attribute__((always_inline)) trace__sys_mkdir(u8 async, umode_t mode) {
     struct policy_t policy = fetch_policy(EVENT_MKDIR);
@@ -56,7 +57,7 @@ int hook_vfs_mkdir(ctx_t *ctx) {
         syscall->mkdir.dentry = (struct dentry *) CTX_PARM3(ctx);
     }
 
-    syscall->mkdir.file.path_key.mount_id = get_path_mount_id(syscall->mkdir.path);
+    syscall->mkdir.file.dentry_key.mount_id = get_path_mount_id(syscall->mkdir.path);
 
     if (filter_syscall(syscall, mkdir_approvers)) {
         return discard_syscall(syscall);
@@ -78,15 +79,15 @@ int __attribute__((always_inline)) sys_mkdir_ret(void *ctx, int retval, int dr_t
     // the inode of the dentry was not properly set when kprobe/security_path_mkdir was called, make sure we grab it now
     set_file_inode(syscall->mkdir.dentry, &syscall->mkdir.file, 0);
 
-    syscall->resolver.key = syscall->mkdir.file.path_key;
+    syscall->resolver.key = syscall->mkdir.file.dentry_key;
     syscall->resolver.dentry = syscall->mkdir.dentry;
     syscall->resolver.discarder_type = syscall->policy.mode != NO_FILTER ? EVENT_MKDIR : 0;
-    syscall->resolver.callback = select_dr_key(dr_type, DR_MKDIR_CALLBACK_KPROBE_KEY, DR_MKDIR_CALLBACK_TRACEPOINT_KEY);
+    syscall->resolver.callback = PR_PROGKEY_CB_MKDIR;
     syscall->resolver.iteration = 0;
     syscall->resolver.ret = 0;
     syscall->resolver.sysretval = retval;
 
-    resolve_dentry(ctx, dr_type);
+    resolve_path(ctx, dr_type);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_syscall(EVENT_MKDIR);
@@ -148,6 +149,7 @@ int __attribute__((always_inline)) dr_mkdir_callback(void *ctx) {
         .mode = syscall->mkdir.mode,
     };
 
+    fill_path_ring_buffer_ref(&event.file.path_ref);
     fill_file_metadata(syscall->mkdir.dentry, &event.file.metadata);
     struct proc_cache_t *entry = fill_process_context(&event.process);
     fill_container_context(entry, &event.container);

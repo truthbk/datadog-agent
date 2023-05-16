@@ -6,6 +6,7 @@
 #include "helpers/events_predicates.h"
 #include "helpers/filesystem.h"
 #include "helpers/syscalls.h"
+#include "helpers/path_resolver.h"
 
 int __attribute__((always_inline)) trace__sys_rmdir(u8 async, int flags) {
     struct syscall_cache_t syscall = {
@@ -40,12 +41,12 @@ int hook_security_inode_rmdir(ctx_t *ctx) {
         return 0;
     }
 
-    struct path_key_t key = {};
+    struct dentry_key_t key = {};
     struct dentry *dentry = NULL;
 
     switch (syscall->type) {
         case EVENT_RMDIR:
-            if (syscall->rmdir.file.path_key.ino) {
+            if (syscall->rmdir.file.dentry_key.ino) {
                 return 0;
             }
 
@@ -54,8 +55,8 @@ int hook_security_inode_rmdir(ctx_t *ctx) {
             set_file_inode(dentry, &syscall->rmdir.file, 1);
             fill_file_metadata(dentry, &syscall->rmdir.file.metadata);
 
-            // the mount id of path_key is resolved by kprobe/mnt_want_write. It is already set by the time we reach this probe.
-            key = syscall->rmdir.file.path_key;
+            // the mount id of dentry_key is resolved by kprobe/mnt_want_write. It is already set by the time we reach this probe.
+            key = syscall->rmdir.file.dentry_key;
 
             syscall->rmdir.dentry = dentry;
             if (filter_syscall(syscall, rmdir_approvers)) {
@@ -64,7 +65,7 @@ int hook_security_inode_rmdir(ctx_t *ctx) {
 
             break;
         case EVENT_UNLINK:
-            if (syscall->unlink.file.path_key.ino) {
+            if (syscall->unlink.file.dentry_key.ino) {
                 return 0;
             }
 
@@ -73,8 +74,8 @@ int hook_security_inode_rmdir(ctx_t *ctx) {
             set_file_inode(dentry, &syscall->unlink.file, 1);
             fill_file_metadata(dentry, &syscall->unlink.file.metadata);
 
-            // the mount id of path_key is resolved by kprobe/mnt_want_write. It is already set by the time we reach this probe.
-            key = syscall->unlink.file.path_key;
+            // the mount id of dentry_key is resolved by kprobe/mnt_want_write. It is already set by the time we reach this probe.
+            key = syscall->unlink.file.dentry_key;
 
             syscall->unlink.dentry = dentry;
             syscall->policy = fetch_policy(EVENT_RMDIR);
@@ -95,11 +96,11 @@ int hook_security_inode_rmdir(ctx_t *ctx) {
         syscall->resolver.key = key;
         syscall->resolver.dentry = dentry;
         syscall->resolver.discarder_type = syscall->policy.mode != NO_FILTER ? syscall->type : 0;
-        syscall->resolver.callback = DR_SECURITY_INODE_RMDIR_CALLBACK_KPROBE_KEY;
+        syscall->resolver.callback = PR_PROGKEY_CB_RMDIR;
         syscall->resolver.iteration = 0;
         syscall->resolver.ret = 0;
 
-        resolve_dentry(ctx, DR_KPROBE_OR_FENTRY);
+        resolve_path(ctx, DR_KPROBE_OR_FENTRY);
 
         // if the tail call fails, we need to pop the syscall cache entry
         pop_syscall_with(rmdir_predicate);
@@ -118,6 +119,18 @@ int kprobe_dr_security_inode_rmdir_callback(struct pt_regs *ctx) {
         monitor_discarded(EVENT_RMDIR);
         return mark_as_discarded(syscall);
     }
+
+    switch (syscall->type) {
+        case EVENT_RMDIR:
+            fill_path_ring_buffer_ref(&syscall->rmdir.file.path_ref);
+            break;
+        case EVENT_UNLINK:
+            fill_path_ring_buffer_ref(&syscall->unlink.file.path_ref);
+            break;
+        default:
+            break;
+    }
+
     return 0;
 }
 
@@ -165,7 +178,7 @@ int __attribute__((always_inline)) sys_rmdir_ret(void *ctx, int retval) {
     }
 
     if (retval >= 0) {
-        expire_inode_discarders(syscall->rmdir.file.path_key.mount_id, syscall->rmdir.file.path_key.ino);
+        expire_inode_discarders(syscall->rmdir.file.dentry_key.mount_id, syscall->rmdir.file.dentry_key.ino);
     }
 
     return 0;

@@ -13,58 +13,12 @@ const (
 )
 
 const (
-	// DentryResolverKernKey is the key to the kernel dentry resolver tail call program
-	DentryResolverKernKey uint32 = iota
-	// ActivityDumpFilterKey is the key to the kernel activity dump filter tail call program
-	ActivityDumpFilterKey
-	// DentryResolverERPCKey is the key to the eRPC dentry resolver tail call program
-	DentryResolverERPCKey
-	// DentryResolverParentERPCKey is the key to the eRPC dentry parent resolver tail call program
-	DentryResolverParentERPCKey
-	// DentryResolverSegmentERPCKey is the key to the eRPC dentry segment resolver tail call program
-	DentryResolverSegmentERPCKey
-)
-
-const (
-	// DentryResolverOpenCallbackKprobeKey is the key to the callback program to execute after resolving the dentry of an open event
-	DentryResolverOpenCallbackKprobeKey uint32 = iota + 1
-	// DentryResolverSetAttrCallbackKprobeKey is the key to the callback program to execute after resolving the dentry of an setattr event
-	DentryResolverSetAttrCallbackKprobeKey
-	// DentryResolverMkdirCallbackKprobeKey is the key to the callback program to execute after resolving the dentry of an mkdir event
-	DentryResolverMkdirCallbackKprobeKey
-	// DentryResolverMountCallbackKprobeKey is the key to the callback program to execute after resolving the dentry of an mount event
-	DentryResolverMountCallbackKprobeKey
-	// DentryResolverSecurityInodeRmdirCallbackKprobeKey is the key to the callback program to execute after resolving the dentry of an rmdir or unlink event
-	DentryResolverSecurityInodeRmdirCallbackKprobeKey
-	// DentryResolverSetXAttrCallbackKprobeKey is the key to the callback program to execute after resolving the dentry of an setxattr event
-	DentryResolverSetXAttrCallbackKprobeKey
-	// DentryResolverUnlinkCallbackKprobeKey is the key to the callback program to execute after resolving the dentry of an unlink event
-	DentryResolverUnlinkCallbackKprobeKey
-	// DentryResolverLinkSrcCallbackKprobeKey is the key to the callback program to execute after resolving the source dentry of a link event
-	DentryResolverLinkSrcCallbackKprobeKey
-	// DentryResolverLinkDstCallbackKprobeKey is the key to the callback program to execute after resolving the destination dentry of a link event
-	DentryResolverLinkDstCallbackKprobeKey
-	// DentryResolverRenameCallbackKprobeKey is the key to the callback program to execute after resolving the destination dentry of a rename event
-	DentryResolverRenameCallbackKprobeKey
-	// DentryResolverSELinuxCallbackKprobeKey is the key to the callback program to execute after resolving the destination dentry of a selinux event
-	DentryResolverSELinuxCallbackKprobeKey
-	// DentryResolverUnshareMntNSStageOneCallbackKprobeKey is the key to the callback program to execute after resolving the dentry of a cloned mount when a new mount namespace is created using unshare
-	DentryResolverUnshareMntNSStageOneCallbackKprobeKey
-	// DentryResolverUnshareMntNSStageTwoCallbackKprobeKey is the key to the callback program to execute after resolving the dentry of a cloned mount mountpoint when a new mount namespace is created using unshare
-	DentryResolverUnshareMntNSStageTwoCallbackKprobeKey
-)
-
-const (
-	// DentryResolverOpenCallbackTracepointKey is the key to the callback program to execute after resolving the dentry of an open event
-	DentryResolverOpenCallbackTracepointKey uint32 = iota + 1
-	// DentryResolverMkdirCallbackTracepointKey is the key to the callback program to execute after resolving the dentry of an mkdir event
-	DentryResolverMkdirCallbackTracepointKey
-	// DentryResolverMountCallbackTracepointKey is the key to the callback program to execute after resolving the dentry of an mount event
-	DentryResolverMountCallbackTracepointKey
-	// DentryResolverLinkDstCallbackTracepointKey is the key to the callback program to execute after resolving the destination dentry of a link event
-	DentryResolverLinkDstCallbackTracepointKey
-	// DentryResolverRenameCallbackTracepointKey is the key to the callback program to execute after resolving the destination dentry of a rename event
-	DentryResolverRenameCallbackTracepointKey
+	// ERPCResolveParentDentryKey is the key to the eRPC dentry parent resolver tail call program
+	ERPCResolveParentDentryKey uint32 = iota
+	// ERPCResolvePathWatermarkReaderKey is the key to the eRPC path watermark reader tail call program
+	ERPCResolvePathWatermarkReaderKey
+	// ERPCResolvePathSegmentkReaderKey is the key to the eRPC path segment reader tail call program
+	ERPCResolvePathSegmentkReaderKey
 )
 
 const (

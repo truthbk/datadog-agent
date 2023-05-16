@@ -4,6 +4,7 @@
 #include "constants/syscall_macro.h"
 #include "helpers/filesystem.h"
 #include "helpers/syscalls.h"
+#include "helpers/path_resolver.h"
 
 int __attribute__((always_inline)) trace_init_module(u32 loaded_from_memory) {
     struct policy_t policy = fetch_policy(EVENT_INIT_MODULE);
@@ -38,16 +39,17 @@ int __attribute__((always_inline)) trace_kernel_file(ctx_t *ctx, struct file *f,
 
     syscall->init_module.dentry = get_file_dentry(f);
     set_file_inode(syscall->init_module.dentry, &syscall->init_module.file, 0);
-    syscall->init_module.file.path_key.mount_id = get_file_mount_id(f);
+    syscall->init_module.file.dentry_key.mount_id = get_file_mount_id(f);
 
-    syscall->resolver.key = syscall->init_module.file.path_key;
+    syscall->resolver.key = syscall->init_module.file.dentry_key;
     syscall->resolver.dentry = syscall->init_module.dentry;
     syscall->resolver.discarder_type = syscall->policy.mode != NO_FILTER ? EVENT_INIT_MODULE : 0;
+    syscall->resolver.callback = PR_PROGKEY_CB_INITMODULE;
     syscall->resolver.iteration = 0;
     syscall->resolver.callback = DR_NO_CALLBACK;
     syscall->resolver.ret = 0;
 
-    resolve_dentry(ctx, dr_type);
+    resolve_path(ctx, dr_type);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_syscall(EVENT_INIT_MODULE);
@@ -55,7 +57,18 @@ int __attribute__((always_inline)) trace_kernel_file(ctx_t *ctx, struct file *f,
     return 0;
 }
 
-// fentry blocked by: parse args special bug
+SEC("kprobe/trace_kernel_file_cb")
+int kprobe_trace_kernel_file_cb(struct pt_regs *ctx) {
+    struct syscall_cache_t *syscall = peek_syscall(EVENT_INIT_MODULE);
+    if (!syscall) {
+        return 0;
+    }
+
+    fill_path_ring_buffer_ref(&syscall->init_module.file.path_ref);
+
+    return 0;
+}
+
 SEC("kprobe/parse_args")
 int kprobe_parse_args(struct pt_regs *ctx) {
     struct syscall_cache_t *syscall = peek_syscall(EVENT_INIT_MODULE);

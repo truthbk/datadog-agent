@@ -48,12 +48,10 @@ enum MONITOR_KEYS {
 #define DR_FENTRY     2
 #define DR_TRACEPOINT 3
 
-enum DENTRY_RESOLVER_KEYS {
-    DR_DENTRY_RESOLVER_KERN_KEY,
-    DR_AD_FILTER_KEY,
-    DR_ERPC_KEY,
-    DR_ERPC_PARENT_KEY,
-    DR_ERPC_SEGMENT_KEY,
+enum ERPC_PROG_KEYS {
+    ERPC_RESOLVE_PARENT_DENTRY_KEY,
+    ERPC_RESOLVE_PATH_WATERMARK_READER_KEY,
+    ERPC_RESOLVE_PATH_SEGMENT_READER_KEY,
 };
 
 #define DR_ERPC_BUFFER_LENGTH 8*4096
@@ -67,6 +65,25 @@ enum DENTRY_ERPC_RESOLUTION_CODE {
     DR_ERPC_READ_PAGE_FAULT,
     DR_ERPC_UNKNOWN_ERROR,
 };
+
+#define PR_PROGKEY_ENTRYPOINT               0 // same key for both kprobe and tracepoint
+#define PR_PROGKEY_LOOP                     1 // same key for both kprobe and tracepoint
+#define PR_PROGKEY_CB_OPEN                  2 // same key for both kprobe and tracepoint
+#define PR_PROGKEY_CB_MKDIR                 3 // same key for both kprobe and tracepoint
+#define PR_PROGKEY_CB_MOUNT                 4 // same key for both kprobe and tracepoint
+#define PR_PROGKEY_CB_LINK_DST              5 // same key for both kprobe and tracepoint
+#define PR_PROGKEY_CB_RENAME_DST            6 // same key for both kprobe and tracepoint
+#define PR_PROGKEY_CB_EXECUTABLE_KPROBE     7
+#define PR_PROGKEY_CB_INTERPRETER_KPROBE    8
+#define PR_PROGKEY_CB_LINK_SRC_KPROBE       9
+#define PR_PROGKEY_CB_RENAME_SRC            10
+#define PR_PROGKEY_CB_RMDIR                 11 // used by rmdir/unlink event types
+#define PR_PROGKEY_CB_SELINUX               12
+#define PR_PROGKEY_CB_SETATTR               13 // used by chmod/chown/utimes event types
+#define PR_PROGKEY_CB_SETXATTR              14 // used by setxattr/removexattr event types
+#define PR_PROGKEY_CB_UNLINK                15
+#define PR_PROGKEY_CB_UNSHARE_MNTNS_KPROBE  16
+#define PR_PROGKEY_CB_INITMODULE            17
 
 #define DNS_MAX_LENGTH 256
 #define DNS_EVENT_KEY 0
