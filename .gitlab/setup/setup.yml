@@ -8,3 +8,63 @@ setup_agent_version:
     - inv -e agent.version --version-cached
     - $S3_CP_CMD $CI_PROJECT_DIR/agent-version.cache $S3_ARTIFACTS_URI/agent-version.cache
 
+
+tests_k8s_amazonlinux_custom_arm64:
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_arm64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
+  stage: setup
+  tags: ["arch:arm64"]
+  needs: []
+  script:
+    - cat /etc/mtab || true
+    - cat /etc/fstab || true
+    - df -l -k || true
+
+tests_k8s_amazonlinux_arm64:
+  image: registry.ddbuild.io/images/mirror/amazonlinux:2
+  stage: setup
+  tags: ["arch:arm64"]
+  needs: []
+  script:
+    - cat /etc/mtab || true
+    - cat /etc/fstab || true
+    - df -l -k || true
+
+tests_k8s_amazonlinux_amd64:
+  image: registry.ddbuild.io/images/mirror/amazonlinux:2
+  stage: setup
+  tags: ["arch:amd64"]
+  needs: []
+  script:
+    - cat /etc/mtab || true
+    - cat /etc/fstab || true
+    - df -l -k || true
+
+tests_k8s_centos_x64:
+  image: registry.ddbuild.io/images/mirror/centos:centos7
+  stage: setup
+  tags: ["arch:amd64"]
+  needs: []
+  script:
+    - cat /etc/mtab || true
+    - cat /etc/fstab || true
+    - df -l -k || true
+
+tests_k8s_ubuntu_arm64:
+  image: registry.ddbuild.io/images/mirror/ubuntu:16.04
+  stage: setup
+  tags: ["arch:arm64"]
+  needs: []
+  script:
+    - cat /etc/mtab || true
+    - cat /etc/fstab || true
+    - df -l -k || true
+
+tests_k8s_ubuntu_x64:
+  image: registry.ddbuild.io/images/mirror/ubuntu:14.04
+  stage: setup
+  tags: ["arch:amd64"]
+  needs: []
+  script:
+    - cat /etc/mtab || true
+    - cat /etc/fstab || true
+    - df -l -k || true
