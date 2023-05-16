@@ -43,6 +43,7 @@ int hook_security_inode_getattr(ctx_t *ctx) {
             .mount_id = mount_id,
         },
         .flags = flags,
+        .path_ref = {0},
     };
 
     fill_file_metadata(dentry, &entry.metadata);

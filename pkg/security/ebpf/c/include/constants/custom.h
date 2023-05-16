@@ -70,6 +70,9 @@ enum DENTRY_ERPC_RESOLUTION_CODE {
     DR_ERPC_UNKNOWN_ERROR,
 };
 
+#define PR_PROGKEY_ENTRYPOINT  0
+#define PR_PROGKEY_LOOP        1
+
 #define DNS_MAX_LENGTH 256
 #define DNS_EVENT_KEY 0
 #define DNS_REQUEST        1
