@@ -157,7 +157,7 @@ func NewDecoderWithFraming(source *sources.ReplaceableSource, parser parsers.Par
 	return New(inputChan, outputChan, framer, lineParser, lineHandler, detectedPattern)
 }
 
-func buildAutoMultilineHandlerFromConfig(outputFn func(*Message), lineLimit int, source *sources.ReplaceableSource, detectedPattern *DetectedPattern, tailerInfo *status.InfoRegistry) *AutoMultilineHandler {
+func buildAutoMultilineHandlerFromConfig(outputFn func(*Message), lineLimit int, source *sources.ReplaceableSource, detectedPattern *DetectedPattern, tailerInfo *status.InfoRegistry) *AutoMultilineHandlerV2 {
 	linesToSample := source.Config().AutoMultiLineSampleSize
 	if linesToSample <= 0 {
 		linesToSample = dd_conf.Datadog.GetInt("logs_config.auto_multi_line_default_sample_size")
@@ -167,19 +167,19 @@ func buildAutoMultilineHandlerFromConfig(outputFn func(*Message), lineLimit int,
 		matchThreshold = dd_conf.Datadog.GetFloat64("logs_config.auto_multi_line_default_match_threshold")
 	}
 	additionalPatterns := dd_conf.Datadog.GetStringSlice("logs_config.auto_multi_line_extra_patterns")
-	additionalPatternsCompiled := []*regexp.Regexp{}
+	// additionalPatternsCompiled := []*regexp.Regexp{}
 
-	for _, p := range additionalPatterns {
-		compiled, err := regexp.Compile("^" + p)
-		if err != nil {
-			log.Warn("logs_config.auto_multi_line_extra_patterns containing value: ", p, " is not a valid regular expression")
-			continue
-		}
-		additionalPatternsCompiled = append(additionalPatternsCompiled, compiled)
-	}
+	// for _, p := range additionalPatterns {
+	// 	compiled, err := regexp.Compile("^" + p)
+	// 	if err != nil {
+	// 		log.Warn("logs_config.auto_multi_line_extra_patterns containing value: ", p, " is not a valid regular expression")
+	// 		continue
+	// 	}
+	// 	additionalPatternsCompiled = append(additionalPatternsCompiled, compiled)
+	// }
 
 	matchTimeout := time.Second * dd_conf.Datadog.GetDuration("logs_config.auto_multi_line_default_match_timeout")
-	return NewAutoMultilineHandler(
+	return NewAutoMultilineHandlerV2(
 		outputFn,
 		lineLimit,
 		linesToSample,
@@ -187,7 +187,7 @@ func buildAutoMultilineHandlerFromConfig(outputFn func(*Message), lineLimit int,
 		matchTimeout,
 		config.AggregationTimeout(),
 		source,
-		additionalPatternsCompiled,
+		additionalPatterns,
 		detectedPattern,
 		tailerInfo,
 	)

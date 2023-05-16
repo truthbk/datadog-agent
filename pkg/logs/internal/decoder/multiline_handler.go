@@ -23,6 +23,7 @@ const linesCombinedTelemetryMetricName = "datadog.logs_agent.auto_multi_line_lin
 type MultiLineHandler struct {
 	outputFn          func(*Message)
 	newContentRe      *regexp.Regexp
+	tokenPattern      []Token
 	buffer            *bytes.Buffer
 	flushTimeout      time.Duration
 	flushTimer        *time.Timer
@@ -42,6 +43,22 @@ func NewMultiLineHandler(outputFn func(*Message), newContentRe *regexp.Regexp, f
 	return &MultiLineHandler{
 		outputFn:          outputFn,
 		newContentRe:      newContentRe,
+		buffer:            bytes.NewBuffer(nil),
+		flushTimeout:      flushTimeout,
+		lineLimit:         lineLimit,
+		countInfo:         status.NewCountInfo("MultiLine matches"),
+		linesCombinedInfo: status.NewCountInfo("Lines Combined"),
+		telemetryEnabled:  telemetryEnabled,
+		linesCombined:     0,
+	}
+}
+
+// NewTokenMultiLineHandler returns a new MultiLineHandler.
+func NewTokenMultiLineHandler(outputFn func(*Message), tokens []Token, flushTimeout time.Duration, lineLimit int, telemetryEnabled bool) *MultiLineHandler {
+	return &MultiLineHandler{
+		outputFn:          outputFn,
+		newContentRe:      nil,
+		tokenPattern:      tokens,
 		buffer:            bytes.NewBuffer(nil),
 		flushTimeout:      flushTimeout,
 		lineLimit:         lineLimit,
@@ -76,11 +93,27 @@ func (h *MultiLineHandler) process(message *Message) {
 		}
 	}
 
-	if h.newContentRe.Match(message.Content) {
-		h.countInfo.Add(1)
-		// the current line is part of a new message,
-		// send the buffer
-		h.sendBuffer()
+	content := message.Content
+
+	if len(content) <= 0 {
+		return
+	}
+
+	if h.newContentRe != nil {
+		if h.newContentRe.Match(content) {
+			h.countInfo.Add(1)
+			// the current line is part of a new message,
+			// send the buffer
+			h.sendBuffer()
+		}
+	} else {
+		tokens := tokenize(content, tokenLength)
+		if isMatch(tokens, h.tokenPattern, tokenMatchThreshold) {
+			h.countInfo.Add(1)
+			// the current line is part of a new message,
+			// send the buffer
+			h.sendBuffer()
+		}
 	}
 
 	isTruncated := h.shouldTruncate
