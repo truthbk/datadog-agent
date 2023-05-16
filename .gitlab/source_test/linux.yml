@@ -225,3 +225,23 @@ go_mod_tidy_check:
     - !reference [.retrieve_linux_go_deps]
   script:
     - inv -e check-mod-tidy
+
+tests_k8s_amazonlinux_custom_arm64_no_needs:
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_arm64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
+  stage: source_test
+  tags: ["arch:arm64"]
+  needs: []
+  script:
+    - cat /etc/mtab || true
+    - cat /etc/fstab || true
+    - df -l -k || true
+
+tests_k8s_amazonlinux_custom_arm64:
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_arm64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
+  stage: source_test
+  tags: ["arch:arm64"]
+  needs: ["go_deps", "go_tools_deps"]
+  script:
+    - cat /etc/mtab || true
+    - cat /etc/fstab || true
+    - df -l -k || true
