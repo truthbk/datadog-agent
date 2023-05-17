@@ -37,7 +37,7 @@ func InstallAgent(client *ssh.Client, installer string, args string, logpath str
 	fmt.Println("done")
 
 	fmt.Printf("Running installer...")
-	output, installerr := windows.PsExec(client, fmt.Sprintf("start-process -wait msiexec.exe -argumentList '/i C:\\Windows\\Temp\\agent.msi /qn /l*v C:\\Windows\\Temp\\install.log %s'", args))
+	output, installerr := windows.PsExec(client, fmt.Sprintf("start-process -wait msiexec.exe -args '/i C:\\Windows\\Temp\\agent.msi /qn /l*v C:\\Windows\\Temp\\install.log %s'", args))
 	if installerr != nil {
 		fmt.Println(output)
 		// ignore error, we still want to collect the log
@@ -83,7 +83,7 @@ func GetDatadogAgentProductCode(client *ssh.Client) (string, error) {
 }
 
 func GetProductCodeByName(client *ssh.Client, name string) (string, error) {
-	cmd := fmt.Sprintf("\"(Get-WmiObject Win32_Product | Where-Object -Property Name -Value '%s' -match).IdentifyingNumber\"", name)
+	cmd := fmt.Sprintf("(Get-WmiObject Win32_Product | Where-Object -Property Name -Value '%s' -match).IdentifyingNumber", name)
 	val, err := windows.PsExec(client, cmd)
 	if err != nil {
 		fmt.Println(val)

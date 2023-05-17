@@ -44,6 +44,11 @@ $s = New-PSSession -VMName $VMName -Credential $Credential
 # Install OpenSSH Server
 Invoke-Command -Session $s -ScriptBlock {
     Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+
+    # Set powershell default shell
+    New-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" -Name DefaultShell -Value "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -PropertyType String -Force
+
+    # enable+start ssh service
     Set-Service -Name sshd -StartupType 'Automatic'
     Start-Service -Name sshd
 

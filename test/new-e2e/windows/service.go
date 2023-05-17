@@ -18,7 +18,7 @@ func GetServiceAccountName(client *ssh.Client, service string) (string, error) {
 }
 
 func GetServiceInfo(client *ssh.Client, service string) (map[string]any, error) {
-	cmd := fmt.Sprintf("\"Get-Service -Name '%s' | ConvertTo-Json\"", service)
+	cmd := fmt.Sprintf("Get-Service -Name '%s' | ConvertTo-Json", service)
 	output, err := PsExec(client, cmd)
 	if err != nil {
 		fmt.Println(output)

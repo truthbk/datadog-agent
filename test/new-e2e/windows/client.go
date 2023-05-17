@@ -7,7 +7,6 @@ package windows
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"strings"
 
@@ -23,7 +22,7 @@ func PsExec(client *ssh.Client, command string) (string, error) {
 	defer s.Close()
 
 	var outstr string
-	out, err := s.CombinedOutput(fmt.Sprintf("powershell.exe -Command %s", command))
+	out, err := s.CombinedOutput(command)
 	if out != nil {
 		outstr = strings.TrimSuffix(string(out), "\r\n")
 	}

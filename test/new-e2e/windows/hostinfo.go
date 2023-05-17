@@ -79,7 +79,7 @@ func GetJoinedDomain(client *ssh.Client) (string, error) {
 }
 
 func GetOSInfo(client *ssh.Client) (*OSInfo, error) {
-	cmd := fmt.Sprintf("\"Get-WmiObject Win32_OperatingSystem | ConvertTo-Json\"")
+	cmd := fmt.Sprintf("Get-WmiObject Win32_OperatingSystem | ConvertTo-Json")
 	output, err := PsExec(client, cmd)
 	if err != nil {
 		fmt.Println(output)
