@@ -22,6 +22,12 @@
         <DataTemplate DataType="{x:Type local:LicenseAgreementViewModel}">
             <pages:LicenseAgreement />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type local:ConfigurationViewModel}">
+            <pages:Configuration />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type local:InstallationViewModel}">
+            <pages:Installation />
+        </DataTemplate>
     </Window.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
@@ -51,12 +57,13 @@
                         <Setter Property="FontSize" Value="16" />
                         <Setter Property="Margin" Value="5" />
                     </Style>
+                    <local:SidebarTextValueConverter x:Key="SidebarTextValueConverter"/>
                 </StackPanel.Resources>
-                <TextBlock Text="Presentation"/>
-                <TextBlock Text="License Agreement" Foreground="LightGray"/>
-                <TextBlock Text="Features selection" Foreground="LightGray"/>
-                <TextBlock Text="Installation" Foreground="LightGray"/>
-                <TextBlock Text="Summary" Foreground="LightGray"/>
+                <TextBlock Text="Presentation" Foreground="{Binding CurrentPage, Converter={StaticResource SidebarTextValueConverter}, ConverterParameter=WelcomeViewModel}"/>
+                <TextBlock Text="License Agreement" Foreground="{Binding CurrentPage, Converter={StaticResource SidebarTextValueConverter}, ConverterParameter=LicenseAgreementViewModel}"/>
+                <TextBlock Text="Configuration" Foreground="{Binding CurrentPage, Converter={StaticResource SidebarTextValueConverter}, ConverterParameter=ConfigurationViewModel}"/>
+                <TextBlock Text="Installation" Foreground="{Binding CurrentPage, Converter={StaticResource SidebarTextValueConverter}, ConverterParameter=InstallationViewModel}"/>
+                <TextBlock Text="Summary" Foreground="{Binding CurrentPage, Converter={StaticResource SidebarTextValueConverter}, ConverterParameter=SummaryViewModel}"/>
             </StackPanel>
         </StackPanel>
         <ContentControl 

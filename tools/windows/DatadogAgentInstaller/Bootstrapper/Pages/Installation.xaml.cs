@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -10,21 +11,19 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
 using System.Windows.Shapes;
-using Microsoft.MinIoC;
-using Microsoft.Tools.WindowsInstallerXml.Bootstrapper;
 
-namespace Bootstrapper
+namespace Bootstrapper.Pages
 {
     /// <summary>
-    /// Interaction logic for MainView.xaml
+    /// Interaction logic for LicenseAgreement.xaml
     /// </summary>
-    public partial class MainView : Window
+    public partial class Installation : UserControl
     {
-        public MainView(Container container)
+        public Installation()
         {
             InitializeComponent();
-            DataContext = container.Resolve<MainViewModel>();
         }
     }
 }

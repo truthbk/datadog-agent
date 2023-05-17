@@ -53,7 +53,8 @@ namespace WixSetup
             bootstrapper.Application = new ManagedBootstrapperApplication(
                 typeof(ManagedBA).Assembly.Location,
                 "BootstrapperCore.config",
-                Path.Combine(Path.GetDirectoryName(typeof(ManagedBA).Assembly.Location), "CommunityToolkit.Mvvm.dll"));
+                Path.Combine(Path.GetDirectoryName(typeof(ManagedBA).Assembly.Location), "CommunityToolkit.Mvvm.dll")
+            );
             bootstrapper.PreserveTempFiles = true;
             // Name of the WXS, without the extension
             bootstrapper.OutFileName = "DatadogAgentBootstrapper";
