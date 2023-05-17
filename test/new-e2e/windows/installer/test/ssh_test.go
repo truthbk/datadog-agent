@@ -49,10 +49,9 @@ func TestWindowsInstaller(t *testing.T) {
 
 	// TODO: make all this configurable
 	// TODO: use new-e2e/pulumi for provisioning
-	prevstableinstaller := "ddagent-cli-7.43.1.msi"
-	// testinstaller := "datadog-agent-7.45.0-rc.3-1.x86_64.msi"
-	// testinstaller := "datadog-agent-ng-7.46.0-devel.git.102.31ae1a9-1-x86_64.msi"
-	testinstaller := "datadog-agent-7.46.0-devel.git.101.8fa78de.pipeline.15492052-1-x86_64.msi"
+	prevstableinstaller := "ddagent-cli-7.44.1.msi"
+	// testinstaller := "ddagent-cli-7.45.0-rc.5.msi"
+	testinstaller := "datadog-agent-7.45.0-rc.5-1.x86_64.msi"
 
 	hosts := []testHost{
 		{
@@ -69,8 +68,15 @@ func TestWindowsInstaller(t *testing.T) {
 			vmname:   "Windows Server 2019",
 			snapshot: "ddev-ssh",
 		},
+		{
+			host:     "192.168.178.178:22",
+			username: "DDEV\\Administrator",
+			password: "123!@#QWEqwe",
+			vmname:   "Windows Server 2022",
+			snapshot: "ddev-ssh",
+		},
 	}
-	testhostid := 0
+	testhostid := 2
 
 	suite.Run(t, &windowsInstallerSuite{
 		target:              &hosts[testhostid],
@@ -152,18 +158,26 @@ func (s *windowsInstallerSuite) TestUninstall() {
 	s.Require().True(userexists, "user should still exist after uninstall")
 }
 
-func (s *windowsInstallerSuite) TestAllowClosedSourceArgs() {
+func (s *windowsInstallerSuite) TestNPM() {
 	tcs := []struct {
 		testname string
-		args     string
-		expected string
+		previnstaller string
+		previnstallerargs string
 	}{
-		{"NpmFlag", "NPM=1", installer.AllowClosedSourceYes},
-		{"ADDLOCAL_NPM", "ADDLOCAL=NPM", installer.AllowClosedSourceYes},
+		// TC-NPM-001
+		{"7.44Upgrade", "ddagent-cli-7.44.1.msi", ""},
+		// TC-NPM-002
+		{"7.44WithNPMUpgrade", "ddagent-cli-7.44.1.msi", "ADDLOCAL=ALL"},
+		// TC-NPM-003
+		{"NPMInstall", "", ""},
+		// TC-NPM-004
+		{"NPMReinstall", s.installer, ""},
+		// TC-NPM-005
+		{"NPMBetaUpgrade", "datadog-agent-7.23.2-beta1-1-x86_64.msi", "ADDLOCAL=ALL"},
 	}
 
 	firstTest := true
-	for _, npmEnabled := range []bool{false, true} {
+	for _, npmEnabled := range []bool{true, false} {
 		for _, tc := range tcs {
 			var tcname string
 			if npmEnabled {
@@ -177,6 +191,12 @@ func (s *windowsInstallerSuite) TestAllowClosedSourceArgs() {
 				}
 				firstTest = false
 
+				if tc.previnstaller != "" {
+					err := installer.InstallAgentWithDefaultUser(s.sshclient, tc.previnstaller, tc.previnstallerargs,
+						filepath.Join(s.testoutputdir, "install.log"))
+					s.Require().NoError(err)
+				}
+
 				t, err := NewTester(s.sshclient,
 					WithExpectNPMRunning(npmEnabled))
 				s.Require().NoError(err)
@@ -184,33 +204,17 @@ func (s *windowsInstallerSuite) TestAllowClosedSourceArgs() {
 				err = setNetworkConfig(s.sshclient, npmEnabled)
 				s.Require().NoError(err)
 
-				err = t.InstallAgent(s.sshclient, s.installer, tc.args,
-					filepath.Join(s.testoutputdir, "install.log"))
+				logpath := filepath.Join(s.testoutputdir, "install.log")
+				if tc.previnstaller != "" {
+					logpath = filepath.Join(s.testoutputdir, "upgrade.log")
+				}
+				err = t.InstallAgent(s.sshclient, s.installer, "", logpath)
 				s.Require().NoError(err)
 
 				s.Require().True(t.AssertExpectations(s.Assert(), s.sshclient))
 			})
 		}
 	}
-}
-
-func (s *windowsInstallerSuite) TestUpgradeWithNPM() {
-	err := installer.InstallAgentWithDefaultUser(s.sshclient, s.prevstableinstaller, "ADDLOCAL=NPM",
-		filepath.Join(s.testoutputdir, "install.log"))
-	s.Require().NoError(err)
-
-	err = setNetworkConfig(s.sshclient, true)
-	s.Require().NoError(err)
-
-	t, err := NewTester(s.sshclient,
-		WithExpectNPMRunning(true))
-	s.Require().NoError(err)
-
-	err = t.InstallAgent(s.sshclient, s.installer, "",
-		filepath.Join(s.testoutputdir, "upgrade.log"))
-	s.Require().NoError(err)
-
-	s.Require().True(t.AssertExpectations(s.Assert(), s.sshclient))
 }
 
 func (s *windowsInstallerSuite) TestUpgradeChangeUser() {
