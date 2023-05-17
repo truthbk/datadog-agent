@@ -7,10 +7,14 @@ package installertest
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/windows"
 	"github.com/DataDog/datadog-agent/test/new-e2e/windows/installer"
+	"github.com/DataDog/datadog-agent/test/new-e2e/windows/agent"
+	"github.com/DataDog/datadog-agent/test/new-e2e/windows/agent/test"
 
+	"github.com/cenkalti/backoff"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/ssh"
 )
@@ -157,7 +161,40 @@ func (t *Tester) assertServices(a *assert.Assertions, client *ssh.Client) bool {
 	return true
 }
 
+func (t *Tester) assertAgentRunning(a *assert.Assertions, client *ssh.Client) bool {
+	status, err := agent.GetStatus(client)
+	if !a.NoError(err, "agent returns valid json status") {
+		return false
+	}
+
+	if !agenttest.AssertRunningChecks(a, status) {
+		return false
+	}
+
+	return true
+}
+
+func (t *Tester) waitForAgent(a *assert.Assertions, client *ssh.Client) bool {
+	err := backoff.Retry(func() error {
+		_, err := agent.GetStatus(client)
+		return err
+	}, backoff.WithMaxRetries(backoff.NewConstantBackOff(50*time.Millisecond), (1000/50)*300))
+	return err == nil
+}
+
 func (t *Tester) AssertExpectations(a *assert.Assertions, client *ssh.Client) bool {
+	// Wait for agent status
+	fmt.Printf("Waiting for agent status...")
+	start := time.Now()
+	if !t.waitForAgent(a, client) {
+		elapsed := time.Since(start)
+		fmt.Printf("agent not running after %.2f seconds\n", elapsed.Seconds())
+		return false
+	}
+	elapsed := time.Since(start)
+	fmt.Println("done")
+	fmt.Printf("agent running after %.2f seconds\n", elapsed.Seconds())
+
 	fmt.Printf("Checking agent user...")
 	if !t.assertAgentUser(a, client) {
 		return false
@@ -166,6 +203,12 @@ func (t *Tester) AssertExpectations(a *assert.Assertions, client *ssh.Client) bo
 
 	fmt.Printf("Checking agent services...")
 	if !t.assertServices(a, client) {
+		return false
+	}
+	fmt.Println("done")
+
+	fmt.Printf("Checking agent running...")
+	if !t.assertAgentRunning(a, client) {
 		return false
 	}
 	fmt.Println("done")
