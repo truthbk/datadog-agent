@@ -82,7 +82,7 @@ int kprobe_vfs_unlink(struct pt_regs *ctx) {
     syscall->resolver.iteration = 0;
     syscall->resolver.ret = 0;
 
-    resolve_dentry(ctx, DR_KPROBE);
+    resolve_path(ctx, DR_KPROBE);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_syscall(EVENT_UNLINK);
