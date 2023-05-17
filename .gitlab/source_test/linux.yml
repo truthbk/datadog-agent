@@ -232,8 +232,10 @@ tests_k8s_amazonlinux_custom_arm64_no_needs:
   tags: ["arch:arm64"]
   needs: []
   script:
+    - yum install -y strace
     - cat /etc/mtab || true
     - cat /etc/fstab || true
+    - strace df -l -k || true
     - df -l -k || true
 
 tests_k8s_amazonlinux_custom_arm64:
@@ -242,8 +244,10 @@ tests_k8s_amazonlinux_custom_arm64:
   tags: ["arch:arm64"]
   needs: ["go_deps", "go_tools_deps"]
   script:
+    - yum install -y strace
     - cat /etc/mtab || true
     - cat /etc/fstab || true
+    - strace df -l -k || true
     - df -l -k || true
 
 tests_k8s_amazonlinux_arm64_no_needs:
@@ -252,8 +256,10 @@ tests_k8s_amazonlinux_arm64_no_needs:
   tags: ["arch:arm64"]
   needs: []
   script:
+    - yum install -y strace
     - cat /etc/mtab || true
     - cat /etc/fstab || true
+    - strace df -l -k || true
     - df -l -k || true
 
 tests_k8s_amazonlinux_arm64:
@@ -262,6 +268,8 @@ tests_k8s_amazonlinux_arm64:
   tags: ["arch:arm64"]
   needs: ["go_deps", "go_tools_deps"]
   script:
+    - yum install -y strace
     - cat /etc/mtab || true
     - cat /etc/fstab || true
+    - strace df -l -k || true
     - df -l -k || true
