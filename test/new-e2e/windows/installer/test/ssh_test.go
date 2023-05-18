@@ -27,6 +27,7 @@ type testHost struct {
 	password string
 	vmname   string
 	snapshot string
+	testhostname string
 }
 
 type windowsInstallerSuite struct {
@@ -55,11 +56,12 @@ func TestWindowsInstaller(t *testing.T) {
 
 	hosts := []testHost{
 		{
-			host:     "172.23.224.26:22",
+			host:     "192.168.184.48:22",
 			username: "user",
 			password: "user",
 			vmname:   "Windows 10",
 			snapshot: "ssh",
+			testhostname: "Windows 10 client",
 		},
 		{
 			host:     "172.23.238.202:22",
@@ -67,6 +69,7 @@ func TestWindowsInstaller(t *testing.T) {
 			password: "123!@#QWEqwe",
 			vmname:   "Windows Server 2019",
 			snapshot: "ddev-ssh",
+			testhostname: "Windows 2019 DC",
 		},
 		{
 			host:     "192.168.178.178:22",
@@ -74,16 +77,20 @@ func TestWindowsInstaller(t *testing.T) {
 			password: "123!@#QWEqwe",
 			vmname:   "Windows Server 2022",
 			snapshot: "ddev-ssh",
+			testhostname: "Windows 2022 DC",
 		},
 	}
-	testhostid := 2
 
-	suite.Run(t, &windowsInstallerSuite{
-		target:              &hosts[testhostid],
-		suiteoutputdir:      filepath.Join("./output", time.Now().Format(time.RFC3339)),
-		prevstableinstaller: prevstableinstaller,
-		installer:           testinstaller,
-	})
+	for _,host := range hosts {
+		t.Run(host.testhostname, func(t *testing.T) {
+			suite.Run(t, &windowsInstallerSuite{
+				suiteoutputdir:      filepath.Join("./output", time.Now().Format(time.RFC3339)),
+				target:              &host,
+				prevstableinstaller: prevstableinstaller,
+				installer:           testinstaller,
+			})
+		})
+	}
 }
 
 func (s *windowsInstallerSuite) SetupSuite() {
