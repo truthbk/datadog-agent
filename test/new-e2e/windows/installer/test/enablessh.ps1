@@ -43,7 +43,18 @@ $s = New-PSSession -VMName $VMName -Credential $Credential
 
 # Install OpenSSH Server
 Invoke-Command -Session $s -ScriptBlock {
-    Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+    # This command does NOT install a consistent version across Windows versions, this lead to
+    # compatability issues (different command line quoting rules).
+    # Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+    start-process -passthru -wait msiexec.exe -args '/i https://github.com/PowerShell/Win32-OpenSSH/releases/download/v9.2.2.0p1-Beta/OpenSSH-Win64-v9.2.2.0.msi /qn'
+
+    # Confirm the Firewall rule is configured. It should be created automatically by setup. Run the following to verify
+    if (!(Get-NetFirewallRule -Name "OpenSSH-Server-In-TCP" -ErrorAction SilentlyContinue | Select-Object Name, Enabled)) {
+        Write-Output "Firewall Rule 'OpenSSH-Server-In-TCP' does not exist, creating it..."
+        New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
+    } else {
+        Write-Output "Firewall rule 'OpenSSH-Server-In-TCP' has been created and exists."
+    }
 
     # Set powershell default shell
     New-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" -Name DefaultShell -Value "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -PropertyType String -Force
