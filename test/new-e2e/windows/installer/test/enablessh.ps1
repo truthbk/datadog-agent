@@ -67,6 +67,12 @@ Invoke-Command -Session $s -ScriptBlock {
     while (!(Test-Path "$env:programdata\ssh\ssh_host_rsa_key")) {
         Start-Sleep 10
     }
+
+    # Fix authorized_keys privs
+    if (!(Test-Path "$env:programdata\ssh\administrators_authorized_keys")) {
+        New-Item -ItemType File -Path "$env:programdata\ssh\administrators_authorized_keys"
+    }
+    get-acl "$env:programdata\ssh\ssh_host_rsa_key" | set-acl "$env:programdata\ssh\administrators_authorized_keys"
 }
 
 if ($SSHKeyPath) {
@@ -75,16 +81,13 @@ if ($SSHKeyPath) {
     Invoke-Command -Session $s -ScriptBlock { Add-Content -Path "$env:programdata\ssh\administrators_authorized_keys" -Value $Using:sshkey}
 }
 
-# Fix authorized_keys privs
-Invoke-Command -Session $s -ScriptBlock {
-    if (!(Test-Path "$env:programdata\ssh\administrators_authorized_keys")) {
-        New-Item -ItemType File -Path "$env:programdata\ssh\administrators_authorized_keys"
-    }
-    get-acl "$env:programdata\ssh\ssh_host_rsa_key" | set-acl "$env:programdata\ssh\administrators_authorized_keys"
-}
-
 # Print connection info
-Invoke-Command -Session $s -ScriptBlock { ipconfig }
+Invoke-Command -Session $s -ScriptBlock {
+    ipconfig
+    ssh-keygen -l -f C:\ProgramData\ssh\ssh_host_ecdsa_key
+    ssh-keygen -l -f C:\ProgramData\ssh\ssh_host_ed25519_key
+    ssh-keygen -l -f C:\ProgramData\ssh\ssh_host_rsa_key
+}
 
 if ($SnapshotName) {
     # Note: checkpoint-vm breaks the session
