@@ -37,7 +37,7 @@ func InstallAgent(client *ssh.Client, installer string, args string, logpath str
 	fmt.Println("done")
 
 	fmt.Printf("Running installer...")
-	output, installerr := windows.PsExec(client, fmt.Sprintf("start-process -wait msiexec.exe -args '/i C:\\Windows\\Temp\\agent.msi /qn /l*v C:\\Windows\\Temp\\install.log %s'", args))
+	output, installerr := windows.PsExec(client, fmt.Sprintf("Exit (start-process -passthru -wait msiexec.exe -args '/i C:\\Windows\\Temp\\agent.msi /qn /l*v C:\\Windows\\Temp\\install.log %s').ExitCode", args))
 	if installerr != nil {
 		fmt.Println(output)
 		// ignore error, we still want to collect the log
@@ -99,7 +99,7 @@ func UninstallAgent(client *ssh.Client, logpath string) error {
 	}
 
 	fmt.Printf("Uninstalling %s...", productcode)
-	output, uninstallerr := windows.PsExec(client, fmt.Sprintf("start-process -wait msiexec.exe -argumentList /x,'%s',/qn,/l*v,C:\\Windows\\Temp\\uninstall.log", productcode))
+	output, uninstallerr := windows.PsExec(client, fmt.Sprintf("Exit (start-process -passthru -wait msiexec.exe -argumentList /x,'%s',/qn,/l*v,C:\\Windows\\Temp\\uninstall.log).ExitCode", productcode))
 	if uninstallerr != nil {
 		fmt.Println(output)
 		// ignore error, we still want to collect the log
