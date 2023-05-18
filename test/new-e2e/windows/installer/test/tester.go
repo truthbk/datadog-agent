@@ -29,6 +29,7 @@ type Tester struct {
 	userdomain  string
 	serviceuser string
 
+	expectAgentRunning        bool
 	expectedNPMRunning        bool
 }
 
@@ -45,6 +46,8 @@ func NewTester(client *ssh.Client, options ...TesterOption) (*Tester, error) {
 	}
 
 	t.username, t.userdomain, t.serviceuser = installer.DefaultAgentUser(t.hostinfo)
+
+	t.expectAgentRunning = true
 
 	t.SetOptions(options...)
 
@@ -71,19 +74,19 @@ func WithExpectedAgentUser(domain string, username string, serviceuser string) T
 	}
 }
 
-func WithExpectedAgentUserFromUsername(client *ssh.Client, username string, password string) TesterOption {
+func WithExpectedDefaultAgentUser() TesterOption {
+	return func(t *Tester) {
+		t.username, t.userdomain, t.serviceuser = installer.DefaultAgentUser(t.hostinfo)
+	}
+}
+
+func WithExpectedAgentUserFromUsername(client *ssh.Client, username string, password string, createuser bool) TesterOption {
 	return func(t *Tester) {
 		var domainpart string
 		var servicedomainpart string
 		if t.hostinfo.IsDomainController() {
 			domainpart = windows.NetBIOSName(t.hostinfo.Domain)
 			servicedomainpart = windows.NetBIOSName(t.hostinfo.Domain)
-			// user must exist on domain controllers
-			userexists, err := windows.LocalUserExists(client, username)
-			if err == nil && !userexists {
-				windows.CreateLocalUser(client, username, password)
-				// TODO: return error
-			}
 		} else {
 			domainpart = windows.NetBIOSName(t.hostinfo.Hostname)
 			servicedomainpart = "."
@@ -91,12 +94,27 @@ func WithExpectedAgentUserFromUsername(client *ssh.Client, username string, pass
 		t.username = username
 		t.userdomain = domainpart
 		t.serviceuser = fmt.Sprintf("%s\\%s", servicedomainpart, username)
+
+		userexists, err := windows.LocalUserExists(client, username)
+		if err == nil && !userexists {
+			// user must exist on domain controllers
+			if createuser {
+				windows.CreateLocalUser(client, username, password)
+			}
+			// TODO: return error
+		}
 	}
 }
 
 func WithExpectNPMRunning(val bool) TesterOption {
 	return func(t *Tester) {
 		t.expectedNPMRunning = val
+	}
+}
+
+func WithExpectAgentRunning(val bool) TesterOption {
+	return func(t *Tester) {
+		t.expectAgentRunning = val
 	}
 }
 
@@ -118,11 +136,16 @@ func (t *Tester) assertServices(a *assert.Assertions, client *ssh.Client) bool {
 		depends   []string
 	}
 
+	expectedStatus := windows.SERVICE_RUNNING
+	if !t.expectAgentRunning {
+		expectedStatus = windows.SERVICE_STOPPED
+	}
+
 	svcs := []expectedService{
-		{"datadogagent", windows.SERVICE_AUTO_START, windows.SERVICE_RUNNING, nil},
+		{"datadogagent", windows.SERVICE_AUTO_START, expectedStatus, nil},
 		// TODO: figure out why trace-agent is sometimes running and sometimes not
 		// {"datadog-trace-agent", windows.SERVICE_DEMAND_START, windows.SERVICE_STOPPED},
-		{"datadog-process-agent", windows.SERVICE_DEMAND_START, windows.SERVICE_RUNNING, []string{"datadogagent"}},
+		{"datadog-process-agent", windows.SERVICE_DEMAND_START, expectedStatus, []string{"datadogagent"}},
 	}
 
 	if t.expectedNPMRunning {
@@ -183,17 +206,19 @@ func (t *Tester) waitForAgent(a *assert.Assertions, client *ssh.Client) bool {
 }
 
 func (t *Tester) AssertExpectations(a *assert.Assertions, client *ssh.Client) bool {
-	// Wait for agent status
-	fmt.Printf("Waiting for agent status...")
-	start := time.Now()
-	if !t.waitForAgent(a, client) {
+	if t.expectAgentRunning {
+		// Wait for agent status
+		fmt.Printf("Waiting for agent status...")
+		start := time.Now()
+		if !t.waitForAgent(a, client) {
+			elapsed := time.Since(start)
+			fmt.Printf("agent not running after %.2f seconds\n", elapsed.Seconds())
+			return false
+		}
 		elapsed := time.Since(start)
-		fmt.Printf("agent not running after %.2f seconds\n", elapsed.Seconds())
-		return false
+		fmt.Println("done")
+		fmt.Printf("agent running after %.2f seconds\n", elapsed.Seconds())
 	}
-	elapsed := time.Since(start)
-	fmt.Println("done")
-	fmt.Printf("agent running after %.2f seconds\n", elapsed.Seconds())
 
 	fmt.Printf("Checking agent user...")
 	if !t.assertAgentUser(a, client) {
@@ -207,11 +232,13 @@ func (t *Tester) AssertExpectations(a *assert.Assertions, client *ssh.Client) bo
 	}
 	fmt.Println("done")
 
-	fmt.Printf("Checking agent running...")
-	if !t.assertAgentRunning(a, client) {
-		return false
+	if t.expectAgentRunning {
+		fmt.Printf("Checking agent running...")
+		if !t.assertAgentRunning(a, client) {
+			return false
+		}
+		fmt.Println("done")
 	}
-	fmt.Println("done")
 
 	return true
 }

@@ -128,6 +128,7 @@ func (s *windowsInstallerSuite) SetupTest() {
 	fmt.Println(output)
 }
 
+// Tests that the agent can be installed
 func (s *windowsInstallerSuite) TestDefaultInstall() {
 	t, err := NewTester(s.sshclient)
 	s.Require().NoError(err)
@@ -139,6 +140,27 @@ func (s *windowsInstallerSuite) TestDefaultInstall() {
 	s.Require().True(t.AssertExpectations(s.Assert(), s.sshclient))
 }
 
+// TC-UPG-DC-001
+// Tests that the agent can be upgraded
+func (s *windowsInstallerSuite) TestDefaultUpgrade() {
+	err := installer.InstallAgentWithDefaultUser(s.sshclient,
+		s.prevstableinstaller, "",
+		filepath.Join(s.testoutputdir, "install.log"))
+	s.Require().NoError(err)
+
+	s.Require().True(AssertDefaultInstalledUser(s.Assert(), s.sshclient))
+
+	t, err := NewTester(s.sshclient)
+	s.Require().NoError(err)
+
+	err = t.InstallAgent(s.sshclient, s.installer, "",
+		filepath.Join(s.testoutputdir, "upgrade.log"))
+	s.Require().NoError(err)
+
+	s.Require().True(t.AssertExpectations(s.Assert(), s.sshclient))
+}
+
+// Tests that the agent can be uninstalled
 func (s *windowsInstallerSuite) TestUninstall() {
 	t, err := NewTester(s.sshclient)
 	s.Require().NoError(err)
@@ -218,27 +240,76 @@ func (s *windowsInstallerSuite) TestNPM() {
 }
 
 func (s *windowsInstallerSuite) TestUpgradeChangeUser() {
-	err := installer.InstallAgentWithDefaultUser(s.sshclient,
-		s.prevstableinstaller, "",
-		filepath.Join(s.testoutputdir, "install.log"))
-	s.Require().NoError(err)
-
-	s.Require().True(AssertDefaultInstalledUser(s.Assert(), s.sshclient))
-
 	username := "testuser"
 	password := "123!@#QWEqwe"
-	t, err := NewTester(s.sshclient,
-		WithInstallUser(username),
-		WithInstallPassword(password),
-		WithExpectedAgentUserFromUsername(s.sshclient, username, password))
-	s.Require().NoError(err)
+	tcs := []struct{
+		testname string
+		// args passed to installer
+		installusername string
+		installpassword string
+		// args used by test
+		createuser bool
+		expectusername string
+		createpassword string
+	}{
+		// TC-UPG-DC-002
+		{"NewUser", username, password, false, username, password},
+		// TC-UPG-DC-003
+		{"ExistingUser", username, password, true, username, password},
+		// TC-UPG-DC-004
+		{"WrongCredentials", username, "bad"+password+"bad", true, username, password},
+	}
+	for tc_i, tc := range tcs {
+		s.Run(tc.testname, func() {
+			if tc_i > 0 {
+				s.SetupTest()
+			}
 
-	err = t.InstallAgent(s.sshclient,
-		s.installer, "",
-		filepath.Join(s.testoutputdir, "upgrade.log"))
-	s.Require().NoError(err)
+			err := installer.InstallAgentWithDefaultUser(s.sshclient,
+				s.prevstableinstaller, "",
+				filepath.Join(s.testoutputdir, "install.log"))
+			s.Require().NoError(err)
+			s.Require().True(AssertDefaultInstalledUser(s.Assert(), s.sshclient))
 
-	s.Require().True(t.AssertExpectations(s.Assert(), s.sshclient))
+			t, err := NewTester(s.sshclient,
+				WithInstallUser(tc.installusername),
+				WithInstallPassword(tc.installpassword),
+				WithExpectedAgentUserFromUsername(s.sshclient, tc.expectusername, tc.createpassword, tc.createuser))
+			s.Require().NoError(err)
+
+			installerr := t.InstallAgent(s.sshclient,
+				s.installer, "",
+				filepath.Join(s.testoutputdir, "upgrade.log"))
+
+			if !t.hostinfo.IsDomainController() {
+				// should always succeed if not domain joined, installer always creates local user with random password
+				s.Require().NoError(installerr)
+				s.Require().True(t.AssertExpectations(s.Assert(), s.sshclient))
+				return
+			} else {
+				if !tc.createuser {
+					// install fails if account doesn't exist on domain controller
+					s.Require().Error(installerr)
+					// TODO: test rollback?
+					WithExpectedDefaultAgentUser()(t)
+					s.Require().True(t.AssertExpectations(s.Assert(), s.sshclient))
+					return
+				}
+				if tc.installpassword == tc.createpassword {
+					// creds are correct, install should succeed
+					s.Require().NoError(installerr)
+					s.Require().True(t.AssertExpectations(s.Assert(), s.sshclient))
+					return
+				} else {
+					// creds are wrong, install should succeed, but service won't be running
+					s.Require().NoError(installerr)
+					WithExpectAgentRunning(false)(t)
+					s.Require().True(t.AssertExpectations(s.Assert(), s.sshclient))
+					return
+				}
+			}
+		})
+	}
 }
 
 func (s *windowsInstallerSuite) TestAgentUser() {
