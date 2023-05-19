@@ -9,13 +9,15 @@ package collectors
 
 import (
 	"fmt"
-
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/cluster/orchestrator/processors"
 	"github.com/DataDog/datadog-agent/pkg/orchestrator"
 	"github.com/DataDog/datadog-agent/pkg/orchestrator/config"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/apiserver"
-
 	"go.uber.org/atomic"
+	"k8s.io/apiextensions-apiserver/pkg/client/informers/externalversions"
+	vpai "k8s.io/autoscaler/vertical-pod-autoscaler/pkg/client/informers/externalversions"
+	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -89,13 +91,22 @@ func (cm CollectorMetadata) FullName() string {
 	return cm.Name
 }
 
+type OrchestratorInformerFactory struct {
+	InformerFactory              informers.SharedInformerFactory
+	UnassignedPodInformerFactory informers.SharedInformerFactory
+	DynamicInformerFactory       dynamicinformer.DynamicSharedInformerFactory
+	CRDInformerFactory           externalversions.SharedInformerFactory
+	VPAInformerFactory           vpai.SharedInformerFactory
+}
+
 // CollectorRunConfig is the configuration used to initialize or run the
 // collector.
 type CollectorRunConfig struct {
-	APIClient   *apiserver.APIClient
-	ClusterID   string
-	Config      *config.OrchestratorConfig
-	MsgGroupRef *atomic.Int32
+	APIClient                   *apiserver.APIClient
+	ClusterID                   string
+	Config                      *config.OrchestratorConfig
+	MsgGroupRef                 *atomic.Int32
+	OrchestratorInformerFactory *OrchestratorInformerFactory
 }
 
 // CollectorRunResult contains information about what the collector has done.

@@ -141,12 +141,6 @@ func GetAPIClient() (*APIClient, error) {
 	return globalAPIClient, nil
 }
 
-// ReSetGlobalAPIClientOnce resets globalAPIClientOnce
-func ReSetGlobalAPIClientOnce() {
-	log.Info("Reset globalAPIClientOnce to recreate APIClient")
-	globalAPIClientOnce = new(sync.Once)
-}
-
 // WaitForAPIClient waits for availability of APIServer Client before returning
 func WaitForAPIClient(ctx context.Context) (*APIClient, error) {
 	globalAPIClientOnce.Do(initAPIClient)

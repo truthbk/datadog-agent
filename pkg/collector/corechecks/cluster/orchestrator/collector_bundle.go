@@ -8,6 +8,7 @@
 package orchestrator
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -21,6 +22,8 @@ import (
 
 	"k8s.io/client-go/tools/cache"
 )
+
+var InformerSynced = map[cache.SharedInformer]struct{}{}
 
 const (
 	defaultExtraSyncTimeout = 60 * time.Second
@@ -57,10 +60,11 @@ func NewCollectorBundle(chk *OrchestratorCheck) *CollectorBundle {
 		check:              chk,
 		inventory:          inventory.NewCollectorInventory(),
 		runCfg: &collectors.CollectorRunConfig{
-			APIClient:   chk.apiClient,
-			ClusterID:   chk.clusterID,
-			Config:      chk.orchestratorConfig,
-			MsgGroupRef: chk.groupID,
+			APIClient:                   chk.apiClient,
+			ClusterID:                   chk.clusterID,
+			Config:                      chk.orchestratorConfig,
+			MsgGroupRef:                 chk.groupID,
+			OrchestratorInformerFactory: chk.orchestratorInformerFactory,
 		},
 		stopCh:              chk.stopCh,
 		manifestBuffer:      NewManifestBuffer(chk),
@@ -243,11 +247,19 @@ func (cb *CollectorBundle) prepareExtraSyncTimeout() {
 // During initialization informers are created, started and their cache is
 // synced.
 func (cb *CollectorBundle) Initialize() error {
+
+	if len(InformerSynced) != 0 {
+		if _, ok := <-cb.stopCh; ok {
+			fmt.Println("nonononoonnoojn")
+			close(cb.stopCh)
+		}
+		InformerSynced = map[cache.SharedInformer]struct{}{}
+	}
+
 	informersToSync := make(map[apiserver.InformerName]cache.SharedInformer)
 	var availableCollectors []collectors.Collector
 	// informerSynced is a helper map which makes sure that we don't initialize the same informer twice.
 	// i.e. the cluster and nodes resources share the same informer and using both can lead to a race condition activating both concurrently.
-	informerSynced := map[cache.SharedInformer]struct{}{}
 
 	for _, collector := range cb.collectors {
 		collector.Init(cb.runCfg)
@@ -260,18 +272,24 @@ func (cb *CollectorBundle) Initialize() error {
 
 		informer := collector.Informer()
 
-		if _, found := informerSynced[informer]; !found {
+		if _, found := InformerSynced[informer]; !found {
 			informersToSync[apiserver.InformerName(collector.Metadata().FullName())] = informer
-			informerSynced[informer] = struct{}{}
+			InformerSynced[informer] = struct{}{}
 			// we run each enabled informer individually, because starting them through the factory
 			// would prevent us from restarting them again if the check is unscheduled/rescheduled
 			// see https://github.com/kubernetes/client-go/blob/3511ef41b1fbe1152ef5cab2c0b950dfd607eea7/informers/factory.go#L64-L66
 
-			go informer.Run(cb.stopCh)
+			go func() {
+				informer.Run(cb.stopCh)
+				fmt.Println("close informer: ", collector.Metadata().FullName())
+			}()
 		}
 	}
 
 	cb.collectors = availableCollectors
+
+	fmt.Println("sync informer: ", len(informersToSync))
+	fmt.Println("sync informer: ", informersToSync["batch/v1/jobs"].HasSynced())
 
 	return apiserver.SyncInformers(informersToSync, cb.extraSyncTimeout)
 }
