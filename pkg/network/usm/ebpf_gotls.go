@@ -207,8 +207,9 @@ func (p *GoTLSProgram) ConfigureOptions(options *manager.Options) {
 	}
 }
 
-func (*GoTLSProgram) GetAllUndefinedProbes() []manager.ProbeIdentificationPair {
-	probeList := make([]manager.ProbeIdentificationPair, 0)
+func (*GoTLSProgram) GetProbeList() []manager.ProbeIdentificationPair {
+	// We have at least len(functionToProbes) probes.
+	probeList := make([]manager.ProbeIdentificationPair, 0, len(functionToProbes))
 	for _, probeInfo := range functionToProbes {
 		if probeInfo.functionInfo != nil {
 			probeList = append(probeList, probeInfo.functionInfo.getIdentificationPair())

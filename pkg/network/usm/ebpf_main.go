@@ -52,38 +52,13 @@ const (
 
 type ebpfProgram struct {
 	*errtelemetry.Manager
-	cfg                   *config.Config
-	subprograms           []subprogram
-	probesResolvers       []probeResolver
-	mapCleaner            *ddebpf.MapCleaner
-	tailCallRouter        []manager.TailCallRoute
-	connectionProtocolMap *ebpf.Map
-}
-
-type probeResolver interface {
-	// GetAllUndefinedProbes returns all undefined probes.
-	// Subprogram probes maybe defined in the same ELF file as the probes
-	// of the main program. The cilium loader loads all programs defined
-	// in an ELF file in to the kernel. Therefore, these programs may be
-	// loaded into the kernel, whether the subprogram is activated or not.
-	//
-	// Before the loading can be performed we must associate a function which
-	// performs some fixup in the EBPF bytecode:
-	// https://github.com/DataDog/datadog-agent/blob/main/pkg/ebpf/c/bpf_telemetry.h#L58
-	// If this is not correctly done, the verifier will reject the EBPF bytecode.
-	//
-	// The ebpf telemetry manager
-	// (https://github.com/DataDog/datadog-agent/blob/main/pkg/network/telemetry/telemetry_manager.go#L19)
-	// takes an instance of the Manager managing the main program, to acquire
-	// the list of the probes to patch.
-	// https://github.com/DataDog/datadog-agent/blob/main/pkg/network/telemetry/ebpf_telemetry.go#L256
-	// This Manager may not include the probes of the subprograms. GetAllUndefinedProbes() is,
-	// therefore, necessary for returning the probes of these subprograms so they can be
-	// correctly patched at load-time, when the Manager is being initialized.
-	//
-	// To reiterate, this is necessary due to the fact that the cilium loader loads
-	// all programs defined in an ELF file regardless if they are later attached or not.
-	GetAllUndefinedProbes() []manager.ProbeIdentificationPair
+	cfg                       *config.Config
+	subprograms               []subprogram
+	mapCleaner                *ddebpf.MapCleaner
+	tailCallRouter            []manager.TailCallRoute
+	excludedProbes            []manager.ProbeIdentificationPair
+	enabledNotActivatedProbes []manager.ProbeIdentificationPair
+	connectionProtocolMap     *ebpf.Map
 }
 
 type subprogram interface {
@@ -91,15 +66,42 @@ type subprogram interface {
 	ConfigureOptions(*manager.Options)
 	Start()
 	Stop()
+	GetProbeList() []manager.ProbeIdentificationPair
 }
 
-var http2TailCall = manager.TailCallRoute{
-	ProgArrayName: protocolDispatcherProgramsMap,
-	Key:           uint32(protocols.ProgramHTTP2),
-	ProbeIdentificationPair: manager.ProbeIdentificationPair{
-		EBPFFuncName: "socket__http2_filter",
-	},
-}
+var (
+	httpTailCall = manager.TailCallRoute{
+		ProgArrayName: protocolDispatcherProgramsMap,
+		Key:           uint32(protocols.ProgramHTTP),
+		ProbeIdentificationPair: manager.ProbeIdentificationPair{
+			EBPFFuncName: "socket__http_filter",
+		},
+	}
+
+	http2TailCall = manager.TailCallRoute{
+		ProgArrayName: protocolDispatcherProgramsMap,
+		Key:           uint32(protocols.ProgramHTTP2),
+		ProbeIdentificationPair: manager.ProbeIdentificationPair{
+			EBPFFuncName: "socket__http2_filter",
+		},
+	}
+
+	kafkaFilterTailCall = manager.TailCallRoute{
+		ProgArrayName: protocolDispatcherProgramsMap,
+		Key:           uint32(protocols.ProgramKafka),
+		ProbeIdentificationPair: manager.ProbeIdentificationPair{
+			EBPFFuncName: "socket__kafka_filter",
+		},
+	}
+
+	kafkaProtocolDispatcherFilterTailCall = manager.TailCallRoute{
+		ProgArrayName: protocolDispatcherClassificationPrograms,
+		Key:           uint32(protocols.DispatcherKafkaProg),
+		ProbeIdentificationPair: manager.ProbeIdentificationPair{
+			EBPFFuncName: "socket__protocol_dispatcher_kafka",
+		},
+	}
+)
 
 func newEBPFProgram(c *config.Config, connectionProtocolMap, sockFD *ebpf.Map, bpfTelemetry *errtelemetry.EBPFTelemetry) (*ebpfProgram, error) {
 	mgr := &manager.Manager{
@@ -137,88 +139,66 @@ func newEBPFProgram(c *config.Config, connectionProtocolMap, sockFD *ebpf.Map, b
 		},
 	}
 
-	if c.EnableHTTP2Monitoring {
-		mgr.Maps = append(mgr.Maps, &manager.Map{Name: "http2_dynamic_table"}, &manager.Map{Name: "http2_static_table"})
-	}
-
-	subprogramProbesResolvers := make([]probeResolver, 0, 3)
 	subprograms := make([]subprogram, 0, 3)
 
+	excludedProbes := make([]manager.ProbeIdentificationPair, 0)
+	enabledButNotActivatedProbes := make([]manager.ProbeIdentificationPair, 0)
 	goTLSProg := newGoTLSProgram(c)
-	subprogramProbesResolvers = append(subprogramProbesResolvers, goTLSProg)
 	if goTLSProg != nil {
 		subprograms = append(subprograms, goTLSProg)
+		enabledButNotActivatedProbes = append(enabledButNotActivatedProbes, goTLSProg.GetProbeList()...)
+	} else {
+		excludedProbes = append(excludedProbes, goTLSProg.GetProbeList()...)
 	}
 	javaTLSProg := newJavaTLSProgram(c)
-	subprogramProbesResolvers = append(subprogramProbesResolvers, javaTLSProg)
 	if javaTLSProg != nil {
 		subprograms = append(subprograms, javaTLSProg)
+		enabledButNotActivatedProbes = append(enabledButNotActivatedProbes, javaTLSProg.GetProbeList()...)
+	} else {
+		excludedProbes = append(excludedProbes, javaTLSProg.GetProbeList()...)
 	}
 	openSSLProg := newSSLProgram(c, sockFD)
-	subprogramProbesResolvers = append(subprogramProbesResolvers, openSSLProg)
 	if openSSLProg != nil {
 		subprograms = append(subprograms, openSSLProg)
+		enabledButNotActivatedProbes = append(enabledButNotActivatedProbes, openSSLProg.GetProbeList()...)
+	} else {
+		excludedProbes = append(excludedProbes, openSSLProg.GetProbeList()...)
 	}
 
-	tailCalls := []manager.TailCallRoute{
-		{
-			ProgArrayName: protocolDispatcherProgramsMap,
-			Key:           uint32(protocols.ProgramHTTP),
-			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				EBPFFuncName: "socket__http_filter",
-			},
-		},
-	}
+	tailCalls := []manager.TailCallRoute{httpTailCall}
 
 	if c.EnableHTTP2Monitoring {
 		tailCalls = append(tailCalls, http2TailCall)
+		mgr.Maps = append(mgr.Maps, &manager.Map{Name: "http2_dynamic_table"}, &manager.Map{Name: "http2_static_table"})
+	} else {
+		excludedProbes = append(excludedProbes, http2TailCall.ProbeIdentificationPair)
 	}
 
 	// If Kafka monitoring is enabled, the kafka parsing function and the Kafka dispatching function are added to the dispatcher mechanism.
 	if c.EnableKafkaMonitoring {
-		tailCalls = append(tailCalls,
-			manager.TailCallRoute{
-				ProgArrayName: protocolDispatcherProgramsMap,
-				Key:           uint32(protocols.ProgramKafka),
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: "socket__kafka_filter",
-				},
-			},
-			manager.TailCallRoute{
-				ProgArrayName: protocolDispatcherClassificationPrograms,
-				Key:           uint32(protocols.DispatcherKafkaProg),
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: "socket__protocol_dispatcher_kafka",
-				},
-			})
+		tailCalls = append(tailCalls, kafkaFilterTailCall, kafkaProtocolDispatcherFilterTailCall)
+	} else {
+		excludedProbes = append(excludedProbes,
+			kafkaFilterTailCall.ProbeIdentificationPair,
+			kafkaProtocolDispatcherFilterTailCall.ProbeIdentificationPair,
+		)
 	}
 
 	program := &ebpfProgram{
 		Manager:               errtelemetry.NewManager(mgr, bpfTelemetry),
 		cfg:                   c,
 		subprograms:           subprograms,
-		probesResolvers:       subprogramProbesResolvers,
 		tailCallRouter:        tailCalls,
 		connectionProtocolMap: connectionProtocolMap,
+		excludedProbes:        excludedProbes,
 	}
 
 	return program, nil
 }
 
 func (e *ebpfProgram) Init() error {
-	var undefinedProbes []manager.ProbeIdentificationPair
-	for _, tc := range e.tailCallRouter {
-		undefinedProbes = append(undefinedProbes, tc.ProbeIdentificationPair)
-	}
-
-	for _, s := range e.probesResolvers {
-		undefinedProbes = append(undefinedProbes, s.GetAllUndefinedProbes()...)
-	}
-
 	e.DumpHandler = dumpMapsHandler
-	e.InstructionPatcher = func(m *manager.Manager) error {
-		return errtelemetry.PatchEBPFTelemetry(m, true, undefinedProbes)
-	}
+
 	for _, s := range e.subprograms {
 		s.ConfigureManager(e.Manager)
 	}
@@ -410,6 +390,16 @@ func (e *ebpfProgram) init(buf bytecode.AssetReader, options manager.Options) er
 			},
 		},
 	}
+
+	for _, excludedProbe := range e.excludedProbes {
+		fmt.Println(excludedProbe.EBPFFuncName)
+		options.ExcludedFunctions = append(options.ExcludedFunctions, excludedProbe.EBPFFuncName)
+	}
+
+	for _, notActivated := range e.enabledNotActivatedProbes {
+		options.ActivatedProbes
+	}
+
 	addBoolConst(&options, e.cfg.EnableHTTPMonitoring, "http_monitoring_enabled")
 	addBoolConst(&options, e.cfg.EnableHTTP2Monitoring, "http2_monitoring_enabled")
 	addBoolConst(&options, e.cfg.EnableKafkaMonitoring, "kafka_monitoring_enabled")

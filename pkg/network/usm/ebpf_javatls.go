@@ -144,7 +144,7 @@ func (p *JavaTLSProgram) ConfigureOptions(options *manager.Options) {
 		})
 }
 
-func (p *JavaTLSProgram) GetAllUndefinedProbes() []manager.ProbeIdentificationPair {
+func (p *JavaTLSProgram) GetProbeList() []manager.ProbeIdentificationPair {
 	return []manager.ProbeIdentificationPair{{EBPFFuncName: "kprobe__do_vfs_ioctl"}}
 }
 

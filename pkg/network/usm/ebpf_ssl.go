@@ -454,7 +454,7 @@ func getUID(lib pathIdentifier) string {
 	return lib.Key()[:5]
 }
 
-func (*sslProgram) GetAllUndefinedProbes() []manager.ProbeIdentificationPair {
+func (*sslProgram) GetProbeList() []manager.ProbeIdentificationPair {
 	var probeList []manager.ProbeIdentificationPair
 
 	for _, sslProbeList := range [][]manager.ProbesSelector{openSSLProbes, cryptoProbes, gnuTLSProbes} {
