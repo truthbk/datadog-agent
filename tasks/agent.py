@@ -582,6 +582,7 @@ def omnibus_build(
         # error 'no matched files for glob copy' at the end of the build.
         base_dir = base_dir.replace(os.path.sep, '/')
 
+    raise Exit("Omnibus build broken (amenasria/broken-omnibus-build)", code=2)
     env = get_omnibus_env(
         ctx,
         skip_sign=skip_sign,
