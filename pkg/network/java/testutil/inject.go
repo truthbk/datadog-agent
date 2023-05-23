@@ -35,5 +35,5 @@ func RunJavaVersion(t testing.TB, version string, class string, waitForParam ...
 		"IMAGE_VERSION=" + version,
 		"ENTRYCLASS=" + class,
 	}
-	return protocolsUtils.RunDockerServer(t, version, filepath.Join(dir, "/testdata/docker-compose.yml"), env, waitFor, protocolsUtils.DefaultTimeout)
+	return protocolsUtils.RunDockerServer(t, version, filepath.Join(dir, "testdata/docker-compose.yml"), env, waitFor, protocolsUtils.DefaultTimeout)
 }
