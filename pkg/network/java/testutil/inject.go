@@ -8,10 +8,10 @@
 package testutil
 
 import (
+	"path/filepath"
 	"regexp"
 	"testing"
 
-	"github.com/DataDog/datadog-agent/pkg/network/protocols/http/testutil"
 	protocolsUtils "github.com/DataDog/datadog-agent/pkg/network/protocols/testutil"
 )
 
@@ -26,10 +26,13 @@ func RunJavaVersion(t testing.TB, version string, class string, waitForParam ...
 		waitFor = waitForParam[0]
 	}
 
-	dir, _ := testutil.CurDir()
+	dir, ok := os.Lookupenv("DD_SYSTEM_PROBE_JAVA_DIR")
+	if !ok {
+		dir = "./pkg/network/java"
+	}
 	env := []string{
 		"IMAGE_VERSION=" + version,
 		"ENTRYCLASS=" + class,
 	}
-	return protocolsUtils.RunDockerServer(t, version, dir+"/../testdata/docker-compose.yml", env, waitFor, protocolsUtils.DefaultTimeout)
+	return protocolsUtils.RunDockerServer(t, version, filepath.Join(dir, "/testdata/docker-compose.yml"), env, waitFor, protocolsUtils.DefaultTimeout)
 }
