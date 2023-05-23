@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/DataDog/datadog-agent/pkg/network/protocols/http/testutil"
 	protocolsUtils "github.com/DataDog/datadog-agent/pkg/network/protocols/testutil"
 )
 
@@ -28,7 +29,7 @@ func RunJavaVersion(t testing.TB, version string, class string, waitForParam ...
 
 	dir, ok := os.Lookupenv("DD_SYSTEM_PROBE_JAVA_DIR")
 	if !ok {
-		dir = "./pkg/network/java"
+		dir, _ = testutil.CurDir()
 	}
 	env := []string{
 		"IMAGE_VERSION=" + version,
