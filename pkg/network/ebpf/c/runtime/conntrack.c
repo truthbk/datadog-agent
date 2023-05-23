@@ -32,15 +32,22 @@ int kprobe___nf_conntrack_hash_insert(struct pt_regs* ctx) {
         return 0;
     }
 
-    log_debug("kprobe/__nf_conntrack_hash_insert: netns: %u, status: %x\n", get_netns(&ct->ct_net), status);
+
 
     conntrack_tuple_t orig = {}, reply = {};
     if (nf_conn_to_conntrack_tuples(ct, &orig, &reply) != 0) {
         return 0;
     }
 
+    if (orig.sport != 8080 && orig.dport != 8080) {
+        return 0;
+    }
+
+    log_debug("pedro: conntrack_hash_insert: src_ip=%pI4 dst_ip=%pI4, netns: %u\n", &orig.saddr_l, &orig.daddr_l, get_netns(&ct->ct_net));
+    log_debug("pedro: conntrack_hash_insert: src_ip=%pI4 dst_ip=%pI4, metadata: %u\n", &orig.saddr_l, &orig.daddr_l, orig.metadata);
+
     bpf_map_update_with_telemetry(conntrack, &orig, &reply, BPF_ANY);
-    bpf_map_update_with_telemetry(conntrack, &reply, &orig, BPF_ANY);
+    /* bpf_map_update_with_telemetry(conntrack, &reply, &orig, BPF_ANY); */
     increment_telemetry_registers_count();
 
     return 0;
@@ -69,7 +76,7 @@ int kprobe_ctnetlink_fill_info(struct pt_regs* ctx) {
     }
 
     bpf_map_update_with_telemetry(conntrack, &orig, &reply, BPF_ANY);
-    bpf_map_update_with_telemetry(conntrack, &reply, &orig, BPF_ANY);
+    /* bpf_map_update_with_telemetry(conntrack, &reply, &orig, BPF_ANY); */
     increment_telemetry_registers_count();
 
     return 0;

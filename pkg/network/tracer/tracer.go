@@ -183,7 +183,7 @@ func newTracer(cfg *config.Config) (*Tracer, error) {
 		config:                     cfg,
 		state:                      state,
 		reverseDNS:                 newReverseDNS(cfg),
-		usmMonitor:                 newUSMMonitor(cfg, ebpfTracer, bpfTelemetry),
+		usmMonitor:                 newUSMMonitor(cfg, ebpfTracer, conntracker, bpfTelemetry),
 		activeBuffer:               network.NewConnectionBuffer(512, 256),
 		conntracker:                conntracker,
 		sourceExcludes:             network.ParseConnectionFilters(cfg.ExcludedSourceConnections),
@@ -782,10 +782,11 @@ func (t *Tracer) DebugDumpProcessCache(ctx context.Context) (interface{}, error)
 	return nil, nil
 }
 
-func newUSMMonitor(c *config.Config, tracer connection.Tracer, bpfTelemetry *nettelemetry.EBPFTelemetry) *usm.Monitor {
+func newUSMMonitor(c *config.Config, tracer connection.Tracer, conntracker netlink.Conntracker, bpfTelemetry *nettelemetry.EBPFTelemetry) *usm.Monitor {
 	// Shared with the USM program
 	sockFDMap := tracer.GetMap(probes.SockByPidFDMap)
 	connectionProtocolMap := tracer.GetMap(probes.ConnectionProtocolMap)
+	natMap := conntracker.(*ebpfConntracker).GetTranslationMap()
 
 	if tracer.Type() != connection.TracerTypeKProbeRuntimeCompiled && tracer.Type() != connection.TracerTypeKProbeCORE {
 		if c.EnableGoTLSSupport {
@@ -794,7 +795,7 @@ func newUSMMonitor(c *config.Config, tracer connection.Tracer, bpfTelemetry *net
 		}
 	}
 
-	monitor, err := usm.NewMonitor(c, connectionProtocolMap, sockFDMap, bpfTelemetry)
+	monitor, err := usm.NewMonitor(c, connectionProtocolMap, sockFDMap, natMap, bpfTelemetry)
 	if err != nil {
 		log.Error(err)
 		return nil

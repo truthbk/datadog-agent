@@ -58,6 +58,7 @@ type ebpfProgram struct {
 	mapCleaner            *ddebpf.MapCleaner
 	tailCallRouter        []manager.TailCallRoute
 	connectionProtocolMap *ebpf.Map
+	natMap                *ebpf.Map
 }
 
 type probeResolver interface {
@@ -101,7 +102,7 @@ var http2TailCall = manager.TailCallRoute{
 	},
 }
 
-func newEBPFProgram(c *config.Config, connectionProtocolMap, sockFD *ebpf.Map, bpfTelemetry *errtelemetry.EBPFTelemetry) (*ebpfProgram, error) {
+func newEBPFProgram(c *config.Config, connectionProtocolMap, sockFD, natMap *ebpf.Map, bpfTelemetry *errtelemetry.EBPFTelemetry) (*ebpfProgram, error) {
 	mgr := &manager.Manager{
 		Maps: []*manager.Map{
 			{Name: httpInFlightMap},
@@ -125,6 +126,18 @@ func newEBPFProgram(c *config.Config, connectionProtocolMap, sockFD *ebpf.Map, b
 			{
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
 					EBPFFuncName: "tracepoint__net__netif_receive_skb",
+					UID:          probeUID,
+				},
+			},
+			{
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					EBPFFuncName: "kprobe__sk_filter_trim_cap",
+					UID:          probeUID,
+				},
+			},
+			{
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					EBPFFuncName: "kretprobe__sk_filter_trim_cap",
 					UID:          probeUID,
 				},
 			},
@@ -200,6 +213,7 @@ func newEBPFProgram(c *config.Config, connectionProtocolMap, sockFD *ebpf.Map, b
 		probesResolvers:       subprogramProbesResolvers,
 		tailCallRouter:        tailCalls,
 		connectionProtocolMap: connectionProtocolMap,
+		natMap:                natMap,
 	}
 
 	return program, nil
@@ -381,6 +395,10 @@ func (e *ebpfProgram) init(buf bytecode.AssetReader, options manager.Options) er
 			options.MapEditors = make(map[string]*ebpf.Map)
 		}
 		options.MapEditors[probes.ConnectionProtocolMap] = e.connectionProtocolMap
+
+		if e.natMap != nil {
+			options.MapEditors[probes.ConntrackMap] = e.natMap
+		}
 	} else {
 		options.MapSpecEditors[probes.ConnectionProtocolMap] = manager.MapSpecEditor{
 			Type:       ebpf.Hash,
@@ -406,6 +424,18 @@ func (e *ebpfProgram) init(buf bytecode.AssetReader, options manager.Options) er
 		&manager.ProbeSelector{
 			ProbeIdentificationPair: manager.ProbeIdentificationPair{
 				EBPFFuncName: "tracepoint__net__netif_receive_skb",
+				UID:          probeUID,
+			},
+		},
+		&manager.ProbeSelector{
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				EBPFFuncName: "kprobe__sk_filter_trim_cap",
+				UID:          probeUID,
+			},
+		},
+		&manager.ProbeSelector{
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				EBPFFuncName: "kretprobe__sk_filter_trim_cap",
 				UID:          probeUID,
 			},
 		},

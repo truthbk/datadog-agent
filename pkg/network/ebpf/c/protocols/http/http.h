@@ -7,6 +7,7 @@
 #include "sockfd.h"
 
 #include "protocols/http/types.h"
+#include "protocols/istio.h"
 #include "protocols/http/maps.h"
 #include "protocols/http/usm-events.h"
 #include "protocols/tls/https.h"
@@ -188,6 +189,7 @@ int socket__http_filter(struct __sk_buff* skb) {
     if (!http_allow_packet(&http, skb, &skb_info)) {
         return 0;
     }
+    translate_tuple(skb, &http.tup);
     normalize_tuple(&http.tup);
 
     read_into_buffer_skb((char *)http.request_fragment, skb, skb_info.data_off);

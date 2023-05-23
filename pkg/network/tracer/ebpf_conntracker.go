@@ -282,6 +282,10 @@ func (e *ebpfConntracker) GetTranslationForConn(stats network.ConnectionStats) *
 	}
 }
 
+func (e *ebpfConntracker) GetTranslationMap() *ebpf.Map {
+	return e.ctMap
+}
+
 func (*ebpfConntracker) IsSampling() bool {
 	return false
 }
