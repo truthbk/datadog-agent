@@ -455,7 +455,7 @@ def load_release_versions(_, target_version):
 
 
 @task()
-def generate_config(ctx, build_type, output_file, env=None):
+def generate_config(ctx, build_type, output_file, env=None, hide=None):
     """
     Generates the datadog.yaml configuration file.
     """
@@ -466,7 +466,66 @@ def generate_config(ctx, build_type, output_file, env=None):
         "output_file": output_file,
     }
     cmd = "go run {go_file} {build_type} {template_file} {output_file}"
-    return ctx.run(cmd.format(**args), env=env or {})
+    return ctx.run(cmd.format(**args), env=env or {}, hide=hide)
+
+@task()
+def generate_config_schema(ctx, build_type, output_file, env=None):
+    """
+    Create a json-schema describing the config laid out in pkg/config/config-template.yaml
+    valid build_types can be found in pkg/config/render_config.go
+
+    eg: inv generate-config-schema agent-py3 .agent.json
+    """
+
+    res = generate_config(ctx, build_type, "-", hide=True)
+
+    yaml_text = res.stdout.split("\n")
+    json_schema = {}
+
+    for i in range(len(yaml_text)):
+        if yaml_text[i].startswith("## @param"):
+            line = yaml_text[i]
+            param_pattern = re.compile(r"## @param (.*) - (.*) - (.*)( - default: (.*))?")
+            match = param_pattern.match(line)
+            if match:
+                param_name, param_type, param_optional, _, param_default = match.groups()
+                param_default = param_default if param_default else None
+
+                if param_type == "custom object":
+                    json_schema[param_name] = {
+                        "type": "object",
+                        "properties": {}
+                    }
+                    i += 1
+                    while i < len(yaml_text) and yaml_text[i].startswith("## @env"):
+                        line = yaml_text[i]
+                        env_pattern = re.compile(r"## @env (.*) - (.*) - (.*)( - default: (.*))?")
+                        match = env_pattern.match(line)
+                        if match:
+                            env_name, env_type, env_optional, _, env_default = match.groups()
+                            env_default = env_default if env_default else None
+
+                            if env_type == "space separated list of strings":
+                                env_type = "array"
+
+                            json_schema[param_name]["properties"][env_name] = {
+                                "type": env_type,
+                                "optional": env_optional == "optional",
+                                "default": env_default
+                            }
+                        i += 1
+                else:
+                    if param_type == "space separated list of strings":
+                        param_type = "array"
+
+                    json_schema[param_name] = {
+                        "type": param_type,
+                        "optional": param_optional == "optional",
+                        "default": param_default
+                    }
+
+    with open(output_file, "w") as json_file:
+        json.dump(json_schema, json_file, indent=4)
 
 
 ##

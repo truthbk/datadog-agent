@@ -10,6 +10,7 @@ package main
 import (
 	"fmt"
 	"html/template"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -163,11 +164,17 @@ func main() {
 	component := os.Args[1]
 	tplFile, _ := filepath.Abs(os.Args[2])
 	tplFilename := filepath.Base(tplFile)
-	destFile, _ := filepath.Abs(os.Args[3])
+	var f io.Writer
+	var err error
+	if os.Args[3] == "-" {
+		f = os.Stdout
+	} else {
+		destFile, _ := filepath.Abs(os.Args[3])
 
-	f, err := os.Create(destFile)
-	if err != nil {
-		panic(err)
+		f, err = os.Create(destFile)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	t := template.Must(template.New(tplFilename).ParseFiles(tplFile))
@@ -176,5 +183,5 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println("Successfully wrote", destFile)
+	fmt.Println("Successfully wrote to", os.Args[3])
 }

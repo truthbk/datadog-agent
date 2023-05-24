@@ -66,7 +66,10 @@ from .test import (
     lint_teamassignment,
     test,
 )
-from .utils import generate_config
+from .utils import (
+    generate_config,
+    generate_config_schema,
+)
 
 # the root namespace
 ns = Collection()
@@ -101,6 +104,7 @@ ns.add_task(check_mod_tidy)
 ns.add_task(tidy_all)
 ns.add_task(check_go_version)
 ns.add_task(generate_config)
+ns.add_task(generate_config_schema)
 ns.add_task(junit_upload)
 ns.add_task(junit_macos_repack)
 ns.add_task(fuzz)
