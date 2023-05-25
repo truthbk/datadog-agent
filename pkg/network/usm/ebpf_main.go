@@ -125,6 +125,13 @@ func newEBPFProgram(c *config.Config, connectionProtocolMap, sockFD, natMap *ebp
 			},
 			{
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					EBPFFuncName: "kprobe__tcp_recvmsg",
+					UID:          probeUID,
+				},
+				KProbeMaxActive: maxActive,
+			},
+			{
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
 					EBPFFuncName: "tracepoint__net__netif_receive_skb",
 					UID:          probeUID,
 				},
@@ -418,6 +425,12 @@ func (e *ebpfProgram) init(buf bytecode.AssetReader, options manager.Options) er
 		&manager.ProbeSelector{
 			ProbeIdentificationPair: manager.ProbeIdentificationPair{
 				EBPFFuncName: "kprobe__tcp_sendmsg",
+				UID:          probeUID,
+			},
+		},
+		&manager.ProbeSelector{
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				EBPFFuncName: "kprobe__tcp_recvmsg",
 				UID:          probeUID,
 			},
 		},

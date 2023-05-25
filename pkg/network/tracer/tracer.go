@@ -786,7 +786,10 @@ func newUSMMonitor(c *config.Config, tracer connection.Tracer, conntracker netli
 	// Shared with the USM program
 	sockFDMap := tracer.GetMap(probes.SockByPidFDMap)
 	connectionProtocolMap := tracer.GetMap(probes.ConnectionProtocolMap)
-	natMap := conntracker.(*ebpfConntracker).GetTranslationMap()
+	var natMap *ebpf.Map
+	if ebpfConntrack, ok := conntracker.(*ebpfConntracker); ok {
+		natMap = ebpfConntrack.GetTranslationMap()
+	}
 
 	if tracer.Type() != connection.TracerTypeKProbeRuntimeCompiled && tracer.Type() != connection.TracerTypeKProbeCORE {
 		if c.EnableGoTLSSupport {

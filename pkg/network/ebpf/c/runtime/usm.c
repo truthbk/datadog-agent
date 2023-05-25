@@ -24,6 +24,7 @@
 #include "protocols/tls/tags-types.h"
 #include "protocols/tls/java-tls-erpc.h"
 #include "protocols/kafka/kafka-parsing.h"
+#include "protocols/istio.h"
 
 #define SO_SUFFIX_SIZE 3
 
@@ -47,7 +48,13 @@ int BPF_KPROBE(kprobe__tcp_sendmsg, struct sock *sk) {
     log_debug("kprobe/tcp_sendmsg: sk=%llx\n", sk);
     // map connection tuple during SSL_do_handshake(ctx)
     map_ssl_ctx_to_sock(sk);
+    istio_process(sk, SOCK_OP_WRITE);
+    return 0;
+}
 
+SEC("kprobe/tcp_recvmsg")
+int BPF_KPROBE(kprobe__tcp_recvmsg, struct sock *sk) {
+    istio_process(sk, SOCK_OP_READ);
     return 0;
 }
 
