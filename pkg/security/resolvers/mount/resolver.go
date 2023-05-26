@@ -9,6 +9,7 @@ package mount
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"strings"
 	"sync"
@@ -400,6 +401,9 @@ func (mr *Resolver) resolveMountPath(mountID uint32, containerID string, pid uin
 	path, err := mr.getMountPath(mountID)
 	if err == nil {
 		mr.cacheHitsStats.Inc()
+		if mountID == 2336 {
+			fmt.Printf("2336 mount cache hit\n")
+		}
 
 		// touch the redemption entry to maintain the entry
 		_, _ = mr.redemption.Get(mountID)
@@ -407,6 +411,9 @@ func (mr *Resolver) resolveMountPath(mountID uint32, containerID string, pid uin
 		return path, nil
 	}
 	mr.cacheMissStats.Inc()
+	if mountID == 2336 {
+		fmt.Printf("2336 mount cache miss\n")
+	}
 
 	if !mr.opts.UseProcFS {
 		return "", &ErrMountNotFound{MountID: mountID}
@@ -417,16 +424,25 @@ func (mr *Resolver) resolveMountPath(mountID uint32, containerID string, pid uin
 	}
 
 	if err := mr.syncCache(pids...); err != nil {
+		if mountID == 2336 {
+			fmt.Printf("2336 synccache miss\n")
+		}
 		mr.syncCacheMiss(mountID)
 		return "", err
 	}
 
 	path, err = mr.getMountPath(mountID)
 	if err == nil {
+		if mountID == 2336 {
+			fmt.Printf("2336 syncache hit\n")
+		}
 		mr.procHitsStats.Inc()
 		return path, nil
 	}
 	mr.procMissStats.Inc()
+	if mountID == 2336 {
+		fmt.Printf("2336 syncacche miss\n")
+	}
 
 	return "", err
 }

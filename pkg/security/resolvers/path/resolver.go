@@ -78,50 +78,127 @@ func (n *NoResolver) Close() error {
 	return nil
 }
 
-type pathResolver struct {
-	fnv1a     hash.Hash64
-	pathRings []byte
-	numCPU    uint64
+// Resolver describes a resolvers for path and file names
+type Resolver struct {
+	dentryResolver *dentry.Resolver
+	mountResolver  *mount.Resolver
+}
+
+// NewResolver returns a new path resolver
+func NewResolver(dentryResolver *dentry.Resolver, mountResolver *mount.Resolver) *Resolver {
+	return &Resolver{dentryResolver: dentryResolver, mountResolver: mountResolver}
+}
+
+// ResolveBasename resolves an inode/mount ID pair to a file basename
+func (r *Resolver) ResolveBasename(e *model.FileFields) string {
+	return r.dentryResolver.ResolveName(e.PathKey)
+}
+
+// ResolveFileFieldsPath resolves an inode/mount ID pair to a full path
+func (r *Resolver) ResolveFileFieldsPath(e *model.FileFields, pidCtx *model.PIDContext, ctrCtx *model.ContainerContext) (string, error) {
+	pathStr, err := r.dentryResolver.Resolve(e.PathKey, !e.HasHardLinks())
+	if err != nil {
+		return pathStr, &ErrPathResolution{Err: err}
+	}
+
+	if e.IsFileless() {
+		return pathStr, nil
+	}
+
+	mountPath, err := r.mountResolver.ResolveMountPath(e.MountID, pidCtx.Pid, ctrCtx.ID)
+	if err != nil {
+		if _, err := r.mountResolver.IsMountIDValid(e.MountID); errors.Is(err, mount.ErrMountKernelID) {
+			return pathStr, &ErrPathResolutionNotCritical{Err: fmt.Errorf("mount ID(%d) invalid: %w", e.MountID, err)}
+		}
+		return pathStr, &ErrPathResolution{Err: err}
+	}
+
+	rootPath, err := r.mountResolver.ResolveMountRoot(e.MountID, pidCtx.Pid, ctrCtx.ID)
+	if err != nil {
+		if _, err := r.mountResolver.IsMountIDValid(e.MountID); errors.Is(err, mount.ErrMountKernelID) {
+			return pathStr, &ErrPathResolutionNotCritical{Err: fmt.Errorf("mount ID(%d) invalid: %w", e.MountID, err)}
+		}
+		return pathStr, &ErrPathResolution{Err: err}
+	}
+	// This aims to handle bind mounts
+	if strings.HasPrefix(pathStr, rootPath) && rootPath != "/" {
+		pathStr = strings.Replace(pathStr, rootPath, "", 1)
+	}
+
+	if mountPath != "/" {
+		pathStr = mountPath + pathStr
+	}
+
+	return pathStr, nil
+}
+
+// SetMountRoot set the mount point information
+func (r *Resolver) SetMountRoot(ev *model.Event, e *model.Mount) error {
+	var err error
+	e.RootStr, err = r.dentryResolver.Resolve(e.RootPathKey, true)
+	if err != nil {
+		return &ErrPathResolutionNotCritical{Err: err}
+	}
+	return nil
+}
+
+// ResolveMountRoot resolves the mountpoint to a full path
+func (r *Resolver) ResolveMountRoot(ev *model.Event, e *model.Mount) (string, error) {
+	if len(e.RootStr) == 0 {
+		if err := r.SetMountRoot(ev, e); err != nil {
+			return "", err
+		}
+	}
+	return e.RootStr, nil
+}
+
+// SetMountPoint set the mount point information
+func (r *Resolver) SetMountPoint(ev *model.Event, e *model.Mount) error {
+	var err error
+	e.MountPointStr, err = r.dentryResolver.Resolve(e.ParentPathKey, true)
+	if err != nil {
+		return &ErrPathResolutionNotCritical{Err: err}
+	}
+	return nil
+}
+
+// ResolveMountPoint resolves the mountpoint to a full path
+func (r *Resolver) ResolveMountPoint(ev *model.Event, e *model.Mount) (string, error) {
+	if len(e.MountPointStr) == 0 {
+		if err := r.SetMountPoint(ev, e); err != nil {
+			return "", err
+		}
+	}
+	return e.MountPointStr, nil
+}
+
+func (r *Resolver) Start(m *manager.Manager) error {
+	return nil
+}
+
+func (r *Resolver) Close() error {
+	return nil
 }
 
 const PathRingBuffersSize = uint64(131072)
 
-func newPathResolver() *pathResolver {
-	return &pathResolver{
-		fnv1a: fnv.New64a(),
+// Resolver describes a resolvers for path and file names
+type PathRingsResolver struct {
+	mountResolver *mount.Resolver
+	fnv1a         hash.Hash64
+	numCPU        uint64
+	pathRings     []byte
+}
+
+// NewResolver returns a new path resolver
+func NewPathRingsResolver(mountResolver *mount.Resolver) *PathRingsResolver {
+	return &PathRingsResolver{
+		mountResolver: mountResolver,
+		fnv1a:         fnv.New64a(),
 	}
 }
 
-func (pr *pathResolver) start(m *manager.Manager) error {
-	if pr.pathRings != nil {
-		return fmt.Errorf("path resolver already started")
-	}
-
-	numCPU, err := utils.NumCPU()
-	if err != nil {
-		return err
-	}
-	pr.numCPU = uint64(numCPU)
-
-	pathRingsMap, err := managerhelper.Map(m, "pr_ringbufs")
-	if err != nil {
-		return err
-	}
-
-	pathRings, err := syscall.Mmap(pathRingsMap.FD(), 0, int(pr.numCPU*PathRingBuffersSize), unix.PROT_READ, unix.MAP_SHARED)
-	if err != nil || pathRings == nil {
-		return fmt.Errorf("failed to mmap pr_ringbufs map: %w", err)
-	}
-	pr.pathRings = pathRings
-
-	return nil
-}
-
-func (pr *pathResolver) close() error {
-	return unix.Munmap(pr.pathRings)
-}
-
-func (pr *pathResolver) resolvePath(ref *model.PathRingBufferRef) (string, error) {
+func (pr *PathRingsResolver) resolvePath(ref *model.PathRingBufferRef) (string, error) {
 	if ref.Length == 0 {
 		return "", fmt.Errorf("path ref length is 0")
 	}
@@ -161,69 +238,43 @@ func (pr *pathResolver) resolvePath(ref *model.PathRingBufferRef) (string, error
 	return dentry.ComputeFilenameFromParts(pathParts), nil
 }
 
-// Resolver describes a resolvers for path and file names
-type Resolver struct {
-	dentryResolver *dentry.Resolver
-	mountResolver  *mount.Resolver
-	pathResolver   *pathResolver
-}
-
-// NewResolver returns a new path resolver
-func NewResolver(dentryResolver *dentry.Resolver, mountResolver *mount.Resolver) *Resolver {
-	return &Resolver{dentryResolver: dentryResolver, mountResolver: mountResolver, pathResolver: newPathResolver()}
-}
-
-// ResolveBasename resolves an inode/mount ID pair to a file basename
-func (r *Resolver) ResolveBasename(e *model.FileFields) string {
-	if r.pathResolver != nil && e.PathRingBufferRef.Length != 0 {
-		resolvedPath, err := r.pathResolver.resolvePath(&e.PathRingBufferRef)
-		if err != nil {
-			return r.dentryResolver.ResolveName(e.PathKey)
-		}
-		return path.Base(resolvedPath)
+func (pr *PathRingsResolver) ResolveBasename(e *model.FileFields) string {
+	resolvedPath, err := pr.resolvePath(&e.PathRef)
+	if err != nil {
+		return ""
 	}
-	return r.dentryResolver.ResolveName(e.PathKey)
+	fmt.Printf(">>> path resolver (basename): %s\n", resolvedPath)
+	return path.Base(resolvedPath)
 }
 
-// ResolveFileFieldsPath resolves an inode/mount ID pair to a full path
-func (r *Resolver) ResolveFileFieldsPath(e *model.FileFields, pidCtx *model.PIDContext, ctrCtx *model.ContainerContext) (string, error) {
-
-	var pathStr string
-
-	if r.pathResolver != nil && e.PathRingBufferRef.Length != 0 {
-		resolvedPath, err := r.pathResolver.resolvePath(&e.PathRingBufferRef)
-		if err != nil {
-			return resolvedPath, &ErrPathResolution{Err: err}
-		}
-		pathStr = resolvedPath
-	} else {
-		resolvedPath, err := r.dentryResolver.Resolve(e.PathKey, !e.HasHardLinks())
-		if err != nil {
-			return resolvedPath, &ErrPathResolution{Err: err}
-		}
-		pathStr = resolvedPath
+func (pr *PathRingsResolver) ResolveFileFieldsPath(e *model.FileFields, pidCtx *model.PIDContext, ctrCtx *model.ContainerContext) (string, error) {
+	pathStr, err := pr.resolvePath(&e.PathRef)
+	if err != nil {
+		return pathStr, &ErrPathResolution{Err: err}
 	}
+
+	// fmt.Printf(">> resolved path part: %s\n", pathStr)
 
 	if e.IsFileless() {
 		return pathStr, nil
 	}
 
-	mountPath, err := r.mountResolver.ResolveMountPath(e.MountID, pidCtx.Pid, ctrCtx.ID)
+	mountPath, err := pr.mountResolver.ResolveMountPath(e.MountID, pidCtx.Pid, ctrCtx.ID)
 	if err != nil {
-		if _, err := r.mountResolver.IsMountIDValid(e.MountID); errors.Is(err, mount.ErrMountKernelID) {
+		if _, err := pr.mountResolver.IsMountIDValid(e.MountID); errors.Is(err, mount.ErrMountKernelID) {
 			return pathStr, &ErrPathResolutionNotCritical{Err: fmt.Errorf("mount ID(%d) invalid: %w", e.MountID, err)}
 		}
 		return pathStr, &ErrPathResolution{Err: err}
 	}
 
-	rootPath, err := r.mountResolver.ResolveMountRoot(e.MountID, pidCtx.Pid, ctrCtx.ID)
+	// This aims to handle bind mounts
+	rootPath, err := pr.mountResolver.ResolveMountRoot(e.MountID, pidCtx.Pid, ctrCtx.ID)
 	if err != nil {
-		if _, err := r.mountResolver.IsMountIDValid(e.MountID); errors.Is(err, mount.ErrMountKernelID) {
+		if _, err := pr.mountResolver.IsMountIDValid(e.MountID); errors.Is(err, mount.ErrMountKernelID) {
 			return pathStr, &ErrPathResolutionNotCritical{Err: fmt.Errorf("mount ID(%d) invalid: %w", e.MountID, err)}
 		}
 		return pathStr, &ErrPathResolution{Err: err}
 	}
-	// This aims to handle bind mounts
 	if strings.HasPrefix(pathStr, rootPath) && rootPath != "/" {
 		pathStr = strings.Replace(pathStr, rootPath, "", 1)
 	}
@@ -232,14 +283,20 @@ func (r *Resolver) ResolveFileFieldsPath(e *model.FileFields, pidCtx *model.PIDC
 		pathStr = mountPath + pathStr
 	}
 
+	// fmt.Printf(">> resolved mount part: %s\n", mountPath)
+
 	return pathStr, nil
 }
 
 // SetMountRoot set the mount point information
-func (r *Resolver) SetMountRoot(ev *model.Event, e *model.Mount) error {
+func (pr *PathRingsResolver) SetMountRoot(ev *model.Event, e *model.Mount) error {
+	// Root path can be empty, in this case set it to "/" to mimic what we sync from the procfs
+	if e.RootStrPathRef.Length == 0 {
+		e.RootStr = "/"
+		return nil
+	}
 	var err error
-
-	e.RootStr, err = r.dentryResolver.Resolve(e.RootPathKey, true)
+	e.RootStr, err = pr.resolvePath(&e.RootStrPathRef)
 	if err != nil {
 		return &ErrPathResolutionNotCritical{Err: err}
 	}
@@ -247,9 +304,9 @@ func (r *Resolver) SetMountRoot(ev *model.Event, e *model.Mount) error {
 }
 
 // ResolveMountRoot resolves the mountpoint to a full path
-func (r *Resolver) ResolveMountRoot(ev *model.Event, e *model.Mount) (string, error) {
+func (pr *PathRingsResolver) ResolveMountRoot(ev *model.Event, e *model.Mount) (string, error) {
 	if len(e.RootStr) == 0 {
-		if err := r.SetMountRoot(ev, e); err != nil {
+		if err := pr.SetMountRoot(ev, e); err != nil {
 			return "", err
 		}
 	}
@@ -257,10 +314,9 @@ func (r *Resolver) ResolveMountRoot(ev *model.Event, e *model.Mount) (string, er
 }
 
 // SetMountPoint set the mount point information
-func (r *Resolver) SetMountPoint(ev *model.Event, e *model.Mount) error {
+func (pr *PathRingsResolver) SetMountPoint(ev *model.Event, e *model.Mount) error {
 	var err error
-
-	e.MountPointStr, err = r.dentryResolver.Resolve(e.ParentPathKey, true)
+	e.MountPointStr, err = pr.resolvePath(&e.MountPointPathRef)
 	if err != nil {
 		return &ErrPathResolutionNotCritical{Err: err}
 	}
@@ -268,7 +324,7 @@ func (r *Resolver) SetMountPoint(ev *model.Event, e *model.Mount) error {
 }
 
 // ResolveMountPoint resolves the mountpoint to a full path
-func (r *Resolver) ResolveMountPoint(ev *model.Event, e *model.Mount) (string, error) {
+func (r *PathRingsResolver) ResolveMountPoint(ev *model.Event, e *model.Mount) (string, error) {
 	if len(e.MountPointStr) == 0 {
 		if err := r.SetMountPoint(ev, e); err != nil {
 			return "", err
@@ -277,16 +333,31 @@ func (r *Resolver) ResolveMountPoint(ev *model.Event, e *model.Mount) (string, e
 	return e.MountPointStr, nil
 }
 
-func (r *Resolver) Start(m *manager.Manager) error {
-	if r.pathResolver != nil {
-		return r.pathResolver.start(m)
+func (pr *PathRingsResolver) Start(m *manager.Manager) error {
+	if pr.pathRings != nil {
+		return fmt.Errorf("path resolver already started")
 	}
+
+	numCPU, err := utils.NumCPU()
+	if err != nil {
+		return err
+	}
+	pr.numCPU = uint64(numCPU)
+
+	pathRingsMap, err := managerhelper.Map(m, "pr_ringbufs")
+	if err != nil {
+		return err
+	}
+
+	pathRings, err := syscall.Mmap(pathRingsMap.FD(), 0, int(pr.numCPU*PathRingBuffersSize), unix.PROT_READ, unix.MAP_SHARED)
+	if err != nil || pathRings == nil {
+		return fmt.Errorf("failed to mmap pr_ringbufs map: %w", err)
+	}
+	pr.pathRings = pathRings
+
 	return nil
 }
 
-func (r *Resolver) Close() error {
-	if r.pathResolver != nil {
-		return r.pathResolver.close()
-	}
-	return nil
+func (pr *PathRingsResolver) Close() error {
+	return unix.Munmap(pr.pathRings)
 }
