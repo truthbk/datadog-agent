@@ -1014,7 +1014,6 @@ func newMountEventSerializer(e *model.Event, resolvers *resolvers.Resolvers) *Mo
 			Inode:   &e.Mount.RootInode,
 		},
 		MountID:         e.Mount.MountID,
-		GroupID:         e.Mount.GroupID,
 		ParentMountID:   e.Mount.ParentMountID,
 		BindSrcMountID:  e.Mount.BindSrcMountID,
 		Device:          e.Mount.Device,

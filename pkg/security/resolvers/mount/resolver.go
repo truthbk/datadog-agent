@@ -9,6 +9,7 @@ package mount
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"strconv"
 	"strings"
@@ -54,13 +55,9 @@ func parseGroupID(mnt *mountinfo.Info) (uint32, error) {
 
 // newMountFromMountInfo - Creates a new Mount from parsed MountInfo data
 func newMountFromMountInfo(mnt *mountinfo.Info) *model.Mount {
-	// groupID is not use for the path resolution, don't make it critical
-	groupID, _ := parseGroupID(mnt)
-
 	// create a Mount out of the parsed MountInfo
 	return &model.Mount{
 		MountID:       uint32(mnt.ID),
-		GroupID:       groupID,
 		Device:        uint32(unix.Mkdev(uint32(mnt.Major), uint32(mnt.Minor))),
 		ParentMountID: uint32(mnt.Parent),
 		FSType:        mnt.FSType,
@@ -413,6 +410,9 @@ func (mr *Resolver) resolveMountPath(mountID uint32, containerID string, pids ..
 	path, err := mr.getMountPath(mountID)
 	if err == nil {
 		mr.cacheHitsStats.Inc()
+		if mountID == 2336 {
+			fmt.Printf("2336 mount cache hit\n")
+		}
 
 		// touch the redemption entry to maintain the entry
 		_, _ = mr.redemption.Get(mountID)
@@ -420,26 +420,41 @@ func (mr *Resolver) resolveMountPath(mountID uint32, containerID string, pids ..
 		return path, nil
 	}
 	mr.cacheMissStats.Inc()
+	if mountID == 2336 {
+		fmt.Printf("2336 mount cache miss\n")
+	}
 
 	if !mr.opts.UseProcFS {
 		return "", &ErrMountNotFound{MountID: mountID}
 	}
 
 	if !mr.fallbackLimiter.IsAllowed(mountID) {
+		if mountID == 2336 {
+			fmt.Printf("2336 rate limited\n")
+		}
 		return "", &ErrMountNotFound{MountID: mountID}
 	}
 
 	if err := mr.syncCache(pids...); err != nil {
+		if mountID == 2336 {
+			fmt.Printf("2336 synccache miss\n")
+		}
 		mr.syncCacheMiss(mountID)
 		return "", err
 	}
 
 	path, err = mr.getMountPath(mountID)
 	if err == nil {
+		if mountID == 2336 {
+			fmt.Printf("2336 syncache hit\n")
+		}
 		mr.procHitsStats.Inc()
 		return path, nil
 	}
 	mr.procMissStats.Inc()
+	if mountID == 2336 {
+		fmt.Printf("2336 syncacche miss\n")
+	}
 
 	return "", err
 }
