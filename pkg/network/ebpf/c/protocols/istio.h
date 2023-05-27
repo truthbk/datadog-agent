@@ -12,21 +12,18 @@
 #include <linux/skbuff.h>
 #endif
 
-#define ISTIO_PORT 15001
+#define ENVOY_OUTBOUND_PORT 15001
+#define ENVOY_INBOUND_PORT 15006
 
-struct sk_activity_history {
-    void *curr;
-    void *prev;
+struct sk_history {
+    struct sock *curr;
+    struct sock *prev;
 };
 
 struct {
-    struct sk_activity_history read_history;
-    struct sk_activity_history write_history;
-} typedef istio_traffic_t;
-
-BPF_HASH_MAP(pid_tgid_to_skb, u64, struct sk_buff *, 1024)
-BPF_HASH_MAP(skb_to_netns, struct sk_buff *, u32, 1024)
-BPF_HASH_MAP(traffic_by_worker_thread, u64, istio_traffic_t, 1024)
+    struct sk_history read;
+    struct sk_history write;
+} typedef envoy_thread_monitor_t;
 
 typedef enum {
     SOCK_OP_UNKNOWN = 0,
@@ -34,98 +31,133 @@ typedef enum {
     SOCK_OP_WRITE,
 } sock_op_t;
 
-static __always_inline istio_traffic_t* fetch_istio_traffic(struct sock *sk) {
+BPF_HASH_MAP(pid_tgid_to_skb, u64, struct sk_buff *, 1024)
+BPF_HASH_MAP(skb_to_netns, struct sk_buff *, u32, 1024)
+BPF_HASH_MAP(envoy_thread_monitors, u64, envoy_thread_monitor_t, 1024)
+BPF_HASH_MAP(envoy_plain_to_encrypted, conn_tuple_t, conn_tuple_t, 1024)
+
+static __always_inline envoy_thread_monitor_t* fetch_envoy_thread_monitor(struct sock *sk) {
     u64 pid_tgid = bpf_get_current_pid_tgid();
-    istio_traffic_t *it = bpf_map_lookup_elem(&traffic_by_worker_thread, &pid_tgid);
-    if (it) {
-        return it;
+    envoy_thread_monitor_t *etm = bpf_map_lookup_elem(&envoy_thread_monitors, &pid_tgid);
+    if (etm) {
+        // If this pid_tgid has matched a map entry, it means we're dealing with
+        // an Envoy worker thread responsible for managing traffic related to
+        // the application container
+        return etm;
     }
 
-    conn_tuple_t tuple = {};
+    // Else we take a look at the socket we're dealing with. If the source port
+    // matches the Istio port, we have a new envoy worker thread, and therefore we
+    // create a map entry to track socket activity for this particular thread.
+    conn_tuple_t tuple;
     if (!read_conn_tuple(&tuple, sk, pid_tgid, CONN_TYPE_TCP)) {
         return NULL;
     }
 
-    if (tuple.sport != ISTIO_PORT && tuple.dport != ISTIO_PORT) {
+    if (tuple.sport != ENVOY_OUTBOUND_PORT && tuple.sport != ENVOY_OUTBOUND_PORT) {
         return NULL;
     }
 
-    istio_traffic_t empty;
+    envoy_thread_monitor_t empty;
     bpf_memset(&empty, 0, sizeof(empty));
-    bpf_map_update_elem(&traffic_by_worker_thread, &pid_tgid, &empty, BPF_NOEXIST);
-    return bpf_map_lookup_elem(&traffic_by_worker_thread, &pid_tgid);
+    bpf_map_update_elem(&envoy_thread_monitors, &pid_tgid, &empty, BPF_NOEXIST);
+    return bpf_map_lookup_elem(&envoy_thread_monitors, &pid_tgid);
 }
 
-static __always_inline void update_istio_traffic_inner(struct sk_activity_history *activity_history, struct sock *sk) {
-    // if the previous socket operation was of the same type was done over the
+static __always_inline void update_sk_history(struct sk_history *history, struct sock *sk) {
+    // If the previous socket operation was of the same type was done over the
     // same socket, don't do anything.
-    if (activity_history->curr == sk) {
+    if (history->curr == sk) {
         return;
     }
 
-    activity_history->prev = activity_history->curr;
-    activity_history->curr = (void *)sk;
+    history->prev = history->curr;
+    history->curr = sk;
 }
 
-static __always_inline bool complete_history(struct sk_activity_history *activity_history) {
-    return activity_history->curr && activity_history->prev;
+// This function returns true when the network traffic managed by a certain
+// envoy thread satisfy the heuristic described above. The "link" represents the
+// association between two sockets belonging to an envoy sidecar: One that
+// handles plain traffic and which communicates with the application container,
+// and the another one that handles encrypted traffic and which communicates
+// with the "outside".
+static __always_inline bool envoy_can_link_traffic(envoy_thread_monitor_t *etm) {
+    return (etm->read.curr &&
+            etm->read.prev &&
+            etm->write.curr &&
+            etm->write.prev &&
+            etm->read.curr != etm->write.curr &&
+            etm->read.curr == etm->write.prev &&
+            etm->read.prev == etm->write.curr);
 }
 
-static __always_inline bool istio_can_link_socket_activity(istio_traffic_t *it) {
-    if (!complete_history(&it->read_history) || !complete_history(&it->write_history)) {
-        // we don't have enough data to run our linking heuristic
+static __always_inline bool envoy_get_socket_tuples(envoy_thread_monitor_t *etm, conn_tuple_t *t1, conn_tuple_t *t2) {
+    if (!read_conn_tuple(t1, etm->read.curr, 0, CONN_TYPE_TCP)) {
+        return false;
+    }
+    if (!read_conn_tuple(t2, etm->write.curr, 0, CONN_TYPE_TCP)) {
         return false;
     }
 
-    return (
-            it->read_history.curr != it->write_history.curr &&
-            it->read_history.curr == it->write_history.prev &&
-            it->read_history.prev == it->write_history.curr);
-}
+    t1->pid = 0;
+    t1->netns = 0;
+    t2->pid = 0;
+    t2->netns = 0;
 
-static __always_inline bool istio_get_socket_tuples(istio_traffic_t *it, conn_tuple_t *downstream, conn_tuple_t *upstream) {
-    u64 pid_tgid = bpf_get_current_pid_tgid();
-
-    if (!read_conn_tuple(downstream, (struct sock*)it->read_history.curr, pid_tgid, CONN_TYPE_TCP)) {
-        return false;
-    }
-    if (!read_conn_tuple(upstream, (struct sock*)it->write_history.curr, pid_tgid, CONN_TYPE_TCP)) {
-        return false;
-    }
     return true;
 }
 
-static __always_inline void update_istio_traffic(istio_traffic_t *it, struct sock *sk, sock_op_t op) {
+static __always_inline void envoy_create_mapping(envoy_thread_monitor_t *etm) {
+    conn_tuple_t t1;
+    conn_tuple_t t2;
+    if (!envoy_get_socket_tuples(etm, &t1, &t2)) {
+        return;
+    }
+
+    conn_tuple_t *plain = &t1;
+    conn_tuple_t *encrypted = &t2;
+    if (encrypted->sport == ENVOY_OUTBOUND_PORT || plain->sport == ENVOY_INBOUND_PORT) {
+        plain = &t2;
+        encrypted = &t1;
+    }
+
+    normalize_tuple(plain);
+    normalize_tuple(encrypted);
+    log_debug("istio: plain_traffic: %pI4 -> %pI4\n", &plain->saddr_l, &plain->daddr_l);
+    log_debug("istio: encrypted_traffic: %pI4 -> %pI4\n", &encrypted->saddr_l, &encrypted->daddr_l);
+    bpf_map_update_elem(&envoy_plain_to_encrypted, plain, encrypted, BPF_NOEXIST);
+}
+
+static __always_inline void update_monitor_information(envoy_thread_monitor_t *etm, struct sock *sk, sock_op_t op) {
+    // Save the socket pointer address that is currently executing a read or
+    // write operation for this particular Envoy worker thread
     switch(op) {
     case SOCK_OP_READ:
-        update_istio_traffic_inner(&it->read_history, sk);
+        update_sk_history(&etm->read, sk);
         break;
     case SOCK_OP_WRITE:
-        update_istio_traffic_inner(&it->write_history, sk);
+        update_sk_history(&etm->write, sk);
         break;
     default:
         return;
     }
 
-    if (!istio_can_link_socket_activity(it)) {
+    // Attempt to determine whether the traffic pattern we're seeing allows us
+    // to establish a link between plain and encrypted traffic
+    if (!envoy_can_link_traffic(etm)) {
         return;
     }
 
-    conn_tuple_t downstream;
-    conn_tuple_t upstream;
-    if (!istio_get_socket_tuples(it, &downstream, &upstream)) {
-        return;
-    }
-
+    envoy_create_mapping(etm);
 }
 
 static __always_inline void istio_process(struct sock *sk, sock_op_t op) {
-    istio_traffic_t *it = fetch_istio_traffic(sk);
-    if (!it) {
+    envoy_thread_monitor_t *etm = fetch_envoy_thread_monitor(sk);
+    if (!etm) {
         return;
     }
 
-    update_istio_traffic(it, sk, op);
+    update_monitor_information(etm, sk, op);
 }
 
 SEC("kprobe/sk_filter_trim_cap")
