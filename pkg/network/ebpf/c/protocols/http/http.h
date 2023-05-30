@@ -131,6 +131,7 @@ static __always_inline bool http_process(http_transaction_t *http_stack, skb_inf
     }
 
     if (http_should_flush_previous_state(http, packet_type)) {
+        istio_replace_tuple(&http->tup);
         http_batch_enqueue(http);
         bpf_memcpy(http, http_stack, sizeof(http_transaction_t));
     }
@@ -149,6 +150,7 @@ static __always_inline bool http_process(http_transaction_t *http_stack, skb_inf
     }
 
     if (http_closed(skb_info)) {
+        istio_replace_tuple(&http->tup);
         http_batch_enqueue(http);
         bpf_map_delete_elem(&http_in_flight, &http_stack->tup);
     }
@@ -189,8 +191,8 @@ int socket__http_filter(struct __sk_buff* skb) {
     if (!http_allow_packet(&http, skb, &skb_info)) {
         return 0;
     }
-    translate_tuple(skb, &http.tup);
     normalize_tuple(&http.tup);
+    istio_translate_tuple(&http.tup);
 
     read_into_buffer_skb((char *)http.request_fragment, skb, skb_info.data_off);
     http_process(&http, &skb_info, NO_TAGS);

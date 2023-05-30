@@ -138,13 +138,7 @@ func newEBPFProgram(c *config.Config, connectionProtocolMap, sockFD, natMap *ebp
 			},
 			{
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: "kprobe__sk_filter_trim_cap",
-					UID:          probeUID,
-				},
-			},
-			{
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: "kretprobe__sk_filter_trim_cap",
+					EBPFFuncName: "tracepoint__net__net_dev_queue",
 					UID:          probeUID,
 				},
 			},
@@ -402,10 +396,6 @@ func (e *ebpfProgram) init(buf bytecode.AssetReader, options manager.Options) er
 			options.MapEditors = make(map[string]*ebpf.Map)
 		}
 		options.MapEditors[probes.ConnectionProtocolMap] = e.connectionProtocolMap
-
-		if e.natMap != nil {
-			options.MapEditors[probes.ConntrackMap] = e.natMap
-		}
 	} else {
 		options.MapSpecEditors[probes.ConnectionProtocolMap] = manager.MapSpecEditor{
 			Type:       ebpf.Hash,
@@ -442,13 +432,7 @@ func (e *ebpfProgram) init(buf bytecode.AssetReader, options manager.Options) er
 		},
 		&manager.ProbeSelector{
 			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				EBPFFuncName: "kprobe__sk_filter_trim_cap",
-				UID:          probeUID,
-			},
-		},
-		&manager.ProbeSelector{
-			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				EBPFFuncName: "kretprobe__sk_filter_trim_cap",
+				EBPFFuncName: "tracepoint__net__net_dev_queue",
 				UID:          probeUID,
 			},
 		},
