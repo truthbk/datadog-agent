@@ -5,7 +5,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package module
+package rules
 
 import (
 	"fmt"
@@ -39,7 +39,7 @@ func NewSelfTestEvent(success []string, fails []string) (*rules.Rule, *events.Cu
 }
 
 // ReportSelfTest reports to Datadog that a self test was performed
-func ReportSelfTest(sender EventSender, statsdClient statsd.ClientInterface, success []string, fails []string) {
+func ReportSelfTest(sender events.EventSender, statsdClient statsd.ClientInterface, success []string, fails []string) {
 	// send metric with number of success and fails
 	tags := []string{
 		fmt.Sprintf("success:%d", len(success)),

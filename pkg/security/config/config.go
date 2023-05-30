@@ -215,7 +215,7 @@ func NewRuntimeSecurityConfig() (*RuntimeSecurityConfig, error) {
 		CustomEventEnabled: coreconfig.SystemProbe.GetBool("runtime_security_config.agent_monitoring_events"),
 
 		// activity dump
-		ActivityDumpEnabled:                   coreconfig.SystemProbe.GetBool("runtime_security_config.activity_dump.enabled"),
+		ActivityDumpEnabled:                   coreconfig.SystemProbe.GetBool("runtime_security_config.activity_dump.enabled") || coreconfig.SystemProbe.GetBool("workload_monitoring_config.enabled"),
 		ActivityDumpCleanupPeriod:             coreconfig.SystemProbe.GetDuration("runtime_security_config.activity_dump.cleanup_period"),
 		ActivityDumpTagsResolutionPeriod:      coreconfig.SystemProbe.GetDuration("runtime_security_config.activity_dump.tags_resolution_period"),
 		ActivityDumpLoadControlPeriod:         coreconfig.SystemProbe.GetDuration("runtime_security_config.activity_dump.load_controller_period"),

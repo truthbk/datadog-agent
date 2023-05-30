@@ -30,6 +30,9 @@ type Config struct {
 
 	// NetworkConsumerEnabled defines if the network tracer system-probe module wants to receive kernel events
 	NetworkConsumerEnabled bool
+
+	// WorkloadMonitorEnabled defines if workload monitor is enabled
+	WorkloadMonitorEnabled bool
 }
 
 // NewConfig creates a config for the event monitoring module
@@ -42,6 +45,7 @@ func NewConfig(spConfig *config.Config) *Config {
 		// consumers
 		ProcessConsumerEnabled: getBool("process.enabled"),
 		NetworkConsumerEnabled: getBool("network_process.enabled") && spConfig.ModuleIsEnabled(config.NetworkTracerModule),
+		WorkloadMonitorEnabled: coreconfig.SystemProbe.GetBool("workload_monitoring_config.enabled"),
 	}
 }
 

@@ -281,6 +281,9 @@ func InitSystemProbeConfig(cfg Config) {
 	// enable/disable use of root net namespace
 	cfg.BindEnvAndSetDefault(join(netNS, "enable_root_netns"), true)
 
+	// Workload monitor
+	cfg.BindEnvAndSetDefault("workload_monitoring_config.enabled", false)
+
 	// CWS - general config
 	cfg.BindEnvAndSetDefault("runtime_security_config.enabled", false)
 	cfg.BindEnvAndSetDefault("runtime_security_config.fim_enabled", false)

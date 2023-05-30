@@ -5,7 +5,10 @@
 
 package module
 
+import "github.com/DataDog/datadog-agent/pkg/security/events"
+
 // Opts define module options
 type Opts struct {
-	EventSender EventSender
+	EventSender events.EventSender
+	RuleEngine  bool
 }

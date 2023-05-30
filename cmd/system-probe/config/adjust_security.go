@@ -20,7 +20,7 @@ func adjustSecurity(cfg config.Config) {
 	if cfg.GetBool(secNS("enabled")) {
 		// if runtime is enabled then we force fim
 		cfg.Set(secNS("fim_enabled"), true)
-	} else {
+	} else if !cfg.GetBool(wmNS("enabled")) {
 		// if runtime is disabled then we force disable activity dumps
 		cfg.Set(secNS("activity_dump.enabled"), false)
 	}

@@ -25,10 +25,13 @@ import (
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/security/common"
 	"github.com/DataDog/datadog-agent/pkg/security/config"
+	"github.com/DataDog/datadog-agent/pkg/security/events"
 	"github.com/DataDog/datadog-agent/pkg/security/metrics"
 	sprobe "github.com/DataDog/datadog-agent/pkg/security/probe"
+	"github.com/DataDog/datadog-agent/pkg/security/probe/selftests"
 	"github.com/DataDog/datadog-agent/pkg/security/proto/api"
 	"github.com/DataDog/datadog-agent/pkg/security/reporter"
+	rulesmodule "github.com/DataDog/datadog-agent/pkg/security/rules"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
@@ -58,14 +61,15 @@ type APIServer struct {
 	expiredEventsLock sync.RWMutex
 	expiredEvents     map[rules.RuleID]*atomic.Int64
 	expiredDumps      *atomic.Int64
-	limiter           *StdLimiter
+	limiter           *events.StdLimiter
 	statsdClient      statsd.ClientInterface
 	probe             *sprobe.Probe
 	queueLock         sync.Mutex
 	queue             []*pendingMsg
 	retention         time.Duration
 	cfg               *config.RuntimeSecurityConfig
-	cwsConsumer       *CWSConsumer
+	selfTester        *selftests.SelfTester
+	ruleEngine        *rulesmodule.RuleEngine
 
 	stopper startstop.Stopper
 }
@@ -86,6 +90,9 @@ func (a *APIServer) GetActivityDumpStream(params *api.ActivityDumpStreamParams, 
 
 // SendActivityDump queues an activity dump to the chan of activity dumps
 func (a *APIServer) SendActivityDump(dump *api.ActivityDumpStreamMessage) {
+	if a.directReporter != nil {
+	}
+
 	// send the dump to the channel
 	select {
 	case a.activityDumps <- dump:
@@ -140,8 +147,8 @@ LOOP:
 
 // RuleEvent is a wrapper used to send an event to the backend
 type RuleEvent struct {
-	RuleID string `json:"rule_id"`
-	Event  Event  `json:"event"`
+	RuleID string       `json:"rule_id"`
+	Event  events.Event `json:"event"`
 }
 
 // DumpDiscarders handles discarder dump requests
@@ -270,7 +277,7 @@ func (a *APIServer) GetStatus(ctx context.Context, params *api.GetStatusParams) 
 				Values:   constants,
 			},
 		},
-		SelfTests: a.cwsConsumer.selfTester.GetStatus(),
+		SelfTests: a.selfTester.GetStatus(),
 	}
 
 	envErrors := a.probe.VerifyEnvironment()
@@ -413,18 +420,18 @@ func (a *APIServer) GetConfig(ctx context.Context, params *api.GetConfigParams) 
 
 // RunSelfTest runs self test and then reload the current policies
 func (a *APIServer) RunSelfTest(ctx context.Context, params *api.RunSelfTestParams) (*api.SecuritySelfTestResultMessage, error) {
-	if a.cwsConsumer == nil {
+	if a.ruleEngine == nil {
 		return nil, errors.New("failed to found module in APIServer")
 	}
 
-	if a.cwsConsumer.selfTester == nil {
+	if a.selfTester == nil {
 		return &api.SecuritySelfTestResultMessage{
 			Ok:    false,
 			Error: "self-tests are disabled",
 		}, nil
 	}
 
-	if _, err := a.cwsConsumer.RunSelfTest(false); err != nil {
+	if _, err := a.ruleEngine.RunSelfTest(false); err != nil {
 		return &api.SecuritySelfTestResultMessage{
 			Ok:    false,
 			Error: err.Error(),
@@ -438,14 +445,14 @@ func (a *APIServer) RunSelfTest(ctx context.Context, params *api.RunSelfTestPara
 }
 
 // SendEvent forwards events sent by the runtime security module to Datadog
-func (a *APIServer) SendEvent(rule *rules.Rule, event Event, extTagsCb func() []string, service string) {
-	agentContext := AgentContext{
+func (a *APIServer) SendEvent(rule *rules.Rule, e events.Event, extTagsCb func() []string, service string) {
+	agentContext := events.AgentContext{
 		RuleID:      rule.Definition.ID,
 		RuleVersion: rule.Definition.Version,
 		Version:     version.AgentVersion,
 	}
 
-	ruleEvent := &Signal{
+	ruleEvent := &events.Signal{
 		Title:        rule.Definition.Description,
 		AgentContext: agentContext,
 	}
@@ -455,7 +462,7 @@ func (a *APIServer) SendEvent(rule *rules.Rule, event Event, extTagsCb func() []
 		ruleEvent.AgentContext.PolicyVersion = policy.Version
 	}
 
-	probeJSON, err := marshalEvent(event, a.probe)
+	probeJSON, err := marshalEvent(e, a.probe)
 	if err != nil {
 		seclog.Errorf("failed to marshal event: %v", err)
 		return
@@ -481,13 +488,13 @@ func (a *APIServer) SendEvent(rule *rules.Rule, event Event, extTagsCb func() []
 
 	msg.tags = append(msg.tags, "rule_id:"+rule.Definition.ID)
 	msg.tags = append(msg.tags, rule.Tags...)
-	msg.tags = append(msg.tags, event.GetTags()...)
+	msg.tags = append(msg.tags, e.GetTags()...)
 	msg.tags = append(msg.tags, common.QueryAccountIdTag())
 
 	a.enqueue(msg)
 }
 
-func marshalEvent(event Event, probe *sprobe.Probe) ([]byte, error) {
+func marshalEvent(event events.Event, probe *sprobe.Probe) ([]byte, error) {
 	if ev, ok := event.(*model.Event); ok {
 		return serializers.MarshalEvent(ev, probe.GetResolvers())
 	}
@@ -551,7 +558,7 @@ func (a *APIServer) SendStats() error {
 
 // ReloadPolicies reloads the policies
 func (a *APIServer) ReloadPolicies(ctx context.Context, params *api.ReloadPoliciesParams) (*api.ReloadPoliciesResultMessage, error) {
-	if err := a.cwsConsumer.ReloadPolicies(); err != nil {
+	if err := a.ruleEngine.ReloadPolicies(); err != nil {
 		return nil, err
 	}
 	return &api.ReloadPoliciesResultMessage{}, nil
@@ -572,8 +579,12 @@ func (a *APIServer) Stop() {
 	a.stopper.Stop()
 }
 
+func (a *APIServer) SetRuleEngine(ruleEngine *rulesmodule.RuleEngine) {
+	a.ruleEngine = ruleEngine
+}
+
 // NewAPIServer returns a new gRPC event server
-func NewAPIServer(cfg *config.RuntimeSecurityConfig, probe *sprobe.Probe, client statsd.ClientInterface) *APIServer {
+func NewAPIServer(cfg *config.RuntimeSecurityConfig, probe *sprobe.Probe, client statsd.ClientInterface, selfTester *selftests.SelfTester) *APIServer {
 	stopper := startstop.NewSerialStopper()
 	directReporter, err := newDirectReporter(stopper)
 	if err != nil {
@@ -587,12 +598,13 @@ func NewAPIServer(cfg *config.RuntimeSecurityConfig, probe *sprobe.Probe, client
 		activityDumps:  make(chan *api.ActivityDumpStreamMessage, model.MaxTracedCgroupsCount*2),
 		expiredEvents:  make(map[rules.RuleID]*atomic.Int64),
 		expiredDumps:   atomic.NewInt64(0),
-		limiter:        NewStdLimiter(rate.Limit(cfg.EventServerRate), cfg.EventServerBurst),
+		limiter:        events.NewStdLimiter(rate.Limit(cfg.EventServerRate), cfg.EventServerBurst),
 		statsdClient:   client,
 		probe:          probe,
 		retention:      cfg.EventServerRetention,
 		cfg:            cfg,
 		stopper:        stopper,
+		selfTester:     selfTester,
 	}
 	return es
 }

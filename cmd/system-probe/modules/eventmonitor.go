@@ -33,10 +33,12 @@ var EventMonitor = module.Factory{
 		}
 
 		opts := eventmonitor.Opts{}
+		secmoduleOpts := secmodule.Opts{}
 
 		// adapt options
 		if secconfig.RuntimeSecurity.IsRuntimeEnabled() {
 			secmodule.UpdateEventMonitorOpts(&opts)
+			secmoduleOpts.RuleEngine = true
 		}
 
 		evm, err := eventmonitor.NewEventMonitor(emconfig, secconfig, opts)
@@ -45,8 +47,8 @@ var EventMonitor = module.Factory{
 			return nil, module.ErrNotEnabled
 		}
 
-		if secconfig.RuntimeSecurity.IsRuntimeEnabled() {
-			cws, err := secmodule.NewCWSConsumer(evm, secconfig.RuntimeSecurity)
+		if secconfig.RuntimeSecurity.IsRuntimeEnabled() || emconfig.WorkloadMonitorEnabled {
+			cws, err := secmodule.NewCWSConsumer(evm, secconfig.RuntimeSecurity, secmoduleOpts)
 			if err != nil {
 				return nil, err
 			}

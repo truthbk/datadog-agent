@@ -42,6 +42,11 @@ func evNS(k ...string) string {
 	return nskey("event_monitoring_config", k...)
 }
 
+// wmNS adds `workload_monitoring_config` namespace to configuration key
+func wmNS(k ...string) string {
+	return nskey("workload_monitoring_config", k...)
+}
+
 func nskey(ns string, pieces ...string) string {
 	return strings.Join(append([]string{ns}, pieces...), ".")
 }
