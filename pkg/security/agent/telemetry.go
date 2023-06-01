@@ -19,10 +19,11 @@ import (
 
 // telemetry reports environment information (e.g containers running) when the runtime security component is running
 type telemetry struct {
-	containers            *common.ContainersTelemetry
-	runtimeSecurityClient *RuntimeSecurityClient
-	profiledContainers    map[profiledContainer]struct{}
-	logProfiledWorkloads  bool
+	containers             *common.ContainersTelemetry
+	runtimeSecurityClient  *RuntimeSecurityClient
+	profiledContainers     map[profiledContainer]struct{}
+	logProfiledWorkloads   bool
+	shouldReportContainers bool
 }
 
 func newTelemetry(logProfiledWorkloads bool) (*telemetry, error) {
@@ -42,6 +43,10 @@ func newTelemetry(logProfiledWorkloads bool) (*telemetry, error) {
 		profiledContainers:    make(map[profiledContainer]struct{}),
 		logProfiledWorkloads:  logProfiledWorkloads,
 	}, nil
+}
+
+func (t *telemetry) startReportingContainers() {
+	t.shouldReportContainers = true
 }
 
 func (t *telemetry) registerProfiledContainer(name, tag string) {
@@ -69,8 +74,10 @@ func (t *telemetry) run(ctx context.Context, rsa *RuntimeSecurityAgent) {
 		case <-ctx.Done():
 			return
 		case <-metricsTicker.C:
-			if err := t.reportContainers(); err != nil {
-				log.Debugf("couldn't report containers: %v", err)
+			if t.shouldReportContainers {
+				if err := t.reportContainers(); err != nil {
+					log.Debugf("couldn't report containers: %v", err)
+				}
 			}
 			if rsa.storage != nil {
 				rsa.storage.SendTelemetry()

@@ -146,7 +146,9 @@ func (rsa *RuntimeSecurityAgent) StartEventListener() {
 			}
 			log.Tracef("Got message from rule `%s` for event `%s`", in.RuleID, string(in.Data))
 
-			rsa.eventReceived.Inc()
+			if rsa.eventReceived.Inc() == 1 {
+				rsa.telemetry.startReportingContainers()
+			}
 
 			// Dispatch security event
 			rsa.DispatchEvent(in)
