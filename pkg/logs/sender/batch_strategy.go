@@ -6,6 +6,7 @@
 package sender
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/benbjohnson/clock"
@@ -21,10 +22,11 @@ var (
 
 // batchStrategy contains all the logic to send logs in batch.
 type batchStrategy struct {
-	inputChan  chan *message.Message
-	outputChan chan *message.Payload
-	flushChan  chan struct{}
-	buffer     *MessageBuffer
+	inputChan          chan *message.Message
+	outputChan         chan *message.Payload
+	flushChan          chan struct{}
+	flushChanCompleted chan struct{}
+	buffer             *MessageBuffer
 	// pipelineName provides a name for the strategy to differentiate it from other instances in other internal pipelines
 	pipelineName    string
 	serializer      Serializer
@@ -59,16 +61,17 @@ func newBatchStrategyWithClock(inputChan chan *message.Message,
 	contentEncoding ContentEncoding) Strategy {
 
 	return &batchStrategy{
-		inputChan:       inputChan,
-		outputChan:      outputChan,
-		flushChan:       flushChan,
-		buffer:          NewMessageBuffer(maxBatchSize, maxContentSize),
-		serializer:      serializer,
-		batchWait:       batchWait,
-		contentEncoding: contentEncoding,
-		stopChan:        make(chan struct{}),
-		pipelineName:    pipelineName,
-		clock:           clock,
+		inputChan:          inputChan,
+		outputChan:         outputChan,
+		flushChan:          flushChan,
+		flushChanCompleted: make(chan struct{}),
+		buffer:             NewMessageBuffer(maxBatchSize, maxContentSize),
+		serializer:         serializer,
+		batchWait:          batchWait,
+		contentEncoding:    contentEncoding,
+		stopChan:           make(chan struct{}),
+		pipelineName:       pipelineName,
+		clock:              clock,
 	}
 }
 
@@ -76,6 +79,12 @@ func newBatchStrategyWithClock(inputChan chan *message.Message,
 func (s *batchStrategy) Stop() {
 	close(s.inputChan)
 	<-s.stopChan
+}
+
+func (s *batchStrategy) Wait() {
+	fmt.Println("[missing log] wait in stream_strategy.go")
+	<-s.flushChanCompleted
+	fmt.Println("[missing log] wait is now done in stream_strategy.go")
 }
 
 // Start reads the incoming messages and accumulates them to a buffer. The buffer is
@@ -96,15 +105,22 @@ func (s *batchStrategy) Start() {
 
 				if !isOpen {
 					// inputChan has been closed, no more payloads are expected
+					fmt.Println("[missing log] - closed inputChan in batch_strategy.go")
 					return
 				}
+				fmt.Println("[missing log] - processMessage in batch_strategy.go")
 				s.processMessage(m, s.outputChan)
 			case <-flushTicker.C:
+				fmt.Println("[missing log] - flushTicker.C in batch_strategy.go")
 				// flush the payloads at a regular interval so pending messages don't wait here for too long.
 				s.flushBuffer(s.outputChan)
 			case <-s.flushChan:
+				fmt.Println("[missing log] - flushChan in batch_strategy.go")
 				// flush payloads on demand, used for infrequently running serverless functions
 				s.flushBuffer(s.outputChan)
+				fmt.Println("[missing log] - flushChan flush buffer completed")
+				s.flushChanCompleted <- struct{}{}
+				fmt.Println("[missing log] - signal sent to s.flushChanCompleted")
 			}
 		}
 	}()
@@ -116,6 +132,7 @@ func (s *batchStrategy) processMessage(m *message.Message, outputChan chan *mess
 	}
 	added := s.buffer.AddMessage(m)
 	if !added || s.buffer.IsFull() {
+		fmt.Println("[missing log] - not added or buffer full in batch_strategy.go")
 		s.flushBuffer(outputChan)
 	}
 	if !added {
@@ -135,18 +152,22 @@ func (s *batchStrategy) flushBuffer(outputChan chan *message.Payload) {
 		return
 	}
 	messages := s.buffer.GetMessages()
+	fmt.Println("[missing log] - getting the messages in batch_strategy.go")
 	s.buffer.Clear()
 	// Logging specifically for DBM pipelines, which seem to fail to send more often than other pipelines.
 	// pipelineName comes from epforwarder.passthroughPipelineDescs.eventType, and these names are constants in the epforwarder package.
 	if s.pipelineName == "dbm-samples" || s.pipelineName == "dbm-metrics" || s.pipelineName == "dbm-activity" {
 		log.Debugf("Flushing buffer and sending %d messages for pipeline %s", len(messages), s.pipelineName)
 	}
+	fmt.Println("[missing log] - sending messages in batch_strategy.go")
 	s.sendMessages(messages, outputChan)
+	fmt.Println("[missing log] - messages sent in batch_strategy.go")
 }
 
 func (s *batchStrategy) sendMessages(messages []*message.Message, outputChan chan *message.Payload) {
 	serializedMessage := s.serializer.Serialize(messages)
 	log.Debugf("Send messages for pipeline %s (msg_count:%d, content_size=%d, avg_msg_size=%.2f)", s.pipelineName, len(messages), len(serializedMessage), float64(len(serializedMessage))/float64(len(messages)))
+	fmt.Printf("[missing log] - Send messages for pipeline %s (msg_count:%d, content_size=%d, avg_msg_size=%.2f)\n", s.pipelineName, len(messages), len(serializedMessage), float64(len(serializedMessage))/float64(len(messages)))
 
 	encodedPayload, err := s.contentEncoding.encode(serializedMessage)
 	if err != nil {
@@ -160,4 +181,6 @@ func (s *batchStrategy) sendMessages(messages []*message.Message, outputChan cha
 		Encoding:      s.contentEncoding.name(),
 		UnencodedSize: len(serializedMessage),
 	}
+
+	fmt.Println("[missing log] - outputchan is now fed!")
 }

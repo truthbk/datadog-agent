@@ -45,3 +45,7 @@ func (s *streamStrategy) Stop() {
 	close(s.inputChan)
 	<-s.done
 }
+
+func (s *streamStrategy) Wait() {
+	// no op
+}

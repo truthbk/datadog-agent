@@ -172,12 +172,15 @@ func (d *Destination) run(input chan *message.Payload, output chan *message.Payl
 	var startIdle = time.Now()
 
 	for p := range input {
+		fmt.Println("[missing log] - run in destination.go")
 		idle := float64(time.Since(startIdle) / time.Millisecond)
 		d.expVars.AddFloat(expVarIdleMsMapKey, idle)
 		tlmIdle.Add(idle, d.telemetryName)
 		var startInUse = time.Now()
 
+		fmt.Println("[missing log] - about to sendConcurrent in destination.go")
 		d.sendConcurrent(p, output, isRetrying)
+		fmt.Println("[missing log] - sent concurrentOK in destination.go")
 
 		inUse := float64(time.Since(startInUse) / time.Millisecond)
 		d.expVars.AddFloat(expVarInUseMsMapKey, inUse)
@@ -186,6 +189,7 @@ func (d *Destination) run(input chan *message.Payload, output chan *message.Payl
 	}
 	// Wait for any pending concurrent sends to finish or terminate
 	d.wg.Wait()
+	fmt.Println("[missing log] - wait is done in destination.go")
 
 	d.updateRetryState(nil, isRetrying)
 	stopChan <- struct{}{}
@@ -216,7 +220,9 @@ func (d *Destination) sendAndRetry(payload *message.Payload, output chan *messag
 		}
 		d.retryLock.Unlock()
 
+		fmt.Println("[missing log] - about to send unconditional in destination.go")
 		err := d.unconditionalSend(payload)
+		fmt.Println("[missing log] - unconditional sent in destination.go")
 
 		if err != nil {
 			metrics.DestinationErrors.Add(1)

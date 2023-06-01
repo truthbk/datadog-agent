@@ -40,7 +40,7 @@ func NewAgent(sources *sources.LogSources, services *service.Services, processin
 	destinationsCtx := client.NewDestinationsContext()
 
 	// setup the pipeline provider that provides pairs of processor and sender
-	pipelineProvider := pipeline.NewServerlessProvider(config.NumberOfPipelines, auditor, processingRules, endpoints, destinationsCtx)
+	pipelineProvider := pipeline.NewServerlessProvider(config.ServerlessNumberOfPipelines, auditor, processingRules, endpoints, destinationsCtx)
 
 	// setup the sole launcher for this agent
 	lnchrs := launchers.NewLaunchers(sources, pipelineProvider, auditor)

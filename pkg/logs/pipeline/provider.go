@@ -7,6 +7,7 @@ package pipeline
 
 import (
 	"context"
+	"fmt"
 
 	"go.uber.org/atomic"
 
@@ -110,12 +111,17 @@ func (p *provider) NextPipelineChan() chan *message.Message {
 
 // Flush flushes synchronously all the contained pipeline of this provider.
 func (p *provider) Flush(ctx context.Context) {
+	fmt.Println("[missing log] - flush in pipeline/provider.go")
+
 	for _, p := range p.pipelines {
 		select {
 		case <-ctx.Done():
+			fmt.Println("[missing log] - context done in pipeline/provider.go")
 			return
 		default:
+			fmt.Printf("[missing log] - AAA flushing provider.go, %#v\n", p)
 			p.Flush(ctx)
+			fmt.Println("[missing log] - BBB p.flush completed")
 		}
 	}
 }

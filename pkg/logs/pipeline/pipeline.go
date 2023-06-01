@@ -87,8 +87,14 @@ func (p *Pipeline) Stop() {
 
 // Flush flushes synchronously the processor and sender managed by this pipeline.
 func (p *Pipeline) Flush(ctx context.Context) {
+	fmt.Println("[missing log] - flush in logs/pipeline/pipeline.go")
+	fmt.Println("[missing log] - after sending signal on struct")
 	p.flushChan <- struct{}{}
+	fmt.Println("[missing log] - begin wait in Flush")
+	p.strategy.Wait()
+	fmt.Println("[missing log] - wait done XXXA before flush")
 	p.processor.Flush(ctx) // flush messages in the processor into the sender
+	fmt.Println("[missing log] - XXXB after flush")
 }
 
 func getDestinations(endpoints *config.Endpoints, destinationsContext *client.DestinationsContext, pipelineID int) *client.Destinations {
