@@ -554,7 +554,7 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 			return
 		}
 
-		p.monitor.activityDumpManager.HandleCgroupTracingEvent(&event.CgroupTracing)
+		p.monitor.activityDumpManager.HandleCGroupTracingEvent(&event.CgroupTracing)
 		return
 	case model.UnshareMountNsEventType:
 		if _, err = event.UnshareMountNS.UnmarshalBinary(data[offset:]); err != nil {

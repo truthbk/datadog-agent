@@ -74,6 +74,10 @@ func (m *Monitor) Init() error {
 		}
 	}
 
+	if p.IsActivityDumpEnabled() && p.IsSecurityProfileEnabled() {
+		m.activityDumpManager.SetSilentWorkloadsFetcher(m.securityProfileManager.FetchSilentWorkloads)
+	}
+
 	if p.Config.Probe.RuntimeMonitor {
 		m.runtimeMonitor = NewRuntimeMonitor(p.StatsdClient)
 	}
