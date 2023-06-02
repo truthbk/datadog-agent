@@ -164,11 +164,11 @@ func (lc *LambdaLogsCollector) processLogMessages(messages []LambdaLogAPIMessage
 				continue
 			}
 			if message.objectRecord.requestID != "" {
-				if message.logType == "platform.start" {
-					//fmt.Printf("[missing log] sending log for requestID = %s in lc.out\n", message.objectRecord.requestID)
-					lc.out <- logConfig.NewChannelMessageFromLambda([]byte(message.stringRecord), message.time, lc.arn, message.objectRecord.requestID)
-					//fmt.Printf("[missing log] end of sending log for requestID = %s in lc.out\n", message.objectRecord.requestID)
-				}
+				//if message.logType == "platform.start" {
+				//fmt.Printf("[missing log] sending log for requestID = %s in lc.out\n", message.objectRecord.requestID)
+				lc.out <- logConfig.NewChannelMessageFromLambda([]byte(message.stringRecord), message.time, lc.arn, message.objectRecord.requestID)
+				//fmt.Printf("[missing log] end of sending log for requestID = %s in lc.out\n", message.objectRecord.requestID)
+				//}
 			} else {
 				lc.out <- logConfig.NewChannelMessageFromLambda([]byte(message.stringRecord), message.time, lc.arn, lc.lastRequestID)
 			}
