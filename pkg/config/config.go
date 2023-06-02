@@ -567,6 +567,8 @@ func InitConfig(config Config) {
 		return mappings
 	})
 
+	config.BindEnvAndSetDefault("dogstatsd_watch_prefix", "")
+
 	config.BindEnvAndSetDefault("statsd_forward_host", "")
 	config.BindEnvAndSetDefault("statsd_forward_port", 0)
 	config.BindEnvAndSetDefault("statsd_metric_namespace", "")

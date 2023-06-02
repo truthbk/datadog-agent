@@ -6,6 +6,7 @@
 package aggregator
 
 import (
+	"strings"
 	"sync"
 	"time"
 
@@ -112,10 +113,15 @@ func createIterableMetrics(
 	var series *metrics.IterableSeries
 	var sketches *metrics.IterableSketches
 
+	watched := config.Datadog.GetString("dogstatsd_watch_prefix")
+
 	if serializer.AreSeriesEnabled() {
 		series = metrics.NewIterableSeries(func(se *metrics.Serie) {
 			if logPayloads {
 				log.Debugf("Flushing serie: %s", se)
+			}
+			if watched != "" && strings.HasPrefix(se.Name, watched) && se.Name != watched {
+				log.Errorf("Flusing watched serie: %s", se)
 			}
 			tagsetTlm.updateHugeSerieTelemetry(se)
 		}, flushAndSerializeInParallel.BufferSize, flushAndSerializeInParallel.ChannelSize)
