@@ -32,7 +32,8 @@ var (
 type EtwProviderType uint64
 
 const (
-	EtwProviderHttpService EtwProviderType = 1 << iota
+	EtwProviderHttpService     EtwProviderType = 1 << iota
+	EtwProviderRegistryService EtwProviderType = 2 << iota
 )
 
 const (
@@ -45,6 +46,9 @@ func providersToNativeProviders(etwProviders EtwProviderType) C.int64_t {
 
 	if (etwProviders & EtwProviderHttpService) == EtwProviderHttpService {
 		etwNativeProviders |= C.DD_ETW_TRACE_PROVIDER_HttpService
+	}
+	if (etwProviders & EtwProviderRegistryService) == EtwProviderRegistryService {
+		etwNativeProviders |= C.DD_ETW_TRACE_PROVIDER_Kernel_Registry
 	}
 
 	return etwNativeProviders
@@ -73,6 +77,10 @@ func etwCallbackC(eventInfo *C.DD_ETW_EVENT_INFO) {
 	switch eventInfo.provider {
 	case C.DD_ETW_TRACE_PROVIDER_HttpService:
 		if sub, ok := subscribers[EtwProviderHttpService]; ok {
+			sub.OnEvent((*DDEtwEventInfo)(unsafe.Pointer(eventInfo)))
+		}
+	case C.DD_ETW_TRACE_PROVIDER_Kernel_Registry:
+		if sub, ok := subscribers[EtwProviderRegistryService]; ok {
 			sub.OnEvent((*DDEtwEventInfo)(unsafe.Pointer(eventInfo)))
 		}
 	}

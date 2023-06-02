@@ -25,6 +25,10 @@
 //     https://github.com/repnz/etw-providers-docs/blob/master/Manifests-Win10-18990/Microsoft-Windows-DNS-Client.xml
 #define DD_ETW_TRACE_PROVIDER_DNS          0x00000008
 
+// Manifests-Win10-18990/Microsoft-Windows-Kernel-Registry.xml {70eb4f03-c1de-4f73-a051-33d13d5413bd}
+//     https://github.com/repnz/etw-providers-docs/blob/master/Manifests-Win10-18990/Microsoft-Windows-Kernel-Registry.xml
+#define DD_ETW_TRACE_PROVIDER_Kernel_Registry
+
 // Simplified and flattent bits and pices from EVENT_RECORD
 //  Details are here https://docs.microsoft.com/en-us/windows/win32/api/evntcons/ns-evntcons-event_record
 //
