@@ -186,9 +186,9 @@ func (d *Destination) run(input chan *message.Payload, output chan *message.Payl
 		//fmt.Println("[missing log] - wait for waitgroup in destination.go")
 		wg.Wait()
 		//fmt.Println("[missing log] - logs have been sent in destination.go, payload =")
-		for _, m := range p.Messages {
-			//fmt.Printf("[missing log] - log in that packet = >%s<\n", string(m.Content))
-		}
+		//for _, m := range p.Messages {
+		//fmt.Printf("[missing log] - log in that packet = >%s<\n", string(m.Content))
+		//}
 		d.destinationsContext.DoneChan <- struct{}{}
 		//fmt.Println("[missing log] - sent concurrentOK in destination.go")
 
