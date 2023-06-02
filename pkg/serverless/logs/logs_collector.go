@@ -92,7 +92,7 @@ func (lc *LambdaLogsCollector) Start() {
 
 		go func() {
 			for messages := range lc.In {
-				fmt.Printf("[missing log] in log collector, processing size = %d\n", len(messages))
+				//fmt.Printf("[missing log] in log collector, processing size = %d\n", len(messages))
 				lc.processLogMessages(messages)
 			}
 			// Store the execution context if an out of memory is detected
@@ -165,9 +165,9 @@ func (lc *LambdaLogsCollector) processLogMessages(messages []LambdaLogAPIMessage
 			}
 			if message.objectRecord.requestID != "" {
 				if message.logType == "platform.start" {
-					fmt.Printf("[missing log] sending log for requestID = %s in lc.out\n", message.objectRecord.requestID)
+					//fmt.Printf("[missing log] sending log for requestID = %s in lc.out\n", message.objectRecord.requestID)
 					lc.out <- logConfig.NewChannelMessageFromLambda([]byte(message.stringRecord), message.time, lc.arn, message.objectRecord.requestID)
-					fmt.Printf("[missing log] end of sending log for requestID = %s in lc.out\n", message.objectRecord.requestID)
+					//fmt.Printf("[missing log] end of sending log for requestID = %s in lc.out\n", message.objectRecord.requestID)
 				}
 			} else {
 				lc.out <- logConfig.NewChannelMessageFromLambda([]byte(message.stringRecord), message.time, lc.arn, lc.lastRequestID)

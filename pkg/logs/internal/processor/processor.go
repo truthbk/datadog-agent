@@ -7,7 +7,6 @@ package processor
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -56,26 +55,26 @@ func (p *Processor) Stop() {
 
 // Flush processes synchronously the messages that this processor has to process.
 func (p *Processor) Flush(ctx context.Context) {
-	fmt.Println("[missing log] - flush in processor.go")
+	//fmt.Println("[missing log] - flush in processor.go")
 	p.mu.Lock()
-	fmt.Println("[missing log] - got the lock")
+	//fmt.Println("[missing log] - got the lock")
 	defer p.mu.Unlock()
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Println("[missing log] - context is done")
+			//fmt.Println("[missing log] - context is done")
 			return
 		default:
 			if len(p.inputChan) == 0 {
-				fmt.Println("[missing log] - input chan is empty")
+				//fmt.Println("[missing log] - input chan is empty")
 				return
 			}
-			fmt.Println("[missing log] - reading messages")
+			//fmt.Println("[missing log] - reading messages")
 			msg := <-p.inputChan
 			if msg.Lambda != nil {
-				fmt.Printf("[missing log] - msg requestID = %s\n", msg.Lambda.RequestID)
+				//fmt.Printf("[missing log] - msg requestID = %s\n", msg.Lambda.RequestID)
 			} else {
-				fmt.Println("[missing log] - msg lambda is nil")
+				//fmt.Println("[missing log] - msg lambda is nil")
 			}
 			p.processMessage(msg)
 		}
@@ -89,11 +88,11 @@ func (p *Processor) run() {
 	}()
 	for msg := range p.inputChan {
 		if msg.Lambda != nil {
-			fmt.Printf("[missing log] - in the range loop run() - msg begin requestID = %s content = %s \n", msg.Lambda.RequestID, string(msg.Content))
+			//fmt.Printf("[missing log] - in the range loop run() - msg begin requestID = %s content = %s \n", msg.Lambda.RequestID, string(msg.Content))
 		}
 		p.processMessage(msg)
 		if msg.Lambda != nil {
-			fmt.Printf("[missing log] - in the range loop run() - msg end requestID = %s\n content = %s \n", msg.Lambda.RequestID, string(msg.Content))
+			//fmt.Printf("[missing log] - in the range loop run() - msg end requestID = %s\n content = %s \n", msg.Lambda.RequestID, string(msg.Content))
 		}
 		p.mu.Lock() // block here if we're trying to flush synchronously
 		//nolint:staticcheck
@@ -103,7 +102,7 @@ func (p *Processor) run() {
 
 func (p *Processor) processMessage(msg *message.Message) {
 	if msg.Lambda != nil {
-		fmt.Printf("[missing log] - in the rango loop run() - msg requestID = %s, body = %s\n", msg.Lambda.RequestID, string(msg.Content))
+		//fmt.Printf("[missing log] - in the rango loop run() - msg requestID = %s, body = %s\n", msg.Lambda.RequestID, string(msg.Content))
 	}
 	metrics.LogsDecoded.Add(1)
 	metrics.TlmLogsDecoded.Inc()
@@ -121,11 +120,11 @@ func (p *Processor) processMessage(msg *message.Message) {
 		}
 		msg.Content = content
 		if msg.Lambda != nil {
-			fmt.Printf("[missing log] - in processMessage - msg requestID = %s, body = %s\n", msg.Lambda.RequestID, string(msg.Content))
+			//fmt.Printf("[missing log] - in processMessage - msg requestID = %s, body = %s\n", msg.Lambda.RequestID, string(msg.Content))
 		}
 		p.outputChan <- msg
 		if msg.Lambda != nil {
-			fmt.Printf("[missing log] - in processMessage outputchan OK - msg requestID = %s, body = %s\n", msg.Lambda.RequestID, string(msg.Content))
+			//fmt.Printf("[missing log] - in processMessage outputchan OK - msg requestID = %s, body = %s\n", msg.Lambda.RequestID, string(msg.Content))
 		}
 	}
 }

@@ -170,27 +170,27 @@ func (d *Destination) Start(input chan *message.Payload, output chan *message.Pa
 
 func (d *Destination) run(input chan *message.Payload, output chan *message.Payload, stopChan chan struct{}, isRetrying chan bool) {
 	var startIdle = time.Now()
-	fmt.Println("[missing log] - adding one for wg in destination.go")
-	fmt.Printf("[missing log] - %#v\n", d.destinationsContext)
+	//fmt.Println("[missing log] - adding one for wg in destination.go")
+	//fmt.Printf("[missing log] - %#v\n", d.destinationsContext)
 	for p := range input {
-		fmt.Println("[missing log] - run in destination.go")
+		//fmt.Println("[missing log] - run in destination.go")
 		idle := float64(time.Since(startIdle) / time.Millisecond)
 		d.expVars.AddFloat(expVarIdleMsMapKey, idle)
 		tlmIdle.Add(idle, d.telemetryName)
 		var startInUse = time.Now()
 
-		fmt.Println("[missing log] - about to sendConcurrent in destination.go")
+		//fmt.Println("[missing log] - about to sendConcurrent in destination.go")
 		wg := &sync.WaitGroup{}
 		wg.Add(1)
 		d.sendConcurrent(p, output, isRetrying, wg)
-		fmt.Println("[missing log] - wait for waitgroup in destination.go")
+		//fmt.Println("[missing log] - wait for waitgroup in destination.go")
 		wg.Wait()
-		fmt.Println("[missing log] - logs have been sent in destination.go, payload =")
+		//fmt.Println("[missing log] - logs have been sent in destination.go, payload =")
 		for _, m := range p.Messages {
-			fmt.Printf("[missing log] - log in that packet = >%s<\n", string(m.Content))
+			//fmt.Printf("[missing log] - log in that packet = >%s<\n", string(m.Content))
 		}
 		d.destinationsContext.DoneChan <- struct{}{}
-		fmt.Println("[missing log] - sent concurrentOK in destination.go")
+		//fmt.Println("[missing log] - sent concurrentOK in destination.go")
 
 		inUse := float64(time.Since(startInUse) / time.Millisecond)
 		d.expVars.AddFloat(expVarInUseMsMapKey, inUse)
@@ -199,7 +199,7 @@ func (d *Destination) run(input chan *message.Payload, output chan *message.Payl
 	}
 	// Wait for any pending concurrent sends to finish or terminate
 	d.wg.Wait()
-	fmt.Println("[missing log] - wait is done in destination.go")
+	//fmt.Println("[missing log] - wait is done in destination.go")
 
 	d.updateRetryState(nil, isRetrying)
 	stopChan <- struct{}{}
@@ -213,7 +213,7 @@ func (d *Destination) sendConcurrent(payload *message.Payload, output chan *mess
 			<-d.climit
 			d.wg.Done()
 		}()
-		fmt.Println("[missing log] - before sendAndRetry")
+		//fmt.Println("[missing log] - before sendAndRetry")
 		d.sendAndRetry(payload, output, isRetrying, syncWg)
 	}()
 }
@@ -221,45 +221,45 @@ func (d *Destination) sendConcurrent(payload *message.Payload, output chan *mess
 // Send sends a payload over HTTP,
 func (d *Destination) sendAndRetry(payload *message.Payload, output chan *message.Payload, isRetrying chan bool, syncWg *sync.WaitGroup) {
 	for {
-		fmt.Println("[missing log] - in sendAndRetry in destination.go")
+		//fmt.Println("[missing log] - in sendAndRetry in destination.go")
 		d.retryLock.Lock()
 		//backoffDuration := d.backoff.GetBackoffDuration(d.nbErrors)
 		backoffDuration := time.Duration(10 * time.Millisecond)
 		d.blockedUntil = time.Now().Add(backoffDuration)
 		if d.blockedUntil.After(time.Now()) {
-			fmt.Printf("[missing log] - %s sleeping until %v before retrying. Backoff duration %s due to %d errors\n", d.url, d.blockedUntil, backoffDuration.String(), d.nbErrors)
+			//fmt.Printf("[missing log] - %s sleeping until %v before retrying. Backoff duration %s due to %d errors\n", d.url, d.blockedUntil, backoffDuration.String(), d.nbErrors)
 			log.Debugf("%s: sleeping until %v before retrying. Backoff duration %s due to %d errors", d.url, d.blockedUntil, backoffDuration.String(), d.nbErrors)
 			d.waitForBackoff()
 		}
 		d.retryLock.Unlock()
-		fmt.Println("[missing log] - about to send unconditional in destination.go")
+		//fmt.Println("[missing log] - about to send unconditional in destination.go")
 		err := d.unconditionalSend(payload, syncWg)
-		fmt.Printf("[missing log] - unconditional sent in destination.go, err = %v\n", err)
+		//fmt.Printf("[missing log] - unconditional sent in destination.go, err = %v\n", err)
 
 		if err != nil {
 			metrics.DestinationErrors.Add(1)
 			metrics.TlmDestinationErrors.Inc()
-			fmt.Printf("[missing log] - error while sending the payload %v\n", err)
+			//fmt.Printf("[missing log] - error while sending the payload %v\n", err)
 			log.Warnf("Could not send payload: %v", err)
 		}
 
 		if err == context.Canceled {
-			fmt.Println("[missing log] - error is context cancelled")
+			//fmt.Println("[missing log] - error is context cancelled")
 			d.updateRetryState(nil, isRetrying)
 			return
 		}
 
 		if d.shouldRetry {
-			fmt.Println("[missing log] - d.shouldRetry")
+			//fmt.Println("[missing log] - d.shouldRetry")
 			if d.updateRetryState(err, isRetrying) {
-				fmt.Println("[missing log] - continue")
+				//fmt.Println("[missing log] - continue")
 				continue
 			}
 		}
 
 		metrics.LogsSent.Add(int64(len(payload.Messages)))
 		metrics.TlmLogsSent.Add(float64(len(payload.Messages)))
-		fmt.Println("[missing log] - adding payload to the chan in pipeline.go")
+		//fmt.Println("[missing log] - adding payload to the chan in pipeline.go")
 		output <- payload
 		return
 	}
@@ -301,7 +301,7 @@ func (d *Destination) unconditionalSend(payload *message.Payload, syncWg *sync.W
 	req = req.WithContext(ctx)
 
 	then := time.Now()
-	fmt.Println("[missing log] - about to do the request in destination.go")
+	//fmt.Println("[missing log] - about to do the request in destination.go")
 	resp, err := d.client.Do(req)
 
 	latency := time.Since(then).Milliseconds()
@@ -313,7 +313,7 @@ func (d *Destination) unconditionalSend(payload *message.Payload, syncWg *sync.W
 			return ctx.Err()
 		}
 		// most likely a network or a connect error, the callee should retry.
-		fmt.Println("[missing logs] here in a retryable error")
+		//fmt.Println("[missing log] here in a retryable error")
 		return client.NewRetryableError(err)
 	}
 

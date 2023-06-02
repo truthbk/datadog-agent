@@ -117,11 +117,11 @@ func Stop() {
 // Flush flushes synchronously the running instance of the Logs Agent.
 // Use a WithTimeout context in order to have a flush that can be cancelled.
 func Flush(ctx context.Context) {
-	fmt.Println("[missing log] - flush in logs.go")
+	//fmt.Println("[missing log] - flush in logs.go")
 	log.Info("Triggering a flush in the logs-agent")
 	if IsAgentRunning() {
 		if agent != nil {
-			fmt.Println("[missing log] - agent is not nil, flushing")
+			//fmt.Println("[missing log] - agent is not nil, flushing")
 			agent.Flush(ctx)
 		}
 	}
