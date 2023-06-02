@@ -113,7 +113,7 @@ func newDestination(endpoint config.Endpoint,
 	}
 
 	if endpoint.Origin == config.ServerlessIntakeOrigin {
-		shouldRetry = false
+		shouldRetry = true
 	}
 
 	expVars := &expvar.Map{}
@@ -170,7 +170,8 @@ func (d *Destination) Start(input chan *message.Payload, output chan *message.Pa
 
 func (d *Destination) run(input chan *message.Payload, output chan *message.Payload, stopChan chan struct{}, isRetrying chan bool) {
 	var startIdle = time.Now()
-
+	fmt.Println("[missing log] - adding one for wg in destination.go")
+	fmt.Printf("[missing log] - %#v\n", d.destinationsContext)
 	for p := range input {
 		fmt.Println("[missing log] - run in destination.go")
 		idle := float64(time.Since(startIdle) / time.Millisecond)
@@ -179,7 +180,16 @@ func (d *Destination) run(input chan *message.Payload, output chan *message.Payl
 		var startInUse = time.Now()
 
 		fmt.Println("[missing log] - about to sendConcurrent in destination.go")
-		d.sendConcurrent(p, output, isRetrying)
+		wg := &sync.WaitGroup{}
+		wg.Add(1)
+		d.sendConcurrent(p, output, isRetrying, wg)
+		fmt.Println("[missing log] - wait for waitgroup in destination.go")
+		wg.Wait()
+		fmt.Println("[missing log] - logs have been sent in destination.go, payload =")
+		for _, m := range p.Messages {
+			fmt.Printf("[missing log] - log in that packet = >%s<\n", string(m.Content))
+		}
+		d.destinationsContext.DoneChan <- struct{}{}
 		fmt.Println("[missing log] - sent concurrentOK in destination.go")
 
 		inUse := float64(time.Since(startInUse) / time.Millisecond)
@@ -195,7 +205,7 @@ func (d *Destination) run(input chan *message.Payload, output chan *message.Payl
 	stopChan <- struct{}{}
 }
 
-func (d *Destination) sendConcurrent(payload *message.Payload, output chan *message.Payload, isRetrying chan bool) {
+func (d *Destination) sendConcurrent(payload *message.Payload, output chan *message.Payload, isRetrying chan bool, syncWg *sync.WaitGroup) {
 	d.wg.Add(1)
 	d.climit <- struct{}{}
 	go func() {
@@ -203,52 +213,59 @@ func (d *Destination) sendConcurrent(payload *message.Payload, output chan *mess
 			<-d.climit
 			d.wg.Done()
 		}()
-		d.sendAndRetry(payload, output, isRetrying)
+		fmt.Println("[missing log] - before sendAndRetry")
+		d.sendAndRetry(payload, output, isRetrying, syncWg)
 	}()
 }
 
 // Send sends a payload over HTTP,
-func (d *Destination) sendAndRetry(payload *message.Payload, output chan *message.Payload, isRetrying chan bool) {
+func (d *Destination) sendAndRetry(payload *message.Payload, output chan *message.Payload, isRetrying chan bool, syncWg *sync.WaitGroup) {
 	for {
-
+		fmt.Println("[missing log] - in sendAndRetry in destination.go")
 		d.retryLock.Lock()
-		backoffDuration := d.backoff.GetBackoffDuration(d.nbErrors)
+		//backoffDuration := d.backoff.GetBackoffDuration(d.nbErrors)
+		backoffDuration := time.Duration(10 * time.Millisecond)
 		d.blockedUntil = time.Now().Add(backoffDuration)
 		if d.blockedUntil.After(time.Now()) {
+			fmt.Printf("[missing log] - %s sleeping until %v before retrying. Backoff duration %s due to %d errors\n", d.url, d.blockedUntil, backoffDuration.String(), d.nbErrors)
 			log.Debugf("%s: sleeping until %v before retrying. Backoff duration %s due to %d errors", d.url, d.blockedUntil, backoffDuration.String(), d.nbErrors)
 			d.waitForBackoff()
 		}
 		d.retryLock.Unlock()
-
 		fmt.Println("[missing log] - about to send unconditional in destination.go")
-		err := d.unconditionalSend(payload)
-		fmt.Println("[missing log] - unconditional sent in destination.go")
+		err := d.unconditionalSend(payload, syncWg)
+		fmt.Printf("[missing log] - unconditional sent in destination.go, err = %v\n", err)
 
 		if err != nil {
 			metrics.DestinationErrors.Add(1)
 			metrics.TlmDestinationErrors.Inc()
+			fmt.Printf("[missing log] - error while sending the payload %v\n", err)
 			log.Warnf("Could not send payload: %v", err)
 		}
 
 		if err == context.Canceled {
+			fmt.Println("[missing log] - error is context cancelled")
 			d.updateRetryState(nil, isRetrying)
 			return
 		}
 
 		if d.shouldRetry {
+			fmt.Println("[missing log] - d.shouldRetry")
 			if d.updateRetryState(err, isRetrying) {
+				fmt.Println("[missing log] - continue")
 				continue
 			}
 		}
 
 		metrics.LogsSent.Add(int64(len(payload.Messages)))
 		metrics.TlmLogsSent.Add(float64(len(payload.Messages)))
+		fmt.Println("[missing log] - adding payload to the chan in pipeline.go")
 		output <- payload
 		return
 	}
 }
 
-func (d *Destination) unconditionalSend(payload *message.Payload) (err error) {
+func (d *Destination) unconditionalSend(payload *message.Payload, syncWg *sync.WaitGroup) (err error) {
 	defer func() {
 		tlmSend.Inc(d.host, errorToTag(err))
 	}()
@@ -284,6 +301,7 @@ func (d *Destination) unconditionalSend(payload *message.Payload) (err error) {
 	req = req.WithContext(ctx)
 
 	then := time.Now()
+	fmt.Println("[missing log] - about to do the request in destination.go")
 	resp, err := d.client.Do(req)
 
 	latency := time.Since(then).Milliseconds()
@@ -295,6 +313,7 @@ func (d *Destination) unconditionalSend(payload *message.Payload) (err error) {
 			return ctx.Err()
 		}
 		// most likely a network or a connect error, the callee should retry.
+		fmt.Println("[missing logs] here in a retryable error")
 		return client.NewRetryableError(err)
 	}
 
@@ -325,6 +344,9 @@ func (d *Destination) unconditionalSend(payload *message.Payload) (err error) {
 		// internal error. We should retry these requests.
 		return client.NewRetryableError(errServer)
 	} else {
+		if syncWg != nil {
+			syncWg.Done()
+		}
 		return nil
 	}
 }
@@ -397,7 +419,7 @@ func CheckConnectivity(endpoint config.Endpoint) config.HTTPConnectivity {
 	// Lower the timeout to 5s because HTTP connectivity test is done synchronously during the agent bootstrap sequence
 	destination := newDestination(endpoint, JSONContentType, ctx, time.Second*5, 0, false, "")
 	log.Infof("Sending HTTP connectivity request to %s...", destination.url)
-	err := destination.unconditionalSend(&emptyPayload)
+	err := destination.unconditionalSend(&emptyPayload, nil)
 	if err != nil {
 		log.Warnf("HTTP connectivity failure: %v", err)
 	} else {

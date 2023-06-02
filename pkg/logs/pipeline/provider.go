@@ -110,10 +110,10 @@ func (p *provider) NextPipelineChan() chan *message.Message {
 }
 
 // Flush flushes synchronously all the contained pipeline of this provider.
-func (p *provider) Flush(ctx context.Context) {
+func (pr *provider) Flush(ctx context.Context) {
 	fmt.Println("[missing log] - flush in pipeline/provider.go")
 
-	for _, p := range p.pipelines {
+	for _, p := range pr.pipelines {
 		select {
 		case <-ctx.Done():
 			fmt.Println("[missing log] - context done in pipeline/provider.go")
@@ -121,6 +121,17 @@ func (p *provider) Flush(ctx context.Context) {
 		default:
 			fmt.Printf("[missing log] - AAA flushing provider.go, %#v\n", p)
 			p.Flush(ctx)
+			p.strategy.Wait()
+			fmt.Printf("[missing log] - provider destination context = %#v\n", pr.destinationsContext)
+
+			if p.strategy.NeedsToWait() {
+				fmt.Println("[missing log] - needs to wait block on doneChan")
+				<-pr.destinationsContext.DoneChan
+			} else {
+				fmt.Println("[missing log] - no need to wait, no block on doneChan")
+			}
+
+			fmt.Printf("[missing log] - doneChan unblocked")
 			fmt.Println("[missing log] - BBB p.flush completed")
 		}
 	}

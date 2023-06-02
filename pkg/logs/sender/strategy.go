@@ -14,4 +14,5 @@ type Strategy interface {
 	Start()
 	Stop()
 	Wait()
+	NeedsToWait() bool
 }

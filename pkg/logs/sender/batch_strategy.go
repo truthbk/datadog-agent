@@ -34,6 +34,7 @@ type batchStrategy struct {
 	contentEncoding ContentEncoding
 	stopChan        chan struct{} // closed when the goroutine has finished
 	clock           clock.Clock
+	needsToWait     bool
 }
 
 // NewBatchStrategy returns a new batch concurrent strategy with the specified batch & content size limits
@@ -72,6 +73,7 @@ func newBatchStrategyWithClock(inputChan chan *message.Message,
 		stopChan:           make(chan struct{}),
 		pipelineName:       pipelineName,
 		clock:              clock,
+		needsToWait:        true,
 	}
 }
 
@@ -85,6 +87,13 @@ func (s *batchStrategy) Wait() {
 	fmt.Println("[missing log] wait in stream_strategy.go")
 	<-s.flushChanCompleted
 	fmt.Println("[missing log] wait is now done in stream_strategy.go")
+}
+
+func (s *batchStrategy) NeedsToWait() bool {
+	toReturn := s.needsToWait
+	fmt.Println("reset needs to wait to true in batch_strategy.go")
+	s.needsToWait = true
+	return toReturn
 }
 
 // Start reads the incoming messages and accumulates them to a buffer. The buffer is
@@ -149,6 +158,8 @@ func (s *batchStrategy) processMessage(m *message.Message, outputChan chan *mess
 // to the next stage of the pipeline.
 func (s *batchStrategy) flushBuffer(outputChan chan *message.Payload) {
 	if s.buffer.IsEmpty() {
+		fmt.Println("[missing log] - buffer is empty in batch_strategy.go")
+		s.needsToWait = false
 		return
 	}
 	messages := s.buffer.GetMessages()

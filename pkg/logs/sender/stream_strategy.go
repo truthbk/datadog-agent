@@ -49,3 +49,7 @@ func (s *streamStrategy) Stop() {
 func (s *streamStrategy) Wait() {
 	// no op
 }
+
+func (s *streamStrategy) NeedsToWait() bool {
+	return false
+}

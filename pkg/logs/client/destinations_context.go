@@ -13,14 +13,17 @@ import (
 // A DestinationsContext manages senders and allows us to "unclog" the pipeline
 // when trying to stop it and failing to send messages.
 type DestinationsContext struct {
-	context context.Context
-	cancel  context.CancelFunc
-	mutex   sync.Mutex
+	context  context.Context
+	cancel   context.CancelFunc
+	mutex    sync.Mutex
+	DoneChan chan struct{}
 }
 
 // NewDestinationsContext returns an initialized DestinationsContext
 func NewDestinationsContext() *DestinationsContext {
-	return &DestinationsContext{}
+	return &DestinationsContext{
+		DoneChan: make(chan struct{}),
+	}
 }
 
 // Start creates a context that will be cancelled on Stop()
