@@ -11,6 +11,7 @@ package usm
 import (
 	"fmt"
 
+	"github.com/DataDog/datadog-agent/pkg/network/config"
 	filterpkg "github.com/DataDog/datadog-agent/pkg/network/filter"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -19,12 +20,27 @@ import (
 )
 
 // Disclaimer: this (hacky) code is just part of of a quick PoC and won't be merged
-func AttachFilterToAllNamespaces(filter *manager.Probe) []func() {
+func AttachFilterToAllNamespaces(config *config.Config, m *manager.Manager, filter *manager.Probe) []func() {
 	var closeCBs []func()
 
 	procRoot := util.HostProc()
 	seen := make(map[string]struct{})
-	err := util.WithAllProcs(util.HostProc(), func(pid int) error {
+
+	// First attach to the root namespace
+	rootNS, err := config.GetRootNetNs()
+	if err != nil {
+		return nil
+	}
+
+	cb, err := filterpkg.HeadlessSocketFilter(rootNS, filter)
+	if err != nil {
+		return nil
+	}
+
+	seen[rootNS.UniqueId()] = struct{}{}
+	closeCBs = append(closeCBs, cb)
+
+	err = util.WithAllProcs(util.HostProc(), func(pid int) error {
 		path := fmt.Sprintf("%s/%d/ns/net", procRoot, pid)
 
 		ns, err := netns.GetFromPath(path)
@@ -39,13 +55,28 @@ func AttachFilterToAllNamespaces(filter *manager.Probe) []func() {
 		}
 
 		seen[uniqueID] = struct{}{}
-		callback, err := filterpkg.HeadlessSocketFilter(ns, filter)
+		identifier := manager.ProbeIdentificationPair{
+			EBPFFuncName: filter.ProbeIdentificationPair.EBPFFuncName,
+			UID:          uniqueID,
+		}
+		newProbe := &manager.Probe{
+			ProbeIdentificationPair: identifier,
+		}
+
+		callback, err := filterpkg.HeadlessSocketFilter(ns, newProbe)
 		if err != nil {
 			return nil
 		}
 
-		log.Debugf("attached socket-filter program to namespace=%s", path)
-		closeCBs = append(closeCBs, callback)
+		log.Debugf("attached socket-filter program to namespace=%s", ns)
+		closeCBs = append(closeCBs, func() {
+			m.DetachHook(identifier)
+			// add detach stuff here
+			callback()
+		})
+
+		m.AddHook(filter.ProbeIdentificationPair.UID, newProbe)
+
 		return nil
 	})
 

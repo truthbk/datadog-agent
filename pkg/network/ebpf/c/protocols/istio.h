@@ -31,9 +31,9 @@ typedef enum {
     SOCK_OP_WRITE,
 } sock_op_t;
 
-BPF_HASH_MAP(envoy_thread_monitors, u64, envoy_thread_monitor_t, 1024)
-BPF_HASH_MAP(envoy_plain_to_encrypted, conn_tuple_t, conn_tuple_t, 1024)
-BPF_HASH_MAP(envoy_nat_translations, conn_tuple_t, conn_tuple_t, 1024)
+BPF_LRU_MAP(envoy_thread_monitors, u64, envoy_thread_monitor_t, 1024)
+BPF_LRU_MAP(envoy_plain_to_encrypted, conn_tuple_t, conn_tuple_t, 1024)
+BPF_LRU_MAP(envoy_nat_translations, conn_tuple_t, conn_tuple_t, 1024)
 
 static __always_inline envoy_thread_monitor_t* fetch_envoy_thread_monitor(struct sock *sk) {
     u64 pid_tgid = bpf_get_current_pid_tgid();
@@ -122,8 +122,10 @@ static __always_inline void envoy_create_mapping(envoy_thread_monitor_t *etm) {
 
     normalize_tuple(plain);
     normalize_tuple(encrypted);
-    log_debug("istio: plain_traffic: %pI4 -> %pI4\n", &plain->saddr_l, &plain->daddr_l);
-    log_debug("istio: encrypted_traffic: %pI4 -> %pI4\n", &encrypted->saddr_l, &encrypted->daddr_l);
+    log_debug("istio: plain_traffic(1): from %pI4:%u", &plain->saddr_l, plain->sport);
+    log_debug("istio: plain_traffic(2): to %pI4:%u", &plain->daddr_l, plain->dport);
+    log_debug("istio: encrypted_traffic(1): from %pI4:%u", &encrypted->saddr_l, encrypted->sport);
+    log_debug("istio: encrypted_traffic(2): to %pI4:%u", &encrypted->daddr_l, encrypted->dport);
     bpf_map_update_elem(&envoy_plain_to_encrypted, plain, encrypted, BPF_NOEXIST);
 }
 
@@ -168,8 +170,14 @@ static __always_inline void istio_translate_tuple(conn_tuple_t *normalized_tuple
 }
 
 static __always_inline void istio_replace_tuple(conn_tuple_t *normalized_tuple) {
-    conn_tuple_t *t = bpf_map_lookup_elem(&envoy_plain_to_encrypted, normalized_tuple);
+    // lookup key must be in the stack for older kernels
+    conn_tuple_t key = *normalized_tuple;
+
+    conn_tuple_t *t = bpf_map_lookup_elem(&envoy_plain_to_encrypted, &key);
     if (!t) {
+        if (normalized_tuple->dport == ENVOY_OUTBOUND_PORT || normalized_tuple->dport == ENVOY_INBOUND_PORT) {
+            log_debug("istio: error: couldn't find tuple for %pI4:%u", &(normalized_tuple->saddr_l), normalized_tuple->sport);
+        }
         return;
     }
     *normalized_tuple = *t;

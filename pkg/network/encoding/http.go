@@ -6,6 +6,7 @@
 package encoding
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/gogo/protobuf/proto"
@@ -15,7 +16,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/network"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/http"
 	"github.com/DataDog/datadog-agent/pkg/network/types"
-	"github.com/DataDog/datadog-agent/pkg/util/common"
+	"github.com/DataDog/datadog-agent/pkg/process/util"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
@@ -55,10 +56,14 @@ func newHTTPEncoder(payload *network.Connections) *httpEncoder {
 		return nil
 	}
 
+	byConnection := GroupByConnection("http", payload.HTTP, func(key http.Key) types.ConnectionKey {
+		return key.ConnectionKey
+	})
+
+	analyzeIstioAccuracy(byConnection)
+
 	return &httpEncoder{
-		byConnection: GroupByConnection("http", payload.HTTP, func(key http.Key) types.ConnectionKey {
-			return key.ConnectionKey
-		}),
+		byConnection: byConnection,
 		aggregations: new(model.HTTPAggregations),
 	}
 }
@@ -69,7 +74,6 @@ func (e *httpEncoder) GetHTTPAggregationsAndTags(c network.ConnectionStats) ([]b
 	}
 
 	connectionData := e.byConnection.Find(c)
-	logHTTP(c, connectionData)
 	if connectionData == nil || len(connectionData.Data) == 0 || connectionData.IsPIDCollision(c) {
 		return nil, 0, nil
 	}
@@ -171,16 +175,55 @@ func (e *httpEncoder) reset() {
 	e.aggregations.EndpointAggregations = e.aggregations.EndpointAggregations[:0]
 }
 
-func logHTTP(c network.ConnectionStats, connData *USMConnectionData[http.Key, *http.RequestStats]) {
-	if connData == nil || len(connData.Data) == 0 {
-		return
+func analyzeIstioAccuracy(connIndex *USMConnectionIndex[http.Key, *http.RequestStats]) {
+	// correct := telemetry.NewMetric(
+	// 	"usm.istio_poc.correct",
+	// 	telemetry.OptMonotonic,
+	// 	telemetry.OptStatsd,
+	// )
+
+	// incorrect := telemetry.NewMetric(
+	// 	"usm.istio_poc.incorrect",
+	// 	telemetry.OptMonotonic,
+	// 	telemetry.OptStatsd,
+	// )
+
+	// missing := telemetry.NewMetric(
+	// 	"usm.istio_poc.missing",
+	// 	telemetry.OptMonotonic,
+	// 	telemetry.OptStatsd,
+	// )
+
+	correct := 0
+	incorrect := 0
+	missing := 0
+
+	for _, connData := range connIndex.data {
+		for _, kv := range connData.Data {
+			httpKey := kv.Key
+			srcIP := util.FromLowHigh(httpKey.SrcIPLow, httpKey.SrcIPHigh)
+			dstIP := util.FromLowHigh(httpKey.DstIPLow, httpKey.DstIPHigh)
+
+			path := httpKey.Path.Content
+			if !strings.HasPrefix(path, "/istio-") {
+				continue
+			}
+
+			expectedIP := strings.TrimPrefix(path, "/istio-")
+			if expectedIP == srcIP.String() || expectedIP == dstIP.String() {
+				correct++
+				continue
+			}
+
+			if httpKey.DstPort == uint16(15001) {
+				missing++
+				continue
+			}
+
+			incorrect++
+			log.Errorf("request=%s has IPs source=%s dest=%s", path, srcIP, dstIP)
+		}
 	}
 
-	set := common.NewStringSet()
-	for _, kv := range connData.Data {
-		path := kv.Key.Path
-		set.Add(path.Content)
-	}
-
-	log.Debugf("connection=%s paths=%v", c, set.GetAll())
+	log.Debugf("istio accuracy summary: correct=%d incorrect=%d missing=%d", correct, incorrect, missing)
 }

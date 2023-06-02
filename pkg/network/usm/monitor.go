@@ -122,7 +122,7 @@ func NewMonitor(c *config.Config, connectionProtocolMap, sockFD, natMap *ebpf.Ma
 		return nil, fmt.Errorf("error retrieving socket filter")
 	}
 
-	closeCBs := AttachFilterToAllNamespaces(filter)
+	closeCBs := AttachFilterToAllNamespaces(c, mgr.Manager.Manager, filter)
 	if len(closeCBs) == 0 {
 		return nil, fmt.Errorf("error enabling HTTP traffic inspection: failed to attach socket filter")
 	}
