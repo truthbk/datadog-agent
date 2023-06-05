@@ -7,7 +7,6 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 
 	coreConfig "github.com/DataDog/datadog-agent/pkg/config"
@@ -286,7 +285,6 @@ func (l *LogsConfigKeys) getObsPipelineURL() (string, bool) {
 		}
 
 		configKey = l.getObsPipelineConfigKey("vector", "url")
-		fmt.Printf("========= l.getConfig().GetString(configKey): %s\n", l.getConfig().GetString(configKey))
 		if l.isSetAndNotEmpty(configKey) {
 			return l.getConfig().GetString(configKey), true
 		}
