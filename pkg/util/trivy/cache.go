@@ -213,7 +213,7 @@ func (c *TrivyCache) PutBlob(blobID string, blobInfo types.BlobInfo) error {
 
 // Implements cache.Cache#DeleteBlobs
 func (c *TrivyCache) DeleteBlobs(blobIDs []string) error {
-	return c.Cache.Remove(blobIDs)
+	return nil
 }
 
 // Implements cache.Cache#Clear
