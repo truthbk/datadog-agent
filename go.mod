@@ -640,3 +640,5 @@ replace github.com/sigstore/rekor v1.0.1 => github.com/sigstore/rekor v1.1.1
 
 // Fixes CVE-2023-26054, imported by trivy
 replace github.com/moby/buildkit v0.11.0 => github.com/moby/buildkit v0.11.4
+
+replace github.com/cilium/ebpf => github.com/hmahmood/ebpf v0.0.0-20230605163116-37a1bba7ec55
