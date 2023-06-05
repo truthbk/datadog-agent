@@ -120,7 +120,7 @@ func runAgent(stopCh chan struct{}) (serverlessDaemon *daemon.Daemon, err error)
 	if !hasApiKey() {
 		log.Errorf("Can't start the Datadog extension as no API has been detected")
 		// we still need to register the extension but let's return after (no-op)
-		id, registrationError := registration.RegisterExtension(os.Getenv(runtimeAPIEnvVar), extensionRegistrationRoute, extensionRegistrationTimeout)
+		id, _, registrationError := registration.RegisterExtension(os.Getenv(runtimeAPIEnvVar), extensionRegistrationRoute, extensionRegistrationTimeout)
 		if registrationError != nil {
 			log.Errorf("Can't register as a serverless agent: %s", registrationError)
 		}
@@ -145,7 +145,7 @@ func runAgent(stopCh chan struct{}) (serverlessDaemon *daemon.Daemon, err error)
 	// ----------------
 
 	// extension registration
-	serverlessID, err := registration.RegisterExtension(os.Getenv(runtimeAPIEnvVar), extensionRegistrationRoute, extensionRegistrationTimeout)
+	serverlessID, functionArn, err := registration.RegisterExtension(os.Getenv(runtimeAPIEnvVar), extensionRegistrationRoute, extensionRegistrationTimeout)
 	if err != nil {
 		// at this point, we were not even able to register, thus, we don't have
 		// any ID assigned, thus, we can't report an error to the init error route
@@ -342,7 +342,7 @@ func runAgent(stopCh chan struct{}) (serverlessDaemon *daemon.Daemon, err error)
 	// the invocation route, we can't report init errors anymore.
 	go func() {
 		for {
-			if err := serverless.WaitForNextInvocation(stopCh, serverlessDaemon, serverlessID); err != nil {
+			if err := serverless.WaitForNextInvocation(stopCh, serverlessDaemon, serverlessID, functionArn); err != nil {
 				log.Error(err)
 			}
 		}

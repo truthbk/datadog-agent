@@ -79,6 +79,13 @@ func (ec *ExecutionContext) SetFromInvocation(arn string, requestID string) {
 	}
 }
 
+// SetFromExtensionResponse sets the execution context from the Extension API response
+func (ec *ExecutionContext) SetFromExtensionResponse(functionArn string) {
+	ec.m.Lock()
+	defer ec.m.Unlock()
+	ec.arn = functionArn
+}
+
 // UpdateStartTime updates the execution context based on a platform.Start log message
 func (ec *ExecutionContext) UpdateStartTime(time time.Time) {
 	ec.m.Lock()

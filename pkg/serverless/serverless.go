@@ -97,7 +97,7 @@ type FlushableAgent interface {
 // WaitForNextInvocation makes a blocking HTTP call to receive the next event from AWS.
 // Note that for now, we only subscribe to INVOKE and SHUTDOWN events.
 // Write into stopCh to stop the main thread of the running program.
-func WaitForNextInvocation(stopCh chan struct{}, daemon *daemon.Daemon, id registration.ID) error {
+func WaitForNextInvocation(stopCh chan struct{}, daemon *daemon.Daemon, id registration.ID, functionArn string) error {
 	var err error
 	var request *http.Request
 	var response *http.Response
@@ -125,6 +125,11 @@ func WaitForNextInvocation(stopCh chan struct{}, daemon *daemon.Daemon, id regis
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return fmt.Errorf("WaitForNextInvocation: can't unmarshal the payload: %v", err)
 	}
+
+	if len(functionArn) > 0 {
+		daemon.ExecutionContext.SetFromExtensionResponse(functionArn)
+	}
+	daemon.StartLogCollection()
 
 	if payload.EventType == Invoke {
 		functionArn := removeQualifierFromArn(payload.InvokedFunctionArn)
@@ -172,7 +177,7 @@ func handleInvocation(doneChannel chan bool, daemon *daemon.Daemon, arn string, 
 	log.Debug("Received invocation event...")
 	daemon.ExecutionContext.SetFromInvocation(arn, requestID)
 	daemon.ComputeGlobalTags(config.GetGlobalConfiguredTags(true))
-	daemon.StartLogCollection()
+
 	ecs := daemon.ExecutionContext.GetCurrentState()
 
 	if daemon.MetricAgent != nil {
