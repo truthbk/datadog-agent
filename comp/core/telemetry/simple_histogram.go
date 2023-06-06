@@ -5,10 +5,8 @@
 
 package telemetry
 
-// SimpleCounter tracks how many times something is happening.
-type SimpleCounter interface {
-	// Inc increments the counter.
-	Inc()
-	// Add increments the counter by given amount.
-	Add(float64)
+// SimpleHistogram tracks how many times something is happening.
+type SimpleHistogram interface {
+	// Observe the value to the Histogram value.
+	Observe(value float64)
 }

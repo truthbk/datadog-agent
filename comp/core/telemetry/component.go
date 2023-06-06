@@ -23,11 +23,17 @@ type Component interface {
 	NewCounter(subsystem, name string, tags []string, help string) Counter
 	NewCounterWithOpts(subsystem, name string, tags []string, help string, opts Options) Counter
 
+	NewSimpleCounter(subsystem, name, help string) SimpleCounter
+	NewSimpleCounterWithOpts(subsystem, name, help string, opts Options) SimpleCounter
+
 	NewGauge(subsystem, name string, tags []string, help string) Gauge
 	NewGaugeWithOpts(subsystem, name string, tags []string, help string, opts Options) Gauge
 
 	NewHistogram(subsystem, name string, tags []string, help string, buckets []float64) Histogram
 	NewHistogramWithOpts(subsystem, name string, tags []string, help string, buckets []float64, opts Options) Histogram
+
+	NewSimpleHistogram(subsystem, name, help string, buckets []float64) SimpleHistogram
+	NewSimpleHistogramWithOpts(subsystem, name, help string, buckets []float64, opts Options) SimpleHistogram
 }
 
 // Mock implements mock-specific methods.

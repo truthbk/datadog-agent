@@ -68,6 +68,25 @@ func (t *telemetryImpl) NewCounterWithOpts(subsystem, name string, tags []string
 	return c
 }
 
+// NewSimpleCounter creates a new SimpleCounter with default options.
+func (t *telemetryImpl) NewSimpleCounter(subsystem, name, help string) SimpleCounter {
+	return t.NewSimpleCounterWithOpts(subsystem, name, help, DefaultOptions)
+}
+
+// NewSimpleCounterWithOpts creates a new SimpleCounter.
+func (t *telemetryImpl) NewSimpleCounterWithOpts(subsystem, name, help string, opts Options) SimpleCounter {
+	name = opts.NameWithSeparator(subsystem, name)
+
+	pc := prometheus.NewCounter(prometheus.CounterOpts{
+		Subsystem: subsystem,
+		Name:      name,
+		Help:      help,
+	})
+
+	t.registry.Register(pc)
+	return pc
+}
+
 func (t *telemetryImpl) NewGauge(subsystem, name string, tags []string, help string) Gauge {
 	return t.NewGaugeWithOpts(subsystem, name, tags, help, DefaultOptions)
 }
@@ -110,4 +129,24 @@ func (t *telemetryImpl) NewHistogramWithOpts(subsystem, name string, tags []stri
 
 	t.registry.Register(h.ph)
 	return h
+}
+
+// NewSimpleHistogram creates a new SimpleHistogram with default options.
+func (t *telemetryImpl) NewSimpleHistogram(subsystem, name, help string, buckets []float64) SimpleHistogram {
+	return t.NewSimpleHistogramWithOpts(subsystem, name, help, buckets, DefaultOptions)
+}
+
+// NewSimpleHistogramWithOpts creates a new SimpleHistogram.
+func (t *telemetryImpl) NewSimpleHistogramWithOpts(subsystem, name, help string, buckets []float64, opts Options) SimpleHistogram {
+	name = opts.NameWithSeparator(subsystem, name)
+
+	pc := prometheus.NewHistogram(prometheus.HistogramOpts{
+		Subsystem: subsystem,
+		Name:      name,
+		Help:      help,
+		Buckets:   buckets,
+	})
+
+	t.registry.Register(pc)
+	return pc
 }
