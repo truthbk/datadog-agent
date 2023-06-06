@@ -31,7 +31,7 @@ func NewSimpleHistogramWithOpts(subsystem, name, help string, buckets []float64,
 		Buckets:   buckets,
 	})
 
-	telemetryRegistry.MustRegister(pc)
+	// telemetryRegistry.MustRegister(pc)
 
 	return pc
 }

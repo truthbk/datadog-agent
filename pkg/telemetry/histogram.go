@@ -49,6 +49,6 @@ func NewHistogramWithOpts(subsystem, name string, tags []string, help string, bu
 			tags,
 		),
 	}
-	telemetryRegistry.MustRegister(h.ph)
+	// telemetryRegistry.MustRegister(h.ph)
 	return h
 }

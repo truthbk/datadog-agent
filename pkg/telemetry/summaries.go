@@ -56,6 +56,6 @@ func NewSummaryWithOpts(subsystem, name string, tags []string, help string, opts
 			tags,
 		),
 	}
-	telemetryRegistry.MustRegister(s.ps)
+	// telemetryRegistry.MustRegister(s.ps)
 	return s
 }

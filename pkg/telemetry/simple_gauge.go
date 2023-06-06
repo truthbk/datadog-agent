@@ -38,7 +38,7 @@ func NewSimpleGaugeWithOpts(subsystem, name, help string, opts Options) SimpleGa
 		Help:      help,
 	})
 
-	telemetryRegistry.MustRegister(pc)
+	// telemetryRegistry.MustRegister(pc)
 
 	return pc
 }

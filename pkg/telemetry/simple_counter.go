@@ -32,7 +32,7 @@ func NewSimpleCounterWithOpts(subsystem, name, help string, opts Options) Simple
 		Help:      help,
 	})
 
-	telemetryRegistry.MustRegister(pc)
+	// telemetryRegistry.MustRegister(pc)
 
 	return pc
 }
