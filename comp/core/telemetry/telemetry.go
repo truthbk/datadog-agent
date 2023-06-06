@@ -88,3 +88,26 @@ func (t *telemetryImpl) NewGaugeWithOpts(subsystem, name string, tags []string, 
 	t.registry.Register(g.pg)
 	return g
 }
+
+func (t *telemetryImpl) NewHistogram(subsystem, name string, tags []string, help string, buckets []float64) Histogram {
+	return t.NewHistogramWithOpts(subsystem, name, tags, help, buckets, DefaultOptions)
+}
+
+func (t *telemetryImpl) NewHistogramWithOpts(subsystem, name string, tags []string, help string, buckets []float64, opts Options) Histogram {
+	name = opts.NameWithSeparator(subsystem, name)
+
+	h := &promHistogram{
+		ph: prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Subsystem: subsystem,
+				Name:      name,
+				Help:      help,
+				Buckets:   buckets,
+			},
+			tags,
+		),
+	}
+
+	t.registry.Register(h.ph)
+	return h
+}

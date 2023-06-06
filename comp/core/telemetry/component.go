@@ -25,6 +25,9 @@ type Component interface {
 
 	NewGauge(subsystem, name string, tags []string, help string) Gauge
 	NewGaugeWithOpts(subsystem, name string, tags []string, help string, opts Options) Gauge
+
+	NewHistogram(subsystem, name string, tags []string, help string, buckets []float64) Histogram
+	NewHistogramWithOpts(subsystem, name string, tags []string, help string, buckets []float64, opts Options) Histogram
 }
 
 // Mock implements mock-specific methods.
