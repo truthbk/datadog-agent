@@ -50,6 +50,21 @@ var openSSLProbes = []manager.ProbesSelector{
 					EBPFFuncName: "uretprobe__SSL_write_ex",
 				},
 			},
+						&manager.ProbeSelector{
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					EBPFFuncName: "uprobe__SSL_connect",
+				},
+			},
+			&manager.ProbeSelector{
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					EBPFFuncName: "uretprobe__SSL_connect",
+				},
+			},
+			&manager.ProbeSelector{
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					EBPFFuncName: "uprobe__SSL_set_fd",
+				},
+			},
 		},
 	},
 	&manager.AllOf{
@@ -66,22 +81,7 @@ var openSSLProbes = []manager.ProbesSelector{
 			},
 			&manager.ProbeSelector{
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: "uprobe__SSL_connect",
-				},
-			},
-			&manager.ProbeSelector{
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: "uretprobe__SSL_connect",
-				},
-			},
-			&manager.ProbeSelector{
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
 					EBPFFuncName: "uprobe__SSL_set_bio",
-				},
-			},
-			&manager.ProbeSelector{
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: "uprobe__SSL_set_fd",
 				},
 			},
 			&manager.ProbeSelector{

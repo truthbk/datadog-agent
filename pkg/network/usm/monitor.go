@@ -62,6 +62,7 @@ type Monitor struct {
 	kafkaConsumer   *events.Consumer
 	kafkaTelemetry  *kafka.Telemetry
 	kafkaStatkeeper *kafka.KafkaStatKeeper
+	cfg             *config.Config
 	// termination
 	closeFilterFn func()
 }
@@ -152,6 +153,7 @@ func NewMonitor(c *config.Config, connectionProtocolMap, sockFD *ebpf.Map, bpfTe
 	state = Running
 
 	httpMonitor := &Monitor{
+		cfg:             c,
 		ebpfProgram:     mgr,
 		httpTelemetry:   httpTelemetry,
 		http2Telemetry:  http2Telemetry,
@@ -238,6 +240,7 @@ func (m *Monitor) Start() error {
 	// Need to explicitly save the error in `err` so the defer function could save the startup error.
 	if m.httpTLSEnabled {
 		err = m.processMonitor.Initialize()
+		TraceIstio(m.cfg, m.ebpfProgram.Manager)
 	}
 	return err
 }
