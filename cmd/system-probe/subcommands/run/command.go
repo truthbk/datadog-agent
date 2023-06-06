@@ -29,12 +29,12 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig"
+	"github.com/DataDog/datadog-agent/comp/core/telemetry"
 	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/config/settings"
 	"github.com/DataDog/datadog-agent/pkg/pidfile"
 	"github.com/DataDog/datadog-agent/pkg/process/statsd"
 	ddruntime "github.com/DataDog/datadog-agent/pkg/runtime"
-	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	pkglog "github.com/DataDog/datadog-agent/pkg/util/log"
@@ -157,7 +157,7 @@ func StartSystemProbeWithDefaults() error {
 }
 
 // startSystemProbe Initializes the system-probe process
-func startSystemProbe(cliParams *cliParams, log log.Component, sysprobeconfig sysprobeconfig.Component) error {
+func startSystemProbe(cliParams *cliParams, log log.Component, telemetry telemetry.Component, sysprobeconfig sysprobeconfig.Component) error {
 	var err error
 	var ctx context.Context
 	ctx, common.MainCtxCancel = context.WithCancel(context.Background())
