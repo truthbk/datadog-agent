@@ -64,7 +64,7 @@ func (t *telemetryImpl) NewCounterWithOpts(subsystem, name string, tags []string
 			tags,
 		),
 	}
-	t.registry.Register(c.pc)
+	_ = t.registry.Register(c.pc)
 	return c
 }
 
@@ -83,7 +83,7 @@ func (t *telemetryImpl) NewSimpleCounterWithOpts(subsystem, name, help string, o
 		Help:      help,
 	})
 
-	t.registry.Register(pc)
+	_ = t.registry.Register(pc)
 	return pc
 }
 
@@ -104,7 +104,7 @@ func (t *telemetryImpl) NewGaugeWithOpts(subsystem, name string, tags []string, 
 			tags,
 		),
 	}
-	t.registry.Register(g.pg)
+	_ = t.registry.Register(g.pg)
 	return g
 }
 
@@ -127,7 +127,7 @@ func (t *telemetryImpl) NewHistogramWithOpts(subsystem, name string, tags []stri
 		),
 	}
 
-	t.registry.Register(h.ph)
+	_ = t.registry.Register(h.ph)
 	return h
 }
 
@@ -147,6 +147,6 @@ func (t *telemetryImpl) NewSimpleHistogramWithOpts(subsystem, name, help string,
 		Buckets:   buckets,
 	})
 
-	t.registry.Register(pc)
+	_ = t.registry.Register(pc)
 	return pc
 }
