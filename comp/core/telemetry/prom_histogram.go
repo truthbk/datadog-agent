@@ -23,3 +23,11 @@ func (h *promHistogram) Observe(value float64, tagsValue ...string) {
 func (h *promHistogram) Delete(tagsValue ...string) {
 	h.ph.DeleteLabelValues(tagsValue...)
 }
+
+// TODOOOOOO
+// func (h *promHistogram) Get() {
+// 	metric, _ := h.ph.MetricVec.GetMetricWithLabelValues()
+// 	m := &dto.Metric{}
+// 	metric.Write(m)
+// 	return m.Histogram.
+// }

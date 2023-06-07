@@ -13,9 +13,7 @@ import (
 
 func TestCounterInitializer(t *testing.T) {
 
-	telemetry := newTelemetry().(*telemetryImpl)
-	// Reset telemetry registry data
-	telemetry.Reset()
+	telemetry := newMock().(*telemetryImpl)
 
 	counter := telemetry.NewCounter("subsystem", "test", []string{"check_name", "state"}, "help docs")
 
@@ -58,9 +56,7 @@ func TestCounterInitializer(t *testing.T) {
 }
 
 func TestGetCounterValue(t *testing.T) {
-	telemetry := newTelemetry().(*telemetryImpl)
-	// Reset telemetry registry data
-	telemetry.Reset()
+	telemetry := newMock().(*telemetryImpl)
 
 	counter := telemetry.NewCounter("subsystem", "test", []string{"state"}, "help docs")
 	assert.Equal(t, counter.WithValues("ok").Get(), 0.0)

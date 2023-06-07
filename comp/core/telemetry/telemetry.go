@@ -15,21 +15,31 @@ import (
 
 // TODO (components): Remove the global and move this into `newTelemetry` after all telemetry is migrated to the component
 var (
-	registry = func() *prometheus.Registry {
-		registry := prometheus.NewRegistry()
-		registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
-		registry.MustRegister(collectors.NewGoCollector())
-		return registry
-	}()
+	registry = newRegistry()
 )
 
 type telemetryImpl struct {
 	registry *prometheus.Registry
 }
 
+func newRegistry() *prometheus.Registry {
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	registry.MustRegister(collectors.NewGoCollector())
+	return registry
+}
+
 func newTelemetry() Component {
 	return &telemetryImpl{
 		registry: registry,
+	}
+}
+
+// Same as `newTelemetry“ without the global.
+// Can be merged with `newTelemetry` when the global is removed
+func newMock() Component {
+	return &telemetryImpl{
+		registry: newRegistry(),
 	}
 }
 
