@@ -29,6 +29,9 @@ type Component interface {
 	NewGauge(subsystem, name string, tags []string, help string) Gauge
 	NewGaugeWithOpts(subsystem, name string, tags []string, help string, opts Options) Gauge
 
+	NewSimpleGauge(subsystem, name, help string) SimpleGauge
+	NewSimpleGaugeWithOpts(subsystem, name, help string, opts Options) SimpleGauge
+
 	NewHistogram(subsystem, name string, tags []string, help string, buckets []float64) Histogram
 	NewHistogramWithOpts(subsystem, name string, tags []string, help string, buckets []float64, opts Options) Histogram
 
