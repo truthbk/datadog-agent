@@ -56,13 +56,13 @@ stages:
   - maintenance_jobs
   - deps_build
   - deps_fetch
+  - macrobenchmarks
   - source_test
   - source_test_junit_upload
   - binary_build
   - package_deps_build
   - kernel_matrix_testing
   - integration_test
-  - macrobenchmarks
   - package_build
   - kitchen_deploy
   - kitchen_testing
