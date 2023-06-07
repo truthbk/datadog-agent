@@ -1,24 +1,43 @@
-benchmark:
-  stage: benchmarks
-  # This base image is created here: https://gitlab.ddbuild.io/DataDog/apm-reliability/relenv-microbenchmarking-platform
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/relenv-microbenchmarking-platform:trace-agent
+variables:
+  BENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:trace-agent
+  BENCHMARK_PLATFORM_BRANCH: igoragoli/add_macrobenchmark_for_trace_agent
+.benchmarks:
+  stage: macrobenchmarks
+  tags: ["runner:apm-k8s-same-cpu"]
   timeout: 1h
   rules:
-    !reference [.manual] # TODO: run this benchmark automatically when the trace-agent changes
-  interruptible: true
-  # tags: ["runner:apm-k8s-tweaked-metal"] # TODO: Commented out until we have the metal runners available in this repo
-  tags: ["runner:main"]
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - when: manual
+  # If you have a problem with Gitlab cache, see Troubleshooting section in Benchmarking Platform docs
+  image: $BENCHMARKS_CI_IMAGE
   script:
-    - ./test/benchmarks/apm_scripts/capture-hardware-software-info.sh
-    - ./test/benchmarks/apm_scripts/run-benchmarks.sh
-    # - ./test/benchmarks/apm_scripts/upload-results-to-s3.sh #commented out until we have merged our permissions changes
-    - ./test/benchmarks/apm_scripts/analyze-results.sh
-    - ./test/benchmarks/apm_scripts/post-pr-comment.sh
+    - export ARTIFACTS_DIR="$(pwd)/reports" && (mkdir "${ARTIFACTS_DIR}" || :)
+    - export DD_API_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.dd_api_key --with-decryption --query "Parameter.Value" --out text)
+    - git clone --branch $BENCHMARK_PLATFORM_BRANCH https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform /platform && cd /platform
+    - ./steps/capture-hardware-software-info.sh
+    - ./steps/run-benchmarks.sh
+    - "./steps/upload-results-to-s3.sh || :"
   artifacts:
     name: "reports"
     paths:
       - reports/
     expire_in: 3 months
   variables:
+    FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true" # Important tweak for stability of benchmarks
+    K6_RUN_ID_PREFIX: ci
     KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: datadog-agent
-    FF_USE_LEGACY_KUBERNETES_EXECUTION_STRATEGY: "true"
+  # Workaround: Currently we're not running the benchmarks on every PR, but GitHub still shows them as pending.
+  # By marking the benchmarks as allow_failure, this should go away. (This workaround should be removed once the
+  # benchmarks get changed to run on every PR)
+  allow_failure: true
+
+baseline-benchmarks:
+  extends: .benchmarks
+  variables:
+    DD_RELENV_CONFIGURATION: baseline
+
+only-tracing-benchmarks:
+  extends: .benchmarks
+  variables:
+    DD_RELENV_CONFIGURATION: only-tracing

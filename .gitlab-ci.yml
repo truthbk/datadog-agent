@@ -62,6 +62,7 @@ stages:
   - package_deps_build
   - kernel_matrix_testing
   - integration_test
+  - macrobenchmarks
   - benchmarks
   - package_build
   - kitchen_deploy
