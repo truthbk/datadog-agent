@@ -12,13 +12,15 @@ import (
 )
 
 func TestCounterInitializer(t *testing.T) {
-	// Reset telemetry registry data
-	Reset()
 
-	counter := NewCounter("subsystem", "test", []string{"check_name", "state"}, "help docs")
+	telemetry := newTelemetry().(*telemetryImpl)
+	// Reset telemetry registry data
+	telemetry.Reset()
+
+	counter := telemetry.NewCounter("subsystem", "test", []string{"check_name", "state"}, "help docs")
 
 	// Sanity check that we don't have any metrics
-	startMetrics, err := telemetryRegistry.Gather()
+	startMetrics, err := telemetry.registry.Gather()
 	assert.NoError(t, err)
 	if err != nil {
 		return
@@ -29,7 +31,7 @@ func TestCounterInitializer(t *testing.T) {
 	// Set some values and ensure that we have those counters
 	counter.Initialize("mycheck", "mystate")
 
-	endMetrics, err := telemetryRegistry.Gather()
+	endMetrics, err := telemetry.registry.Gather()
 	if !assert.NoError(t, err) {
 		return
 	}

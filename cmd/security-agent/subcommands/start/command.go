@@ -86,12 +86,12 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 	return []*cobra.Command{startCmd}
 }
 
-func start(log log.Component, config config.Component, forwarder defaultforwarder.Component, params *cliParams) error {
+func start(log log.Component, config config.Component, telemetry telemetry.Component, forwarder defaultforwarder.Component, params *cliParams) error {
 	// Main context passed to components
 	ctx, cancel := context.WithCancel(context.Background())
 	defer StopAgent(cancel, log)
 
-	err := RunAgent(ctx, log, config, forwarder, params.pidfilePath)
+	err := RunAgent(ctx, log, config, telemetry, forwarder, params.pidfilePath)
 	if errors.Is(err, errAllComponentsDisabled) || errors.Is(err, errNoAPIKeyConfigured) {
 		return nil
 	}

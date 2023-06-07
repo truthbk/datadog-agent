@@ -82,7 +82,7 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 }
 
 // run starts the main loop.
-func run(log log.Component, config config.Component, sysprobeconfig sysprobeconfig.Component, cliParams *cliParams) error {
+func run(log log.Component, config config.Component, telemetry telemetry.Component, sysprobeconfig sysprobeconfig.Component, cliParams *cliParams) error {
 	defer func() {
 		stopSystemProbe(cliParams)
 	}()
@@ -123,7 +123,7 @@ func run(log log.Component, config config.Component, sysprobeconfig sysprobeconf
 		}
 	}()
 
-	if err := startSystemProbe(cliParams, log, sysprobeconfig); err != nil {
+	if err := startSystemProbe(cliParams, log, telemetry, sysprobeconfig); err != nil {
 		if err == ErrNotEnabled {
 			// A sleep is necessary to ensure that supervisor registers this process as "STARTED"
 			// If the exit is "too quick", we enter a BACKOFF->FATAL loop even though this is an expected exit
@@ -140,8 +140,8 @@ func run(log log.Component, config config.Component, sysprobeconfig sysprobeconf
 func StartSystemProbeWithDefaults() error {
 	// run startSystemProbe in an app, so that the log and config components get initialized
 	return fxutil.OneShot(
-		func(log log.Component, config config.Component, sysprobeconfig sysprobeconfig.Component) error {
-			return startSystemProbe(&cliParams{GlobalParams: &command.GlobalParams{}}, log, sysprobeconfig)
+		func(log log.Component, config config.Component, telemetry telemetry.Component, sysprobeconfig sysprobeconfig.Component) error {
+			return startSystemProbe(&cliParams{GlobalParams: &command.GlobalParams{}}, log, telemetry, sysprobeconfig)
 		},
 		// no config file path specification in this situation
 		fx.Supply(config.NewAgentParamsWithoutSecrets("", config.WithConfigMissingOK(true))),
