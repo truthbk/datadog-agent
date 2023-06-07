@@ -34,11 +34,17 @@ type tooLargeEntityStatsEntry struct {
 	compression   bool
 }
 
+type duplicatedImageNameTagsEntry struct {
+	imageNameTags string
+	hostname      string
+}
+
 // ActivityDumpRemoteStorage is a remote storage that forwards dumps to the backend
 type ActivityDumpRemoteStorage struct {
-	urls             []string
-	apiKeys          []string
-	tooLargeEntities map[tooLargeEntityStatsEntry]*atomic.Uint64
+	urls                    []string
+	apiKeys                 []string
+	tooLargeEntities        map[tooLargeEntityStatsEntry]*atomic.Uint64
+	duplicatedImageNameTags map[duplicatedImageNameTagsEntry]*atomic.Uint64
 
 	client *http.Client
 }
@@ -46,7 +52,8 @@ type ActivityDumpRemoteStorage struct {
 // NewActivityDumpRemoteStorage returns a new instance of ActivityDumpRemoteStorage
 func NewActivityDumpRemoteStorage() (ActivityDumpStorage, error) {
 	storage := &ActivityDumpRemoteStorage{
-		tooLargeEntities: make(map[tooLargeEntityStatsEntry]*atomic.Uint64),
+		tooLargeEntities:        make(map[tooLargeEntityStatsEntry]*atomic.Uint64),
+		duplicatedImageNameTags: make(map[duplicatedImageNameTagsEntry]*atomic.Uint64),
 		client: &http.Client{
 			Transport: ddhttputil.CreateHTTPTransport(),
 		},
@@ -87,6 +94,24 @@ func (storage *ActivityDumpRemoteStorage) writeEventMetadata(writer *multipart.W
 	dataWriter, err := writer.CreatePart(h)
 	if err != nil {
 		return fmt.Errorf("couldn't create event metadata part: %w", err)
+	}
+
+	var imageNameTags []string
+	for _, tag := range ad.Tags {
+		if strings.HasPrefix(tag, "image_name:") {
+			imageNameTags = append(imageNameTags, tag)
+		}
+	}
+	if len(imageNameTags) > 1 {
+		entry := duplicatedImageNameTagsEntry{
+			imageNameTags: strings.ReplaceAll(strings.Join(imageNameTags, ","), ":", "_"),
+			hostname:      ad.Host,
+		}
+		if count, exists := storage.duplicatedImageNameTags[entry]; exists {
+			count.Inc()
+		} else {
+			storage.duplicatedImageNameTags[entry] = atomic.NewUint64(1)
+		}
 	}
 
 	// prepare tags for serialisation
@@ -205,6 +230,14 @@ func (storage *ActivityDumpRemoteStorage) SendTelemetry(sender aggregator.Sender
 		if entityCount := count.Swap(0); entityCount > 0 {
 			tags := []string{fmt.Sprintf("format:%s", entry.storageFormat.String()), fmt.Sprintf("compression:%v", entry.compression)}
 			sender.Count(metrics.MetricActivityDumpEntityTooLarge, float64(entityCount), "", tags)
+		}
+	}
+
+	// send duplicated image name tags metric
+	for entry, count := range storage.duplicatedImageNameTags {
+		if val := count.Swap(0); val > 0 {
+			tags := []string{fmt.Sprintf("image_names:%s", entry.imageNameTags), fmt.Sprintf("ad_host:%s", entry.hostname)}
+			sender.Count(metrics.MetricActivityDumpDuplicatedImageNameTags, float64(val), entry.hostname, tags)
 		}
 	}
 }

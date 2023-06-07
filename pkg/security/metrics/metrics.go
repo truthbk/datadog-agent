@@ -198,6 +198,9 @@ var (
 	// be sent because they are too big
 	// Tags: format, compression
 	MetricActivityDumpEntityTooLarge = newAgentMetric(".activity_dump.entity_too_large")
+	// MetricActivityDumpDuplicatedImageNameTags is the name of the metric used to report that a dump was sent with duplicated image name tags
+	// Tags: image_names, ad_host
+	MetricActivityDumpDuplicatedImageNameTags = newAgentMetric(".activity_dump.duplicated_image_name_tags")
 	// MetricActivityDumpBrokenLineageDrop is the name of the metric used to report the number of events dropped due to broken ancestors lineage
 	// Tags: -
 	MetricActivityDumpBrokenLineageDrop = newRuntimeMetric(".activity_dump.broken_lineage_drop")
