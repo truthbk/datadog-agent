@@ -84,7 +84,7 @@ func (t *telemetryImpl) NewSimpleCounterWithOpts(subsystem, name, help string, o
 	})
 
 	_ = t.registry.Register(pc)
-	return pc
+	return &simplePromCounter{c: pc}
 }
 
 func (t *telemetryImpl) NewGauge(subsystem, name string, tags []string, help string) Gauge {

@@ -56,3 +56,20 @@ func TestCounterInitializer(t *testing.T) {
 
 	assert.Equal(t, metric.GetCounter().GetValue(), 0.0)
 }
+
+func TestGetCounterValue(t *testing.T) {
+	telemetry := newTelemetry().(*telemetryImpl)
+	// Reset telemetry registry data
+	telemetry.Reset()
+
+	counter := telemetry.NewCounter("subsystem", "test", []string{"state"}, "help docs")
+	assert.Equal(t, counter.WithValues("ok").Get(), 0.0)
+	assert.Equal(t, counter.WithValues("error").Get(), 0.0)
+
+	counter.Inc("ok")
+	assert.Equal(t, counter.WithValues("ok").Get(), 1.0)
+	assert.Equal(t, counter.WithValues("error").Get(), 0.0)
+
+	counter.Add(123, "error")
+	assert.Equal(t, counter.WithValues("error").Get(), 123.0)
+}

@@ -11,4 +11,6 @@ type SimpleCounter interface {
 	Inc()
 	// Add increments the counter by given amount.
 	Add(float64)
+	// Get gets the current counter value
+	Get() float64
 }
