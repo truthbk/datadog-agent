@@ -11,12 +11,14 @@ import (
 	"errors"
 	_ "expvar" // Blank import used because this isn't directly used in this file
 	"fmt"
+	"math/rand"
 	"net/http"
 	_ "net/http/pprof" // Blank import used because this isn't directly used in this file
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/fx"
@@ -340,6 +342,18 @@ func startAgent(
 
 	// Setup expvar server
 	telemetryHandler := telemetry.Handler()
+
+	// Test
+	go func() {
+		hist := telemetry.NewSimpleHistogram("brian_test", "brian_hist_test", "blah", []float64{1, 10, 100, 1000, 10000})
+		for {
+			min := 0.1
+			max := 10000.0
+			hist.Observe(min + rand.Float64()*(max-min))
+			time.Sleep(time.Millisecond * 200)
+		}
+	}()
+
 	expvarPort := pkgconfig.Datadog.GetString("expvar_port")
 	http.Handle("/telemetry", telemetryHandler)
 	go func() {

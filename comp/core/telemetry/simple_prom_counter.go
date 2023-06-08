@@ -28,6 +28,6 @@ func (s *simplePromCounter) Add(val float64) {
 // Get gets the current counter value
 func (s *simplePromCounter) Get() float64 {
 	metric := &dto.Metric{}
-	s.c.Write(metric)
+	_ = s.c.Write(metric)
 	return *metric.Counter.Value
 }

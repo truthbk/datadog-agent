@@ -42,6 +42,6 @@ func (s *simplePromGauge) Set(val float64) {
 // Get gets the value of the gauge.
 func (s *simplePromGauge) Get() float64 {
 	metric := &dto.Metric{}
-	s.g.Write(metric)
+	_ = s.g.Write(metric)
 	return *metric.Gauge.Value
 }
