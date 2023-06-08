@@ -69,3 +69,18 @@ func TestGetCounterValue(t *testing.T) {
 	counter.Add(123, "error")
 	assert.Equal(t, counter.WithValues("error").Get(), 123.0)
 }
+
+func TestGetGaugeValue(t *testing.T) {
+	telemetry := newMock().(*telemetryImpl)
+
+	gauge := telemetry.NewGauge("subsystem", "test", []string{"state"}, "help docs")
+	assert.Equal(t, gauge.WithValues("ok").Get(), 0.0)
+	assert.Equal(t, gauge.WithValues("error").Get(), 0.0)
+
+	gauge.Inc("ok")
+	assert.Equal(t, gauge.WithValues("ok").Get(), 1.0)
+	assert.Equal(t, gauge.WithValues("error").Get(), 0.0)
+
+	gauge.Add(123, "error")
+	assert.Equal(t, gauge.WithValues("error").Get(), 123.0)
+}

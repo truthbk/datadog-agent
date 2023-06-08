@@ -19,4 +19,8 @@ type Gauge interface {
 	Sub(value float64, tagsValue ...string)
 	// Delete deletes the value for the Gauge with the given tags.
 	Delete(tagsValue ...string)
+	// WithValues returns SimpleGauge for this metric with the given tag values.
+	WithValues(tagsValue ...string) SimpleGauge
+	// WithTags returns SimpleGauge for this metric with the given tqg values.
+	WithTags(tags map[string]string) SimpleGauge
 }
