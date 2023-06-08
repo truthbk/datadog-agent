@@ -23,6 +23,7 @@ var catalog = make(map[string]CheckFactory)
 // RegisterCheck adds a check to the catalog
 func RegisterCheck(name string, c CheckFactory) {
 	catalog[name] = c
+	log.Debugf("Adding check %s\n", name)
 }
 
 // GetRegisteredFactoryKeys get the keys for all registered factories

@@ -98,6 +98,7 @@ import (
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/winkmem"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/system/winproc"
 	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/systemd"
+	_ "github.com/DataDog/datadog-agent/pkg/collector/corechecks/winregistry"
 
 	// register metadata providers
 	_ "github.com/DataDog/datadog-agent/pkg/collector/metadata"
