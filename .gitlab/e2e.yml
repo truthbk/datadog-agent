@@ -141,3 +141,10 @@ new-e2e-containers-main:
   variables:
     TARGETS: ./containers
     CONFIGPARAMS: "-c ddagent:fullImagePath=datadog/agent-dev:master-py3"
+
+new-e2e-asc-dev:
+  extends: .new_e2e_template
+  rules: !reference [.on_dev_branch_manual]
+  variables:
+    TARGETS: ./shared-components
+    CONFIGPARAMS: ""
