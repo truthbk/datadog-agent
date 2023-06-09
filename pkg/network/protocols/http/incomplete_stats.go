@@ -15,7 +15,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/network/types"
 )
 
-const defaultMinAge = 30 * time.Second
+const defaultMinAge = 5 * time.Second
 
 // incompleteBuffer is responsible for buffering incomplete transactions
 // (eg. httpTX objects that have either only the request or response information)
@@ -62,15 +62,9 @@ func newTXParts() *txParts {
 }
 
 func newIncompleteBuffer(c *config.Config, telemetry *Telemetry) *incompleteBuffer {
-	// Only set aside a fraction of MaxHTTPBuffered for incomplete data
-	// as this should only be used rarely (as described in the example above).
-	// If our telemetry indicates that this buffer is filling up often, we need
-	// to better understand what is going on and reassess our approach
-	maxEntries := c.MaxHTTPStatsBuffered / 10
-
 	return &incompleteBuffer{
 		data:       make(map[types.ConnectionKey]*txParts),
-		maxEntries: maxEntries,
+		maxEntries: c.MaxHTTPStatsBuffered,
 		telemetry:  telemetry,
 		minAgeNano: defaultMinAge.Nanoseconds(),
 	}

@@ -38,7 +38,7 @@ func TestOrphanEntries(t *testing.T) {
 		request.Tup.Sport = 60000
 
 		buffer.Add(request)
-		now = now.Add(5 * time.Second)
+		now = now.Add(3 * time.Second)
 		complete := buffer.Flush(now)
 		assert.Len(t, complete, 0)
 
