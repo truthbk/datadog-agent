@@ -148,4 +148,4 @@ new-e2e-asc-dev:
   needs: []
   variables:
     TARGETS: ./shared-components
-    CONFIGPARAMS: ""
+    CONFIGPARAMS: "-c ddinfra:aws/defaultKeyPairName=datadog-agent-ci"
