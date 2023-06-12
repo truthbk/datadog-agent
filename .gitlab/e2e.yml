@@ -150,6 +150,7 @@ new-e2e-asc-dev:
     - mkdir -p ~/.ssh
     - set +x
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.ssh_key --with-decryption --query "Parameter.Value" --out text >> ~/.ssh/datadog-agent-ci
+    - chmod 0400 ~/.ssh/datadog-agent-ci
     - eval `ssh-agent -s`
     - ssh-add ~/.ssh/datadog-agent-ci
     - set -x
