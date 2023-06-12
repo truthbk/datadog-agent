@@ -280,6 +280,9 @@ type Event struct {
 	Exit     ExitEvent     `field:"exit" event:"exit" platform:"linux"`     // [7.38] [Process] A process was terminated
 	Syscalls SyscallsEvent `field:"-" platform:"linux"`
 
+	// proces events for windows
+	ExecWindows ExecWindowsEvent `field:"exec" event:"exec" platform:"windows"`
+
 	// anomaly detection related events
 	AnomalyDetectionSyscallEvent AnomalyDetectionSyscallEvent `field:"-"`
 
@@ -637,6 +640,12 @@ type SpanContext struct {
 // ExecEvent represents a exec event
 type ExecEvent struct {
 	*Process
+}
+
+type ExecWindowsEvent struct {
+	PathnameStr string `field:"file.path"` // SECLDoc[path] Definition:`File's path` Example:`exec.file.path == "/usr/bin/apt"` Description:`Matches the execution of the file located at /usr/bin/apt``
+	Pid         uint32 `field:"pid"`       // SECLDoc[pid] Definition:`Process ID of the process (also called thread group ID)`
+	CmdLine     string `field:"cmdline"`   // SECLDoc[pid] Definition:`Command line of the process (also called thread group ID)`
 }
 
 // ExitEvent represents a process exit event
