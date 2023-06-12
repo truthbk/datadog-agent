@@ -139,10 +139,6 @@ func (m *EventMonitor) Start() error {
 		return err
 	}
 
-	if err := m.Probe.Start(); err != nil {
-		return err
-	}
-
 	// start event consumers
 	for _, em := range m.eventConsumers {
 		if err := em.Start(); err != nil {
@@ -151,6 +147,10 @@ func (m *EventMonitor) Start() error {
 	}
 	// Apply rules to the snapshotted data
 	m.Probe.PlaySnapshot()
+
+	if err := m.Probe.Start(); err != nil {
+		return err
+	}
 
 	m.wg.Add(1)
 	go m.statsSender()
