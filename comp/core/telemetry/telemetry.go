@@ -23,10 +23,10 @@ type telemetryImpl struct {
 }
 
 func newRegistry() *prometheus.Registry {
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
-	registry.MustRegister(collectors.NewGoCollector())
-	return registry
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	reg.MustRegister(collectors.NewGoCollector())
+	return reg
 }
 
 func newTelemetry() Component {

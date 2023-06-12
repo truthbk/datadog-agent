@@ -14,6 +14,7 @@ import (
 func TestCounterInitializer(t *testing.T) {
 
 	telemetry := newMock().(*telemetryImpl)
+	telemetry.Reset()
 
 	counter := telemetry.NewCounter("subsystem", "test", []string{"check_name", "state"}, "help docs")
 

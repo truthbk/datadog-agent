@@ -16,8 +16,12 @@ type Histogram interface {
 
 type histogramNoOp struct{}
 
-func (h histogramNoOp) Observe(_ float64, _ ...string) {}
-func (h histogramNoOp) Delete(_ ...string)             {}
+func (h histogramNoOp) Observe(_ float64, _ ...string)                                    {}
+func (h histogramNoOp) Delete(_ ...string)                                                {}
+func (h histogramNoOp) WithValues(tagsValue ...string) telemetryComponent.SimpleHistogram { return nil }
+func (h histogramNoOp) WithTags(tags map[string]string) telemetryComponent.SimpleHistogram {
+	return nil
+}
 
 // NewHistogramNoOp creates a dummy Histogram
 func NewHistogramNoOp() Histogram {
