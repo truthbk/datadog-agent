@@ -11,9 +11,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/DataDog/datadog-go/v5/statsd"
+
 	"github.com/DataDog/datadog-agent/pkg/security/config"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
-	"github.com/DataDog/datadog-go/v5/statsd"
 )
 
 type Pid uint32

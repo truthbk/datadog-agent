@@ -1241,37 +1241,6 @@ func (p *Probe) GetDebugStats() map[string]interface{} {
 	return debug
 }
 
-// NewEvaluationSet returns a new evaluation set with rule sets tagged by the passed-in tag values for the "ruleset" tag key
-func (p *Probe) NewEvaluationSet(eventTypeEnabled map[eval.EventType]bool, ruleSetTagValues []string) (*rules.EvaluationSet, error) {
-	var ruleSetsToInclude []*rules.RuleSet
-	for _, ruleSetTagValue := range ruleSetTagValues {
-		ruleOpts, evalOpts := rules.NewEvalOpts(eventTypeEnabled)
-
-		ruleOpts.WithLogger(seclog.DefaultLogger)
-		ruleOpts.WithReservedRuleIDs(events.AllCustomRuleIDs())
-		if ruleSetTagValue == rules.DefaultRuleSetTagValue {
-			ruleOpts.WithSupportedDiscarders(SupportedDiscarders)
-		}
-
-		eventCtor := func() eval.Event {
-			return &model.Event{
-				FieldHandlers:    p.fieldHandlers,
-				ContainerContext: &model.ContainerContext{},
-			}
-		}
-
-		rs := rules.NewRuleSet(NewModel(p), eventCtor, ruleOpts.WithRuleSetTag(ruleSetTagValue), evalOpts)
-		ruleSetsToInclude = append(ruleSetsToInclude, rs)
-	}
-
-	evaluationSet, err := rules.NewEvaluationSet(ruleSetsToInclude)
-	if err != nil {
-		return nil, err
-	}
-
-	return evaluationSet, nil
-}
-
 // QueuedNetworkDeviceError is used to indicate that the new network device was queued until its namespace handle is
 // resolved.
 type QueuedNetworkDeviceError struct {

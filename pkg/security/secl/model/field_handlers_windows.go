@@ -24,6 +24,7 @@ func (ev *Event) resolveFields(forADs bool) {
 	switch ev.GetEventType().String() {
 	case "":
 		_ = ev.FieldHandlers.ResolveEventTimestamp(ev)
+	case "exec":
 	}
 }
 

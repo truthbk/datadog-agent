@@ -3,8 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build linux
-
 package module
 
 import (
@@ -35,7 +33,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
 	"github.com/DataDog/datadog-agent/pkg/security/serializers"
-	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/startstop"
 	"github.com/DataDog/datadog-agent/pkg/version"
@@ -282,13 +279,6 @@ func (a *APIServer) GetStatus(ctx context.Context, params *api.GetStatusParams) 
 		for i, err := range envErrors.Errors {
 			apiStatus.Environment.Warnings[i] = err.Error()
 		}
-	}
-
-	apiStatus.Environment.KernelLockdown = string(kernel.GetLockdownMode())
-
-	if kernel, err := a.probe.GetKernelVersion(); err == nil {
-		apiStatus.Environment.UseMmapableMaps = kernel.HaveMmapableMaps()
-		apiStatus.Environment.UseRingBuffer = a.probe.UseRingBuffers()
 	}
 
 	return apiStatus, nil
