@@ -146,6 +146,12 @@ new-e2e-asc-dev:
   extends: .new_e2e_template
   rules: !reference [.on_dev_branch_manual]
   needs: []
+  script:
+    - set +x
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.ssh_key --with-decryption --query "Parameter.Value" --out text >> ~/.ssh/datadog-agent-ci
+    - ssh-add ~/.ssh/datadog-agent-ci
+    - set -x
+    - !reference [.new_e2e_template, script]
   variables:
     TARGETS: ./shared-components
     CONFIGPARAMS: "-c ddinfra:aws/defaultKeyPairName=datadog-agent-ci"
