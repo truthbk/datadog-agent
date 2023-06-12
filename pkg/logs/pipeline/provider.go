@@ -7,6 +7,8 @@ package pipeline
 
 import (
 	"context"
+	"fmt"
+	"sync"
 
 	"go.uber.org/atomic"
 
@@ -16,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/client"
 	"github.com/DataDog/datadog-agent/pkg/logs/config"
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/startstop"
 )
 
@@ -25,7 +28,10 @@ type Provider interface {
 	Stop()
 	NextPipelineChan() chan *message.Message
 	// Flush flushes all pipeline contained in this Provider
-	Flush(ctx context.Context)
+	Flush(ctx context.Context, msgCount *sync.WaitGroup)
+	SetPayloadSent(payloadSent chan struct{})
+	SetBlockRun(blockRun chan struct{})
+	SetRunComplete(runComplete chan struct{})
 }
 
 // provider implements providing logic
@@ -34,6 +40,9 @@ type provider struct {
 	auditor                   auditor.Auditor
 	diagnosticMessageReceiver diagnostic.MessageReceiver
 	outputChan                chan *message.Payload
+	payloadSent               chan struct{}
+	blockRun                  chan struct{}
+	runComplete               chan struct{}
 	processingRules           []*config.ProcessingRule
 	endpoints                 *config.Endpoints
 
@@ -109,13 +118,32 @@ func (p *provider) NextPipelineChan() chan *message.Message {
 }
 
 // Flush flushes synchronously all the contained pipeline of this provider.
-func (p *provider) Flush(ctx context.Context) {
-	for _, p := range p.pipelines {
+func (p *provider) Flush(ctx context.Context, msgCount *sync.WaitGroup) {
+	fmt.Printf("[ sync(%d)] flushing provider\n", log.Goid())
+	blockRun := p.blockRun
+	runComplete := p.runComplete
+	for i, p := range p.pipelines {
 		select {
 		case <-ctx.Done():
 			return
 		default:
-			p.Flush(ctx)
+			fmt.Printf("[ sync(%d)] flushing pipeline #%d\n", log.Goid(), i)
+			p.RunComplete = runComplete
+			p.BlockRun = blockRun
+			p.Flush(ctx, msgCount)
+			fmt.Printf("[ sync(%d)] end of flushing\n", log.Goid())
 		}
 	}
+}
+
+func (p *provider) SetPayloadSent(payloadSent chan struct{}) {
+	p.payloadSent = payloadSent
+}
+
+func (p *provider) SetBlockRun(blockRun chan struct{}) {
+	p.blockRun = blockRun
+}
+
+func (p *provider) SetRunComplete(runComplete chan struct{}) {
+	p.runComplete = runComplete
 }

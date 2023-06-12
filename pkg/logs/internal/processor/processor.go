@@ -7,6 +7,7 @@ package processor
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -63,9 +64,12 @@ func (p *Processor) Flush(ctx context.Context) {
 			return
 		default:
 			if len(p.inputChan) == 0 {
+				fmt.Printf("[sync(%d)] len(p.inputChan) == 0\n", log.Goid())
 				return
 			}
+			//fmt.Println("len(p.inputChan) != 0")
 			msg := <-p.inputChan
+			fmt.Println("process in Flush()")
 			p.processMessage(msg)
 		}
 	}
@@ -77,6 +81,8 @@ func (p *Processor) run() {
 		p.done <- struct{}{}
 	}()
 	for msg := range p.inputChan {
+		//fmt.Println("---- > msg := range p.inputChan")
+		fmt.Println("process in run()")
 		p.processMessage(msg)
 		p.mu.Lock() // block here if we're trying to flush synchronously
 		//nolint:staticcheck
@@ -85,6 +91,7 @@ func (p *Processor) run() {
 }
 
 func (p *Processor) processMessage(msg *message.Message) {
+	//fmt.Println("processMessage(msg *message.Message)")
 	metrics.LogsDecoded.Add(1)
 	metrics.TlmLogsDecoded.Inc()
 	if shouldProcess, redactedMsg := p.applyRedactingRules(msg); shouldProcess {

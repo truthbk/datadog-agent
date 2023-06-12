@@ -6,6 +6,7 @@
 package sender
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/benbjohnson/clock"
@@ -21,10 +22,12 @@ var (
 
 // batchStrategy contains all the logic to send logs in batch.
 type batchStrategy struct {
-	inputChan  chan *message.Message
-	outputChan chan *message.Payload
-	flushChan  chan struct{}
-	buffer     *MessageBuffer
+	inputChan         chan *message.Message
+	outputChan        chan *message.Payload
+	flushChan         chan struct{}
+	flushChanComplete chan struct{}
+	payloadSent       chan struct{}
+	buffer            *MessageBuffer
 	// pipelineName provides a name for the strategy to differentiate it from other instances in other internal pipelines
 	pipelineName    string
 	serializer      Serializer
@@ -38,18 +41,23 @@ type batchStrategy struct {
 func NewBatchStrategy(inputChan chan *message.Message,
 	outputChan chan *message.Payload,
 	flushChan chan struct{},
+	flushChanComplete chan struct{},
+	payloadSent chan struct{},
 	serializer Serializer,
 	batchWait time.Duration,
 	maxBatchSize int,
 	maxContentSize int,
 	pipelineName string,
 	contentEncoding ContentEncoding) Strategy {
-	return newBatchStrategyWithClock(inputChan, outputChan, flushChan, serializer, batchWait, maxBatchSize, maxContentSize, pipelineName, clock.New(), contentEncoding)
+	fmt.Println("NewBatchStrategy")
+	return newBatchStrategyWithClock(inputChan, outputChan, flushChan, flushChanComplete, payloadSent, serializer, batchWait, maxBatchSize, maxContentSize, pipelineName, clock.New(), contentEncoding)
 }
 
 func newBatchStrategyWithClock(inputChan chan *message.Message,
 	outputChan chan *message.Payload,
 	flushChan chan struct{},
+	flushChanComplete chan struct{},
+	payloadSent chan struct{},
 	serializer Serializer,
 	batchWait time.Duration,
 	maxBatchSize int,
@@ -59,16 +67,18 @@ func newBatchStrategyWithClock(inputChan chan *message.Message,
 	contentEncoding ContentEncoding) Strategy {
 
 	return &batchStrategy{
-		inputChan:       inputChan,
-		outputChan:      outputChan,
-		flushChan:       flushChan,
-		buffer:          NewMessageBuffer(maxBatchSize, maxContentSize),
-		serializer:      serializer,
-		batchWait:       batchWait,
-		contentEncoding: contentEncoding,
-		stopChan:        make(chan struct{}),
-		pipelineName:    pipelineName,
-		clock:           clock,
+		inputChan:         inputChan,
+		outputChan:        outputChan,
+		flushChan:         flushChan,
+		flushChanComplete: flushChanComplete,
+		payloadSent:       payloadSent,
+		buffer:            NewMessageBuffer(maxBatchSize, maxContentSize),
+		serializer:        serializer,
+		batchWait:         batchWait,
+		contentEncoding:   contentEncoding,
+		stopChan:          make(chan struct{}),
+		pipelineName:      pipelineName,
+		clock:             clock,
 	}
 }
 
@@ -82,10 +92,11 @@ func (s *batchStrategy) Stop() {
 // encoded (optionally compressed) and written to a Payload which goes to the next
 // step in the pipeline.
 func (s *batchStrategy) Start() {
-
+	fmt.Println("Start batch strategy")
 	go func() {
 		flushTicker := s.clock.Ticker(s.batchWait)
 		defer func() {
+			fmt.Println("defer here")
 			s.flushBuffer(s.outputChan)
 			flushTicker.Stop()
 			close(s.stopChan)
@@ -101,21 +112,28 @@ func (s *batchStrategy) Start() {
 				s.processMessage(m, s.outputChan)
 			case <-flushTicker.C:
 				// flush the payloads at a regular interval so pending messages don't wait here for too long.
+				fmt.Println("ticker")
 				s.flushBuffer(s.outputChan)
 			case <-s.flushChan:
+				fmt.Println("[async] case <-s.flushChan:")
 				// flush payloads on demand, used for infrequently running serverless functions
 				s.flushBuffer(s.outputChan)
+				fmt.Printf("flushing chan is complete END, sending signal on flushChanComplete = %v\n", s.flushChanComplete)
+				s.flushChanComplete <- struct{}{}
+
 			}
 		}
 	}()
 }
 
 func (s *batchStrategy) processMessage(m *message.Message, outputChan chan *message.Payload) {
+	//fmt.Println("processMessage")
 	if m.Origin != nil {
 		m.Origin.LogSource.LatencyStats.Add(m.GetLatency())
 	}
 	added := s.buffer.AddMessage(m)
 	if !added || s.buffer.IsFull() {
+		fmt.Printf("[async(%d)] buffer is full\n", log.Goid())
 		s.flushBuffer(outputChan)
 	}
 	if !added {
@@ -135,6 +153,7 @@ func (s *batchStrategy) flushBuffer(outputChan chan *message.Payload) {
 		return
 	}
 	messages := s.buffer.GetMessages()
+	fmt.Printf("[async (%d)] flushBuffer in batch strategy, messages len in flushBuffer = %d\n", log.Goid(), len(messages))
 	s.buffer.Clear()
 	// Logging specifically for DBM pipelines, which seem to fail to send more often than other pipelines.
 	// pipelineName comes from epforwarder.passthroughPipelineDescs.eventType, and these names are constants in the epforwarder package.
@@ -153,6 +172,7 @@ func (s *batchStrategy) sendMessages(messages []*message.Message, outputChan cha
 		log.Warn("Encoding failed - dropping payload", err)
 		return
 	}
+	fmt.Printf("[async (%d)] feeding output channel\n", log.Goid())
 
 	outputChan <- &message.Payload{
 		Messages:      messages,
@@ -160,4 +180,7 @@ func (s *batchStrategy) sendMessages(messages []*message.Message, outputChan cha
 		Encoding:      s.contentEncoding.name(),
 		UnencodedSize: len(serializedMessage),
 	}
+	fmt.Printf("[async (%d)] waiting for payload to be sent\n", log.Goid())
+	<-s.payloadSent
+	fmt.Printf("[async (%d)] waiting for payload to be sent is now completed\n", log.Goid())
 }

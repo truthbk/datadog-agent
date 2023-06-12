@@ -48,14 +48,17 @@ type LambdaLogsCollector struct {
 	process_once           *sync.Once
 	executionContext       *executioncontext.ExecutionContext
 	initDurationChan       chan<- float64
+	MessagesToWait         *sync.WaitGroup
 
 	arn string
 
 	// handleRuntimeDone is the function to be called when a platform.runtimeDone log message is received
 	handleRuntimeDone func()
+
+	processingMessageWg *sync.WaitGroup
 }
 
-func NewLambdaLogCollector(out chan<- *logConfig.ChannelMessage, demux aggregator.Demultiplexer, extraTags *Tags, logsEnabled bool, enhancedMetricsEnabled bool, executionContext *executioncontext.ExecutionContext, handleRuntimeDone func(), initDurationChan chan<- float64) *LambdaLogsCollector {
+func NewLambdaLogCollector(out chan<- *logConfig.ChannelMessage, demux aggregator.Demultiplexer, extraTags *Tags, logsEnabled bool, enhancedMetricsEnabled bool, executionContext *executioncontext.ExecutionContext, handleRuntimeDone func(), initDurationChan chan<- float64, processingMessageWg *sync.WaitGroup) *LambdaLogsCollector {
 
 	return &LambdaLogsCollector{
 		In:                     make(chan []LambdaLogAPIMessage, maxBufferedLogs), // Buffered, so we can hold start-up logs before first invocation without blocking
@@ -68,6 +71,8 @@ func NewLambdaLogCollector(out chan<- *logConfig.ChannelMessage, demux aggregato
 		handleRuntimeDone:      handleRuntimeDone,
 		process_once:           &sync.Once{},
 		initDurationChan:       initDurationChan,
+		processingMessageWg:    processingMessageWg,
+		MessagesToWait:         &sync.WaitGroup{},
 	}
 }
 
@@ -92,6 +97,8 @@ func (lc *LambdaLogsCollector) Start() {
 
 		go func() {
 			for messages := range lc.In {
+				lc.MessagesToWait.Add(len(messages))
+				fmt.Println("messages count in lc.in", len(messages))
 				lc.processLogMessages(messages)
 			}
 			// Store the execution context if an out of memory is detected
@@ -107,6 +114,7 @@ func (lc *LambdaLogsCollector) Start() {
 
 // Shutdown the log collector
 func (lc *LambdaLogsCollector) Shutdown() {
+	fmt.Println("Shutdown the log collector")
 	close(lc.In)
 }
 
@@ -149,6 +157,8 @@ func removeInvalidTracingItem(data []byte) []byte {
 }
 
 func (lc *LambdaLogsCollector) processLogMessages(messages []LambdaLogAPIMessage) {
+	lc.processingMessageWg.Add(1)
+	fmt.Printf("adding one for %d\n", len(messages))
 	// sort messages by time (all from the same time zone) in ascending order.
 	sort.Slice(messages, func(i, j int) bool {
 		return messages[i].time.Before(messages[j].time)
@@ -162,6 +172,7 @@ func (lc *LambdaLogsCollector) processLogMessages(messages []LambdaLogAPIMessage
 			if message.stringRecord == "" && message.logType != logTypeFunction {
 				continue
 			}
+			//fmt.Println(lc.out)
 			if message.objectRecord.requestID != "" {
 				lc.out <- logConfig.NewChannelMessageFromLambda([]byte(message.stringRecord), message.time, lc.arn, message.objectRecord.requestID)
 			} else {
@@ -169,6 +180,9 @@ func (lc *LambdaLogsCollector) processLogMessages(messages []LambdaLogAPIMessage
 			}
 		}
 	}
+	//time.Sleep(1 * time.Second)
+	fmt.Println("[async] lock is released")
+	lc.processingMessageWg.Done()
 }
 
 // processMessage performs logic about metrics and tags on the message

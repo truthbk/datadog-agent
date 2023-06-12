@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"go.uber.org/atomic"
 
@@ -45,11 +46,11 @@ var (
 )
 
 // StartServerless starts a Serverless instance of the Logs Agent.
-func StartServerless() (*Agent, error) {
-	return start()
+func StartServerless(msgCount *sync.WaitGroup) (*Agent, error) {
+	return start(msgCount)
 }
 
-func start() (*Agent, error) {
+func start(msgCount *sync.WaitGroup) (*Agent, error) {
 	if IsAgentRunning() {
 		return agent, nil
 	}
@@ -90,7 +91,7 @@ func start() (*Agent, error) {
 
 	// setup and start the logs agent
 	log.Info("Starting logs-agent...")
-	agent = NewAgent(sources, services, processingRules, endpoints)
+	agent = NewAgent(sources, services, processingRules, endpoints, msgCount)
 
 	agent.Start()
 	isRunning.Store(true)
@@ -116,11 +117,12 @@ func Stop() {
 
 // Flush flushes synchronously the running instance of the Logs Agent.
 // Use a WithTimeout context in order to have a flush that can be cancelled.
-func Flush(ctx context.Context) {
+func Flush(ctx context.Context, msgCount *sync.WaitGroup) {
+	fmt.Printf("[ sync(%d)] GOGOGOG FLUSH\n", log.Goid())
 	log.Info("Triggering a flush in the logs-agent")
 	if IsAgentRunning() {
 		if agent != nil {
-			agent.Flush(ctx)
+			agent.Flush(ctx, msgCount)
 		}
 	}
 	log.Debug("Flush in the logs-agent done.")

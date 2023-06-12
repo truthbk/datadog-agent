@@ -19,6 +19,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -820,4 +822,15 @@ func ChangeLogLevel(l seelog.LoggerInterface, level string) error {
 	}
 	// need to return something, just set to Info (expected default)
 	return errors.New("cannot change loglevel: logger not initialized")
+}
+
+func Goid() int {
+	var buf [64]byte
+	n := runtime.Stack(buf[:], false)
+	idField := strings.Fields(strings.TrimPrefix(string(buf[:n]), "goroutine "))[0]
+	id, err := strconv.Atoi(idField)
+	if err != nil {
+		panic(fmt.Sprintf("cannot get goroutine id: %v", err))
+	}
+	return id
 }

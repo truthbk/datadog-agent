@@ -7,6 +7,7 @@ package daemon
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -70,6 +71,8 @@ type Daemon struct {
 	// It should be reset when we start a new invocation, as we may start a new invocation before hearing that the last one finished.
 	RuntimeWg *sync.WaitGroup
 
+	processingMessageWg *sync.WaitGroup
+
 	// FlushLock is used to keep track of whether there is currently a flush in progress
 	FlushLock sync.Mutex
 
@@ -97,6 +100,8 @@ type Daemon struct {
 	InvocationProcessor invocationlifecycle.InvocationProcessor
 
 	logCollector *serverlessLog.LambdaLogsCollector
+
+	logSyncOrchestrator *LogSyncOrchestrator
 }
 
 // StartDaemon starts an HTTP server to receive messages from the runtime and coordinate
@@ -106,18 +111,20 @@ func StartDaemon(addr string) *Daemon {
 	mux := http.NewServeMux()
 
 	daemon := &Daemon{
-		httpServer:        &http.Server{Addr: addr, Handler: mux},
-		mux:               mux,
-		RuntimeWg:         &sync.WaitGroup{},
-		FlushLock:         sync.Mutex{},
-		lastInvocations:   make([]time.Time, 0),
-		useAdaptiveFlush:  true,
-		flushStrategy:     &flush.AtTheEnd{},
-		ExtraTags:         &serverlessLog.Tags{},
-		ExecutionContext:  &executioncontext.ExecutionContext{},
-		metricsFlushMutex: sync.Mutex{},
-		tracesFlushMutex:  sync.Mutex{},
-		logsFlushMutex:    sync.Mutex{},
+		httpServer:          &http.Server{Addr: addr, Handler: mux},
+		mux:                 mux,
+		RuntimeWg:           &sync.WaitGroup{},
+		FlushLock:           sync.Mutex{},
+		lastInvocations:     make([]time.Time, 0),
+		useAdaptiveFlush:    true,
+		flushStrategy:       &flush.AtTheEnd{},
+		ExtraTags:           &serverlessLog.Tags{},
+		ExecutionContext:    &executioncontext.ExecutionContext{},
+		metricsFlushMutex:   sync.Mutex{},
+		tracesFlushMutex:    sync.Mutex{},
+		logsFlushMutex:      sync.Mutex{},
+		processingMessageWg: &sync.WaitGroup{},
+		logSyncOrchestrator: &LogSyncOrchestrator{},
 	}
 
 	mux.Handle("/lambda/hello", &Hello{daemon})
@@ -170,9 +177,9 @@ func (d *Daemon) GetFlushStrategy() string {
 
 // SetupLogCollectionHandler configures the log collection route handler
 func (d *Daemon) SetupLogCollectionHandler(route string, logsChan chan *logConfig.ChannelMessage, logsEnabled bool, enhancedMetricsEnabled bool, initDurationChan chan<- float64) {
-
+	fmt.Println("setup log collection handler")
 	d.logCollector = serverlessLog.NewLambdaLogCollector(logsChan,
-		d.MetricAgent.Demux, d.ExtraTags, logsEnabled, enhancedMetricsEnabled, d.ExecutionContext, d.HandleRuntimeDone, initDurationChan)
+		d.MetricAgent.Demux, d.ExtraTags, logsEnabled, enhancedMetricsEnabled, d.ExecutionContext, d.HandleRuntimeDone, initDurationChan, d.processingMessageWg)
 	server := serverlessLog.NewLambdaLogsAPIServer(d.logCollector.In)
 
 	d.mux.Handle(route, &server)
@@ -224,7 +231,7 @@ func (d *Daemon) TriggerFlush(isLastFlushBeforeShutdown bool) {
 
 	go d.flushMetrics(&wg)
 	go d.flushTraces(&wg)
-	go d.flushLogs(ctx, &wg)
+	go d.flushLogs(ctx, &wg, d.logCollector.MessagesToWait)
 
 	timedOut := waitWithTimeout(&wg, FlushTimeout)
 	if timedOut {
@@ -269,13 +276,18 @@ func (d *Daemon) flushTraces(wg *sync.WaitGroup) {
 
 // flushLogs flushes aggregated logs to the intake.
 // It is protected by a mutex to ensure only one logs flush can be in progress at any given time.
-func (d *Daemon) flushLogs(ctx context.Context, wg *sync.WaitGroup) {
+func (d *Daemon) flushLogs(ctx context.Context, wg *sync.WaitGroup, msgCount *sync.WaitGroup) {
 	d.logsFlushMutex.Lock()
+	fmt.Printf("[ sync(%d)] HERE IS WAIT", log.Goid())
+	d.processingMessageWg.Wait()
+	fmt.Printf("[ sync(%d)] HERE IS WAIT", log.Goid())
 	flushStartTime := time.Now().Unix()
 	log.Debugf("Beginning logs flush at time %d", flushStartTime)
-	logs.Flush(ctx)
+	logs.Flush(ctx, msgCount)
 	log.Debugf("Finished logs flush that was started at time %d", flushStartTime)
 	wg.Done()
+	fmt.Printf("[ sync(%d)] WAIT FOR MESSAGE COUNT\n", log.Goid())
+	msgCount.Wait()
 	d.logsFlushMutex.Unlock()
 }
 

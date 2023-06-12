@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -89,6 +88,7 @@ func buildLogRegistrationPayload(callBackURI string, logsType string, timeoutMs 
 		Buffering:     *buffering,
 		SchemaVersion: schemaVersion,
 	}
+	fmt.Println(payload)
 	return payload
 }
 
@@ -115,19 +115,5 @@ func isValidHTTPCode(statusCode int) bool {
 }
 
 func getLogTypesToSubscribe(envLogsType string) []string {
-	if len(envLogsType) > 0 {
-		var logsType []string
-		parts := strings.Split(strings.TrimSpace(envLogsType), " ")
-		for _, part := range parts {
-			part = strings.ToLower(strings.TrimSpace(part))
-			switch part {
-			case "function", "platform", "extension":
-				logsType = append(logsType, part)
-			default:
-				log.Warn("While subscribing to telemetry, unknown log type", part)
-			}
-		}
-		return logsType
-	}
-	return []string{"platform", "function", "extension"}
+	return []string{"platform", "function"}
 }

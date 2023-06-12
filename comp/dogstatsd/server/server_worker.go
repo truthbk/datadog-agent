@@ -6,6 +6,8 @@
 package server
 
 import (
+	"fmt"
+
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/metrics"
 )
@@ -54,6 +56,7 @@ func (w *worker) run() {
 			return
 		case <-w.server.health.C:
 		case <-w.server.serverlessFlushChan:
+			fmt.Println("[missing log] <-w.server.serverlessFlushChan")
 			w.batcher.flush()
 		case packets := <-w.server.packetsIn:
 			w.samples = w.samples[0:0]

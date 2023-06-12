@@ -51,6 +51,10 @@ func (s *Sender) Start() {
 	go s.run()
 }
 
+func (s *Sender) RunDestination() {
+
+}
+
 // Stop stops the sender,
 // this call blocks until inputChan is flushed
 func (s *Sender) Stop() {
