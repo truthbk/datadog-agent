@@ -84,3 +84,46 @@ func TestGetGaugeValue(t *testing.T) {
 	gauge.Add(123, "error")
 	assert.Equal(t, gauge.WithValues("error").Get(), 123.0)
 }
+
+func TestGetSimpleHistogramValue(t *testing.T) {
+	telemetry := newMock().(*telemetryImpl)
+
+	hist := telemetry.NewSimpleHistogram("subsystem", "test", "help docs", []float64{1, 2, 3, 4})
+
+	assert.Equal(t, 4, len(hist.Get().Buckets))
+
+	hist.Observe(1)
+	hist.Observe(1)
+
+	hist.Observe(3)
+	hist.Observe(3)
+	hist.Observe(3)
+
+	assert.Equal(t, uint64(2), hist.Get().Buckets[0].Count)
+	assert.Equal(t, uint64(2), hist.Get().Buckets[1].Count)
+	assert.Equal(t, uint64(5), hist.Get().Buckets[2].Count)
+	assert.Equal(t, uint64(5), hist.Get().Buckets[3].Count)
+
+	assert.Equal(t, uint64(5), hist.Get().Count)
+	assert.Equal(t, float64(11), hist.Get().Sum)
+}
+
+func TestGetHistogramValue(t *testing.T) {
+	telemetry := newMock().(*telemetryImpl)
+
+	hist := telemetry.NewHistogram("subsystem", "test", []string{"state"}, "help docs", []float64{1, 2, 3, 4})
+
+	assert.Equal(t, uint64(0), hist.WithValues("ok").Get().Buckets[0].Count)
+	assert.Equal(t, uint64(0), hist.WithValues("ok").Get().Buckets[1].Count)
+	hist.Observe(1, "ok")
+
+	assert.Equal(t, uint64(1), hist.WithValues("ok").Get().Buckets[0].Count)
+	assert.Equal(t, uint64(1), hist.WithValues("ok").Get().Buckets[1].Count)
+
+	hist.Observe(2, "ok")
+	assert.Equal(t, uint64(1), hist.WithValues("ok").Get().Buckets[0].Count)
+	assert.Equal(t, uint64(2), hist.WithValues("ok").Get().Buckets[1].Count)
+
+	assert.Equal(t, uint64(1), hist.WithTags(map[string]string{"state": "ok"}).Get().Buckets[0].Count)
+	assert.Equal(t, uint64(2), hist.WithTags(map[string]string{"state": "ok"}).Get().Buckets[1].Count)
+}

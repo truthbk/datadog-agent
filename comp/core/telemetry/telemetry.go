@@ -126,14 +126,14 @@ func (t *telemetryImpl) NewSimpleGauge(subsystem, name, help string) SimpleGauge
 func (t *telemetryImpl) NewSimpleGaugeWithOpts(subsystem, name, help string, opts Options) SimpleGauge {
 	name = opts.NameWithSeparator(subsystem, name)
 
-	pc := prometheus.NewGauge(prometheus.GaugeOpts{
+	pc := &simplePromGauge{g: prometheus.NewGauge(prometheus.GaugeOpts{
 		Subsystem: subsystem,
 		Name:      name,
 		Help:      help,
-	})
+	})}
 
-	_ = t.registry.Register(pc)
-	return &simplePromGauge{g: pc}
+	_ = t.registry.Register(pc.g)
+	return pc
 }
 
 func (t *telemetryImpl) NewHistogram(subsystem, name string, tags []string, help string, buckets []float64) Histogram {
@@ -168,13 +168,13 @@ func (t *telemetryImpl) NewSimpleHistogram(subsystem, name, help string, buckets
 func (t *telemetryImpl) NewSimpleHistogramWithOpts(subsystem, name, help string, buckets []float64, opts Options) SimpleHistogram {
 	name = opts.NameWithSeparator(subsystem, name)
 
-	pc := prometheus.NewHistogram(prometheus.HistogramOpts{
+	pc := &simplePromHistogram{h: prometheus.NewHistogram(prometheus.HistogramOpts{
 		Subsystem: subsystem,
 		Name:      name,
 		Help:      help,
 		Buckets:   buckets,
-	})
+	})}
 
-	_ = t.registry.Register(pc)
+	_ = t.registry.Register(pc.h)
 	return pc
 }

@@ -11,4 +11,8 @@ type Histogram interface {
 	Observe(value float64, tagsValue ...string)
 	// Delete deletes the value for the Histogram with the given tags.
 	Delete(tagsValue ...string)
+
+	WithValues(tagsValue ...string) SimpleHistogram
+
+	WithTags(tags map[string]string) SimpleHistogram
 }

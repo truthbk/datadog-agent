@@ -5,8 +5,22 @@
 
 package telemetry
 
+type HistogramValue struct {
+	Count   uint64
+	Sum     float64
+	Buckets []Bucket
+}
+
+type Bucket struct {
+	UpperBound float64
+	Count      uint64
+}
+
 // SimpleHistogram tracks how many times something is happening.
 type SimpleHistogram interface {
 	// Observe the value to the Histogram value.
 	Observe(value float64)
+
+	// Get gets the current histogram values
+	Get() HistogramValue
 }

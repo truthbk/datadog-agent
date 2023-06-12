@@ -24,6 +24,18 @@ func (h *promHistogram) Delete(tagsValue ...string) {
 	h.ph.DeleteLabelValues(tagsValue...)
 }
 
+// WithValues returns SimpleCounter for this metric with the given tag values.
+func (h *promHistogram) WithValues(tagsValue ...string) SimpleHistogram {
+	// Prometheus does not directly expose the underlying histogram so we have to cast it.
+	return &simplePromHistogram{h: h.ph.WithLabelValues(tagsValue...).(prometheus.Histogram)}
+}
+
+// WithValues returns SimpleCounter for this metric with the given tag values.
+func (h *promHistogram) WithTags(tags map[string]string) SimpleHistogram {
+	// Prometheus does not directly expose the underlying histogram so we have to cast it.
+	return &simplePromHistogram{h: h.ph.With(tags).(prometheus.Histogram)}
+}
+
 // TODOOOOOO
 // func (h *promHistogram) Get() {
 // 	metric, _ := h.ph.MetricVec.GetMetricWithLabelValues()
