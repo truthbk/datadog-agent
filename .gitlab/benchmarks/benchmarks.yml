@@ -1,5 +1,5 @@
 variables:
-  BENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:trace-agent
+  BENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:trace-agent_ci-cd-exp-2023-06-13-1126
   BENCHMARK_PLATFORM_BRANCH: igoragoli/ci-cd_experiments
 .benchmarks:
   stage: macrobenchmarks
