@@ -164,10 +164,8 @@ func (lc *LambdaLogsCollector) processLogMessages(messages []LambdaLogAPIMessage
 		if lc.logsEnabled {
 			// Do not send platform log messages without a stringRecord to the intake
 			if message.stringRecord == "" && message.logType != logTypeFunction {
-				fmt.Println("shouldProcessLog is false")
 				continue
 			}
-			//fmt.Println(lc.out)
 			lc.logSyncOrchestrator.TelemetryApiMessageReceivedCount.Inc()
 			if message.objectRecord.requestID != "" {
 				lc.out <- logConfig.NewChannelMessageFromLambda([]byte(message.stringRecord), message.time, lc.arn, message.objectRecord.requestID)

@@ -88,7 +88,6 @@ func buildLogRegistrationPayload(callBackURI string, logsType string, timeoutMs 
 		Buffering:     *buffering,
 		SchemaVersion: schemaVersion,
 	}
-	fmt.Println(payload)
 	return payload
 }
 

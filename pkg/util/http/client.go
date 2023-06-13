@@ -6,7 +6,6 @@
 package http
 
 import (
-	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -56,7 +55,6 @@ func (c *ResetClient) checkReset() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if time.Since(c.lastReset) < c.resetInterval {
-		fmt.Println("in checkreset return 2")
 		return
 	}
 
@@ -67,5 +65,4 @@ func (c *ResetClient) checkReset() {
 	// the related open connection(s) will remain open until the client is GC'ed
 	c.httpClient.CloseIdleConnections()
 	c.httpClient = c.httpClientFactory()
-	fmt.Println("in checkreset all")
 }
