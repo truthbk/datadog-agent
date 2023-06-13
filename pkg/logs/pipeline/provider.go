@@ -8,7 +8,6 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"go.uber.org/atomic"
 
@@ -28,10 +27,7 @@ type Provider interface {
 	Stop()
 	NextPipelineChan() chan *message.Message
 	// Flush flushes all pipeline contained in this Provider
-	Flush(ctx context.Context, msgCount *sync.WaitGroup)
-	SetPayloadSent(payloadSent chan struct{})
-	SetBlockRun(blockRun chan struct{})
-	SetRunComplete(runComplete chan struct{})
+	Flush(ctx context.Context)
 }
 
 // provider implements providing logic
@@ -118,7 +114,7 @@ func (p *provider) NextPipelineChan() chan *message.Message {
 }
 
 // Flush flushes synchronously all the contained pipeline of this provider.
-func (p *provider) Flush(ctx context.Context, msgCount *sync.WaitGroup) {
+func (p *provider) Flush(ctx context.Context) {
 	fmt.Printf("[ sync(%d)] flushing provider\n", log.Goid())
 	blockRun := p.blockRun
 	runComplete := p.runComplete
@@ -130,20 +126,8 @@ func (p *provider) Flush(ctx context.Context, msgCount *sync.WaitGroup) {
 			fmt.Printf("[ sync(%d)] flushing pipeline #%d\n", log.Goid(), i)
 			p.RunComplete = runComplete
 			p.BlockRun = blockRun
-			p.Flush(ctx, msgCount)
+			p.Flush(ctx)
 			fmt.Printf("[ sync(%d)] end of flushing\n", log.Goid())
 		}
 	}
-}
-
-func (p *provider) SetPayloadSent(payloadSent chan struct{}) {
-	p.payloadSent = payloadSent
-}
-
-func (p *provider) SetBlockRun(blockRun chan struct{}) {
-	p.blockRun = blockRun
-}
-
-func (p *provider) SetRunComplete(runComplete chan struct{}) {
-	p.runComplete = runComplete
 }

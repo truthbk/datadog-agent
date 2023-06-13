@@ -12,6 +12,7 @@ import (
 	"github.com/benbjohnson/clock"
 
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
+	"github.com/DataDog/datadog-agent/pkg/serverless/logsyncorchestrator"
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -22,12 +23,12 @@ var (
 
 // batchStrategy contains all the logic to send logs in batch.
 type batchStrategy struct {
-	inputChan         chan *message.Message
-	outputChan        chan *message.Payload
-	flushChan         chan struct{}
-	flushChanComplete chan struct{}
-	payloadSent       chan struct{}
-	buffer            *MessageBuffer
+	inputChan           chan *message.Message
+	outputChan          chan *message.Payload
+	flushChan           chan struct{}
+	flushChanComplete   chan struct{}
+	logSyncOrchestrator *logsyncorchestrator.LogSyncOrchestrator
+	buffer              *MessageBuffer
 	// pipelineName provides a name for the strategy to differentiate it from other instances in other internal pipelines
 	pipelineName    string
 	serializer      Serializer
@@ -42,7 +43,7 @@ func NewBatchStrategy(inputChan chan *message.Message,
 	outputChan chan *message.Payload,
 	flushChan chan struct{},
 	flushChanComplete chan struct{},
-	payloadSent chan struct{},
+	logSyncOrchestrator *logsyncorchestrator.LogSyncOrchestrator,
 	serializer Serializer,
 	batchWait time.Duration,
 	maxBatchSize int,
@@ -50,14 +51,14 @@ func NewBatchStrategy(inputChan chan *message.Message,
 	pipelineName string,
 	contentEncoding ContentEncoding) Strategy {
 	fmt.Println("NewBatchStrategy")
-	return newBatchStrategyWithClock(inputChan, outputChan, flushChan, flushChanComplete, payloadSent, serializer, batchWait, maxBatchSize, maxContentSize, pipelineName, clock.New(), contentEncoding)
+	return newBatchStrategyWithClock(inputChan, outputChan, flushChan, flushChanComplete, logSyncOrchestrator, serializer, batchWait, maxBatchSize, maxContentSize, pipelineName, clock.New(), contentEncoding)
 }
 
 func newBatchStrategyWithClock(inputChan chan *message.Message,
 	outputChan chan *message.Payload,
 	flushChan chan struct{},
 	flushChanComplete chan struct{},
-	payloadSent chan struct{},
+	logSyncOrchestrator *logsyncorchestrator.LogSyncOrchestrator,
 	serializer Serializer,
 	batchWait time.Duration,
 	maxBatchSize int,
@@ -67,18 +68,18 @@ func newBatchStrategyWithClock(inputChan chan *message.Message,
 	contentEncoding ContentEncoding) Strategy {
 
 	return &batchStrategy{
-		inputChan:         inputChan,
-		outputChan:        outputChan,
-		flushChan:         flushChan,
-		flushChanComplete: flushChanComplete,
-		payloadSent:       payloadSent,
-		buffer:            NewMessageBuffer(maxBatchSize, maxContentSize),
-		serializer:        serializer,
-		batchWait:         batchWait,
-		contentEncoding:   contentEncoding,
-		stopChan:          make(chan struct{}),
-		pipelineName:      pipelineName,
-		clock:             clock,
+		inputChan:           inputChan,
+		outputChan:          outputChan,
+		flushChan:           flushChan,
+		flushChanComplete:   flushChanComplete,
+		logSyncOrchestrator: logSyncOrchestrator,
+		buffer:              NewMessageBuffer(maxBatchSize, maxContentSize),
+		serializer:          serializer,
+		batchWait:           batchWait,
+		contentEncoding:     contentEncoding,
+		stopChan:            make(chan struct{}),
+		pipelineName:        pipelineName,
+		clock:               clock,
 	}
 }
 
@@ -119,7 +120,7 @@ func (s *batchStrategy) Start() {
 				// flush payloads on demand, used for infrequently running serverless functions
 				s.flushBuffer(s.outputChan)
 				fmt.Printf("flushing chan is complete END, sending signal on flushChanComplete = %v\n", s.flushChanComplete)
-				s.flushChanComplete <- struct{}{}
+				//s.flushChanComplete <- struct{}{}
 
 			}
 		}
@@ -133,7 +134,7 @@ func (s *batchStrategy) processMessage(m *message.Message, outputChan chan *mess
 	}
 	added := s.buffer.AddMessage(m)
 	if !added || s.buffer.IsFull() {
-		fmt.Printf("[async(%d)] buffer is full\n", log.Goid())
+		fmt.Printf("[async(%d)] flush me\n", log.Goid())
 		s.flushBuffer(outputChan)
 	}
 	if !added {
@@ -181,6 +182,7 @@ func (s *batchStrategy) sendMessages(messages []*message.Message, outputChan cha
 		UnencodedSize: len(serializedMessage),
 	}
 	fmt.Printf("[async (%d)] waiting for payload to be sent\n", log.Goid())
-	<-s.payloadSent
+	// should wait here
+	// <-s.payloadSent
 	fmt.Printf("[async (%d)] waiting for payload to be sent is now completed\n", log.Goid())
 }

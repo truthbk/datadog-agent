@@ -7,6 +7,7 @@ package daemon
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -239,12 +240,10 @@ func TestLogsAreSent(t *testing.T) {
 			MaxItems:            1000,
 		})
 
-	msgCount := &sync.WaitGroup{}
 	if logRegistrationError != nil {
 		log.Error("Can't subscribe to logs:", logRegistrationError)
 	} else {
-		d.logCollector.MessagesToWait = msgCount
-		serverlessLogs.SetupLogAgent(logChannel, "AWS Logs", "lambda", msgCount)
+		serverlessLogs.SetupLogAgent(logChannel, "AWS Logs", "lambda", d.LogSyncOrchestrator)
 	}
 
 	client := &http.Client{}
@@ -263,14 +262,14 @@ func TestLogsAreSent(t *testing.T) {
 	fmt.Println("")
 	fmt.Println("")
 
-	// wg := &sync.WaitGroup{}
-	// wg.Add(1)
-	// d.flushLogs(context.TODO(), wg, d.logCollector.MessagesToWait)
-	// wg.Wait()
+	d.LogSyncOrchestrator.Debug()
 
-	fmt.Println("[begin sleep]")
-	time.Sleep(3 * time.Second)
-	fmt.Println("[end sleep]")
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	d.flushLogs(context.TODO(), wg)
+	wg.Wait()
+
+	d.LogSyncOrchestrator.Debug()
 	fmt.Println("-------- END TEST -------")
 	fmt.Println("")
 	fmt.Println("")
@@ -278,4 +277,5 @@ func TestLogsAreSent(t *testing.T) {
 	fmt.Println("")
 
 	assert.True(t, logsEndpointHasBeenCalled)
+	assert.Equal(t, d.LogSyncOrchestrator.NbMessageSent.Load(), d.LogSyncOrchestrator.TelemetryApiMessageReceivedCount.Load())
 }

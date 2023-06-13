@@ -9,7 +9,6 @@
 package logs
 
 import (
-	"fmt"
 	"github.com/DataDog/datadog-agent/pkg/logs/auditor"
 	"github.com/DataDog/datadog-agent/pkg/logs/client"
 	"github.com/DataDog/datadog-agent/pkg/logs/config"
@@ -20,8 +19,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/schedulers"
 	"github.com/DataDog/datadog-agent/pkg/logs/service"
 	"github.com/DataDog/datadog-agent/pkg/logs/sources"
+	"github.com/DataDog/datadog-agent/pkg/serverless/logsyncorchestrator"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
-	"sync"
 	"time"
 )
 
@@ -32,28 +31,20 @@ import (
 // NewAgent returns a Logs Agent instance to run in a serverless environment.
 // The Serverless Logs Agent has only one input being the channel to receive the logs to process.
 // It is using a NullAuditor because we've nothing to do after having sent the logs to the intake.
-func NewAgent(sources *sources.LogSources, services *service.Services, processingRules []*config.ProcessingRule, endpoints *config.Endpoints, msgCount *sync.WaitGroup) *Agent {
+func NewAgent(sources *sources.LogSources, services *service.Services, processingRules []*config.ProcessingRule, endpoints *config.Endpoints, logSyncOrchestrator *logsyncorchestrator.LogSyncOrchestrator) *Agent {
 	health := health.RegisterLiveness("logs-agent")
 
 	diagnosticMessageReceiver := diagnostic.NewBufferedMessageReceiver()
 
 	// setup the a null auditor, not tracking data in any registry
 	auditor := auditor.NewNullAuditor()
-	payloadSent := make(chan struct{})
-	blockRun := make(chan struct{})
-	runComplete := make(chan struct{})
-	fmt.Printf("payloadSent = %v\n", payloadSent)
+
 	destinationsCtx := client.NewDestinationsContext()
-	destinationsCtx.PayloadSent = payloadSent
-	destinationsCtx.BlockRun = blockRun
-	destinationsCtx.MsgCount = msgCount
-	destinationsCtx.RunComplete = runComplete
+	destinationsCtx.LogSyncOrchestrator = logSyncOrchestrator
 
 	// setup the pipeline provider that provides pairs of processor and sender
 	pipelineProvider := pipeline.NewServerlessProvider(config.NumberOfPipelines, auditor, processingRules, endpoints, destinationsCtx)
-	pipelineProvider.SetPayloadSent(payloadSent)
-	pipelineProvider.SetBlockRun(blockRun)
-	pipelineProvider.SetRunComplete(runComplete)
+
 	// setup the sole launcher for this agent
 	lnchrs := launchers.NewLaunchers(sources, pipelineProvider, auditor)
 	lnchrs.AddLauncher(channel.NewLauncher())

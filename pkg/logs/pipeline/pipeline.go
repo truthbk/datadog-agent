@@ -8,7 +8,6 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/DataDog/datadog-agent/pkg/logs/client"
 	"github.com/DataDog/datadog-agent/pkg/logs/client/http"
@@ -18,7 +17,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/internal/processor"
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
 	"github.com/DataDog/datadog-agent/pkg/logs/sender"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/serverless/logsyncorchestrator"
 )
 
 // Pipeline processes and sends messages to the backend
@@ -62,7 +61,7 @@ func NewPipeline(outputChan chan *message.Payload,
 		encoder = processor.RawEncoder
 	}
 
-	strategy := getStrategy(strategyInput, senderInput, flushChan, flushChanComplete, destinationsContext.PayloadSent, endpoints, serverless, pipelineID)
+	strategy := getStrategy(strategyInput, senderInput, flushChan, flushChanComplete, destinationsContext.LogSyncOrchestrator, endpoints, serverless, pipelineID)
 	logsSender = sender.NewSender(senderInput, outputChan, mainDestinations, config.DestinationPayloadChanSize)
 
 	inputChan := make(chan *message.Message, config.ChanSize)
@@ -93,18 +92,21 @@ func (p *Pipeline) Stop() {
 }
 
 // Flush flushes synchronously the processor and sender managed by this pipeline.
-func (p *Pipeline) Flush(ctx context.Context, msgCount *sync.WaitGroup) {
-	fmt.Printf("[ sync(%d)] here in flush pipeline START\n", log.Goid())
-	p.processor.Flush(ctx) // flush messages in the processor into the sender
-	//fmt.Printf("%v, send signal to blockRun\n", time.Now().UnixMilli())
-	//p.BlockRun <- struct{}{}
-	//fmt.Printf("%v, wait for run to be completed\n", time.Now().UnixMilli())
-	//<-p.RunComplete
-	//fmt.Printf("%v, run completed!\n", time.Now().UnixMilli())
+func (p *Pipeline) Flush(ctx context.Context) {
 	p.flushChan <- struct{}{}
-	fmt.Printf("[ sync(%d)] WAIT FOR flushChanComplete\n", log.Goid())
-	<-p.flushChanComplete
-	fmt.Printf("[ sync(%d)] WAIT DONE flushChanComplete\n", log.Goid())
+	p.processor.Flush(ctx) // flush messages in the processor into the sender
+
+	// fmt.Printf("[ sync(%d)] here in flush pipeline START\n", log.Goid())
+	// p.processor.Flush(ctx) // flush messages in the processor into the sender
+	// //fmt.Printf("%v, send signal to blockRun\n", time.Now().UnixMilli())
+	// //p.BlockRun <- struct{}{}
+	// //fmt.Printf("%v, wait for run to be completed\n", time.Now().UnixMilli())
+	// //<-p.RunComplete
+	// //fmt.Printf("%v, run completed!\n", time.Now().UnixMilli())
+	// p.flushChan <- struct{}{}
+	// fmt.Printf("[ sync(%d)] WAIT FOR flushChanComplete\n", log.Goid())
+	// <-p.flushChanComplete
+	// fmt.Printf("[ sync(%d)] WAIT DONE flushChanComplete\n", log.Goid())
 }
 
 func getDestinations(endpoints *config.Endpoints, destinationsContext *client.DestinationsContext, pipelineID int) *client.Destinations {
@@ -131,13 +133,13 @@ func getDestinations(endpoints *config.Endpoints, destinationsContext *client.De
 	return client.NewDestinations(reliable, additionals)
 }
 
-func getStrategy(inputChan chan *message.Message, outputChan chan *message.Payload, flushChan chan struct{}, flushChanComplete chan struct{}, payloadSent chan struct{}, endpoints *config.Endpoints, serverless bool, pipelineID int) sender.Strategy {
+func getStrategy(inputChan chan *message.Message, outputChan chan *message.Payload, flushChan chan struct{}, flushChanComplete chan struct{}, logSyncOrchestrator *logsyncorchestrator.LogSyncOrchestrator, endpoints *config.Endpoints, serverless bool, pipelineID int) sender.Strategy {
 	if endpoints.UseHTTP || serverless {
 		encoder := sender.IdentityContentType
 		if endpoints.Main.UseCompression {
 			encoder = sender.NewGzipContentEncoding(endpoints.Main.CompressionLevel)
 		}
-		return sender.NewBatchStrategy(inputChan, outputChan, flushChan, flushChanComplete, payloadSent, sender.ArraySerializer, endpoints.BatchWait, endpoints.BatchMaxSize, endpoints.BatchMaxContentSize, "logs", encoder)
+		return sender.NewBatchStrategy(inputChan, outputChan, flushChan, flushChanComplete, logSyncOrchestrator, sender.ArraySerializer, endpoints.BatchWait, endpoints.BatchMaxSize, endpoints.BatchMaxContentSize, "logs", encoder)
 	}
 	return sender.NewStreamStrategy(inputChan, outputChan)
 }

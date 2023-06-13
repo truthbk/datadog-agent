@@ -214,21 +214,10 @@ func (d *Destination) sendConcurrent(payload *message.Payload, output chan *mess
 			<-d.climit
 			d.wg.Done()
 		}()
-		fmt.Println("send and retry")
+		fmt.Println("send and retry, size = %d", len(payload.Messages))
 		d.sendAndRetry(payload, output, isRetrying)
-		fmt.Printf("end of send and retry, nmessage payload size = %d\n", len(payload.Messages))
-		fmt.Printf("d.destinationsContext.PayloadSent = %v\n", d.destinationsContext.PayloadSent)
-		fmt.Printf("decreased msgCount by %d\n", len(payload.Messages))
-		for i := 0; i < len(payload.Messages); i++ {
-			d.destinationsContext.MsgCount.Done()
-		}
-		d.destinationsContext.PayloadSent <- struct{}{}
+		fmt.Println("adding to NbMessageSent = %d", len(payload.Messages))
 	}()
-}
-
-func (d *Destination) waitAndBlock() {
-	d.destinationsContext.MsgCount.Wait()
-	d.destinationsContext.PayloadSent <- struct{}{}
 }
 
 // Send sends a payload over HTTP,
@@ -239,19 +228,21 @@ func (d *Destination) sendAndRetry(payload *message.Payload, output chan *messag
 		d.blockedUntil = time.Now().Add(backoffDuration)
 		if d.blockedUntil.After(time.Now()) {
 			log.Debugf("%s: sleeping until %v before retrying. Backoff duration %s due to %d errors", d.url, d.blockedUntil, backoffDuration.String(), d.nbErrors)
-			//d.waitForBackoff()
+			fmt.Printf("maxdaysleep\n")
 			time.Sleep(100 * time.Millisecond)
 		}
 		d.retryLock.Unlock()
 
 		err := d.unconditionalSend(payload)
 
-		fmt.Printf("unconditionalSend err = %s\n", err)
-
 		if err != nil {
 			metrics.DestinationErrors.Add(1)
 			metrics.TlmDestinationErrors.Inc()
 			log.Warnf("Could not send payload: %v", err)
+			fmt.Printf("ops, err = %s\n", err)
+		} else {
+			fmt.Printf("unconditionalSend err = %s\n", err)
+			d.destinationsContext.LogSyncOrchestrator.NbMessageSent.Add(uint32(len(payload.Messages)))
 		}
 
 		if err == context.Canceled {

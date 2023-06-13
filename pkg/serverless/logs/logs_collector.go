@@ -16,6 +16,7 @@ import (
 	logConfig "github.com/DataDog/datadog-agent/pkg/logs/config"
 
 	"github.com/DataDog/datadog-agent/pkg/serverless/executioncontext"
+	"github.com/DataDog/datadog-agent/pkg/serverless/logsyncorchestrator"
 	serverlessMetrics "github.com/DataDog/datadog-agent/pkg/serverless/metrics"
 	"github.com/DataDog/datadog-agent/pkg/serverless/tags"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -48,17 +49,16 @@ type LambdaLogsCollector struct {
 	process_once           *sync.Once
 	executionContext       *executioncontext.ExecutionContext
 	initDurationChan       chan<- float64
-	MessagesToWait         *sync.WaitGroup
 
 	arn string
 
 	// handleRuntimeDone is the function to be called when a platform.runtimeDone log message is received
 	handleRuntimeDone func()
 
-	processingMessageWg *sync.WaitGroup
+	logSyncOrchestrator *logsyncorchestrator.LogSyncOrchestrator
 }
 
-func NewLambdaLogCollector(out chan<- *logConfig.ChannelMessage, demux aggregator.Demultiplexer, extraTags *Tags, logsEnabled bool, enhancedMetricsEnabled bool, executionContext *executioncontext.ExecutionContext, handleRuntimeDone func(), initDurationChan chan<- float64, processingMessageWg *sync.WaitGroup) *LambdaLogsCollector {
+func NewLambdaLogCollector(out chan<- *logConfig.ChannelMessage, demux aggregator.Demultiplexer, extraTags *Tags, logsEnabled bool, enhancedMetricsEnabled bool, executionContext *executioncontext.ExecutionContext, handleRuntimeDone func(), initDurationChan chan<- float64, logSyncOrchestrator *logsyncorchestrator.LogSyncOrchestrator) *LambdaLogsCollector {
 
 	return &LambdaLogsCollector{
 		In:                     make(chan []LambdaLogAPIMessage, maxBufferedLogs), // Buffered, so we can hold start-up logs before first invocation without blocking
@@ -71,8 +71,7 @@ func NewLambdaLogCollector(out chan<- *logConfig.ChannelMessage, demux aggregato
 		handleRuntimeDone:      handleRuntimeDone,
 		process_once:           &sync.Once{},
 		initDurationChan:       initDurationChan,
-		processingMessageWg:    processingMessageWg,
-		MessagesToWait:         &sync.WaitGroup{},
+		logSyncOrchestrator:    logSyncOrchestrator,
 	}
 }
 
@@ -97,7 +96,6 @@ func (lc *LambdaLogsCollector) Start() {
 
 		go func() {
 			for messages := range lc.In {
-				lc.MessagesToWait.Add(len(messages))
 				fmt.Println("messages count in lc.in", len(messages))
 				lc.processLogMessages(messages)
 			}
@@ -157,8 +155,6 @@ func removeInvalidTracingItem(data []byte) []byte {
 }
 
 func (lc *LambdaLogsCollector) processLogMessages(messages []LambdaLogAPIMessage) {
-	lc.processingMessageWg.Add(1)
-	fmt.Printf("adding one for %d\n", len(messages))
 	// sort messages by time (all from the same time zone) in ascending order.
 	sort.Slice(messages, func(i, j int) bool {
 		return messages[i].time.Before(messages[j].time)
@@ -170,9 +166,11 @@ func (lc *LambdaLogsCollector) processLogMessages(messages []LambdaLogAPIMessage
 		if lc.logsEnabled {
 			// Do not send platform log messages without a stringRecord to the intake
 			if message.stringRecord == "" && message.logType != logTypeFunction {
+				fmt.Println("shouldProcessLog is false")
 				continue
 			}
 			//fmt.Println(lc.out)
+			lc.logSyncOrchestrator.TelemetryApiMessageReceivedCount.Inc()
 			if message.objectRecord.requestID != "" {
 				lc.out <- logConfig.NewChannelMessageFromLambda([]byte(message.stringRecord), message.time, lc.arn, message.objectRecord.requestID)
 			} else {
@@ -182,7 +180,6 @@ func (lc *LambdaLogsCollector) processLogMessages(messages []LambdaLogAPIMessage
 	}
 	//time.Sleep(1 * time.Second)
 	fmt.Println("[async] lock is released")
-	lc.processingMessageWg.Done()
 }
 
 // processMessage performs logic about metrics and tags on the message

@@ -6,18 +6,23 @@
 package logs
 
 import (
-	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/DataDog/datadog-agent/pkg/serverless/logsyncorchestrator"
 )
 
 // LambdaLogsAPI implements the AWS Lambda Logs API callback
 type LambdaLogsAPIServer struct {
-	out chan<- []LambdaLogAPIMessage
+	out                 chan<- []LambdaLogAPIMessage
+	LogSyncOrchestrator *logsyncorchestrator.LogSyncOrchestrator
 }
 
-func NewLambdaLogsAPIServer(out chan<- []LambdaLogAPIMessage) LambdaLogsAPIServer {
-	return LambdaLogsAPIServer{out}
+func NewLambdaLogsAPIServer(out chan<- []LambdaLogAPIMessage, logSyncOrchestrator *logsyncorchestrator.LogSyncOrchestrator) LambdaLogsAPIServer {
+	return LambdaLogsAPIServer{
+		out:                 out,
+		LogSyncOrchestrator: logSyncOrchestrator,
+	}
 }
 
 func (l *LambdaLogsAPIServer) Close() {
@@ -26,11 +31,9 @@ func (l *LambdaLogsAPIServer) Close() {
 
 // ServeHTTP - see type LambdaLogsCollector comment.
 func (c *LambdaLogsAPIServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("here in serve http")
 	data, _ := io.ReadAll(r.Body)
 	defer r.Body.Close()
 	messages, err := parseLogsAPIPayload(data)
-	//fmt.Println(messages)
 	if err != nil {
 		w.WriteHeader(400)
 	} else {

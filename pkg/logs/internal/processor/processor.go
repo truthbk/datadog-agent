@@ -69,7 +69,6 @@ func (p *Processor) Flush(ctx context.Context) {
 			}
 			//fmt.Println("len(p.inputChan) != 0")
 			msg := <-p.inputChan
-			fmt.Println("process in Flush()")
 			p.processMessage(msg)
 		}
 	}
@@ -82,7 +81,6 @@ func (p *Processor) run() {
 	}()
 	for msg := range p.inputChan {
 		//fmt.Println("---- > msg := range p.inputChan")
-		fmt.Println("process in run()")
 		p.processMessage(msg)
 		p.mu.Lock() // block here if we're trying to flush synchronously
 		//nolint:staticcheck

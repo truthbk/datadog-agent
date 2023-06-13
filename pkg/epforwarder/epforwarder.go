@@ -300,7 +300,7 @@ func newHTTPPassthroughPipeline(desc passthroughPipelineDesc, destinationsContex
 		senderInput,
 		make(chan struct{}),
 		make(chan struct{}),
-		make(chan struct{}),
+		nil,
 		sender.ArraySerializer,
 		endpoints.BatchWait,
 		endpoints.BatchMaxSize,
