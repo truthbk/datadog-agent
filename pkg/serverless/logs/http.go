@@ -37,7 +37,10 @@ func (c *LambdaLogsAPIServer) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		w.WriteHeader(400)
 	} else {
-		c.out <- messages
+		go func() {
+			c.LogSyncOrchestrator.WaitIncomingRequest()
+			c.out <- messages
+		}()
 		w.WriteHeader(200)
 	}
 }

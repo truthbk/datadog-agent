@@ -248,7 +248,6 @@ func TestLogsAreSent(t *testing.T) {
 	assert.Nil(t, err)
 	response, err := client.Do(request)
 	assert.Nil(t, err)
-	fmt.Println(response.StatusCode)
 	assert.True(t, response.StatusCode == 200)
 	wg := &sync.WaitGroup{}
 	wg.Add(1)

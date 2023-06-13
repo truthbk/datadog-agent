@@ -121,7 +121,7 @@ func StartDaemon(addr string) *Daemon {
 		metricsFlushMutex:   sync.Mutex{},
 		tracesFlushMutex:    sync.Mutex{},
 		logsFlushMutex:      sync.Mutex{},
-		LogSyncOrchestrator: &logsyncorchestrator.LogSyncOrchestrator{},
+		LogSyncOrchestrator: logsyncorchestrator.NewLogSyncOrchestrator(),
 	}
 
 	mux.Handle("/lambda/hello", &Hello{daemon})
@@ -274,10 +274,12 @@ func (d *Daemon) flushTraces(wg *sync.WaitGroup) {
 // It is protected by a mutex to ensure only one logs flush can be in progress at any given time.
 func (d *Daemon) flushLogs(ctx context.Context, wg *sync.WaitGroup) {
 	d.logsFlushMutex.Lock()
+	d.LogSyncOrchestrator.BlockIncomingRequest()
 	flushStartTime := time.Now().Unix()
 	log.Debugf("Beginning logs flush at time %d", flushStartTime)
 	logs.Flush(ctx)
 	d.LogSyncOrchestrator.Wait(0, ctx, logs.Flush)
+	d.LogSyncOrchestrator.AllowIncomingRequest()
 	log.Debugf("Finished logs flush that was started at time %d", flushStartTime)
 	wg.Done()
 	d.logsFlushMutex.Unlock()
