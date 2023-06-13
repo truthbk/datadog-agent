@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/schedulers"
 	"github.com/DataDog/datadog-agent/pkg/logs/service"
 	"github.com/DataDog/datadog-agent/pkg/logs/sources"
+	// we don't want to directly import that, use an interface here
 	"github.com/DataDog/datadog-agent/pkg/serverless/logsyncorchestrator"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 	"time"

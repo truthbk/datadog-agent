@@ -13,8 +13,10 @@ type LogSyncOrchestrator struct {
 	NbMessageSent                    atomic.Uint32
 }
 
+const MAX_RETRY_COUNT = 20
+
 func (l *LogSyncOrchestrator) Wait(retryIdx int, ctx context.Context, flush func(ctx context.Context)) {
-	if retryIdx > 20 {
+	if retryIdx > MAX_RETRY_COUNT {
 		log.Error("LogSyncOrchestrator.Wait() failed, retryIdx > 20")
 	} else {
 		receivedCount := l.TelemetryApiMessageReceivedCount.Load()
