@@ -77,7 +77,6 @@ func (p *Processor) run() {
 		p.done <- struct{}{}
 	}()
 	for msg := range p.inputChan {
-		//fmt.Println("---- > msg := range p.inputChan")
 		p.processMessage(msg)
 		p.mu.Lock() // block here if we're trying to flush synchronously
 		//nolint:staticcheck
@@ -86,7 +85,6 @@ func (p *Processor) run() {
 }
 
 func (p *Processor) processMessage(msg *message.Message) {
-	//fmt.Println("processMessage(msg *message.Message)")
 	metrics.LogsDecoded.Add(1)
 	metrics.TlmLogsDecoded.Inc()
 	if shouldProcess, redactedMsg := p.applyRedactingRules(msg); shouldProcess {

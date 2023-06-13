@@ -107,6 +107,7 @@ func (s *batchStrategy) Start() {
 				// flush the payloads at a regular interval so pending messages don't wait here for too long.
 				s.flushBuffer(s.outputChan)
 			case <-s.flushChan:
+				// flush payloads on demand, used for infrequently running serverless functions
 				s.flushBuffer(s.outputChan)
 			}
 		}
@@ -114,7 +115,6 @@ func (s *batchStrategy) Start() {
 }
 
 func (s *batchStrategy) processMessage(m *message.Message, outputChan chan *message.Payload) {
-	//fmt.Println("processMessage")
 	if m.Origin != nil {
 		m.Origin.LogSource.LatencyStats.Add(m.GetLatency())
 	}

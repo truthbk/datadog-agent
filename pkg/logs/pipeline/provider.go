@@ -34,9 +34,6 @@ type provider struct {
 	auditor                   auditor.Auditor
 	diagnosticMessageReceiver diagnostic.MessageReceiver
 	outputChan                chan *message.Payload
-	payloadSent               chan struct{}
-	blockRun                  chan struct{}
-	runComplete               chan struct{}
 	processingRules           []*config.ProcessingRule
 	endpoints                 *config.Endpoints
 
@@ -113,15 +110,11 @@ func (p *provider) NextPipelineChan() chan *message.Message {
 
 // Flush flushes synchronously all the contained pipeline of this provider.
 func (p *provider) Flush(ctx context.Context) {
-	blockRun := p.blockRun
-	runComplete := p.runComplete
 	for _, p := range p.pipelines {
 		select {
 		case <-ctx.Done():
 			return
 		default:
-			p.RunComplete = runComplete
-			p.BlockRun = blockRun
 			p.Flush(ctx)
 		}
 	}
