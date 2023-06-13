@@ -96,7 +96,6 @@ func (lc *LambdaLogsCollector) Start() {
 
 		go func() {
 			for messages := range lc.In {
-				fmt.Println("messages count in lc.in", len(messages))
 				lc.processLogMessages(messages)
 			}
 			// Store the execution context if an out of memory is detected
@@ -112,7 +111,6 @@ func (lc *LambdaLogsCollector) Start() {
 
 // Shutdown the log collector
 func (lc *LambdaLogsCollector) Shutdown() {
-	fmt.Println("Shutdown the log collector")
 	close(lc.In)
 }
 
@@ -178,8 +176,6 @@ func (lc *LambdaLogsCollector) processLogMessages(messages []LambdaLogAPIMessage
 			}
 		}
 	}
-	//time.Sleep(1 * time.Second)
-	fmt.Println("[async] lock is released")
 }
 
 // processMessage performs logic about metrics and tags on the message

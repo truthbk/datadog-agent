@@ -7,7 +7,6 @@ package daemon
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -175,7 +174,6 @@ func (d *Daemon) GetFlushStrategy() string {
 
 // SetupLogCollectionHandler configures the log collection route handler
 func (d *Daemon) SetupLogCollectionHandler(route string, logsChan chan *logConfig.ChannelMessage, logsEnabled bool, enhancedMetricsEnabled bool, initDurationChan chan<- float64) {
-	fmt.Println("setup log collection handler")
 	d.logCollector = serverlessLog.NewLambdaLogCollector(logsChan,
 		d.MetricAgent.Demux, d.ExtraTags, logsEnabled, enhancedMetricsEnabled, d.ExecutionContext, d.HandleRuntimeDone, initDurationChan, d.LogSyncOrchestrator)
 	server := serverlessLog.NewLambdaLogsAPIServer(d.logCollector.In, d.LogSyncOrchestrator)
@@ -276,14 +274,11 @@ func (d *Daemon) flushTraces(wg *sync.WaitGroup) {
 // It is protected by a mutex to ensure only one logs flush can be in progress at any given time.
 func (d *Daemon) flushLogs(ctx context.Context, wg *sync.WaitGroup) {
 	d.logsFlushMutex.Lock()
-	fmt.Printf("[ sync(%d)] HERE IS WAIT", log.Goid())
-	fmt.Printf("[ sync(%d)] HERE IS WAIT", log.Goid())
 	flushStartTime := time.Now().Unix()
 	log.Debugf("Beginning logs flush at time %d", flushStartTime)
 	logs.Flush(ctx)
-	log.Debugf("Finished logs flush that was started at time %d", flushStartTime)
-	fmt.Printf("[ sync(%d)] WAIT FOR MESSAGE COUNT\n", log.Goid())
 	d.LogSyncOrchestrator.Wait(0, ctx, logs.Flush)
+	log.Debugf("Finished logs flush that was started at time %d", flushStartTime)
 	wg.Done()
 	d.logsFlushMutex.Unlock()
 }

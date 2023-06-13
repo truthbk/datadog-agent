@@ -705,7 +705,6 @@ func (agg *BufferedAggregator) run() {
 			log.Info("Stopping aggregator")
 			return
 		case trigger := <-agg.flushChan:
-			fmt.Println("[missing log] <-agg.flushChan:")
 			agg.Flush(trigger)
 
 			// Do this here, rather than in the Flush():

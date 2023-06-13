@@ -7,7 +7,6 @@ package processor
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -64,10 +63,8 @@ func (p *Processor) Flush(ctx context.Context) {
 			return
 		default:
 			if len(p.inputChan) == 0 {
-				fmt.Printf("[sync(%d)] len(p.inputChan) == 0\n", log.Goid())
 				return
 			}
-			//fmt.Println("len(p.inputChan) != 0")
 			msg := <-p.inputChan
 			p.processMessage(msg)
 		}

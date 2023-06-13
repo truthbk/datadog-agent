@@ -169,41 +169,24 @@ func (d *Destination) Start(input chan *message.Payload, output chan *message.Pa
 }
 
 func (d *Destination) run(input chan *message.Payload, output chan *message.Payload, stopChan chan struct{}, isRetrying chan bool) {
-	fmt.Printf("[async (%d)] destination run\n", log.Goid())
 	var startIdle = time.Now()
 	for p := range input {
-		fmt.Printf("[async (%d)]in range input (destination) \n", log.Goid())
-		//<-d.destinationsContext.BlockRun
-		fmt.Println(len(p.Messages))
 		idle := float64(time.Since(startIdle) / time.Millisecond)
 		d.expVars.AddFloat(expVarIdleMsMapKey, idle)
 		tlmIdle.Add(idle, d.telemetryName)
 		var startInUse = time.Now()
 
 		d.sendConcurrent(p, output, isRetrying)
-		fmt.Println("send concurrent done")
 
 		inUse := float64(time.Since(startInUse) / time.Millisecond)
 		d.expVars.AddFloat(expVarInUseMsMapKey, inUse)
 		tlmInUse.Add(inUse, d.telemetryName)
 		startIdle = time.Now()
-		// fmt.Println("end of range input about to send runcomplete")
-		// //d.destinationsContext.RunComplete <- struct{}{}
-		// fmt.Println("run complete sent")
-		// fmt.Println("block on <-d.destinationsContext.BlockRun before loop")
-		// //<-d.destinationsContext.BlockRun
-		// fmt.Println("RECEIVED!")
-		// // "if len(input) == 0 {
-		// // 	d.destinationsContext.RunComplete <- struct{}{}
-		// // }"
 	}
-	fmt.Println("end of range input")
 	// Wait for any pending concurrent sends to finish or terminate
 	d.wg.Wait()
-	fmt.Println("wait done, end of run")
 	d.updateRetryState(nil, isRetrying)
 	stopChan <- struct{}{}
-	fmt.Println("channel is closed")
 }
 
 func (d *Destination) sendConcurrent(payload *message.Payload, output chan *message.Payload, isRetrying chan bool) {
@@ -214,9 +197,7 @@ func (d *Destination) sendConcurrent(payload *message.Payload, output chan *mess
 			<-d.climit
 			d.wg.Done()
 		}()
-		fmt.Println("send and retry, size = %d", len(payload.Messages))
 		d.sendAndRetry(payload, output, isRetrying)
-		fmt.Println("adding to NbMessageSent = %d", len(payload.Messages))
 	}()
 }
 
@@ -228,7 +209,6 @@ func (d *Destination) sendAndRetry(payload *message.Payload, output chan *messag
 		d.blockedUntil = time.Now().Add(backoffDuration)
 		if d.blockedUntil.After(time.Now()) {
 			log.Debugf("%s: sleeping until %v before retrying. Backoff duration %s due to %d errors", d.url, d.blockedUntil, backoffDuration.String(), d.nbErrors)
-			fmt.Printf("maxdaysleep\n")
 			time.Sleep(100 * time.Millisecond)
 		}
 		d.retryLock.Unlock()
@@ -239,9 +219,7 @@ func (d *Destination) sendAndRetry(payload *message.Payload, output chan *messag
 			metrics.DestinationErrors.Add(1)
 			metrics.TlmDestinationErrors.Inc()
 			log.Warnf("Could not send payload: %v", err)
-			fmt.Printf("ops, err = %s\n", err)
 		} else {
-			fmt.Printf("unconditionalSend err = %s\n", err)
 			d.destinationsContext.LogSyncOrchestrator.NbMessageSent.Add(uint32(len(payload.Messages)))
 		}
 
@@ -278,7 +256,6 @@ func (d *Destination) unconditionalSend(payload *message.Payload) (err error) {
 	metrics.EncodedBytesSent.Add(int64(len(payload.Encoded)))
 	metrics.TlmEncodedBytesSent.Add(float64(len(payload.Encoded)))
 
-	fmt.Printf("d.url = %s\n", d.url)
 	req, err := http.NewRequest("POST", d.url, bytes.NewReader(payload.Encoded))
 	if err != nil {
 		// the request could not be built,
@@ -300,10 +277,7 @@ func (d *Destination) unconditionalSend(payload *message.Payload) (err error) {
 	req = req.WithContext(ctx)
 
 	then := time.Now()
-	fmt.Println("before do")
-	fmt.Println(d.client)
 	resp, err := d.client.Do(req)
-	fmt.Println("after do")
 
 	latency := time.Since(then).Milliseconds()
 	metrics.TlmSenderLatency.Observe(float64(latency))

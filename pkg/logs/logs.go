@@ -118,7 +118,6 @@ func Stop() {
 // Flush flushes synchronously the running instance of the Logs Agent.
 // Use a WithTimeout context in order to have a flush that can be cancelled.
 func Flush(ctx context.Context) {
-	fmt.Printf("[ sync(%d)] GOGOGOG FLUSH\n", log.Goid())
 	log.Info("Triggering a flush in the logs-agent")
 	if IsAgentRunning() {
 		if agent != nil {

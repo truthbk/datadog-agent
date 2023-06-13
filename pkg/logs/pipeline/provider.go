@@ -7,7 +7,6 @@ package pipeline
 
 import (
 	"context"
-	"fmt"
 
 	"go.uber.org/atomic"
 
@@ -17,7 +16,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/client"
 	"github.com/DataDog/datadog-agent/pkg/logs/config"
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/startstop"
 )
 
@@ -115,19 +113,16 @@ func (p *provider) NextPipelineChan() chan *message.Message {
 
 // Flush flushes synchronously all the contained pipeline of this provider.
 func (p *provider) Flush(ctx context.Context) {
-	fmt.Printf("[ sync(%d)] flushing provider\n", log.Goid())
 	blockRun := p.blockRun
 	runComplete := p.runComplete
-	for i, p := range p.pipelines {
+	for _, p := range p.pipelines {
 		select {
 		case <-ctx.Done():
 			return
 		default:
-			fmt.Printf("[ sync(%d)] flushing pipeline #%d\n", log.Goid(), i)
 			p.RunComplete = runComplete
 			p.BlockRun = blockRun
 			p.Flush(ctx)
-			fmt.Printf("[ sync(%d)] end of flushing\n", log.Goid())
 		}
 	}
 }

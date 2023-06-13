@@ -193,12 +193,6 @@ func TestOutOfOrderInvocations(t *testing.T) {
 }
 
 func TestLogsAreSent(t *testing.T) {
-	fmt.Println("")
-	fmt.Println("BEGIN")
-	fmt.Println("")
-	fmt.Println("")
-	fmt.Println("")
-	fmt.Println("")
 	config.DetectFeatures()
 	logsEndpointHasBeenCalled := false
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -249,33 +243,17 @@ func TestLogsAreSent(t *testing.T) {
 	client := &http.Client{}
 	raw, err := os.ReadFile("./valid_logs_payload_1000.json")
 	assert.Nil(t, err)
-
 	body := bytes.NewBuffer(raw)
 	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://127.0.0.1:%d/lambda/logs", port), body)
 	assert.Nil(t, err)
 	response, err := client.Do(request)
-	fmt.Println(err)
 	assert.Nil(t, err)
 	fmt.Println(response.StatusCode)
 	assert.True(t, response.StatusCode == 200)
-
-	fmt.Println("")
-	fmt.Println("")
-
-	d.LogSyncOrchestrator.Debug()
-
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	d.flushLogs(context.TODO(), wg)
 	wg.Wait()
-
-	d.LogSyncOrchestrator.Debug()
-	fmt.Println("-------- END TEST -------")
-	fmt.Println("")
-	fmt.Println("")
-	fmt.Println("")
-	fmt.Println("")
-
 	assert.True(t, logsEndpointHasBeenCalled)
 	assert.Equal(t, d.LogSyncOrchestrator.NbMessageSent.Load(), d.LogSyncOrchestrator.TelemetryApiMessageReceivedCount.Load())
 }

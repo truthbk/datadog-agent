@@ -6,8 +6,6 @@
 package sender
 
 import (
-	"fmt"
-
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
 )
 
@@ -20,7 +18,6 @@ type MessageBuffer struct {
 
 // NewMessageBuffer returns a new MessageBuffer.
 func NewMessageBuffer(batchSizeLimit int, contentSizeLimit int) *MessageBuffer {
-	fmt.Printf("NewMessageBuffer %d %d\n", batchSizeLimit, contentSizeLimit)
 	return &MessageBuffer{
 		messageBuffer:    make([]*message.Message, 0, batchSizeLimit),
 		contentSizeLimit: contentSizeLimit,

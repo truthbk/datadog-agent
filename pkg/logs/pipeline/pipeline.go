@@ -95,18 +95,6 @@ func (p *Pipeline) Stop() {
 func (p *Pipeline) Flush(ctx context.Context) {
 	p.flushChan <- struct{}{}
 	p.processor.Flush(ctx) // flush messages in the processor into the sender
-
-	// fmt.Printf("[ sync(%d)] here in flush pipeline START\n", log.Goid())
-	// p.processor.Flush(ctx) // flush messages in the processor into the sender
-	// //fmt.Printf("%v, send signal to blockRun\n", time.Now().UnixMilli())
-	// //p.BlockRun <- struct{}{}
-	// //fmt.Printf("%v, wait for run to be completed\n", time.Now().UnixMilli())
-	// //<-p.RunComplete
-	// //fmt.Printf("%v, run completed!\n", time.Now().UnixMilli())
-	// p.flushChan <- struct{}{}
-	// fmt.Printf("[ sync(%d)] WAIT FOR flushChanComplete\n", log.Goid())
-	// <-p.flushChanComplete
-	// fmt.Printf("[ sync(%d)] WAIT DONE flushChanComplete\n", log.Goid())
 }
 
 func getDestinations(endpoints *config.Endpoints, destinationsContext *client.DestinationsContext, pipelineID int) *client.Destinations {
@@ -139,7 +127,7 @@ func getStrategy(inputChan chan *message.Message, outputChan chan *message.Paylo
 		if endpoints.Main.UseCompression {
 			encoder = sender.NewGzipContentEncoding(endpoints.Main.CompressionLevel)
 		}
-		return sender.NewBatchStrategy(inputChan, outputChan, flushChan, flushChanComplete, logSyncOrchestrator, sender.ArraySerializer, endpoints.BatchWait, endpoints.BatchMaxSize, endpoints.BatchMaxContentSize, "logs", encoder)
+		return sender.NewBatchStrategy(inputChan, outputChan, flushChan, logSyncOrchestrator, sender.ArraySerializer, endpoints.BatchWait, endpoints.BatchMaxSize, endpoints.BatchMaxContentSize, "logs", encoder)
 	}
 	return sender.NewStreamStrategy(inputChan, outputChan)
 }
