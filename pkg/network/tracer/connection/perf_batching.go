@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build linux_bpf
+//go:build linux && ebpf
 
 package connection
 
@@ -14,10 +14,11 @@ import (
 
 	"github.com/cilium/ebpf"
 
+	manager "github.com/DataDog/ebpf-manager"
+
 	"github.com/DataDog/datadog-agent/pkg/network"
 	netebpf "github.com/DataDog/datadog-agent/pkg/network/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
-	manager "github.com/DataDog/ebpf-manager"
 )
 
 const defaultExpiredStateInterval = 60 * time.Second

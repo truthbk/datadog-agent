@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build linux_bpf
+//go:build linux && ebpf
 
 package events
 
@@ -11,11 +11,12 @@ import (
 	"os"
 	"sync"
 
-	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
 	manager "github.com/DataDog/ebpf-manager"
 	"github.com/cilium/ebpf"
 	"github.com/iovisor/gobpf/pkg/cpupossible"
+
+	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 // handlerByProtocol holds a temporary reference to a `ddebpf.PerfHandler`

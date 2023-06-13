@@ -3,14 +3,15 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2022-present Datadog, Inc.
 
-//go:build linux_bpf
+//go:build linux && ebpf
 
 package http
 
 import (
-	"golang.org/x/net/http2/hpack"
 	"testing"
 	"time"
+
+	"golang.org/x/net/http2/hpack"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

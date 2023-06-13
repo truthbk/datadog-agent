@@ -3,16 +3,17 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build (windows && npm) || linux_bpf
+//go:build (windows && npm) || (linux && ebpf)
 
 package http
 
 import (
 	"time"
 
+	"go.uber.org/atomic"
+
 	libtelemetry "github.com/DataDog/datadog-agent/pkg/network/protocols/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
-	"go.uber.org/atomic"
 )
 
 type Telemetry struct {

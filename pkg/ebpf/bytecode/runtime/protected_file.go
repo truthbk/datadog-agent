@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build linux_bpf
+//go:build linux && ebpf
 
 package runtime
 
@@ -13,8 +13,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/justincormack/go-memfd"
+
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 // This represent a symlink to a sealed ram-backed file

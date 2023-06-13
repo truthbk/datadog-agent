@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build linux_bpf
+//go:build linux && ebpf
 
 package ebpf
 
@@ -18,8 +18,9 @@ import (
 	"github.com/cilium/ebpf/btf"
 	"github.com/cilium/ebpf/linux"
 
-	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode"
 	manager "github.com/DataDog/ebpf-manager"
+
+	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode"
 )
 
 // LoadCOREAsset attempts to find kernel BTF, reads the CO-RE object file, and then calls the callback function with the

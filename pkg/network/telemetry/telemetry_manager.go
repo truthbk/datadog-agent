@@ -3,16 +3,17 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build linux_bpf
+//go:build linux && ebpf
 
 package telemetry
 
 import (
 	"io"
 
-	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
 	manager "github.com/DataDog/ebpf-manager"
 	"github.com/cilium/ebpf"
+
+	"github.com/DataDog/datadog-agent/pkg/network/ebpf/probes"
 )
 
 type Manager struct {

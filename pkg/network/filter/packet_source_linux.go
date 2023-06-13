@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build linux_bpf
+//go:build ebpf
 
 package filter
 
@@ -13,13 +13,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/network/telemetry"
 	manager "github.com/DataDog/ebpf-manager"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/afpacket"
 	"github.com/google/gopacket/layers"
 	"golang.org/x/net/bpf"
 
+	"github.com/DataDog/datadog-agent/pkg/network/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
