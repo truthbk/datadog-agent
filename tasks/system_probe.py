@@ -24,7 +24,6 @@ from .utils import REPO_PATH, bin_name, get_build_flags, get_gobin, get_version_
 BIN_DIR = os.path.join(".", "bin", "system-probe")
 BIN_PATH = os.path.join(BIN_DIR, bin_name("system-probe"))
 
-BPF_TAG = "ebpf"
 BUNDLE_TAG = "ebpf_bindata"
 NPM_TAG = "npm"
 SBOM_TAG = "trivy"
@@ -575,7 +574,6 @@ def test(
     build_tags = [NPM_TAG]
     build_tags.extend(UNIT_TEST_TAGS)
     if not windows:
-        build_tags.append(BPF_TAG)
         if bundle_ebpf:
             build_tags.append(BUNDLE_TAG)
 
@@ -672,9 +670,6 @@ def kitchen_prepare(ctx, windows=is_windows, kernel_release=None, ci=False):
         shutil.rmtree(KITCHEN_ARTIFACT_DIR)
 
     build_tags = [NPM_TAG]
-    if not windows:
-        build_tags.append(BPF_TAG)
-
     target_packages = go_package_dirs(TEST_PACKAGES_LIST, build_tags)
 
     # This will compile one 'testsuite' file per package by running `go test -c -o output_path`.

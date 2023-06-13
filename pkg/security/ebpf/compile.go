@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build linux && ebpf && !ebpf_bindata
+//go:build linux && !ebpf_bindata
 
 package ebpf
 

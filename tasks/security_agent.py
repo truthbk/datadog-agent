@@ -303,7 +303,6 @@ def build_functional_tests(
         env["GOARCH"] = "386"
 
     build_tags = build_tags.split(",")
-    build_tags.append("ebpf")
     build_tags.append(SBOM_TAG)
     build_tags.append("containerd")
 

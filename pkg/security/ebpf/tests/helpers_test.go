@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build linux && ebpf_bindata
+//go:build ebpf_bindata
 
 package tests
 
@@ -13,11 +13,12 @@ import (
 	"testing"
 	"time"
 
-	secebpf "github.com/DataDog/datadog-agent/pkg/security/ebpf"
-	"github.com/DataDog/datadog-agent/pkg/security/probe/config"
 	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/cilium/ebpf"
 	"github.com/safchain/baloum/pkg/baloum"
+
+	secebpf "github.com/DataDog/datadog-agent/pkg/security/ebpf"
+	"github.com/DataDog/datadog-agent/pkg/security/probe/config"
 )
 
 type testLogger struct {
