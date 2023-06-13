@@ -87,6 +87,7 @@ func (s *batchStrategy) Stop() {
 // encoded (optionally compressed) and written to a Payload which goes to the next
 // step in the pipeline.
 func (s *batchStrategy) Start() {
+
 	go func() {
 		flushTicker := s.clock.Ticker(s.batchWait)
 		defer func() {
@@ -157,6 +158,7 @@ func (s *batchStrategy) sendMessages(messages []*message.Message, outputChan cha
 		log.Warn("Encoding failed - dropping payload", err)
 		return
 	}
+
 	outputChan <- &message.Payload{
 		Messages:      messages,
 		Encoded:       encodedPayload,

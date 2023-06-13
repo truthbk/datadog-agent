@@ -112,10 +112,6 @@ func newDestination(endpoint config.Endpoint,
 		maxConcurrentBackgroundSends = 1
 	}
 
-	if endpoint.Origin == config.ServerlessIntakeOrigin {
-		shouldRetry = true
-	}
-
 	expVars := &expvar.Map{}
 	expVars.AddFloat(expVarIdleMsMapKey, 0)
 	expVars.AddFloat(expVarInUseMsMapKey, 0)
@@ -170,6 +166,7 @@ func (d *Destination) Start(input chan *message.Payload, output chan *message.Pa
 
 func (d *Destination) run(input chan *message.Payload, output chan *message.Payload, stopChan chan struct{}, isRetrying chan bool) {
 	var startIdle = time.Now()
+
 	for p := range input {
 		idle := float64(time.Since(startIdle) / time.Millisecond)
 		d.expVars.AddFloat(expVarIdleMsMapKey, idle)
@@ -185,6 +182,7 @@ func (d *Destination) run(input chan *message.Payload, output chan *message.Payl
 	}
 	// Wait for any pending concurrent sends to finish or terminate
 	d.wg.Wait()
+
 	d.updateRetryState(nil, isRetrying)
 	stopChan <- struct{}{}
 }
@@ -209,6 +207,7 @@ func (d *Destination) sendAndRetry(payload *message.Payload, output chan *messag
 		d.blockedUntil = time.Now().Add(backoffDuration)
 		if d.blockedUntil.After(time.Now()) {
 			log.Debugf("%s: sleeping until %v before retrying. Backoff duration %s due to %d errors", d.url, d.blockedUntil, backoffDuration.String(), d.nbErrors)
+			// TODO need to implement a new policy type (serverless type)
 			time.Sleep(100 * time.Millisecond)
 		}
 		d.retryLock.Unlock()

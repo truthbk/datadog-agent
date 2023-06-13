@@ -39,9 +39,11 @@ func NewResetClient(resetInterval time.Duration, httpClientFactory func() *http.
 // Do wraps (http.Client).Do. Thread safe.
 func (c *ResetClient) Do(req *http.Request) (*http.Response, error) {
 	c.checkReset()
+
 	c.mu.RLock()
 	httpClient := c.httpClient
 	c.mu.RUnlock()
+
 	return httpClient.Do(req)
 }
 

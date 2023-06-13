@@ -38,7 +38,6 @@ func NewAgent(sources *sources.LogSources, services *service.Services, processin
 
 	// setup the a null auditor, not tracking data in any registry
 	auditor := auditor.NewNullAuditor()
-
 	destinationsCtx := client.NewDestinationsContext()
 	destinationsCtx.LogSyncOrchestrator = logSyncOrchestrator
 

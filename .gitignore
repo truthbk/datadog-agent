@@ -201,7 +201,3 @@ tools/windows/DatadogAgentInstaller/WixSetup/cabcache/
 
 # e2e test intake generated binary
 test/fakeintake/build/*
-
-
-pkg/serverless/daemon/valid_logs_payload_1000.json
-pkg/serverless/daemon/valid_logs_payload_10.json
