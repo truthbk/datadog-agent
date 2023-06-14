@@ -251,15 +251,15 @@ kernel_matrix_testing_setup_env:
         #    matrix:
         #      - TAG: ["focal", "jammy"]
 
-kernel_matrix_testing_cleanup:
-  stage: kernel_matrix_testing
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/test-infra-definitions/runner:7c39524b
-  needs: ["kernel_matrix_testing_setup_env", "kernel_matrix_testing_run_tests_x64", "kernel_matrix_testing_run_tests_arm64"]
-  tags: ["arch:amd64"]
-  before_script:
-    - !reference [.kernel_matrix_testing_new_profile]
-  script:
-    - INSTANCE_IPS=$(cat $CI_PROJECT_DIR/stack.outputs | grep -e '-instance-ip' | cut -d ' ' -f 2 | tr '\n' ' ' | awk '{$1=$1};1' | tr ' ' ',')
-    - INSTANCE_IDS=$(aws ec2 describe-instances --filters "Name=tag:team,Values=ebpf-platform" "Name=tag:pipeline-id,Values=$CI_PIPELINE_ID" "Name=tag:managed-by,Values=pulumi" "Name=private-ip-address,Values=$INSTANCE_IPS" --output text --query 'Reservations[*].Instances[*].InstanceId' | tr '\n' ' ')
-    - echo $INSTANCE_IDS
-    - aws ec2 terminate-instances --instance-ids $INSTANCE_IDS
+          #kernel_matrix_testing_cleanup:
+          #  stage: kernel_matrix_testing
+          #  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/test-infra-definitions/runner:7c39524b
+          #  needs: ["kernel_matrix_testing_setup_env", "kernel_matrix_testing_run_tests_x64", "kernel_matrix_testing_run_tests_arm64"]
+          #  tags: ["arch:amd64"]
+          #  before_script:
+          #    - !reference [.kernel_matrix_testing_new_profile]
+          #  script:
+          #    - INSTANCE_IPS=$(cat $CI_PROJECT_DIR/stack.outputs | grep -e '-instance-ip' | cut -d ' ' -f 2 | tr '\n' ' ' | awk '{$1=$1};1' | tr ' ' ',')
+          #    - INSTANCE_IDS=$(aws ec2 describe-instances --filters "Name=tag:team,Values=ebpf-platform" "Name=tag:pipeline-id,Values=$CI_PIPELINE_ID" "Name=tag:managed-by,Values=pulumi" "Name=private-ip-address,Values=$INSTANCE_IPS" --output text --query 'Reservations[*].Instances[*].InstanceId' | tr '\n' ' ')
+          #    - echo $INSTANCE_IDS
+          #    - aws ec2 terminate-instances --instance-ids $INSTANCE_IDS
