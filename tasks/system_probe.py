@@ -1536,7 +1536,8 @@ def test_microvms(
     ssh_key_name=None,
     ssh_key_path=None,
     dependencies_dir=None,
-    shutdown_period=320,
+    shutdown_period=60,
+    subnet="",
 ):
     args = [
         f"--instance-type-x86 {instance_type_x86}" if instance_type_x86 else "",
@@ -1551,6 +1552,7 @@ def test_microvms(
         f"--shutdown-period {shutdown_period}",
         f"--dependencies-dir {dependencies_dir}" if dependencies_dir else "",
         "--name kernel-matrix-testing-system",
+        "--subnet {subnet}",
     ]
 
     go_args = ' '.join(filter(lambda x: x != "", args))

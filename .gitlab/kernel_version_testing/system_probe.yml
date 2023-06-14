@@ -121,7 +121,7 @@ kernel_matrix_testing_setup_env:
   tags: ["arch:amd64"]
   variables:
     EC2_X86_INSTANCE_TYPE: "m6i.metal"
-    EC2_ARM_INSTANCE_TYPE: "m6g.metal"
+    EC2_ARM_INSTANCE_TYPE: $ARM_INSTANCES
     X86_AMI_ID: $KERNEL_MATRIX_TESTING_X86_AMI_ID
     ARM_AMI_ID: $KERNEL_MATRIX_TESTING_ARM_AMI_ID
     AWS_REGION: us-east-1
@@ -148,7 +148,7 @@ kernel_matrix_testing_setup_env:
     # Without the newline ssh silently fails and moves on to try other auth methods
     - echo "" >> $AWS_EC2_SSH_KEY_FILE
     - chmod 600 $AWS_EC2_SSH_KEY_FILE
-    - inv -e system-probe.test-microvms --instance-type-x86=$EC2_X86_INSTANCE_TYPE --instance-type-arm=$EC2_ARM_INSTANCE_TYPE --x86-ami-id=$X86_AMI_ID --arm-ami-id=$ARM_AMI_ID --ssh-key-name=$AWS_EC2_SSH_KEY_NAME --ssh-key-path=$AWS_EC2_SSH_KEY_FILE --infra-env=$INFRA_ENV
+    - inv -e system-probe.test-microvms --instance-type-x86=$EC2_X86_INSTANCE_TYPE --instance-type-arm=$EC2_ARM_INSTANCE_TYPE --x86-ami-id=$X86_AMI_ID --arm-ami-id=$ARM_AMI_ID --ssh-key-name=$AWS_EC2_SSH_KEY_NAME --ssh-key-path=$AWS_EC2_SSH_KEY_FILE --infra-env=$INFRA_ENV --subnet $SUBNETS
     - cat $CI_PROJECT_DIR/stack.outputs
     - pulumi logout
   artifacts:
@@ -161,6 +161,11 @@ kernel_matrix_testing_setup_env:
       - $STACK_DIR
       - $CI_PROJECT_DIR/stack.outputs
       - $AWS_EC2_SSH_KEY_FILE
+  parallel:
+    matrix:
+      - SUBNETS: ["subnet-03061a1647c63c3c3", "subnet-071213aedb0e1ae54", "subnet-0f1ca3e929eb3fb8b"]
+        ARM_INSTANCES: ["m6g.metal", "m7g.metal", "c7g.metal", "c6g.metal", "r7g.metal", "r6g.metal", "i4g.metal"]
+        TIMES: [1, 2, 3, 4, 5]
 
 kernel_matrix_testing_upload_deps:
   extends:

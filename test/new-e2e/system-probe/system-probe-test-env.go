@@ -33,13 +33,6 @@ var (
 	DependenciesPackage = "dependencies-%s.tar.gz"
 )
 
-const az1 = "subnet-03061a1647c63c3c3,subnet-071213aedb0e1ae54,subnet-0f1ca3e929eb3fb8b"
-
-const az2 = "subnet-071213aedb0e1ae54,subnet-0f1ca3e929eb3fb8b,subnet-03061a1647c63c3c3"
-
-// try3
-const az3 = "subnet-0f1ca3e929eb3fb8b,subnet-03061a1647c63c3c3,subnet-071213aedb0e1ae54"
-
 type SystemProbeEnvOpts struct {
 	X86AmiID              string
 	ArmAmiID              string
@@ -51,6 +44,7 @@ type SystemProbeEnvOpts struct {
 	FailOnMissing         bool
 	UploadDependencies    bool
 	DependenciesDirectory string
+	Subnet                string
 }
 
 type TestEnv struct {
@@ -116,7 +110,7 @@ func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *SystemProbe
 		"ddinfra:aws/defaultInstanceType":        auto.ConfigValue{Value: x86InstanceType},
 		"ddinfra:aws/defaultShutdownBehavior":    auto.ConfigValue{Value: "terminate"},
 		"ddinfra:aws/defaultInstanceStorageSize": auto.ConfigValue{Value: "500"},
-		"ddinfra:aws/defaultSubnets":             auto.ConfigValue{Value: az3},
+		"ddinfra:aws/defaultSubnets":             auto.ConfigValue{Value: opts.Subnet},
 		"microvm:microVMConfigFile":              auto.ConfigValue{Value: vmConfig},
 		"microvm:libvirtSSHKeyFileX86":           auto.ConfigValue{Value: sshKeyX86},
 		"microvm:libvirtSSHKeyFileArm":           auto.ConfigValue{Value: sshKeyArm},
