@@ -1,6 +1,6 @@
 variables:
   BENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:trace-agent_ci-cd-exp-2023-06-13-1444
-  BENCHMARK_PLATFORM_BRANCH: igoragoli/ci-cd_experiments
+  BENCHMARK_PLATFORM_BRANCH: igoragoli/trace-agent
 .benchmarks:
   stage: macrobenchmarks
   #tags: ["runner:apm-k8s-same-cpu"] # TODO: Uncomment once execution on apm-k8s-same-cpu runners is figured out.
