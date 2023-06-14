@@ -90,6 +90,7 @@ kernel_matrix_testing_setup_env:
       - $AWS_EC2_SSH_KEY_FILE
   parallel:
     matrix:
-      - SUBNETS: ["subnet-03061a1647c63c3c3", "subnet-071213aedb0e1ae54", "subnet-0f1ca3e929eb3fb8b"]
-        ARM_INSTANCES: ["m6g.metal", "m7g.metal", "c7g.metal", "c6g.metal", "r7g.metal", "r6g.metal", "i4g.metal"]
-        TIMES: [1, 2, 3, 4, 5]
+      #- SUBNETS: ["subnet-03061a1647c63c3c3", "subnet-071213aedb0e1ae54", "subnet-0f1ca3e929eb3fb8b"]
+      - SUBNETS: ["subnet-03061a1647c63c3c3"]
+        ARM_INSTANCES: ["m6g.metal", "m7g.metal", "c7g.metal", "c6g.metal"]
+        TIMES: [1, 2, 3]

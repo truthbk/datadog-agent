@@ -1552,7 +1552,7 @@ def test_microvms(
         f"--shutdown-period {shutdown_period}",
         f"--dependencies-dir {dependencies_dir}" if dependencies_dir else "",
         "--name kernel-matrix-testing-system",
-        "--subnet {subnet}",
+        f"--subnet {subnet}",
     ]
 
     go_args = ' '.join(filter(lambda x: x != "", args))
