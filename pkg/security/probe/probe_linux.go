@@ -76,7 +76,7 @@ var (
 	defaultEventTypes = []eval.EventType{
 		model.ForkEventType.String(),
 		model.ExecEventType.String(),
-		model.ExecEventType.String(),
+		model.ExitEventType.String(),
 	}
 )
 
@@ -286,20 +286,16 @@ func (p *Probe) Setup() error {
 
 	p.applyDefaultFilterPolicies()
 
+	if err := p.updateProbes(defaultEventTypes, true); err != nil {
+		return err
+	}
+
 	return p.monitor.Start(p.ctx, &p.wg)
 }
 
 // Start processing events
 func (p *Probe) Start() error {
-	if err := p.eventStream.Start(&p.wg); err != nil {
-		return err
-	}
-
-	return p.updateProbes([]eval.EventType{
-		model.ForkEventType.String(),
-		model.ExecEventType.String(),
-		model.ExecEventType.String(),
-	})
+	return p.eventStream.Start(&p.wg)
 }
 
 func (p *Probe) PlaySnapshot() {
@@ -1067,7 +1063,7 @@ func (p *Probe) validEventTypeForConfig(eventType string) bool {
 
 // updateProbes applies the loaded set of rules and returns a report
 // of the applied approvers for it.
-func (p *Probe) updateProbes(ruleEventTypes []eval.EventType) error {
+func (p *Probe) updateProbes(ruleEventTypes []eval.EventType, useSnapshotProbes bool) error {
 	// event types enabled either by event handlers or by rules
 	eventTypes := append([]eval.EventType{}, defaultEventTypes...)
 	eventTypes = append(eventTypes, ruleEventTypes...)
@@ -1084,6 +1080,10 @@ func (p *Probe) updateProbes(ruleEventTypes []eval.EventType) error {
 	}
 
 	var activatedProbes []manager.ProbesSelector
+
+	if useSnapshotProbes {
+		activatedProbes = append(activatedProbes, probes.SnapshotSelectors...)
+	}
 
 	// extract probe to activate per the event types
 	for eventType, selectors := range probes.GetSelectorsPerEventType() {
@@ -1404,7 +1404,7 @@ func (p *Probe) ApplyRuleSet(rs *rules.RuleSet) (*kfilters.ApplyRuleSetReport, e
 		return nil, fmt.Errorf("failed to flush discarders: %w", err)
 	}
 
-	if err := p.updateProbes(rs.GetEventTypes()); err != nil {
+	if err := p.updateProbes(rs.GetEventTypes(), false); err != nil {
 		return nil, fmt.Errorf("failed to select probes: %w", err)
 	}
 
