@@ -112,6 +112,10 @@ func newDestination(endpoint config.Endpoint,
 		maxConcurrentBackgroundSends = 1
 	}
 
+	if endpoint.Origin == config.ServerlessIntakeOrigin {
+		shouldRetry = false
+	}
+
 	expVars := &expvar.Map{}
 	expVars.AddFloat(expVarIdleMsMapKey, 0)
 	expVars.AddFloat(expVarInUseMsMapKey, 0)
