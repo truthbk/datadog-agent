@@ -35,8 +35,9 @@ var (
 
 const az1 = "subnet-03061a1647c63c3c3,subnet-071213aedb0e1ae54,subnet-0f1ca3e929eb3fb8b"
 
-// try 3
 const az2 = "subnet-071213aedb0e1ae54,subnet-0f1ca3e929eb3fb8b,subnet-03061a1647c63c3c3"
+
+// try1
 const az3 = "subnet-0f1ca3e929eb3fb8b,subnet-03061a1647c63c3c3,subnet-071213aedb0e1ae54"
 
 type SystemProbeEnvOpts struct {
