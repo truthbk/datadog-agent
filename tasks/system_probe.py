@@ -1536,7 +1536,7 @@ def test_microvms(
     ssh_key_name=None,
     ssh_key_path=None,
     dependencies_dir=None,
-    shutdown_period=40,
+    shutdown_period=30,
     subnet="",
 ):
     args = [
