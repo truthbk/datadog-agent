@@ -1,8 +1,8 @@
 {
    "vmsets": [
         {
-            "name": "ubuntu_amd64",
-            "recipe": "distro-amd64",
+            "name": "ubuntu_x86_64",
+            "recipe": "distro-x86_64",
             "arch": "x86_64",
             "kernels": [
                 {
