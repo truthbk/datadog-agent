@@ -578,15 +578,11 @@ static __always_inline int do_sys_open_helper_exit(struct pt_regs* ctx) {
 // libgnutls.so
     bool is_shared_library = false;
 #pragma unroll
-    for (int i = 0; i < LIB_PATH_MAX_SIZE - (SO_SUFFIX_SIZE+6); i++) {
-        if (
-            (path->buf[i] == 'l' || path->buf[i] == 'c' || path->buf[i] == 'g') &&
-            (path->buf[i+1] == 'i' || path->buf[i+1] == 'r' || path->buf[i+1] == 'n') &&
-            (path->buf[i+2] == 'b' || path->buf[i+2] == 'y' || path->buf[i+2] == 'u') &&
-            (path->buf[i+3] == 's' || path->buf[i+3] == 'p' || path->buf[i+3] == 't') &&
-            (path->buf[i+4] == 's' || path->buf[i+4] == 't' || path->buf[i+4] == 'l') &&
-            (path->buf[i+5] == 'l' || path->buf[i+5] == 'o' || path->buf[i+5] == 's') &&
-            path->buf[i+6] == '.' && path->buf[i+7] == 's' && path->buf[i+8] == 'o') {
+    for (int i = 0; i < LIB_PATH_MAX_SIZE - (SO_SUFFIX_SIZE+3); i++) {
+        if ((path->buf[i] == 's' || path->buf[i] == 'p' || path->buf[i] == 't') &&
+            (path->buf[i+1] == 's' || path->buf[i+1] == 't' || path->buf[i+1] == 'l') &&
+            (path->buf[i+2] == 'l' || path->buf[i+2] == 'o' || path->buf[i+2] == 's') &&
+            path->buf[i+3] == '.' && path->buf[i+4] == 's' && path->buf[i+5] == 'o') {
             is_shared_library = true;
             break;
         }
