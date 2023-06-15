@@ -92,5 +92,5 @@ kernel_matrix_testing_setup_env:
     matrix:
       #- SUBNETS: ["subnet-03061a1647c63c3c3", "subnet-071213aedb0e1ae54", "subnet-0f1ca3e929eb3fb8b"]
       - SUBNETS: ["subnet-03061a1647c63c3c3"]
-        ARM_INSTANCES: ["m6g.metal", "m7g.metal"]
-        TIMES: [1, 2, 3, 4, 5, 6, 7, 8]
+        ARM_INSTANCES: ["m6g.metal"]
+        TIMES: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
