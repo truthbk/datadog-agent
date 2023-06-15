@@ -3,9 +3,9 @@ variables:
   BENCHMARK_PLATFORM_BRANCH: igoragoli/trace-agent
 .benchmarks:
   stage: macrobenchmarks
-  tags: ["runner:apm-k8s-same-cpu"] # TODO: Uncomment once execution on apm-k8s-same-cpu runners is figured out.
+  #tags: ["runner:apm-k8s-same-cpu"] # TODO: Uncomment once execution on apm-k8s-same-cpu runners is figured out.
   #Dummy commit
-  #tags: ["runner:main"]
+  tags: ["runner:main"]
   timeout: 1h
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
