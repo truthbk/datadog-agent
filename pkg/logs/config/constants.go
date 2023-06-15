@@ -9,7 +9,7 @@ package config
 const (
 	ChanSize                   = 100
 	DestinationPayloadChanSize = 10
-	NumberOfPipelines          = 4
+	NumberOfPipelines          = 1
 )
 
 const (
