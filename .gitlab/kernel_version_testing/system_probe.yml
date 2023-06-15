@@ -47,7 +47,7 @@ kernel_matrix_testing_setup_env:
   needs: ["go_deps", "go_tools_deps"]
   tags: ["arch:amd64"]
   variables:
-    EC2_X86_INSTANCE_TYPE: "m6i.metal"
+    EC2_X86_INSTANCE_TYPE: "m5.metal"
     EC2_ARM_INSTANCE_TYPE: $ARM_INSTANCES
     X86_AMI_ID: $KERNEL_MATRIX_TESTING_X86_AMI_ID
     ARM_AMI_ID: $KERNEL_MATRIX_TESTING_ARM_AMI_ID
@@ -91,6 +91,6 @@ kernel_matrix_testing_setup_env:
   parallel:
     matrix:
       #- SUBNETS: ["subnet-03061a1647c63c3c3", "subnet-071213aedb0e1ae54", "subnet-0f1ca3e929eb3fb8b"]
-      - SUBNETS: ["subnet-03061a1647c63c3c3"]
+      - SUBNETS: ["subnet-071213aedb0e1ae54"]
         ARM_INSTANCES: ["m6g.metal"]
         TIMES: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
