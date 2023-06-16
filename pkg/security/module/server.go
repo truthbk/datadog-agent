@@ -8,7 +8,6 @@ package module
 import (
 	"context"
 	json "encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -144,6 +143,7 @@ type RuleEvent struct {
 	Event  events.Event `json:"event"`
 }
 
+<<<<<<< HEAD
 // DumpDiscarders handles discarder dump requests
 func (a *APIServer) DumpDiscarders(ctx context.Context, params *api.DumpDiscardersParams) (*api.DumpDiscardersMessage, error) {
 	filePath, err := a.probe.DumpDiscarders()
@@ -289,6 +289,8 @@ func (a *APIServer) DumpNetworkNamespace(ctx context.Context, params *api.DumpNe
 	return a.probe.GetResolvers().NamespaceResolver.DumpNetworkNamespaces(params), nil
 }
 
+=======
+>>>>>>> fd4c6c9bf0... {CWS] refactor to allow windows CWS event
 func (a *APIServer) enqueue(msg *pendingMsg) {
 	a.queueLock.Lock()
 	a.queue = append(a.queue, msg)
@@ -404,6 +406,7 @@ func (a *APIServer) GetConfig(ctx context.Context, params *api.GetConfigParams) 
 	return &api.SecurityConfigMessage{}, nil
 }
 
+<<<<<<< HEAD
 // RunSelfTest runs self test and then reload the current policies
 func (a *APIServer) RunSelfTest(ctx context.Context, params *api.RunSelfTestParams) (*api.SecuritySelfTestResultMessage, error) {
 	if a.cwsConsumer == nil {
@@ -430,6 +433,8 @@ func (a *APIServer) RunSelfTest(ctx context.Context, params *api.RunSelfTestPara
 	}, nil
 }
 
+=======
+>>>>>>> fd4c6c9bf0... {CWS] refactor to allow windows CWS event
 // SendEvent forwards events sent by the runtime security module to Datadog
 func (a *APIServer) SendEvent(rule *rules.Rule, e events.Event, extTagsCb func() []string, service string) {
 	agentContext := events.AgentContext{
@@ -462,7 +467,7 @@ func (a *APIServer) SendEvent(rule *rules.Rule, e events.Event, extTagsCb func()
 
 	data := append(probeJSON[:len(probeJSON)-1], ',')
 	data = append(data, ruleEventJSON[1:]...)
-	seclog.Tracef("Sending event message for rule `%s` to security-agent `%s`", rule.ID, string(data))
+	seclog.Debugf("Sending event message for rule `%s` to security-agent `%s`", rule.ID, string(data))
 
 	eventTags := e.GetTags()
 	msg := &pendingMsg{
@@ -622,6 +627,8 @@ func newDirectReporter(stopper startstop.Stopper) (common.RawReporter, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create direct reporter: %w", err)
 	}
+
+	fmt.Printf("DDDDDDDDDDdd\n")
 
 	return reporter, nil
 }
