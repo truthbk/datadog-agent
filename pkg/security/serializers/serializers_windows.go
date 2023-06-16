@@ -36,23 +36,6 @@ type EventSerializer struct {
 	*ExecEventSerializer   `json:"process,omitempty"`
 }
 
-func MarshalEvent(event *model.Event, probe *resolvers.Resolvers) ([]byte, error) {
-	s := NewEventSerializer(event, probe)
-	w := &jwriter.Writer{
-		Flags: jwriter.NilSliceAsEmpty | jwriter.NilMapAsEmpty,
-	}
-	s.MarshalEasyJSON(w)
-	return w.BuildBytes()
-}
-
-func MarshalCustomEvent(event *events.CustomEvent) ([]byte, error) {
-	w := &jwriter.Writer{
-		Flags: jwriter.NilSliceAsEmpty | jwriter.NilMapAsEmpty,
-	}
-	event.MarshalEasyJSON(w)
-	return w.BuildBytes()
-}
-
 // ExecEventSerializer serializes an exit event to JSON
 // easyjson:json
 type ExecEventSerializer struct {

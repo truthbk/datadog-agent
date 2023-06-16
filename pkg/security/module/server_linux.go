@@ -9,33 +9,11 @@ package module
 
 import (
 	"context"
-	json "encoding/json"
 	"errors"
 	"fmt"
-	"strings"
-	"sync"
-	"time"
 
-	"github.com/DataDog/datadog-go/v5/statsd"
-	easyjson "github.com/mailru/easyjson"
-	jwriter "github.com/mailru/easyjson/jwriter"
-	"go.uber.org/atomic"
-	"golang.org/x/time/rate"
-
-	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
-	"github.com/DataDog/datadog-agent/pkg/security/common"
-	"github.com/DataDog/datadog-agent/pkg/security/config"
-	"github.com/DataDog/datadog-agent/pkg/security/metrics"
-	sprobe "github.com/DataDog/datadog-agent/pkg/security/probe"
 	"github.com/DataDog/datadog-agent/pkg/security/proto/api"
-	"github.com/DataDog/datadog-agent/pkg/security/reporter"
-	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
-	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
-	"github.com/DataDog/datadog-agent/pkg/security/serializers"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
-	"github.com/DataDog/datadog-agent/pkg/util/startstop"
-	"github.com/DataDog/datadog-agent/pkg/version"
 )
 
 // GetStatus returns the status of the module
@@ -73,43 +51,6 @@ func (a *APIServer) GetStatus(ctx context.Context, params *api.GetStatusParams) 
 	}
 
 	return apiStatus, nil
-}
-
-// GetActivityDumpStream waits for activity dumps and forwards them to the stream
-func (a *APIServer) GetActivityDumpStream(params *api.ActivityDumpStreamParams, stream api.SecurityModule_GetActivityDumpStreamServer) error {
-	// read one activity dump or timeout after one second
-	select {
-	case dump := <-a.activityDumps:
-		if err := stream.Send(dump); err != nil {
-			return err
-		}
-	case <-time.After(time.Second):
-		break
-	}
-	return nil
-}
-
-// SendActivityDump queues an activity dump to the chan of activity dumps
-func (a *APIServer) SendActivityDump(dump *api.ActivityDumpStreamMessage) {
-	// send the dump to the channel
-	select {
-	case a.activityDumps <- dump:
-		break
-	default:
-		// The channel is full, consume the oldest dump
-		oldestDump := <-a.activityDumps
-		// Try to send the event again
-		select {
-		case a.activityDumps <- dump:
-			break
-		default:
-			// Looks like the channel is full again, expire the current message too
-			a.expireDump(dump)
-			break
-		}
-		a.expireDump(oldestDump)
-		break
-	}
 }
 
 // DumpDiscarders handles discarder dump requests
@@ -220,18 +161,6 @@ func (a *APIServer) DumpNetworkNamespace(ctx context.Context, params *api.DumpNe
 	return a.probe.GetResolvers().NamespaceResolver.DumpNetworkNamespaces(params), nil
 }
 
-// GetConfig returns config of the runtime security module required by the security agent
-func (a *APIServer) GetConfig(ctx context.Context, params *api.GetConfigParams) (*api.SecurityConfigMessage, error) {
-	if a.cfg != nil {
-		return &api.SecurityConfigMessage{
-			FIMEnabled:          a.cfg.FIMEnabled,
-			RuntimeEnabled:      a.cfg.RuntimeEnabled,
-			ActivityDumpEnabled: a.probe.IsActivityDumpEnabled(),
-		}, nil
-	}
-	return &api.SecurityConfigMessage{}, nil
-}
-
 // RunSelfTest runs self test and then reload the current policies
 func (a *APIServer) RunSelfTest(ctx context.Context, params *api.RunSelfTestParams) (*api.SecuritySelfTestResultMessage, error) {
 	if a.cwsConsumer == nil {
@@ -256,11 +185,4 @@ func (a *APIServer) RunSelfTest(ctx context.Context, params *api.RunSelfTestPara
 		Ok:    true,
 		Error: "",
 	}, nil
-}
-
-// expireDump updates the count of expired dumps
-func (a *APIServer) expireDump(dump *api.ActivityDumpStreamMessage) {
-	// update metric
-	a.expiredDumps.Inc()
-	seclog.Tracef("the activity dump server channel is full, a dump of [%s] was dropped\n", dump.GetDump().GetMetadata().GetName())
 }

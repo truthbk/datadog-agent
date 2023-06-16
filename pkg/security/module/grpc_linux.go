@@ -11,11 +11,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"sync"
-
-	"google.golang.org/grpc"
-
-	"github.com/DataDog/datadog-agent/pkg/security/seclog"
 )
 
 func (g *GRPCServer) getListener() (net.Listener, error) {

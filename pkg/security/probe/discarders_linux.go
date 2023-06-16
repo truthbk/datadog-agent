@@ -10,7 +10,6 @@ package probe
 import (
 	"errors"
 	"fmt"
-	"math"
 	"path"
 	"strings"
 	"time"
@@ -35,7 +34,7 @@ const (
 	// maxParentDiscarderDepth defines the maximum parent depth to find parent discarders
 	// the eBPF part need to be adapted accordingly
 	maxParentDiscarderDepth = 3
-	
+
 	// inode/mountid that won't be resubmitted
 	maxRecentlyAddedCacheSize = uint64(64)
 )
