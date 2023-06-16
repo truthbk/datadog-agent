@@ -15,6 +15,10 @@ variables:
   image: $BENCHMARKS_CI_IMAGE
   script:
     - printenv
+    - echo "Verifying the datadog-agent rpo"
+    - ls /go/src/github.com/DataDog/datadog-agent
+    - cd /go/src/github.com/DataDog/datadog-agent
+    - git status
     - export ARTIFACTS_DIR="$(pwd)/reports" && (mkdir "${ARTIFACTS_DIR}" || :)
     - export DD_API_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.dd_api_key --with-decryption --query "Parameter.Value" --out text)
     - git clone --branch $BENCHMARK_PLATFORM_BRANCH https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform /platform && cd /platform
