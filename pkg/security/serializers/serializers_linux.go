@@ -17,9 +17,6 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	jwriter "github.com/mailru/easyjson/jwriter"
-
-	"github.com/DataDog/datadog-agent/pkg/security/events"
 	"github.com/DataDog/datadog-agent/pkg/security/resolvers"
 	sprocess "github.com/DataDog/datadog-agent/pkg/security/resolvers/process"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
