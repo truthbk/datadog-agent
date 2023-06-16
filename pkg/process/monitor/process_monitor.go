@@ -15,6 +15,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"go.uber.org/atomic"
 
+	"github.com/DataDog/datadog-agent/pkg/network/protocols/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
 	"github.com/DataDog/datadog-agent/pkg/runtime"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -69,6 +70,13 @@ type ProcessMonitor struct {
 	execCount      atomic.Uint32
 	exitCount      atomic.Uint32
 	restartCounter atomic.Uint32
+
+	telEvent  *telemetry.Metric
+	telExec   *telemetry.Metric
+	telFork   *telemetry.Metric
+	telExit   *telemetry.Metric
+	telComm   *telemetry.Metric
+	telErrors *telemetry.Metric
 }
 
 type ProcessCallback func(pid int)
@@ -185,10 +193,16 @@ func (pm *ProcessMonitor) mainEventLoop() {
 				return
 			}
 
+			pm.telEvent.Add(1)
 			pm.eventCount.Inc()
 
 			switch ev := event.Msg.(type) {
+			case *netlink.CommProcEvent:
+				pm.telComm.Add(1)
+			case *netlink.ForkProcEvent:
+				pm.telFork.Add(1)
 			case *netlink.ExecProcEvent:
+				pm.telExec.Add(1)
 				pm.execCount.Inc()
 				// handleProcessExec locks a mutex to access the exec callbacks array, if it is empty, then we're
 				// wasting "resources" to check it. Since it is a hot-code-path, it has some cpu load.
@@ -197,6 +211,7 @@ func (pm *ProcessMonitor) mainEventLoop() {
 					pm.handleProcessExec(int(ev.ProcessPid))
 				}
 			case *netlink.ExitProcEvent:
+				pm.telExit.Add(1)
 				pm.exitCount.Inc()
 				// handleProcessExit locks a mutex to access the exit callbacks array, if it is empty, then we're
 				// wasting "resources" to check it. Since it is a hot-code-path, it has some cpu load.
@@ -209,6 +224,7 @@ func (pm *ProcessMonitor) mainEventLoop() {
 			if !ok {
 				return
 			}
+			pm.telErrors.Add(1)
 			pm.restartCounter.Inc()
 			log.Errorf("process monitor error: %s", err)
 			log.Info("re-initializing process monitor")
@@ -272,6 +288,19 @@ func (pm *ProcessMonitor) Initialize() error {
 					return
 				}
 			}
+
+			metricGroup := telemetry.NewMetricGroup(
+				"usm.process_monitor",
+				telemetry.OptStatsd,
+				telemetry.OptExpvar,
+				telemetry.OptMonotonic,
+				telemetry.OptPayloadTelemetry)
+			pm.telEvent = metricGroup.NewMetric("event")
+			pm.telExec = metricGroup.NewMetric("exec")
+			pm.telFork = metricGroup.NewMetric("fork")
+			pm.telExit = metricGroup.NewMetric("exit")
+			pm.telComm = metricGroup.NewMetric("comm")
+			pm.telErrors = metricGroup.NewMetric("errors")
 		},
 	)
 	return initErr
