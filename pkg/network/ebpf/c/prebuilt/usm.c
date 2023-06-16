@@ -572,17 +572,11 @@ static __always_inline int do_sys_open_helper_exit(struct pt_regs* ctx) {
         return 0;
     }
 
-// Detect whether the file being opened is a shared library
-//    libssl.so
-// libcrypto.so
-// libgnutls.so
+    // Detect whether the file being opened is a shared library
     bool is_shared_library = false;
 #pragma unroll
-    for (int i = 0; i < LIB_PATH_MAX_SIZE - (SO_SUFFIX_SIZE+3); i++) {
-        if ((path->buf[i] == 's' || path->buf[i] == 'p' || path->buf[i] == 't') &&
-            (path->buf[i+1] == 's' || path->buf[i+1] == 't' || path->buf[i+1] == 'l') &&
-            (path->buf[i+2] == 'l' || path->buf[i+2] == 'o' || path->buf[i+2] == 's') &&
-            path->buf[i+3] == '.' && path->buf[i+4] == 's' && path->buf[i+5] == 'o') {
+    for (int i = 0; i < LIB_PATH_MAX_SIZE - SO_SUFFIX_SIZE; i++) {
+        if (path->buf[i] == '.' && path->buf[i+1] == 's' && path->buf[i+2] == 'o') {
             is_shared_library = true;
             break;
         }
