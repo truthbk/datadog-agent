@@ -299,6 +299,16 @@ func (p *Probe) Start() error {
 		return err
 	}
 
+	maps, total, err := commonebpf.EstimateMapSizes(p.Manager, p.kernelVersion.Code, uint64(p.monitor.perfBufferMonitor.numCPU))
+	if err != nil {
+		fmt.Printf("ERROR computing maps mem sizes: %v\n", err)
+	} else {
+		fmt.Printf("Total maps mem size: %d\n", total)
+		for n, size := range maps {
+			fmt.Printf("%s: %d\n", n, size)
+		}
+	}
+
 	return p.updateProbes([]eval.EventType{
 		model.ForkEventType.String(),
 		model.ExecEventType.String(),
