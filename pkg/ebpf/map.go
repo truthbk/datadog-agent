@@ -34,30 +34,19 @@ func roundDown(n, multiple int) int {
 	return n - (n % multiple)
 }
 
-func findLastSetBit(n uint64) uint64 {
-	if n == 0 {
-		return uint64(64)
-	}
-
-	const bitsInNum = uint64(64)
-	res := bitsInNum - 1
-
-	for numBitsToTest := (bitsInNum >> 1); numBitsToTest != 0; numBitsToTest >>= 1 {
-		if (n & (^uint64(0) << (bitsInNum - numBitsToTest))) == 0 {
-			res -= numBitsToTest
-			n <<= numBitsToTest
-		}
-	}
-
-	return res
-}
-
 func pageAlign(size uint64) uint64 {
 	return (size + pageSizeMask) & ^pageSizeMask
 }
 
-func roundPowOfTwo(n uint64) uint64 {
-	return uint64(1) << findLastSetBit(n-1)
+func roundUpperPowOfTwo(n uint32) uint32 {
+	n--
+	n |= (n >> 1)
+	n |= (n >> 2)
+	n |= (n >> 4)
+	n |= (n >> 8)
+	n |= (n >> 16)
+	n++
+	return n
 }
 
 func sizeOfHtabElemStruct(kv kernel.Version) uint64 {
@@ -86,7 +75,7 @@ func estimateHashTabMem(mapInfo *ebpf.MapInfo, kv kernel.Version, numCPU uint64)
 		}
 	}
 
-	numBuckets := roundPowOfTwo(uint64(maxEntries))
+	numBuckets := roundUpperPowOfTwo(maxEntries)
 	elemSize := sizeOfHtabElemStruct(kv) + uint64(roundUp(int(mapInfo.KeySize), 8))
 	if perCPU {
 		elemSize += 8
@@ -94,7 +83,7 @@ func estimateHashTabMem(mapInfo *ebpf.MapInfo, kv kernel.Version, numCPU uint64)
 		elemSize += uint64(roundUp(int(mapInfo.ValueSize), 8))
 	}
 
-	bucketsMem := numBuckets * sizeOfBucketStruct(kv)
+	bucketsMem := uint64(numBuckets) * sizeOfBucketStruct(kv)
 	mapLocksMem := 4 * hashtabMapLockCount * numCPU
 
 	preAllocMem := uint64(0)
