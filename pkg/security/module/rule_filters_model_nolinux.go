@@ -8,8 +8,6 @@
 package module
 
 import (
-	"runtime"
-
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
 )
 

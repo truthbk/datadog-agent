@@ -69,19 +69,23 @@ func (p *Probe) Start() error {
 					continue
 				}
 				ev.Type = uint32(model.ExecEventType)
+				ev.ExecWindows.CmdLine = start.CmdLine
+				ev.ExecWindows.Pid = uint32(start.Pid)
+				ev.ExecWindows.PathnameStr = start.ImageFile
 			case stop := <-p.onStop:
-				log.Infof("Received stop %v", stop)
+				if stop.Pid == 0 {
+					break
+				}
+				log.Infof("Received stop %+v", stop)
 				e = p.resolvers.ProcessResolver.GetProcessEntry(process.Pid(stop.Pid))
 				defer p.resolvers.ProcessResolver.DeleteProcessEntry(process.Pid(stop.Pid))
 				ev.Type = uint32(model.ExitEventType)
 			}
 
 			if e != nil {
-
 				ev.ProcessCacheEntry = e
 				p.DispatchEvent(ev)
 			}
-
 		}
 	}()
 	return p.pm.Start()
@@ -89,7 +93,6 @@ func (p *Probe) Start() error {
 
 // DispatchEvent sends an event to the probe event handler
 func (p *Probe) DispatchEvent(event *model.Event) {
-
 	// send wildcard first
 	for _, handler := range p.eventHandlers[model.UnknownEventType] {
 		handler.HandleEvent(event)
@@ -99,7 +102,6 @@ func (p *Probe) DispatchEvent(event *model.Event) {
 	for _, handler := range p.eventHandlers[event.GetEventType()] {
 		handler.HandleEvent(event)
 	}
-
 }
 
 // Snapshot runs the different snapshot functions of the resolvers that

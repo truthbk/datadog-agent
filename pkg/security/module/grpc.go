@@ -3,8 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build linux
-
 package module
 
 import (
@@ -36,12 +34,8 @@ func NewGRPCServer(socketPath string) *GRPCServer {
 }
 
 func (g *GRPCServer) Start() error {
-	ln, err := net.Listen("unix", g.socketPath)
+	ln, err := g.getListener()
 	if err != nil {
-		return fmt.Errorf("unable to create runtime security socket: %w", err)
-	}
-
-	if err := os.Chmod(g.socketPath, 0700); err != nil {
 		return fmt.Errorf("unable to create runtime security socket: %w", err)
 	}
 

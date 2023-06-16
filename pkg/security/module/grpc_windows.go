@@ -3,9 +3,14 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package probe
+//go:build windows
 
-const (
-	// ServiceEnvVar environment variable used to report service
-	ServiceEnvVar = "DD_SERVICE"
+package module
+
+import (
+	"net"
 )
+
+func (g *GRPCServer) getListener() (net.Listener, error) {
+	return net.Listen("tcp", ":3336")
+}

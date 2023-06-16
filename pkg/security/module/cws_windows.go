@@ -9,7 +9,6 @@ package module
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -113,9 +112,6 @@ func NewCWSConsumer(evm *eventmonitor.EventMonitor, config *config.RuntimeSecuri
 	if err := evm.Probe.AddCustomEventHandler(model.UnknownEventType, c); err != nil {
 		return nil, err
 	}
-
-	// Activity dumps related
-	evm.Probe.AddActivityDumpHandler(c)
 
 	// policy loader
 	c.policyLoader = rules.NewPolicyLoader()
@@ -236,14 +232,6 @@ func (c *CWSConsumer) getEventTypeEnabled() map[eval.EventType]bool {
 
 	if c.config.FIMEnabled {
 		if eventTypes, exists := categories[model.FIMCategory]; exists {
-			for _, eventType := range eventTypes {
-				enabled[eventType] = true
-			}
-		}
-	}
-
-	if c.probe.IsNetworkEnabled() {
-		if eventTypes, exists := categories[model.NetworkCategory]; exists {
 			for _, eventType := range eventTypes {
 				enabled[eventType] = true
 			}
@@ -381,17 +369,14 @@ func (c *CWSConsumer) Stop() {
 }
 
 // EventDiscarderFound is called by the ruleset when a new discarder discovered
-func (c *CWSConsumer) EventDiscarderFound(rs *rules.RuleSet, event eval.Event, field eval.Field, eventType eval.EventType) {}
+func (c *CWSConsumer) EventDiscarderFound(rs *rules.RuleSet, event eval.Event, field eval.Field, eventType eval.EventType) {
+}
 
 // HandleEvent is called by the probe when an event arrives from the kernel
 func (c *CWSConsumer) HandleEvent(event *model.Event) {
 	// event already marked with an error, skip it
 	if event.Error != nil {
 		return
-	}
-
-	if threatScoreRuleSet := c.GetThreatScoreRuleSet(); threatScoreRuleSet != nil {
-		threatScoreRuleSet.Evaluate(event)
 	}
 
 	if ruleSet := c.GetRuleSet(); ruleSet != nil {
@@ -518,6 +503,4 @@ func logLoadingErrors(msg string, m *multierror.Error) {
 }
 
 // UpdateEventMonitorOpts adapt the event monitor options
-func UpdateEventMonitorOpts(opts *eventmonitor.Opts) {
-	opts.ProbeOpts.PathResolutionEnabled = true
-}
+func UpdateEventMonitorOpts(opts *eventmonitor.Opts) {}

@@ -1052,23 +1052,6 @@ func serializeSyscallRetval(retval int64) string {
 	}
 }
 
-func MarshalEvent(event *model.Event, probe *resolvers.Resolvers) ([]byte, error) {
-	s := NewEventSerializer(event, probe)
-	w := &jwriter.Writer{
-		Flags: jwriter.NilSliceAsEmpty | jwriter.NilMapAsEmpty,
-	}
-	s.MarshalEasyJSON(w)
-	return w.BuildBytes()
-}
-
-func MarshalCustomEvent(event *events.CustomEvent) ([]byte, error) {
-	w := &jwriter.Writer{
-		Flags: jwriter.NilSliceAsEmpty | jwriter.NilMapAsEmpty,
-	}
-	event.MarshalEasyJSON(w)
-	return w.BuildBytes()
-}
-
 // NewEventSerializer creates a new event serializer based on the event type
 func NewEventSerializer(event *model.Event, resolvers *resolvers.Resolvers) *EventSerializer {
 	var pc model.ProcessContext

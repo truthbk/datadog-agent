@@ -21,6 +21,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/resolvers"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
+	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
+	seclog "github.com/DataDog/datadog-agent/pkg/security/seclog"
 )
 
 var eventZero model.Event = model.Event{ContainerContext: &model.ContainerContext{}}
@@ -144,4 +146,20 @@ func (p *Probe) NewEvaluationSet(eventTypeEnabled map[eval.EventType]bool, ruleS
 	}
 
 	return evaluationSet, nil
+}
+
+func (p *Probe) IsNetworkEnabled() bool {
+	return p.Config.Probe.NetworkEnabled
+}
+
+func (p *Probe) IsActivityDumpEnabled() bool {
+	return p.Config.RuntimeSecurity.ActivityDumpEnabled
+}
+
+func (p *Probe) IsActivityDumpTagRulesEnabled() bool {
+	return p.Config.RuntimeSecurity.ActivityDumpTagRulesEnabled
+}
+
+func (p *Probe) IsSecurityProfileEnabled() bool {
+	return p.Config.RuntimeSecurity.SecurityProfileEnabled
 }
