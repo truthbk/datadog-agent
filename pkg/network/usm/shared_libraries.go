@@ -39,6 +39,10 @@ const (
 	scanTerminatedProcessesInterval = 30 * time.Second
 )
 
+var (
+	newregexkernel = regexp.MustCompile("(ssl.so|pto.so|tls.so)")
+)
+
 func toLibPath(data []byte) http.LibPath {
 	return *(*http.LibPath)(unsafe.Pointer(&data[0]))
 }
@@ -113,6 +117,7 @@ type soWatcher struct {
 	registry       *soRegistry
 
 	libHits    *telemetry.Metric
+	libHitsNew *telemetry.Metric
 	libMatches *telemetry.Metric
 }
 
@@ -165,6 +170,7 @@ func newSOWatcher(perfHandler *ddebpf.PerfHandler, rules ...soRule) *soWatcher {
 		},
 
 		libHits:    metricGroup.NewMetric("hits"),
+		libHitsNew: metricGroup.NewMetric("hitsnew"),
 		libMatches: metricGroup.NewMetric("matches"),
 	}
 }
@@ -314,6 +320,10 @@ func (w *soWatcher) Start() {
 				if libPath[0] != '/' {
 					root = procPid + "/cwd"
 					libPath = "/" + libPath
+				}
+
+				if newregexkernel.Match(path) {
+					w.libHitsNew.Add(1)
 				}
 
 				for _, r := range w.rules {
