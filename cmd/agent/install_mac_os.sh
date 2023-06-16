@@ -6,7 +6,7 @@
 # Datadog Agent install script for macOS.
 set -e
 install_script_version=1.2.0
-dmg_file=/tmp/datadog-agent.dmg
+dmg_file=/var/root/datadog-agent.dmg
 dmg_base_url="https://s3.amazonaws.com/dd-agent"
 etc_dir=/opt/datadog-agent/etc
 log_dir=/opt/datadog-agent/logs
@@ -327,8 +327,8 @@ function plist_modify_user_group() {
 
 # # Install the agent
 printf "\033[34m\n* Downloading datadog-agent\n\033[0m"
-rm -f $dmg_file
-if ! curl --fail --progress-bar "$dmg_url" > $dmg_file; then
+$sudo_cmd rm -f $dmg_file
+if ! $sudo_cmd curl --fail --progress-bar "$dmg_url" --output $dmg_file; then
     printf "\033[31mCouldn't download the installer for macOS Agent version ${dmg_version}.\033[0m\n"
     exit 1;
 fi
@@ -348,6 +348,7 @@ printf "\033[34m\n    - Unpacking and copying files (this usually takes about a 
 cd / && $sudo_cmd /usr/sbin/installer -pkg "`find "/Volumes/datadog_agent" -name \*.pkg 2>/dev/null`" -target / >/dev/null
 printf "\033[34m\n    - Unmounting the DMG installer ...\n\033[0m"
 $sudo_cmd hdiutil detach "/Volumes/datadog_agent" >/dev/null
+$sudo_cmd rm -f $dmg_file
 
 # Creating or overriding the install information
 install_info_content="---
