@@ -42,7 +42,6 @@ BPF_LRU_MAP(bpf_maps, u32, struct bpf_map_t, 4096)
 BPF_LRU_MAP(bpf_progs, u32, struct bpf_prog_t, 4096)
 BPF_LRU_MAP(tgid_fd_map_id, struct bpf_tgid_fd_t, u32, 4096)
 BPF_LRU_MAP(tgid_fd_prog_id, struct bpf_tgid_fd_t, u32, 4096)
-BPF_LRU_MAP(syscalls, u64, struct syscall_cache_t, 1024)
 BPF_LRU_MAP(proc_cache, u32, struct proc_cache_t, 16384)
 BPF_LRU_MAP(pid_cache, u32, struct pid_cache_t, 16384)
 BPF_LRU_MAP(pid_ignored, u32, u32, 16738)
@@ -51,19 +50,20 @@ BPF_LRU_MAP(netns_cache, u32, u32, 40960)
 BPF_LRU_MAP(span_tls, u32, struct span_tls_t, 4096)
 BPF_LRU_MAP(inode_discarders, struct inode_discarder_t, struct inode_discarder_params_t, 4096)
 BPF_LRU_MAP(pid_discarders, u32, struct pid_discarder_params_t, 512)
-BPF_LRU_MAP(pathnames, struct path_key_t, struct path_leaf_t, 1) // edited
 BPF_LRU_MAP(flow_pid, struct pid_route_t, u32, 10240)
 BPF_LRU_MAP(conntrack, struct namespaced_flow_t, struct namespaced_flow_t, 4096)
 BPF_LRU_MAP(io_uring_ctx_pid, void*, u64, 2048)
 BPF_LRU_MAP(veth_state_machine, u64, struct veth_state_t, 1024)
 BPF_LRU_MAP(veth_devices, struct device_ifindex_t, struct device_t, 1024)
 BPF_LRU_MAP(veth_device_name_to_ifindex, struct device_name_t, struct device_ifindex_t, 1024)
-BPF_LRU_MAP(exec_file_cache, u64, struct file_t, 4096)
 BPF_LRU_MAP(syscall_monitor, u32, struct syscall_monitor_entry_t, 2048)
 BPF_LRU_MAP(syscall_table, struct syscall_table_key_t, u8, 50)
 BPF_LRU_MAP(security_profiles, struct container_context_t, struct security_profile_t, 1) // max entries will be overriden at runtime
 BPF_LRU_MAP(secprofs_syscalls, u64, struct security_profile_syscalls_t, 1) // max entries will be overriden at runtime
 
+BPF_LRU_MAP_FLAGS(pathnames, struct path_key_t, struct path_leaf_t, 1, BPF_F_NO_COMMON_LRU) // edited
+BPF_LRU_MAP_FLAGS(syscalls, u64, struct syscall_cache_t, 1024, BPF_F_NO_COMMON_LRU)
+BPF_LRU_MAP_FLAGS(exec_file_cache, u64, struct file_t, 4096, BPF_F_NO_COMMON_LRU)
 BPF_LRU_MAP_FLAGS(tasks_in_coredump, u64, u8, 64, BPF_F_NO_COMMON_LRU)
 
 BPF_PERCPU_ARRAY_MAP(cgroup_tracing_event_gen, u32, struct cgroup_tracing_event_t, 1)
