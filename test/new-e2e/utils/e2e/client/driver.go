@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/DataDog/test-infra-definitions/components/datadog/driver"
+	"github.com/DataDog/test-infra-definitions/components/vm"
 )
 
 var _ clientService[driver.ClientData] = (*Driver)(nil)
@@ -12,13 +13,13 @@ var _ clientService[driver.ClientData] = (*Driver)(nil)
 type Driver struct {
 	*UpResultDeserializer[driver.ClientData]
 	*vmClient
-	//FileManager *command.FileManager
+	vm vm.VM
 }
 
 // Create a new instance of Driver
 func NewDriver(installer *driver.Installer) *Driver {
 	driverInstance := &Driver{
-		//FileManager: installer.VM().GetFileManager(),
+		vm: installer.VM(),
 	}
 	driverInstance.UpResultDeserializer = NewUpResultDeserializer[driver.ClientData](installer, driverInstance)
 	return driverInstance
@@ -28,5 +29,10 @@ func NewDriver(installer *driver.Installer) *Driver {
 func (driver *Driver) initService(t *testing.T, data *driver.ClientData) error {
 	var err error
 	driver.vmClient, err = newVMClient(t, "", &data.Connection)
+	return err
+}
+
+func (driver *Driver) CopyFolder(localPath, remotePath string) error {
+	_, err := driver.vm.GetFileManager().CopyAbsoluteFolder(localPath, remotePath)
 	return err
 }
