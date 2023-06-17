@@ -10,7 +10,7 @@ replace github.com/DataDog/datadog-agent/test/fakeintake => ../fakeintake
 
 require (
 	github.com/DataDog/datadog-agent/test/fakeintake v0.46.0-rc.2
-	github.com/DataDog/test-infra-definitions v0.0.0-20230616223632-b9fc918efcfb
+	github.com/DataDog/test-infra-definitions v0.0.0-20230617075043-1fae6120e78a
 	github.com/aws/aws-sdk-go-v2 v1.18.0
 	github.com/aws/aws-sdk-go-v2/config v1.18.25
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.36.4
@@ -85,12 +85,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/pulumi/pulumi-aws/sdk/v5 v5.41.0 // indirect
 	github.com/pulumi/pulumi-awsx/sdk v1.0.2 // indirect
-	github.com/pulumi/pulumi-azure-native-sdk v1.103.0 // indirect
-	github.com/pulumi/pulumi-azure-native-sdk/compute v1.103.0 // indirect
-	github.com/pulumi/pulumi-azure-native-sdk/containerservice v1.103.0 // indirect
-	github.com/pulumi/pulumi-azure-native-sdk/network v1.103.0 // indirect
 	github.com/pulumi/pulumi-docker/sdk/v3 v3.6.1 // indirect
-	github.com/pulumi/pulumi-eks/sdk v1.0.1 // indirect
 	github.com/pulumi/pulumi-kubernetes/sdk/v3 v3.29.0 // indirect
 	github.com/pulumi/pulumi-libvirt/sdk v0.4.0 // indirect
 	github.com/pulumi/pulumi-random/sdk/v4 v4.13.2 // indirect

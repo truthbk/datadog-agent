@@ -107,7 +107,7 @@ type DriverEnv struct {
 	Driver *client.Driver
 }
 
-func DriverStackDef(absoluteMSIPath string, vmParams ...Ec2VMOption) *StackDefinition[DriverEnv] {
+func DriverStackDef(vmParams []Ec2VMOption, driverParams ...func(*driver.Params) error) *StackDefinition[DriverEnv] {
 	return EnvFactoryStackDef(
 		func(ctx *pulumi.Context) (*DriverEnv, error) {
 			vm, err := ec2vm.NewEc2VM(ctx, vmParams...)
@@ -115,7 +115,7 @@ func DriverStackDef(absoluteMSIPath string, vmParams ...Ec2VMOption) *StackDefin
 				return nil, err
 			}
 
-			installer, err := driver.NewInstaller(absoluteMSIPath, vm)
+			installer, err := driver.NewInstaller(vm, driverParams...)
 			if err != nil {
 				return nil, err
 			}
