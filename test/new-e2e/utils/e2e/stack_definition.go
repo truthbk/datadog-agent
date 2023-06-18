@@ -9,7 +9,6 @@ import (
 	"github.com/DataDog/datadog-agent/test/new-e2e/runner"
 	"github.com/DataDog/datadog-agent/test/new-e2e/utils/e2e/client"
 	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
-	"github.com/DataDog/test-infra-definitions/components/datadog/driver"
 	"github.com/DataDog/test-infra-definitions/components/vm"
 	"github.com/DataDog/test-infra-definitions/scenarios/aws/ecs"
 	ec2vm "github.com/DataDog/test-infra-definitions/scenarios/aws/vm/ec2VM"
@@ -97,32 +96,6 @@ func AgentStackDef(vmParams []Ec2VMOption, agentParams ...func(*agent.Params) er
 				VM:         client.NewVM(vm),
 				Agent:      client.NewAgent(installer),
 				Fakeintake: client.NewFakeintake(fakeintakeExporter),
-			}, nil
-		},
-	)
-}
-
-type DriverEnv struct {
-	VM     *client.VM
-	Driver *client.Driver
-}
-
-func DriverStackDef(vmParams []Ec2VMOption, driverParams ...func(*driver.Params) error) *StackDefinition[DriverEnv] {
-	return EnvFactoryStackDef(
-		func(ctx *pulumi.Context) (*DriverEnv, error) {
-			vm, err := ec2vm.NewEc2VM(ctx, vmParams...)
-			if err != nil {
-				return nil, err
-			}
-
-			installer, err := driver.NewInstaller(vm, driverParams...)
-			if err != nil {
-				return nil, err
-			}
-
-			return &DriverEnv{
-				VM:     client.NewVM(vm),
-				Driver: client.NewDriver(installer),
 			}, nil
 		},
 	)
