@@ -257,11 +257,6 @@ func (p *GoTLSProgram) Start() {
 		return
 	}
 
-	if err = p.procMonitor.monitor.Initialize(); err != nil {
-		log.Errorf("failed to initialize process monitor error: %s", err)
-		return
-	}
-
 	p.wg.Add(1)
 	go func() {
 		processSync := time.NewTicker(scanTerminatedProcessesInterval)
@@ -293,6 +288,7 @@ func (p *GoTLSProgram) Start() {
 }
 
 func (p *GoTLSProgram) Stop() {
+	close(p.done)
 	if p.procMonitor.cleanupExec != nil {
 		p.procMonitor.cleanupExec()
 	}
@@ -307,6 +303,9 @@ func (p *GoTLSProgram) Stop() {
 	for pid := range p.processes {
 		p.unregisterProcess(pid)
 	}
+
+	// Waiting for the main event loop to finish.
+	p.wg.Wait()
 }
 
 func (p *GoTLSProgram) handleProcessStart(pid pid) {
