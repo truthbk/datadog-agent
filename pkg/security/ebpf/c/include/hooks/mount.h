@@ -222,12 +222,16 @@ int __attribute__((always_inline)) kprobe_dr_unshare_mntns_stage_one_callback(st
     syscall->resolver.ret = 0;
 
     resolve_dentry(ctx, DR_KPROBE);
+
+    // if the tail call fails, we need to pop the syscall cache entry
+    pop_syscall(EVENT_UNSHARE_MNTNS);
+
     return 0;
 }
 
 SEC("kprobe/dr_unshare_mntns_stage_two_callback")
 int __attribute__((always_inline)) kprobe_dr_unshare_mntns_stage_two_callback(struct pt_regs *ctx) {
-    struct syscall_cache_t *syscall = peek_syscall(EVENT_UNSHARE_MNTNS);
+    struct syscall_cache_t *syscall = pop_syscall(EVENT_UNSHARE_MNTNS);
     if (!syscall) {
         return 0;
     }
@@ -277,6 +281,10 @@ int kprobe_clone_mnt(struct pt_regs *ctx) {
     syscall->resolver.ret = 0;
 
     resolve_dentry(ctx, DR_KPROBE);
+
+    // if the tail call fails, we need to pop the syscall cache entry
+    pop_syscall(EVENT_MOUNT);
+
     return 0;
 }
 
@@ -308,6 +316,10 @@ int kprobe_attach_recursive_mnt(struct pt_regs *ctx) {
     syscall->resolver.ret = 0;
 
     resolve_dentry(ctx, DR_KPROBE);
+
+    // if the tail call fails, we need to pop the syscall cache entry
+    pop_syscall(EVENT_MOUNT);
+
     return 0;
 }
 
@@ -339,11 +351,16 @@ int kprobe_propagate_mnt(struct pt_regs *ctx) {
     syscall->resolver.ret = 0;
 
     resolve_dentry(ctx, DR_KPROBE);
+
+    // if the tail call fails, we need to pop the syscall cache entry
+    pop_syscall(EVENT_MOUNT);
+
     return 0;
 }
 
 int __attribute__((always_inline)) sys_mount_ret(void *ctx, int retval, int dr_type) {
     if (retval) {
+        pop_syscall(EVENT_MOUNT);
         return 0;
     }
 

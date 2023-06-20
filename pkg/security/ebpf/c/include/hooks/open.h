@@ -174,6 +174,7 @@ int kprobe_io_openat2(struct pt_regs *ctx) {
 
 int __attribute__((always_inline)) sys_open_ret(void *ctx, int retval, int dr_type) {
     if (IS_UNHANDLED_ERROR(retval)) {
+        pop_syscall(EVENT_OPEN);
         return 0;
     }
 
@@ -185,6 +186,7 @@ int __attribute__((always_inline)) sys_open_ret(void *ctx, int retval, int dr_ty
     // increase mount ref
     inc_mount_ref(syscall->open.file.path_key.mount_id);
     if (syscall->discarded) {
+        pop_syscall(EVENT_OPEN);
         return 0;
     }
 

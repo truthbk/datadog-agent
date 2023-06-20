@@ -180,12 +180,14 @@ int sched_process_fork(struct _tracepoint_sched_process_fork *args) {
 
     // if this is a thread, leave
     if (syscall->fork.is_thread) {
+        pop_syscall(EVENT_FORK);
         return 0;
     }
 
     u64 ts = bpf_ktime_get_ns();
     struct process_event_t *event = new_process_event(1);
     if (event == NULL) {
+        pop_syscall(EVENT_FORK);
         return 0;
     }
 
@@ -205,6 +207,7 @@ int sched_process_fork(struct _tracepoint_sched_process_fork *args) {
 
     // ignore kthreads
     if (IS_KTHREAD(ppid, pid)) {
+        pop_syscall(EVENT_FORK);
         return 0;
     }
 
@@ -234,6 +237,8 @@ int sched_process_fork(struct _tracepoint_sched_process_fork *args) {
 
     // send the entry to maintain userspace cache
     send_event_ptr(args, EVENT_FORK, event);
+
+    pop_syscall(EVENT_FORK);
 
     return 0;
 }
