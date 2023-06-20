@@ -5,7 +5,8 @@ variables:
   stage: macrobenchmarks
   #tags: ["runner:apm-k8s-same-cpu"] # TODO: Uncomment once execution on apm-k8s-same-cpu runners is figured out.
   #Dummy commit
-  tags: ["team:apm-k8s-tweaked-metal-datadog-agent", "specific:true"]
+  #tags: ["team:apm-k8s-tweaked-metal-datadog-agent", "specific:true"]
+  tags: ["runner:main"]
   timeout: 1h
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
