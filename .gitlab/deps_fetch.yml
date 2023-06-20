@@ -16,11 +16,6 @@ go_deps:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   tags: ["arch:amd64"]
   needs: []
-  variables:
-    KUBERNETES_EPHEMERAL_STORAGE_REQUEST: 8Gi
-    KUBERNETES_CPU_REQUEST: 16
-    KUBERNETES_MEMORY_REQUEST: 16Gi
-    KUBERNETES_MEMORY_LIMIT: 32Gi
   script:
     - source /root/.bashrc
     - inv -e deps --verbose
@@ -36,11 +31,6 @@ go_tools_deps:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   tags: ["arch:amd64"]
   needs: []
-  variables:
-    KUBERNETES_EPHEMERAL_STORAGE_REQUEST: 8Gi
-    KUBERNETES_CPU_REQUEST: 16
-    KUBERNETES_MEMORY_REQUEST: 16Gi
-    KUBERNETES_MEMORY_LIMIT: 32Gi
   script:
     - source /root/.bashrc
     - inv -e download-tools
