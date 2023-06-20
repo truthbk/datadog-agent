@@ -41,12 +41,13 @@ variables:
   allow_failure: true
 
 trace-agent-endpoint-v04-benchmarks:
-extends: .benchmarks
-variables:
-  DD_BENCHMARKS_CONFIGURATION: trace-agent-endpoint-v04
-  TRACE_AGENT_ENDPOINT: v04
+  extends: .benchmarks
+  variables:
+    DD_BENCHMARKS_CONFIGURATION: trace-agent-endpoint-v04
+    TRACE_AGENT_ENDPOINT: v04
 
 trace-agent-endpoint-v05-benchmarks:
-extends: .benchmarks
-variables:
-  DD_BENCHMARKS_CONFIGURATION: trace-agent-endpoint-v05
+  extends: .benchmarks
+  variables:
+    DD_BENCHMARKS_CONFIGURATION: trace-agent-endpoint-v05
+    TRACE_AGENT_ENDPOINT: v05
