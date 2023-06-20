@@ -11,7 +11,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"os"
 	"strings"
 	"time"
 
@@ -71,31 +70,20 @@ func imageWriter(client *containerd.Client, img containerd.Image) imageSave {
 }
 
 // Custom code based on https://github.com/aquasecurity/trivy/blob/2206e008ea6e5f4e5c1aa7bc8fc77dae7041de6a/pkg/fanal/image/daemon/containerd.go `ContainerdImage`
-func convertContainerdImage(ctx context.Context, client *containerd.Client, imgMeta *workloadmeta.ContainerImageMetadata, img containerd.Image) (types.Image, func(), error) {
+func convertContainerdImage(ctx context.Context, client *containerd.Client, imgMeta *workloadmeta.ContainerImageMetadata, img containerd.Image) (types.Image, error) {
 	ctx = namespaces.WithNamespace(ctx, imgMeta.Namespace)
-	cleanup := func() {}
-
-	f, err := os.CreateTemp("", "fanal-containerd-*")
-	if err != nil {
-		return nil, cleanup, xerrors.Errorf("failed to create a temporary file: %w", err)
-	}
-
-	cleanup = func() {
-		_ = f.Close()
-		_ = os.Remove(f.Name())
-	}
 
 	insp, history, ref, err := inspect(ctx, imgMeta, img)
 	if err != nil {
-		return nil, cleanup, xerrors.Errorf("inspect error: %w", err) // Note: the original code doesn't return "cleanup".
+		return nil, xerrors.Errorf("inspect error: %w", err) // Note: the original code doesn't return "cleanup".
 	}
 
 	return &image{
 		name:    img.Name(),
-		opener:  imageOpener(ctx, ref.String(), f, imageWriter(client, img)),
+		opener:  imageOpener(ctx, ref.String(), imageWriter(client, img)),
 		inspect: insp,
 		history: history,
-	}, cleanup, nil
+	}, nil
 }
 
 // readImageConfig reads the config spec (`application/vnd.oci.image.config.v1+json`) for img.platform from content store.

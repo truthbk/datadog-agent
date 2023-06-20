@@ -204,11 +204,7 @@ func (c *Collector) GetCacheCleaner() CacheCleaner {
 }
 
 func (c *Collector) ScanDockerImage(ctx context.Context, imgMeta *workloadmeta.ContainerImageMetadata, client client.ImageAPIClient, scanOptions sbom.ScanOptions) (sbom.Report, error) {
-	fanalImage, cleanup, err := convertDockerImage(ctx, client, imgMeta)
-	if cleanup != nil {
-		defer cleanup()
-	}
-
+	fanalImage, err := convertDockerImage(ctx, client, imgMeta)
 	if err != nil {
 		return nil, fmt.Errorf("unable to convert docker image, err: %w", err)
 	}
@@ -217,10 +213,7 @@ func (c *Collector) ScanDockerImage(ctx context.Context, imgMeta *workloadmeta.C
 }
 
 func (c *Collector) ScanContainerdImage(ctx context.Context, imgMeta *workloadmeta.ContainerImageMetadata, img containerd.Image, client cutil.ContainerdItf, scanOptions sbom.ScanOptions) (sbom.Report, error) {
-	fanalImage, cleanup, err := convertContainerdImage(ctx, client.RawClient(), imgMeta, img)
-	if cleanup != nil {
-		defer cleanup()
-	}
+	fanalImage, err := convertContainerdImage(ctx, client.RawClient(), imgMeta, img)
 	if err != nil {
 		return nil, fmt.Errorf("unable to convert containerd image, err: %w", err)
 	}
