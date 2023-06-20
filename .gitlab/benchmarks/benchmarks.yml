@@ -14,6 +14,7 @@ variables:
   # If you have a problem with Gitlab cache, see Troubleshooting section in Benchmarking Platform docs
   image: $BENCHMARKS_CI_IMAGE
   script:
+    - export
     - printenv
     - echo "Verifying the datadog-agent rpo"
     - ls /go/src/github.com/DataDog/datadog-agent
@@ -49,7 +50,3 @@ trace-agent-endpoint-v05-benchmarks:
 extends: .benchmarks
 variables:
   DD_BENCHMARKS_CONFIGURATION: trace-agent-endpoint-v05
-
-test:
-  script:
-    - export
