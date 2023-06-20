@@ -17,9 +17,10 @@ go_deps:
   tags: ["arch:amd64"]
   needs: []
   variables:
+    KUBERNETES_EPHEMERAL_STORAGE_REQUEST: 8Gi
     KUBERNETES_CPU_REQUEST: 16
-    KUBERNETES_MEMORY_REQUEST: 8Gi
-    KUBERNETES_MEMORY_LIMIT: 16Gi
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 32Gi
   script:
     - source /root/.bashrc
     - inv -e deps --verbose
@@ -36,9 +37,10 @@ go_tools_deps:
   tags: ["arch:amd64"]
   needs: []
   variables:
+    KUBERNETES_EPHEMERAL_STORAGE_REQUEST: 8Gi
     KUBERNETES_CPU_REQUEST: 16
-    KUBERNETES_MEMORY_REQUEST: 8Gi
-    KUBERNETES_MEMORY_LIMIT: 16Gi
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 32Gi
   script:
     - source /root/.bashrc
     - inv -e download-tools
