@@ -1,11 +1,11 @@
 variables:
-  BENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:trace-agent_ci-cd-exp-2023-06-14
+  BENCHMARKS_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:trace-agent
   BENCHMARK_PLATFORM_BRANCH: igoragoli/trace-agent
 .benchmarks:
   stage: macrobenchmarks
   #tags: ["runner:apm-k8s-same-cpu"] # TODO: Uncomment once execution on apm-k8s-same-cpu runners is figured out.
   #Dummy commit
-  tags: ["runner:main"]
+  tags: ["team:apm-k8s-tweaked-metal-datadog-agent", "specific:true"]
   timeout: 1h
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
@@ -39,7 +39,17 @@ variables:
   # benchmarks get changed to run on every PR)
   allow_failure: true
 
-baseline-benchmarks:
-  extends: .benchmarks
-  variables:
-    DD_RELENV_CONFIGURATION: baseline
+trace-agent-endpoint-v04-benchmarks:
+extends: .benchmarks
+variables:
+  DD_BENCHMARKS_CONFIGURATION: trace-agent-endpoint-v04
+  TRACE_AGENT_ENDPOINT: v04
+
+trace-agent-endpoint-v05-benchmarks:
+extends: .benchmarks
+variables:
+  DD_BENCHMARKS_CONFIGURATION: trace-agent-endpoint-v05
+
+test:
+  script:
+    - export
