@@ -8,6 +8,7 @@ package checks
 import (
 	"context"
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -17,6 +18,8 @@ import (
 	"go.uber.org/atomic"
 
 	ddconfig "github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/process/events"
+	eventmodel "github.com/DataDog/datadog-agent/pkg/process/events/model"
 	"github.com/DataDog/datadog-agent/pkg/process/metadata"
 	workloadMetaExtractor "github.com/DataDog/datadog-agent/pkg/process/metadata/workloadmeta"
 	"github.com/DataDog/datadog-agent/pkg/process/net"
@@ -103,6 +106,9 @@ type ProcessCheck struct {
 
 	lookupIdProbe *LookupIdProbe
 
+	store    events.Store
+	listener *events.SysProbeListener
+
 	extractors []metadata.Extractor
 }
 
@@ -132,10 +138,37 @@ func (p *ProcessCheck) Init(syscfg *SysProbeConfig, info *HostInfo) error {
 	}
 
 	initScrubber(p.config, p.scrubber)
+	if syscfg.ProcessModuleEnabled {
+		if err = p.initProcessEventStore(); err != nil {
+			return err
+		}
+	}
 
 	p.disallowList = initDisallowList(p.config)
 
 	p.initConnRates()
+	return nil
+}
+
+func (p *ProcessCheck) initProcessEventStore() error {
+	store, err := events.NewRingStore(p.config, statsd.Client)
+	if err != nil {
+		return fmt.Errorf("event ring store can't be created: %v", err)
+	}
+	p.store = store
+
+	p.listener, err = events.NewListener(func(e *eventmodel.ProcessEvent) {
+		// push events to the store asynchronously without checking for errors
+		if e.EventType == eventmodel.Exit && time.Since(e.ExecTime) >= 10*time.Second {
+			_ = p.store.Push(e, nil)
+		}
+	})
+	if err != nil {
+		return fmt.Errorf("event listener can't be created: %v", err)
+	}
+
+	p.store.Run()
+	p.listener.Run()
 	return nil
 }
 
@@ -186,7 +219,17 @@ func (p *ProcessCheck) Realtime() bool { return false }
 func (p *ProcessCheck) ShouldSaveLastRun() bool { return true }
 
 // Cleanup frees any resource held by the ProcessCheck before the agent exits
-func (p *ProcessCheck) Cleanup() {}
+func (p *ProcessCheck) Cleanup() {
+	log.Info("Cleaning up process check")
+	if p.listener != nil {
+		p.listener.Stop()
+	}
+
+	if p.store != nil {
+		p.store.Stop()
+	}
+	log.Info("Process check cleanup complete")
+}
 
 func (p *ProcessCheck) run(groupID int32, collectRealTime bool) (RunResult, error) {
 	start := time.Now()
@@ -251,6 +294,18 @@ func (p *ProcessCheck) run(groupID int32, collectRealTime bool) (RunResult, erro
 
 	collectorProcHints := p.generateHints()
 	p.checkCount++
+
+	// Get Events
+	timeout := time.Second
+	procEvents, err := p.store.Pull(context.Background(), timeout)
+
+	var sb strings.Builder
+	sb.WriteString("[")
+	for _, e := range procEvents {
+		sb.WriteString(fmt.Sprintf("pid:%d, exit_code:%d, cmdline:%s", e.Pid, e.ExitCode, e.Cmdline))
+	}
+	sb.WriteString("]")
+	log.Infof("exit events: %s", sb.String())
 
 	connsRates := p.getLastConnRates()
 	procsByCtr := fmtProcesses(p.scrubber, p.disallowList, procs, p.lastProcs, pidToCid, cpuTimes[0], p.lastCPUTime, p.lastRun, connsRates, p.lookupIdProbe)
