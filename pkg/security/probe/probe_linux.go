@@ -40,7 +40,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/ebpf/probes"
 	"github.com/DataDog/datadog-agent/pkg/security/events"
 	"github.com/DataDog/datadog-agent/pkg/security/metrics"
-	pconfig "github.com/DataDog/datadog-agent/pkg/security/probe/config"
 	"github.com/DataDog/datadog-agent/pkg/security/probe/constantfetch"
 	"github.com/DataDog/datadog-agent/pkg/security/probe/erpc"
 	"github.com/DataDog/datadog-agent/pkg/security/probe/eventstream"
@@ -64,15 +63,6 @@ import (
 	utilkernel "github.com/DataDog/datadog-agent/pkg/util/kernel"
 )
 
-// EventStream describes the interface implemented by reordered perf maps or ring buffers
-type EventStream interface {
-	Init(*manager.Manager, *pconfig.Config) error
-	SetMonitor(eventstream.LostEventCounter)
-	Start(*sync.WaitGroup) error
-	Pause() error
-	Resume() error
-}
-
 var (
 	// defaultEventTypes event types used whatever the event handlers or the rules
 	defaultEventTypes = []eval.EventType{
@@ -94,7 +84,7 @@ type PlatformProbe struct {
 	scrubber        *procutil.DataScrubber
 
 	// Ring
-	eventStream EventStream
+	eventStream eventstream.EventStream
 
 	// ActivityDumps section
 	activityDumpHandler dump.ActivityDumpHandler
@@ -505,9 +495,10 @@ func (p *Probe) onEventLost(perfMapName string, perEvent map[string]uint64) {
 	}
 }
 
-func (p *Probe) handleEvent(CPU int, data []byte) {
+func (p *Probe) handleEvent(kevent *eventstream.KernelEvent) {
 	offset := 0
 	event := p.zeroEvent()
+	data := kevent.Data
 
 	dataLen := uint64(len(data))
 
@@ -519,7 +510,7 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 	offset += read
 
 	eventType := event.GetEventType()
-	p.monitor.eventStreamMonitor.CountEvent(eventType, event.TimestampRaw, 1, dataLen, eventstream.EventStreamMap, CPU)
+	p.monitor.eventStreamMonitor.CountEvent(eventType, event.TimestampRaw, 1, dataLen, eventstream.EventStreamMap, kevent.CPU)
 
 	// no need to dispatch events
 	switch eventType {
@@ -1642,14 +1633,28 @@ func NewProbe(config *config.Config, opts Opts) (*Probe, error) {
 	// be sure to zero the probe event before everything else
 	p.zeroEvent()
 
+	eventQueue := eventstream.NewEventQueue(1024, p.handleEvent)
+	queueNewEvent := func(i int, data []byte) {
+		kevent := &eventstream.KernelEvent{
+			CPU:  i,
+			Data: make([]byte, len(data)),
+		}
+		copy(kevent.Data, data)
+		eventQueue.Queue(kevent)
+	}
+
 	if useRingBuffers {
-		p.eventStream = ringbuffer.New(p.handleEvent)
+		ringbuffer := ringbuffer.New(queueNewEvent)
+		eventQueue.AddEventSource(ringbuffer)
 	} else {
-		p.eventStream, err = reorderer.NewOrderedPerfMap(p.ctx, p.handleEvent, p.StatsdClient)
+		perfmap, err := reorderer.NewOrderedPerfMap(p.ctx, queueNewEvent, p.StatsdClient)
 		if err != nil {
 			return nil, err
 		}
+		eventQueue.AddEventSource(perfmap)
 	}
+
+	p.eventStream = eventQueue
 
 	return p, nil
 }

@@ -7,4 +7,20 @@
 
 package eventstream
 
+import (
+	"sync"
+
+	"github.com/DataDog/datadog-agent/pkg/security/probe/config"
+	manager "github.com/DataDog/ebpf-manager"
+)
+
 const EventStreamMap = "events"
+
+// EventStream describes the interface implemented by reordered perf maps or ring buffers
+type EventStream interface {
+	Init(*manager.Manager, *config.Config) error
+	SetMonitor(LostEventCounter)
+	Start(*sync.WaitGroup) error
+	Pause() error
+	Resume() error
+}
