@@ -496,17 +496,29 @@ func startAgent(
 		}
 	}
 
+	var logsAgent *logs.Agent
+
 	// start logs-agent.  This must happen after AutoConfig is set up (via common.LoadComponents)
 	if pkgconfig.Datadog.GetBool("logs_enabled") || pkgconfig.Datadog.GetBool("log_enabled") {
 		if pkgconfig.Datadog.GetBool("log_enabled") {
 			log.Warn(`"log_enabled" is deprecated, use "logs_enabled" instead`)
 		}
-		if _, err := logs.Start(common.AC); err != nil {
+		var err error
+		if logsAgent, err = logs.Start(common.AC); err != nil {
 			log.Error("Could not start logs-agent: ", err)
 		}
 	} else {
 		log.Info("logs-agent disabled")
 	}
+
+	// Get the pipeline provider
+	pipelineProvider := logsAgent.GetPipelineProvider()
+	// pass it into your depednency
+
+	// Acquire a pipeline channel, write your logs to it
+	pipelineChan := pipelineProvider.NextPipelineChan()
+
+	_ = pipelineChan // Hack to compile (remove unused warning)
 
 	// Start NetFlow server
 	// This must happen after LoadComponents is set up (via common.LoadComponents).
