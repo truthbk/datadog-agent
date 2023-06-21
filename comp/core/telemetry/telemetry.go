@@ -6,11 +6,17 @@
 package telemetry
 
 import (
+	"context"
+	"log"
 	"net/http"
+	"time"
+
+	promOtel "go.opentelemetry.io/otel/exporters/prometheus"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/otel/sdk/metric"
 )
 
 // TODO (components): Remove the global and move this into `newTelemetry` after all telemetry is migrated to the component
@@ -26,10 +32,48 @@ func newRegistry() *prometheus.Registry {
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
 	reg.MustRegister(collectors.NewGoCollector())
+
+	ctx := context.Background()
+	_ = ctx
+
+	// The exporter embeds a default OpenTelemetry Reader and
+	// implements prometheus.Collector, allowing it to be used as
+	// both a Reader and Collector.
+	exporter, err := promOtel.New(promOtel.WithRegisterer(reg))
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	provider := metric.NewMeterProvider(metric.WithReader(exporter))
+	meter := provider.Meter("ddagent-test")
+
+	c, err := meter.Float64Counter("barfoo")
+	_ = c
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	go func() {
+		for {
+			time.Sleep(time.Millisecond * 1000)
+			c.Add(ctx, 123)
+		}
+	}()
+
+	// hist, _ := meter.Float64Histogram("foo")
+
+	// hist.Record()
+
+	// _ = hist
+	// hist.Record()
+
 	return reg
 }
 
 func newTelemetry() Component {
+
 	return &telemetryImpl{
 		registry: registry,
 	}
