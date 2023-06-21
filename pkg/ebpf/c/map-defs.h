@@ -32,7 +32,7 @@
     BPF_MAP(name, BPF_MAP_TYPE_PROG_ARRAY, u32, u32, max_entries, 0, 0)
 
 #define BPF_LRU_MAP(name, key_type, value_type, max_entries) \
-    BPF_MAP(name, BPF_MAP_TYPE_LRU_HASH, key_type, value_type, max_entries, 0, 0)
+    BPF_MAP(name, BPF_MAP_TYPE_LRU_HASH, key_type, value_type, max_entries, 0, BPF_F_NO_COMMON_LRU)
 
 #define BPF_LRU_MAP_PINNED(name, key_type, value_type, max_entries) \
     BPF_MAP(name, BPF_MAP_TYPE_LRU_HASH, key_type, value_type, max_entries, 1, 0)
