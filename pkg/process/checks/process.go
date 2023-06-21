@@ -308,7 +308,8 @@ func (p *ProcessCheck) run(groupID int32, collectRealTime bool) (RunResult, erro
 	log.Infof("exit events: %s", sb.String())
 
 	connsRates := p.getLastConnRates()
-	procsByCtr := fmtProcesses(p.scrubber, p.disallowList, procs, p.lastProcs, pidToCid, cpuTimes[0], p.lastCPUTime, p.lastRun, connsRates, p.lookupIdProbe)
+	procsByCtr := fmtProcesses(p.scrubber, p.disallowList, procs, p.lastProcs, pidToCid, cpuTimes[0],
+		p.lastCPUTime, p.lastRun, connsRates, p.lookupIdProbe)
 	messages, totalProcs, totalContainers := createProcCtrMessages(p.hostInfo, procsByCtr, containers, p.maxBatchSize, p.maxBatchBytes, groupID, p.networkID, collectorProcHints)
 
 	// Store the last state for comparison on the next run.
@@ -498,6 +499,24 @@ func fmtProcesses(
 		}
 		procsByCtr[proc.ContainerId] = append(procsByCtr[proc.ContainerId], proc)
 	}
+
+	var terminatedProcs []*procutil.Process
+	for pid, lp := range lastProcs {
+		if _, ok := procs[pid]; !ok {
+			terminatedProcs = append(terminatedProcs, lp)
+		}
+	}
+
+	if terminatedProcs != nil {
+		var sb strings.Builder
+		sb.WriteString("[")
+		for _, tp := range terminatedProcs {
+			sb.WriteString(fmt.Sprintf("pid:%d, cmdline:%s", tp.Pid, tp.Cmdline))
+		}
+		sb.WriteString("]")
+		log.Infof("processes that have exited since the last check: %s", sb.String())
+	}
+	// TODO: Exit Code and time enrichment can go here
 
 	scrubber.IncrementCacheAge()
 
