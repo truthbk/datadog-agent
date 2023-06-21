@@ -144,6 +144,7 @@ def _build_wxs(ctx, env, outdir):
         raise Exit("Failed to build the MSI WXS.", code=1)
 
     # sign the MakeSfxCA output files
+    ctx.run(fr'cmd /c "call C:\devtools\vstudio\Common7\Tools\VsDevCmd.bat & dumpbin /ALL {outdir}\CustomActions.CA.dll"')
     sign_file(ctx, os.path.join(outdir, 'CustomActions.CA.dll'))
 
 
