@@ -16,6 +16,7 @@ from . import (
     dogstatsd,
     epforwarder,
     github,
+    gohai,
     msi,
     new_e2e_tests,
     package,
@@ -105,6 +106,7 @@ ns.add_task(junit_upload)
 ns.add_task(junit_macos_repack)
 ns.add_task(fuzz)
 ns.add_task(go_fix)
+ns.add_task(gohai.compare)
 
 # add namespaced tasks to the root
 ns.add_collection(agent)
