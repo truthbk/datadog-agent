@@ -51,6 +51,7 @@ type DeviceCheck struct {
 	sessionCloseErrorCount *atomic.Uint64
 	savedDynamicTags       []string
 	nextAutodetectMetrics  time.Time
+	diagnostics            []metadata.DiagnosticMetadata
 }
 
 // NewDeviceCheck returns a new DeviceCheck
@@ -103,14 +104,23 @@ func (d *DeviceCheck) Run(collectionTime time.Time) error {
 	startTime := time.Now()
 	staticTags := append(d.config.GetStaticTags(), d.config.GetNetworkTags()...)
 
+	d.diagnostics = nil
+
 	// Fetch and report metrics
 	var checkErr error
 	var deviceStatus metadata.DeviceStatus
+	deviceId := fmt.Sprintf("%s:%s", d.config.Namespace, d.config.IPAddress) // FIXME
 
 	deviceReachable, dynamicTags, values, checkErr := d.getValuesAndTags()
 	tags := common.CopyStrings(staticTags)
 	if checkErr != nil {
 		tags = append(tags, d.savedDynamicTags...)
+		d.diagnostics = append(d.diagnostics, metadata.DiagnosticMetadata{
+			DeviceId:   deviceId,
+			Severity:   "error",
+			ErrorCode:  1,
+			Diagnostic: "Agent is not able to poll this network device. Check the authentication method and ensure the agent can ping this network device.",
+		})
 		d.sender.ServiceCheck(serviceCheckName, metrics.ServiceCheckCritical, tags, checkErr.Error())
 	} else {
 		d.savedDynamicTags = dynamicTags
@@ -131,13 +141,24 @@ func (d *DeviceCheck) Run(collectionTime time.Time) error {
 			deviceStatus = metadata.DeviceStatusUnreachable
 		}
 
+		checkDuration := time.Since(startTime).Seconds()
+
+		if checkDuration > 1.0 { // FIXME
+			d.diagnostics = append(d.diagnostics, metadata.DiagnosticMetadata{
+				DeviceId:   deviceId,
+				Severity:   "warn",
+				ErrorCode:  2,
+				Diagnostic: fmt.Sprintf("Uhoh, it looks like check duration is high for this device, was %f seconds", checkDuration),
+			})
+		}
+
 		// We include instance tags to `deviceMetadataTags` since device metadata tags are not enriched with `checkSender.checkTags`.
 		// `checkSender.checkTags` are added for metrics, service checks, events only.
 		// Note that we don't add some extra tags like `service` tag that might be present in `checkSender.checkTags`.
 		deviceMetadataTags := append(common.CopyStrings(tags), d.config.InstanceTags...)
 		deviceMetadataTags = append(deviceMetadataTags, common.GetAgentVersionTag())
 
-		d.sender.ReportNetworkDeviceMetadata(d.config, values, deviceMetadataTags, collectionTime, deviceStatus)
+		d.sender.ReportNetworkDeviceMetadata(d.config, values, deviceMetadataTags, collectionTime, deviceStatus, d.diagnostics)
 	}
 
 	d.submitTelemetryMetrics(startTime, tags)
@@ -160,9 +181,17 @@ func (d *DeviceCheck) getValuesAndTags() (bool, []string, *valuestore.ResultValu
 	var checkErrors []string
 	var tags []string
 
+	deviceId := fmt.Sprintf("%s:%s", d.config.Namespace, d.config.IPAddress) // FIXME
+
 	// Create connection
 	connErr := d.session.Connect()
 	if connErr != nil {
+		d.diagnostics = append(d.diagnostics, metadata.DiagnosticMetadata{
+			DeviceId:   deviceId,
+			Severity:   "error",
+			ErrorCode:  3,
+			Diagnostic: "Agent could not open connection.",
+		})
 		return false, tags, nil, fmt.Errorf("snmp connection error: %s", connErr)
 	}
 	defer func() {
@@ -177,6 +206,12 @@ func (d *DeviceCheck) getValuesAndTags() (bool, []string, *valuestore.ResultValu
 	getNextValue, err := d.session.GetNext([]string{coresnmp.DeviceReachableGetNextOid})
 	if err != nil {
 		deviceReachable = false
+		d.diagnostics = append(d.diagnostics, metadata.DiagnosticMetadata{
+			DeviceId:   deviceId,
+			Severity:   "error",
+			ErrorCode:  4,
+			Diagnostic: "Agent is not able to poll this network device. Check the authentication method and ensure the agent can ping this network device.",
+		})
 		checkErrors = append(checkErrors, fmt.Sprintf("check device reachable: failed: %s", err))
 	} else {
 		deviceReachable = true
@@ -187,6 +222,12 @@ func (d *DeviceCheck) getValuesAndTags() (bool, []string, *valuestore.ResultValu
 
 	err = d.detectMetricsToMonitor(d.session)
 	if err != nil {
+		d.diagnostics = append(d.diagnostics, metadata.DiagnosticMetadata{
+			DeviceId:   deviceId,
+			Severity:   "error",
+			ErrorCode:  4,
+			Diagnostic: "Agent was not able to detect a profile for this network device.",
+		})
 		checkErrors = append(checkErrors, fmt.Sprintf("failed to autodetect profile: %s", err))
 	}
 
