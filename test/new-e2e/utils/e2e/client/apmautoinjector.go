@@ -1,6 +1,7 @@
 package client
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/DataDog/test-infra-definitions/components/datadog/apmautoinjector"
@@ -31,7 +32,7 @@ func NewAPMAutoInjector(installer *apmautoinjector.Installer) *APMAutoInjector {
 
 func (inj *APMAutoInjector) DriverServiceStatus() (DriverStatus, error) {
 	output, err := inj.vmClient.ExecuteWithError("try { (get-service \"ddapm\" -ErrorAction Stop).Status } catch { write-host \"NOTINSTALLED\" }")
-	return DriverStatus(output), err
+	return DriverStatus(strings.Trim(output, "\n")), err
 }
 
 //lint:ignore U1000 Ignore unused function as this function is call using reflection
