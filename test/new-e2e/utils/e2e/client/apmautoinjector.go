@@ -30,7 +30,7 @@ func NewAPMAutoInjector(installer *apmautoinjector.Installer) *APMAutoInjector {
 }
 
 func (inj *APMAutoInjector) DriverServiceStatus() (DriverStatus, error) {
-	output, err := inj.vmClient.ExecuteWithError("try { (get-service \"ddapm\" -ErrorAction Stop).Status } catch { write-host \"NOTINSTALLED\" }\"")
+	output, err := inj.vmClient.ExecuteWithError("try { (get-service \"ddapm\" -ErrorAction Stop).Status } catch { write-host \"NOTINSTALLED\" }")
 	return DriverStatus(output), err
 }
 
