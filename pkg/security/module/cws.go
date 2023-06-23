@@ -21,6 +21,8 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"go.uber.org/atomic"
 
+	"github.com/DataDog/datadog-go/v5/statsd"
+
 	"github.com/DataDog/datadog-agent/pkg/eventmonitor"
 	"github.com/DataDog/datadog-agent/pkg/security/config"
 	"github.com/DataDog/datadog-agent/pkg/security/events"
@@ -36,7 +38,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
 	"github.com/DataDog/datadog-agent/pkg/security/utils"
 	"github.com/DataDog/datadog-agent/pkg/version"
-	"github.com/DataDog/datadog-go/v5/statsd"
 )
 
 const (
@@ -478,7 +479,7 @@ func (c *CWSConsumer) RuleMatch(rule *rules.Rule, event eval.Event) {
 	ev.FieldHandlers.ResolveContainerTags(ev, ev.ContainerContext)
 	ev.FieldHandlers.ResolveContainerCreatedAt(ev, ev.ContainerContext)
 
-	if ev.ContainerContext.ID != "" && c.config.ActivityDumpTagRulesEnabled {
+	if ev.ContainerContext.ID != "" && (c.config.ActivityDumpTagRulesEnabled || c.config.AnomalyDetectionTagRulesEnabled) {
 		ev.Rules = append(ev.Rules, model.NewMatchedRule(rule.Definition.ID, rule.Definition.Version, rule.Definition.Tags, rule.Definition.Policy.Name, rule.Definition.Policy.Version))
 	}
 	if val, ok := rule.Definition.GetTag("ruleset"); ok && val == "threat_score" {

@@ -214,10 +214,20 @@ CWS logs have the following JSON schema:
                 "async": {
                     "type": "boolean",
                     "description": "True if the event was asynchronous"
+                },
+                "matched_rules": {
+                    "items": {
+                        "$ref": "#/$defs/MatchedRule"
+                    },
+                    "type": "array",
+                    "description": "The list of rules that the event matched (only valid in the context of an anomaly)"
                 }
             },
             "additionalProperties": false,
             "type": "object",
+            "required": [
+                "matched_rules"
+            ],
             "description": "EventContextSerializer serializes an event context to JSON"
         },
         "ExitEvent": {
@@ -554,6 +564,43 @@ CWS logs have the following JSON schema:
                 "req_protection"
             ],
             "description": "MProtectEventSerializer serializes a mmap event to JSON"
+        },
+        "MatchedRule": {
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "description": "ID of the rule"
+                },
+                "version": {
+                    "type": "string",
+                    "description": "Version of the rule"
+                },
+                "tags": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array",
+                    "description": "Tags of the rule"
+                },
+                "policy_name": {
+                    "type": "string",
+                    "description": "Name of the policy that introduced the rule"
+                },
+                "policy_version": {
+                    "type": "string",
+                    "description": "Version of the policy that introduced the rule"
+                }
+            },
+            "additionalProperties": false,
+            "type": "object",
+            "required": [
+                "id",
+                "version",
+                "tags",
+                "policy_name",
+                "policy_version"
+            ],
+            "description": "MatchedRuleSerializer serializes a rule"
         },
         "ModuleEvent": {
             "properties": {
@@ -1625,10 +1672,20 @@ CWS logs have the following JSON schema:
         "async": {
             "type": "boolean",
             "description": "True if the event was asynchronous"
+        },
+        "matched_rules": {
+            "items": {
+                "$ref": "#/$defs/MatchedRule"
+            },
+            "type": "array",
+            "description": "The list of rules that the event matched (only valid in the context of an anomaly)"
         }
     },
     "additionalProperties": false,
     "type": "object",
+    "required": [
+        "matched_rules"
+    ],
     "description": "EventContextSerializer serializes an event context to JSON"
 }
 
@@ -1640,6 +1697,7 @@ CWS logs have the following JSON schema:
 | `category` | Event category |
 | `outcome` | Event outcome |
 | `async` | True if the event was asynchronous |
+| `matched_rules` | The list of rules that the event matched (only valid in the context of an anomaly) |
 
 
 ## `ExitEvent`
@@ -2115,6 +2173,59 @@ CWS logs have the following JSON schema:
 | `vm_end` | memory segment end address |
 | `vm_protection` | initial memory segment protection |
 | `req_protection` | new memory segment protection |
+
+
+## `MatchedRule`
+
+
+{{< code-block lang="json" collapsible="true" >}}
+{
+    "properties": {
+        "id": {
+            "type": "string",
+            "description": "ID of the rule"
+        },
+        "version": {
+            "type": "string",
+            "description": "Version of the rule"
+        },
+        "tags": {
+            "items": {
+                "type": "string"
+            },
+            "type": "array",
+            "description": "Tags of the rule"
+        },
+        "policy_name": {
+            "type": "string",
+            "description": "Name of the policy that introduced the rule"
+        },
+        "policy_version": {
+            "type": "string",
+            "description": "Version of the policy that introduced the rule"
+        }
+    },
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+        "id",
+        "version",
+        "tags",
+        "policy_name",
+        "policy_version"
+    ],
+    "description": "MatchedRuleSerializer serializes a rule"
+}
+
+{{< /code-block >}}
+
+| Field | Description |
+| ----- | ----------- |
+| `id` | ID of the rule |
+| `version` | Version of the rule |
+| `tags` | Tags of the rule |
+| `policy_name` | Name of the policy that introduced the rule |
+| `policy_version` | Version of the policy that introduced the rule |
 
 
 ## `ModuleEvent`
