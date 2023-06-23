@@ -225,8 +225,8 @@ kernel_matrix_testing_upload_deps:
         'false'
       fi
     - INSTANCE_IP=$(cat $CI_PROJECT_DIR/stack.outputs | grep $ARCH-instance-ip | cut -d ' ' -f 2)
-    - MICRO_VM_IP=$(cat $CI_PROJECT_DIR/stack.outputs | grep $ARCH-$TAG | cut -d ' ' -f 2)
-    - MICRO_VM_NAME=$(cat $CI_PROJECT_DIR/stack.outputs | grep $ARCH.$TAG | cut -d ' ' -f 1)
+    - MICRO_VM_IP=$(cat $CI_PROJECT_DIR/stack.outputs | grep $ARCH-$TAG | grep -E "*-${VCPU}-4096" | cut -d ' ' -f 2)
+    - MICRO_VM_NAME=$(cat $CI_PROJECT_DIR/stack.outputs | grep $ARCH.$TAG | grep -E "*-${VCPU}-4096" | cut -d ' ' -f 1)
     # ssh into each micro-vm and run initialization script. This script will also run the tests.
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "ssh -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP} 'bash /root/fetch_dependencies.sh ${ARCH} && /micro-vm-init.sh ${GO_VERSION}'"
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "scp -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP}:/junit-${MICRO_VM_IP}.tar.gz /home/ubuntu/junit-${MICRO_VM_IP}.tar.gz"
@@ -243,6 +243,7 @@ kernel_matrix_testing_run_tests_x64:
   parallel:
     matrix:
       - TAG: ["bionic", "focal", "jammy"]
+        VCPU: [4, 8, 16, 32]
 
 kernel_matrix_testing_run_tests_arm64:
   extends:
@@ -252,6 +253,7 @@ kernel_matrix_testing_run_tests_arm64:
   parallel:
     matrix:
       - TAG: ["focal", "jammy"]
+        VCPU: [4, 8, 16, 32]
 
 kernel_matrix_testing_cleanup:
   stage: kernel_matrix_testing
