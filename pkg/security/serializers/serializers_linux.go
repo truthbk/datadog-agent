@@ -217,15 +217,6 @@ type ProcessSerializer struct {
 	Source string `json:"source,omitempty"`
 }
 
-// ContainerContextSerializer serializes a container context to JSON
-// easyjson:json
-type ContainerContextSerializer struct {
-	// Container ID
-	ID string `json:"id,omitempty"`
-	// Creation time of the container
-	CreatedAt *utils.EasyjsonTime `json:"created_at,omitempty"`
-}
-
 // FileEventSerializer serializes a file event to JSON
 // easyjson:json
 type FileEventSerializer struct {
@@ -245,13 +236,8 @@ type FileEventSerializer struct {
 
 // EventContextSerializer serializes an event context to JSON
 // easyjson:json
-type EventContextSerializer struct {
-	// Event name
-	Name string `json:"name,omitempty"`
-	// Event category
-	Category string `json:"category,omitempty"`
-	// Event outcome
-	Outcome string `json:"outcome,omitempty"`
+type LinuxEventContextSerializer struct {
+	EventContextSerializer
 	// True if the event was asynchronous
 	Async bool `json:"async,omitempty"`
 }
@@ -525,22 +511,13 @@ type AnomalyDetectionSyscallEventSerializer struct {
 	Syscall string `json:"syscall"`
 }
 
-// SecurityProfileContextSerializer serializes the security profile context in an event
-type SecurityProfileContextSerializer struct {
-	// Name of the security profile
-	Name string `json:"name"`
-	// Status defines in which state the security profile was when the event was triggered
-	Status string `json:"status"`
-	// Version of the profile in use
-	Version string `json:"version"`
-	// List of tags associated to this profile
-	Tags []string `json:"tags"`
-}
-
 // EventSerializer serializes an event to JSON
 // easyjson:json
 type EventSerializer struct {
-	EventContextSerializer                  `json:"evt,omitempty"`
+	LinuxEventContextSerializer `json:"evt,omitempty"`
+	Date                        utils.EasyjsonTime `json:"date,omitempty"`
+
+	// event details
 	*FileEventSerializer                    `json:"file,omitempty"`
 	*SELinuxEventSerializer                 `json:"selinux,omitempty"`
 	*BPFEventSerializer                     `json:"bpf,omitempty"`
@@ -561,18 +538,6 @@ type EventSerializer struct {
 	*DDContextSerializer                    `json:"dd,omitempty"`
 	*ContainerContextSerializer             `json:"container,omitempty"`
 	*SecurityProfileContextSerializer       `json:"security_profile,omitempty"`
-	Date                                    utils.EasyjsonTime `json:"date,omitempty"`
-}
-
-func newSecurityProfileContextSerializer(e *model.SecurityProfileContext) *SecurityProfileContextSerializer {
-	tags := make([]string, len(e.Tags))
-	copy(tags, e.Tags)
-	return &SecurityProfileContextSerializer{
-		Name:    e.Name,
-		Version: e.Version,
-		Status:  e.Status.String(),
-		Tags:    tags,
-	}
 }
 
 func newAnomalyDetectionSyscallEventSerializer(e *model.AnomalyDetectionSyscallEvent) *AnomalyDetectionSyscallEventSerializer {
@@ -615,28 +580,6 @@ func newFileSerializer(fe *model.FileEvent, e *model.Event, forceInode ...uint64
 		PackageName:         e.FieldHandlers.ResolvePackageName(e, fe),
 		PackageVersion:      e.FieldHandlers.ResolvePackageVersion(e, fe),
 	}
-}
-
-func getUint64Pointer(i *uint64) *uint64 {
-	if *i == 0 {
-		return nil
-	}
-	return i
-}
-
-func getUint32Pointer(i *uint32) *uint32 {
-	if *i == 0 {
-		return nil
-	}
-	return i
-}
-
-func getTimeIfNotZero(t time.Time) *utils.EasyjsonTime {
-	if t.IsZero() {
-		return nil
-	}
-	tt := utils.NewEasyjsonTime(t)
-	return &tt
 }
 
 func newCredentialsSerializer(ce *model.Credentials) *CredentialsSerializer {
@@ -926,59 +869,12 @@ func newSpliceEventSerializer(e *model.Event) *SpliceEventSerializer {
 	}
 }
 
-func newDNSEventSerializer(d *model.DNSEvent) *DNSEventSerializer {
-	return &DNSEventSerializer{
-		ID: d.ID,
-		Question: DNSQuestionSerializer{
-			Class: model.QClass(d.Class).String(),
-			Type:  model.QType(d.Type).String(),
-			Name:  d.Name,
-			Size:  d.Size,
-			Count: d.Count,
-		},
-	}
-}
-
-func newIPPortSerializer(c *model.IPPortContext) IPPortSerializer {
-	return IPPortSerializer{
-		IP:   c.IPNet.IP.String(),
-		Port: c.Port,
-	}
-}
-
-func newIPPortFamilySerializer(c *model.IPPortContext, family string) IPPortFamilySerializer {
-	return IPPortFamilySerializer{
-		IP:     c.IPNet.IP.String(),
-		Port:   c.Port,
-		Family: family,
-	}
-}
-
 func newNetworkDeviceSerializer(e *model.Event) *NetworkDeviceSerializer {
 	return &NetworkDeviceSerializer{
 		NetNS:   e.NetworkContext.Device.NetNS,
 		IfIndex: e.NetworkContext.Device.IfIndex,
 		IfName:  e.FieldHandlers.ResolveNetworkDeviceIfName(e, &e.NetworkContext.Device),
 	}
-}
-
-func newNetworkContextSerializer(e *model.Event) *NetworkContextSerializer {
-	return &NetworkContextSerializer{
-		Device:      newNetworkDeviceSerializer(e),
-		L3Protocol:  model.L3Protocol(e.NetworkContext.L3Protocol).String(),
-		L4Protocol:  model.L4Protocol(e.NetworkContext.L4Protocol).String(),
-		Source:      newIPPortSerializer(&e.NetworkContext.Source),
-		Destination: newIPPortSerializer(&e.NetworkContext.Destination),
-		Size:        e.NetworkContext.Size,
-	}
-}
-
-func newBindEventSerializer(e *model.Event) *BindEventSerializer {
-	bes := &BindEventSerializer{
-		Addr: newIPPortFamilySerializer(&e.Bind.Addr,
-			model.AddressFamily(e.Bind.AddrFamily).String()),
-	}
-	return bes
 }
 
 func newExitEventSerializer(e *model.Event) *ExitEventSerializer {
@@ -1050,8 +946,10 @@ func NewEventSerializer(event *model.Event, resolvers *resolvers.Resolvers) *Eve
 	pc := event.ProcessContext
 
 	s := &EventSerializer{
-		EventContextSerializer: EventContextSerializer{
-			Name:  model.EventType(event.Type).String(),
+		LinuxEventContextSerializer: LinuxEventContextSerializer{
+			EventContextSerializer: EventContextSerializer{
+				Name: model.EventType(event.Type).String(),
+			},
 			Async: event.FieldHandlers.ResolveAsync(event),
 		},
 		ProcessContextSerializer: newProcessContextSerializer(pc, event, resolvers),

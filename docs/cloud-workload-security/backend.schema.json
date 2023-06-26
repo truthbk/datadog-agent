@@ -181,29 +181,6 @@
       ],
       "description": "DNSQuestionSerializer serializes a DNS question to JSON"
     },
-    "EventContext": {
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Event name"
-        },
-        "category": {
-          "type": "string",
-          "description": "Event category"
-        },
-        "outcome": {
-          "type": "string",
-          "description": "Event outcome"
-        },
-        "async": {
-          "type": "boolean",
-          "description": "True if the event was asynchronous"
-        }
-      },
-      "additionalProperties": false,
-      "type": "object",
-      "description": "EventContextSerializer serializes an event context to JSON"
-    },
     "ExitEvent": {
       "properties": {
         "cause": {
@@ -475,6 +452,29 @@
         "port"
       ],
       "description": "IPPortFamilySerializer is used to serialize an IP, port, and address family context to JSON"
+    },
+    "LinuxEventContext": {
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Event name"
+        },
+        "category": {
+          "type": "string",
+          "description": "Event category"
+        },
+        "outcome": {
+          "type": "string",
+          "description": "Event outcome"
+        },
+        "async": {
+          "type": "boolean",
+          "description": "True if the event was asynchronous"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "description": "EventContextSerializer serializes an event context to JSON"
     },
     "MMapEvent": {
       "properties": {
@@ -1178,7 +1178,11 @@
   },
   "properties": {
     "evt": {
-      "$ref": "#/$defs/EventContext"
+      "$ref": "#/$defs/LinuxEventContext"
+    },
+    "date": {
+      "type": "string",
+      "format": "date-time"
     },
     "file": {
       "$ref": "#/$defs/FileEvent"
@@ -1239,10 +1243,6 @@
     },
     "security_profile": {
       "$ref": "#/$defs/SecurityProfileContext"
-    },
-    "date": {
-      "type": "string",
-      "format": "date-time"
     }
   },
   "additionalProperties": false,

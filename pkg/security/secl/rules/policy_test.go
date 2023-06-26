@@ -252,7 +252,7 @@ func TestActionSetVariable(t *testing.T) {
 		t.Fatal("failed to find test_rule in ruleset")
 	}
 
-	event := model.NewDefaultEvent()
+	event := model.NewDefaultEvalEvent()
 	event.(*model.Event).Type = uint32(model.FileOpenEventType)
 	processCacheEntry := &model.ProcessCacheEntry{}
 	processCacheEntry.Retain()

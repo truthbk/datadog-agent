@@ -5,7 +5,14 @@
 
 package probe
 
+import "github.com/DataDog/datadog-agent/pkg/security/secl/model"
+
 const (
 	// ServiceEnvVar environment variable used to report service
 	ServiceEnvVar = "DD_SERVICE"
 )
+
+// NewEvent returns a new event
+func NewEvent(fh *FieldHandlers) *model.Event {
+	return model.NewEvent(fh)
+}

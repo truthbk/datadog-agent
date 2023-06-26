@@ -95,7 +95,7 @@ func addRuleExpr(t *testing.T, rs *RuleSet, exprs ...string) {
 
 func newRuleSet() *RuleSet {
 	ruleOpts, evalOpts := NewEvalOpts(map[eval.EventType]bool{"*": true})
-	return NewRuleSet(&model.Model{}, model.NewDefaultEvent, ruleOpts, evalOpts)
+	return NewRuleSet(&model.Model{}, model.NewDefaultEvalEvent, ruleOpts, evalOpts)
 }
 
 func TestRuleBuckets(t *testing.T) {
@@ -139,13 +139,13 @@ func TestRuleSetDiscarders(t *testing.T) {
 
 	addRuleExpr(t, rs, exprs...)
 
-	ev1 := model.NewDefaultEvent()
+	ev1 := model.NewDefaultEvalEvent()
 	ev1.(*model.Event).Type = uint32(model.FileOpenEventType)
 	ev1.SetFieldValue("open.file.path", "/usr/local/bin/rootkit")
 	ev1.SetFieldValue("open.flags", syscall.O_RDONLY)
 	ev1.SetFieldValue("process.uid", 0)
 
-	ev2 := model.NewDefaultEvent()
+	ev2 := model.NewDefaultEvalEvent()
 	ev2.(*model.Event).Type = uint32(model.FileMkdirEventType)
 	ev2.SetFieldValue("mkdir.file.path", "/usr/local/bin/rootkit")
 	ev2.SetFieldValue("mkdir.mode", 0777)

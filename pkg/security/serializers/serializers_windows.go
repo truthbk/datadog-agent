@@ -19,15 +19,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/utils"
 )
 
-// EventContextSerializer serializes an event context to JSON
-// easyjson:json
-type EventContextSerializer struct {
-	// Event name
-	Name string `json:"name,omitempty"`
-	// Event category
-	Category string `json:"category,omitempty"`
-}
-
 // EventSerializer serializes an event to JSON
 // easyjson:json
 type EventSerializer struct {

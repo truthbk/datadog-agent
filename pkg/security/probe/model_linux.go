@@ -35,11 +35,3 @@ func NewModel(probe *Probe) *model.Model {
 		},
 	}
 }
-
-// NewEvent returns a new event
-func NewEvent(fh *FieldHandlers) *model.Event {
-	return &model.Event{
-		FieldHandlers:    fh,
-		ContainerContext: &model.ContainerContext{},
-	}
-}

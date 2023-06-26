@@ -38,9 +38,11 @@ func TestProcessArgsFlags(t *testing.T) {
 				ArgsEntry: &argsEntry,
 			},
 		},
-		FieldHandlers: &FieldHandlers{
-			resolvers: &resolvers.Resolvers{
-				ProcessResolver: resolver,
+		CommonFields: model.CommonFields{
+			FieldHandlers: &FieldHandlers{
+				resolvers: &resolvers.Resolvers{
+					ProcessResolver: resolver,
+				},
 			},
 		},
 	}
@@ -99,9 +101,11 @@ func TestProcessArgsOptions(t *testing.T) {
 				ArgsEntry: &argsEntry,
 			},
 		},
-		FieldHandlers: &FieldHandlers{
-			resolvers: &resolvers.Resolvers{
-				ProcessResolver: resolver,
+		CommonFields: model.CommonFields{
+			FieldHandlers: &FieldHandlers{
+				resolvers: &resolvers.Resolvers{
+					ProcessResolver: resolver,
+				},
 			},
 		},
 	}

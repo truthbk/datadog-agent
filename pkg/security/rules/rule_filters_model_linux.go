@@ -29,7 +29,7 @@ func NewRuleFilterModel() *RuleFilterModel {
 	}
 }
 
-func (m *RuleFilterModel) NewEvent() eval.Event {
+func (m *RuleFilterModel) NewEvalEvent() eval.Event {
 	return &RuleFilterEvent{
 		Version: m.Version,
 	}

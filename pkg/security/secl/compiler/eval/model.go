@@ -14,5 +14,5 @@ type Model interface {
 	// GetIterator return an iterator
 	GetIterator(field Field) (Iterator, error)
 	// NewEvent returns a new event instance
-	NewEvent() Event
+	NewEvalEvent() Event
 }

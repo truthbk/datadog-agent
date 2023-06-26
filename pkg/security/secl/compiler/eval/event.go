@@ -33,7 +33,7 @@ type Event interface {
 func eventTypesFromFields(model Model, state *State) ([]EventType, error) {
 	events := make(map[EventType]bool)
 	for field := range state.fieldValues {
-		eventType, err := model.NewEvent().GetFieldEventType(field)
+		eventType, err := model.NewEvalEvent().GetFieldEventType(field)
 		if err != nil {
 			return nil, err
 		}

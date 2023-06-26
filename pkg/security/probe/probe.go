@@ -25,7 +25,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
 )
 
-var eventZero model.Event = model.Event{ContainerContext: &model.ContainerContext{}}
+var eventZero model.Event = model.MakeEvent()
 var containerContextZero model.ContainerContext
 
 // EventHandler represents an handler for the events sent by the probe
@@ -130,10 +130,7 @@ func (p *Probe) NewEvaluationSet(eventTypeEnabled map[eval.EventType]bool, ruleS
 		}
 
 		eventCtor := func() eval.Event {
-			return &model.Event{
-				FieldHandlers:    p.fieldHandlers,
-				ContainerContext: &model.ContainerContext{},
-			}
+			return model.NewEvalEvent(p.fieldHandlers)
 		}
 
 		rs := rules.NewRuleSet(NewModel(p), eventCtor, ruleOpts.WithRuleSetTag(ruleSetTagValue), evalOpts)
