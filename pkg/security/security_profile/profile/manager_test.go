@@ -3,8 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:build linux
-
 package profile
 
 import (
@@ -38,7 +36,7 @@ type testIteration struct {
 }
 
 func craftFakeEvent(t0 time.Time, ti *testIteration, defaultContainerID string) *model.Event {
-	event := model.NewDefaultEvent().(*model.Event)
+	event := model.NewDefaultEvent()
 	event.Type = uint32(ti.eventType)
 	event.ContainerContext.CreatedAt = uint64(t0.Add(ti.containerCreatedAt).UnixNano())
 	event.TimestampRaw = uint64(t0.Add(ti.eventTimestampRaw).UnixNano())
