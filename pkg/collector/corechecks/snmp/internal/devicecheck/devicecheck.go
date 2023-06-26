@@ -38,6 +38,7 @@ const (
 	deviceReachableMetric   = "snmp.device.reachable"
 	deviceUnreachableMetric = "snmp.device.unreachable"
 	deviceHostnamePrefix    = "device:"
+	checkDurationThreshold  = 3
 )
 
 // define timeNow as variable to make it possible to mock it during test
@@ -143,7 +144,7 @@ func (d *DeviceCheck) Run(collectionTime time.Time) error {
 
 		checkDuration := time.Since(startTime).Seconds()
 
-		if checkDuration > 1.0 { // FIXME
+		if checkDuration > checkDurationThreshold {
 			d.diagnostics = append(d.diagnostics, metadata.DiagnosticMetadata{
 				DeviceId:   deviceId,
 				Severity:   "warn",
