@@ -80,8 +80,8 @@ func (a *APIServer) DumpProcessCache(ctx context.Context, params *api.DumpProces
 
 // DumpActivity handle an activity dump request
 func (a *APIServer) DumpActivity(ctx context.Context, params *api.ActivityDumpParams) (*api.ActivityDumpMessage, error) {
-	if monitor := a.probe.GetMonitor(); monitor != nil {
-		msg, err := monitor.DumpActivity(params)
+	if managers := a.probe.GetProfileManagers(); managers != nil {
+		msg, err := managers.DumpActivity(params)
 		if err != nil {
 			seclog.Errorf(err.Error())
 		}
@@ -93,8 +93,8 @@ func (a *APIServer) DumpActivity(ctx context.Context, params *api.ActivityDumpPa
 
 // ListActivityDumps returns the list of active dumps
 func (a *APIServer) ListActivityDumps(ctx context.Context, params *api.ActivityDumpListParams) (*api.ActivityDumpListMessage, error) {
-	if monitor := a.probe.GetMonitor(); monitor != nil {
-		msg, err := monitor.ListActivityDumps(params)
+	if managers := a.probe.GetProfileManagers(); managers != nil {
+		msg, err := managers.ListActivityDumps(params)
 		if err != nil {
 			seclog.Errorf(err.Error())
 		}
@@ -106,8 +106,8 @@ func (a *APIServer) ListActivityDumps(ctx context.Context, params *api.ActivityD
 
 // StopActivityDump stops an active activity dump if it exists
 func (a *APIServer) StopActivityDump(ctx context.Context, params *api.ActivityDumpStopParams) (*api.ActivityDumpStopMessage, error) {
-	if monitor := a.probe.GetMonitor(); monitor != nil {
-		msg, err := monitor.StopActivityDump(params)
+	if managers := a.probe.GetProfileManagers(); managers != nil {
+		msg, err := managers.StopActivityDump(params)
 		if err != nil {
 			seclog.Errorf(err.Error())
 		}
@@ -119,8 +119,8 @@ func (a *APIServer) StopActivityDump(ctx context.Context, params *api.ActivityDu
 
 // TranscodingRequest encodes an activity dump following the requested parameters
 func (a *APIServer) TranscodingRequest(ctx context.Context, params *api.TranscodingRequestParams) (*api.TranscodingRequestMessage, error) {
-	if monitor := a.probe.GetMonitor(); monitor != nil {
-		msg, err := monitor.GenerateTranscoding(params)
+	if managers := a.probe.GetProfileManagers(); managers != nil {
+		msg, err := managers.GenerateTranscoding(params)
 		if err != nil {
 			seclog.Errorf(err.Error())
 		}
@@ -132,8 +132,8 @@ func (a *APIServer) TranscodingRequest(ctx context.Context, params *api.Transcod
 
 // ListSecurityProfiles returns the list of security profiles
 func (a *APIServer) ListSecurityProfiles(ctx context.Context, params *api.SecurityProfileListParams) (*api.SecurityProfileListMessage, error) {
-	if monitor := a.probe.GetMonitor(); monitor != nil {
-		msg, err := monitor.ListSecurityProfiles(params)
+	if managers := a.probe.GetProfileManagers(); managers != nil {
+		msg, err := managers.ListSecurityProfiles(params)
 		if err != nil {
 			seclog.Errorf(err.Error())
 		}
@@ -145,8 +145,8 @@ func (a *APIServer) ListSecurityProfiles(ctx context.Context, params *api.Securi
 
 // SaveSecurityProfile saves the requested security profile to disk
 func (a *APIServer) SaveSecurityProfile(ctx context.Context, params *api.SecurityProfileSaveParams) (*api.SecurityProfileSaveMessage, error) {
-	if monitor := a.probe.GetMonitor(); monitor != nil {
-		msg, err := monitor.SaveSecurityProfile(params)
+	if managers := a.probe.GetProfileManagers(); managers != nil {
+		msg, err := managers.SaveSecurityProfile(params)
 		if err != nil {
 			seclog.Errorf(err.Error())
 		}
@@ -167,7 +167,7 @@ func (a *APIServer) RunSelfTest(ctx context.Context, params *api.RunSelfTestPara
 		return nil, errors.New("failed to found module in APIServer")
 	}
 
-	if a.cwsConsumer.selfTester == nil {
+	if a.selfTester == nil {
 		return &api.SecuritySelfTestResultMessage{
 			Ok:    false,
 			Error: "self-tests are disabled",
