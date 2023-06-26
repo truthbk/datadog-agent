@@ -225,7 +225,7 @@ func (d *DeviceCheck) getValuesAndTags() (bool, []string, *valuestore.ResultValu
 		d.diagnostics = append(d.diagnostics, metadata.DiagnosticMetadata{
 			DeviceId:   deviceId,
 			Severity:   "error",
-			ErrorCode:  4,
+			ErrorCode:  5,
 			Diagnostic: "Agent was not able to detect a profile for this network device.",
 		})
 		checkErrors = append(checkErrors, fmt.Sprintf("failed to autodetect profile: %s", err))
