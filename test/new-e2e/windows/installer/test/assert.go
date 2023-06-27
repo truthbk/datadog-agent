@@ -36,8 +36,14 @@ func AssertInstalledUser(a *assert.Assertions, client *ssh.Client, expectedusern
 	if !a.NoError(err) {
 		return false
 	}
-	domain = strings.ToUpper(domain)
-	expecteddomain = strings.ToUpper(expecteddomain)
+	username = strings.ToLower(username)
+	expectedusername = strings.ToLower(expectedusername)
+	// It's not a perfect test to be comparing the NetBIOS version of each domain, but the installer isn't
+	// consistent with what it writes to the registry. On domain controllers, if the user exists then the domain part comes from the output
+	// of LookupAccountName, which seems to consistently be a NetBIOS name. However, if the installer creates the account and a domain part wasn't
+	// provided, then the FQDN is used and written to the registry.
+	domain = windows.NetBIOSName(domain)
+	expecteddomain = windows.NetBIOSName(expecteddomain)
 	if !a.Equal(expectedusername, username, "installedUser registry value should be %s", expectedusername) {
 		return false
 	}
@@ -60,7 +66,7 @@ func AssertInstalledUser(a *assert.Assertions, client *ssh.Client, expectedusern
 		if !a.NoError(err) {
 			return false
 		}
-		if !a.Equal(svc.account, user, "%s logon account should be %s", svc.name, svc.account) {
+		if !a.Equal(strings.ToLower(svc.account), strings.ToLower(user), "%s logon account should be %s", svc.name, svc.account) {
 			return false
 		}
 	}
