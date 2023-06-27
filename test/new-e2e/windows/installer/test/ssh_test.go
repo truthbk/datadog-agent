@@ -6,6 +6,7 @@
 package installertest
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,6 +21,8 @@ import (
 	"github.com/stretchr/testify/suite"
 	"golang.org/x/crypto/ssh"
 )
+
+var revertVM *bool = flag.Bool("revert", false, "Revert the VM before every test")
 
 type testHost struct {
 	host     string
@@ -108,9 +111,11 @@ func (s *windowsInstallerSuite) SetupTest() {
 	os.MkdirAll(s.testoutputdir, os.ModePerm)
 
 	// revert VM
-	fmt.Println("Reverting VM")
-	err := hyperv.RevertVM(s.target.vmname, s.target.snapshot)
-	s.Require().NoError(err)
+	if *revertVM {
+		fmt.Println("Reverting VM")
+		err := hyperv.RevertVM(s.target.vmname, s.target.snapshot)
+		s.Require().NoError(err)
+	}
 
 	// connect to SSH
 	sshconfig := &ssh.ClientConfig{
