@@ -115,6 +115,7 @@ func (d *DeviceCheck) Run(collectionTime time.Time) error {
 	deviceReachable, dynamicTags, values, checkErr := d.getValuesAndTags()
 	tags := common.CopyStrings(staticTags)
 	if checkErr != nil {
+		// FIXME : can have check err and be reachable, see line 244
 		tags = append(tags, d.savedDynamicTags...)
 		d.diagnostics = append(d.diagnostics, metadata.DiagnosticMetadata{
 			DeviceId:   deviceId,
