@@ -25,11 +25,11 @@ import (
 var revertVM *bool = flag.Bool("revert", false, "Revert the VM before every test")
 
 type testHost struct {
-	host     string
-	username string
-	password string
-	vmname   string
-	snapshot string
+	host         string
+	username     string
+	password     string
+	vmname       string
+	snapshot     string
 	testhostname string
 }
 
@@ -59,32 +59,40 @@ func TestWindowsInstaller(t *testing.T) {
 
 	hosts := []testHost{
 		{
-			host:     "192.168.184.48:22",
-			username: "user",
-			password: "user",
-			vmname:   "Windows 10",
-			snapshot: "ssh",
+			host:         "172.23.180.180:22",
+			username:     "user",
+			password:     "user",
+			vmname:       "Windows 10",
+			snapshot:     "ssh",
 			testhostname: "Windows 10 client",
 		},
 		{
-			host:     "172.23.238.202:22",
-			username: "DDEV\\Administrator",
-			password: "123!@#QWEqwe",
-			vmname:   "Windows Server 2019",
-			snapshot: "ddev-ssh",
+			host:         "172.28.86.123:22",
+			username:     "DDEV\\Administrator",
+			password:     "123!@#QWEqwe",
+			vmname:       "Windows 10",
+			snapshot:     "ddev-ssh",
+			testhostname: "Windows 10 domain client",
+		},
+		{
+			host:         "172.23.238.202:22",
+			username:     "DDEV\\Administrator",
+			password:     "123!@#QWEqwe",
+			vmname:       "Windows Server 2019",
+			snapshot:     "ddev-ssh",
 			testhostname: "Windows 2019 DC",
 		},
 		{
-			host:     "192.168.178.178:22",
-			username: "DDEV\\Administrator",
-			password: "123!@#QWEqwe",
-			vmname:   "Windows Server 2022",
-			snapshot: "ddev-ssh",
+			host:         "172.28.89.187:22",
+			username:     "DDEV\\Administrator",
+			password:     "123!@#QWEqwe",
+			vmname:       "Windows Server 2022",
+			snapshot:     "ddev-ssh",
 			testhostname: "Windows 2022 DC",
 		},
 	}
 
-	for _,host := range hosts {
+	for _, host := range hosts {
 		t.Run(host.testhostname, func(t *testing.T) {
 			suite.Run(t, &windowsInstallerSuite{
 				suiteoutputdir:      filepath.Join("./output", time.Now().Format(time.RFC3339)),
@@ -194,8 +202,8 @@ func (s *windowsInstallerSuite) TestUninstall() {
 
 func (s *windowsInstallerSuite) TestNPM() {
 	tcs := []struct {
-		testname string
-		previnstaller string
+		testname          string
+		previnstaller     string
 		previnstallerargs string
 	}{
 		// TC-NPM-001
@@ -254,13 +262,13 @@ func (s *windowsInstallerSuite) TestNPM() {
 func (s *windowsInstallerSuite) TestUpgradeChangeUser() {
 	username := "testuser"
 	password := "123!@#QWEqwe"
-	tcs := []struct{
+	tcs := []struct {
 		testname string
 		// args passed to installer
 		installusername string
 		installpassword string
 		// args used by test
-		createuser bool
+		createuser     bool
 		expectusername string
 		createpassword string
 	}{
@@ -269,7 +277,7 @@ func (s *windowsInstallerSuite) TestUpgradeChangeUser() {
 		// TC-UPG-DC-003
 		{"ExistingUser", username, password, true, username, password},
 		// TC-UPG-DC-004
-		{"WrongCredentials", username, "bad"+password+"bad", true, username, password},
+		{"WrongCredentials", username, "bad" + password + "bad", true, username, password},
 	}
 	for tc_i, tc := range tcs {
 		s.Run(tc.testname, func() {
