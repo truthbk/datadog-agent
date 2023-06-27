@@ -6,6 +6,7 @@ High level testing tasks
 # so we only need to check that we don't run this code with old Python versions.
 
 import abc
+import datetime
 import json
 import operator
 import os
@@ -506,12 +507,16 @@ def test(
     # }
     modules_results_per_phase = defaultdict(dict)
 
+    print(f"Starting invoke test: {datetime.datetime.now()}")
+
     # Sanitize environment variables
     # We want to ignore all `DD_` variables, as they will interfere with the behavior
     # of some unit tests
     for env in os.environ.keys():
         if env.startswith("DD_"):
             del os.environ[env]
+
+    print(f"Purged env variables: {datetime.datetime.now()}")
 
     # Run linters first
 
@@ -530,7 +535,11 @@ def test(
 
     # Process input arguments
 
+    print(f"Done with linters: {datetime.datetime.now()}")
+
     modules, flavors = process_input_args(module, targets, flavors)
+
+    print(f"Done processing input args: {datetime.datetime.now()}")
 
     unit_tests_tags = {
         f: compute_build_tags_for_flavor(
@@ -538,6 +547,8 @@ def test(
         )
         for f in flavors
     }
+
+    print(f"Done computing build tags: {datetime.datetime.now()}")
 
     timeout = int(timeout)
 
@@ -550,6 +561,8 @@ def test(
         python_runtimes=python_runtimes,
     )
 
+    print(f"Done computing build flags: {datetime.datetime.now()}")
+
     if sys.platform == 'win32':
         env['CGO_LDFLAGS'] += ' -Wl,--allow-multiple-definition'
 
@@ -557,6 +570,8 @@ def test(
         test_profiler = TestProfiler()
     else:
         test_profiler = None  # Use stdout
+
+    print(f"Done setting up profiler: {datetime.datetime.now()}")
 
     race_opt = ""
     covermode_opt = ""
@@ -590,11 +605,16 @@ def test(
 
     nocache = '-count=1' if not cache else ''
 
+    print(f"Done preparing options: {datetime.datetime.now()}")
+
     if save_result_json and os.path.isfile(save_result_json):
         # Remove existing file since we append to it.
         # We don't need to do that for GO_TEST_RESULT_TMP_JSON since gotestsum overwrites the output.
         print(f"Removing existing '{save_result_json}' file")
         os.remove(save_result_json)
+
+    print(f"Done preparing result json: {datetime.datetime.now()}")
+
 
     cmd = 'gotestsum {junit_file_flag} {json_flag} --format pkgname {rerun_fails} --packages="{packages}" -- {verbose} -mod={go_mod} -vet=off -timeout {timeout}s -tags "{go_build_tags}" -gcflags="{gcflags}" '
     cmd += '-ldflags="{ldflags}" {build_cpus} {race_opt} -short {covermode_opt} {coverprofile} {nocache}'
@@ -616,6 +636,7 @@ def test(
 
     # Test
     for flavor, build_tags in unit_tests_tags.items():
+        print(f"Starting test: {datetime.datetime.now()}")
         modules_results_per_phase["test"][flavor] = test_flavor(
             ctx,
             flavor=flavor,
@@ -628,6 +649,8 @@ def test(
             save_result_json=save_result_json,
             test_profiler=test_profiler,
         )
+
+        print(f"Done with tests: {datetime.datetime.now()}")
 
     # Output
     if junit_tar:
