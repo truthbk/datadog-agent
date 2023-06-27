@@ -149,14 +149,14 @@ def test_core(
     Run the command function on each module of the modules list.
     """
     modules_results = []
-    print(f"--- Flavor {flavor.name}: {operation_name}")
+    print(f"--- Flavor {flavor.name}: {operation_name}", flush=True)
     for module in modules:
         module_result = None
         if not skip_module_class:
             module_result = module_class(path=module.full_path())
-        print(f"----- Module '{module.full_path()}'")
+        print(f"----- Module '{module.full_path()}'", flush=True)
         if not module.condition():
-            print("----- Skipped")
+            print("----- Skipped", flush=True)
             continue
 
         command(modules_results, module, module_result)
