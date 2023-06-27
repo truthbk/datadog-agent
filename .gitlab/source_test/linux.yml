@@ -19,6 +19,7 @@
     - !reference [.retrieve_linux_go_tools_deps]
     - inv -e install-tools
     - inv -e invoke-unit-tests
+    - time go build std cmd
     - inv -e test $FLAVORS --skip-linters --race --profile --rerun-fails=2 --python-runtimes "$PYTHON_RUNTIMES" --cpus 4 $EXTRA_OPTS --save-result-json test_output.json --junit-tar "junit-${CI_JOB_NAME}.tgz"
   artifacts:
     expire_in: 2 weeks
@@ -56,7 +57,7 @@ tests_deb-x64-py3:
     - .rtloader_tests
     - .linux_tests
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
-  tags: ["runner:main"]
+  tags: ["arch:amd64"]
   needs: ["go_deps", "go_tools_deps"]
   variables:
     PYTHON_RUNTIMES: '3'
