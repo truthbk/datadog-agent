@@ -507,7 +507,7 @@ def test(
     # }
     modules_results_per_phase = defaultdict(dict)
 
-    print(f"Starting invoke test: {datetime.datetime.now()}")
+    print(f"Starting invoke test: {datetime.datetime.now()}", flush=True)
 
     # Sanitize environment variables
     # We want to ignore all `DD_` variables, as they will interfere with the behavior
@@ -516,7 +516,7 @@ def test(
         if env.startswith("DD_"):
             del os.environ[env]
 
-    print(f"Purged env variables: {datetime.datetime.now()}")
+    print(f"Purged env variables: {datetime.datetime.now()}", flush=True)
 
     # Run linters first
 
@@ -535,11 +535,11 @@ def test(
 
     # Process input arguments
 
-    print(f"Done with linters: {datetime.datetime.now()}")
+    print(f"Done with linters: {datetime.datetime.now()}", flush=True)
 
     modules, flavors = process_input_args(module, targets, flavors)
 
-    print(f"Done processing input args: {datetime.datetime.now()}")
+    print(f"Done processing input args: {datetime.datetime.now()}", flush=True)
 
     unit_tests_tags = {
         f: compute_build_tags_for_flavor(
@@ -548,7 +548,7 @@ def test(
         for f in flavors
     }
 
-    print(f"Done computing build tags: {datetime.datetime.now()}")
+    print(f"Done computing build tags: {datetime.datetime.now()}", flush=True)
 
     timeout = int(timeout)
 
@@ -561,7 +561,7 @@ def test(
         python_runtimes=python_runtimes,
     )
 
-    print(f"Done computing build flags: {datetime.datetime.now()}")
+    print(f"Done computing build flags: {datetime.datetime.now()}", flush=True)
 
     if sys.platform == 'win32':
         env['CGO_LDFLAGS'] += ' -Wl,--allow-multiple-definition'
@@ -571,7 +571,7 @@ def test(
     else:
         test_profiler = None  # Use stdout
 
-    print(f"Done setting up profiler: {datetime.datetime.now()}")
+    print(f"Done setting up profiler: {datetime.datetime.now()}", flush=True)
 
     race_opt = ""
     covermode_opt = ""
@@ -605,7 +605,7 @@ def test(
 
     nocache = '-count=1' if not cache else ''
 
-    print(f"Done preparing options: {datetime.datetime.now()}")
+    print(f"Done preparing options: {datetime.datetime.now()}", flush=True)
 
     if save_result_json and os.path.isfile(save_result_json):
         # Remove existing file since we append to it.
@@ -613,7 +613,7 @@ def test(
         print(f"Removing existing '{save_result_json}' file")
         os.remove(save_result_json)
 
-    print(f"Done preparing result json: {datetime.datetime.now()}")
+    print(f"Done preparing result json: {datetime.datetime.now()}", flush=True)
 
 
     cmd = 'gotestsum {junit_file_flag} {json_flag} --format pkgname {rerun_fails} --packages="{packages}" -- {verbose} -mod={go_mod} -vet=off -timeout {timeout}s -tags "{go_build_tags}" -gcflags="{gcflags}" '
@@ -636,7 +636,7 @@ def test(
 
     # Test
     for flavor, build_tags in unit_tests_tags.items():
-        print(f"Starting test: {datetime.datetime.now()}")
+        print(f"Starting test: {datetime.datetime.now()}", flush=True)
         modules_results_per_phase["test"][flavor] = test_flavor(
             ctx,
             flavor=flavor,
@@ -650,7 +650,7 @@ def test(
             test_profiler=test_profiler,
         )
 
-        print(f"Done with tests: {datetime.datetime.now()}")
+        print(f"Done with tests: {datetime.datetime.now()}", flush=True)
 
     # Output
     if junit_tar:
