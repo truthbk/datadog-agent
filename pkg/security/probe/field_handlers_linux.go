@@ -28,11 +28,14 @@ type FieldHandlers struct {
 // ResolveFilePath resolves the inode to a full path
 func (fh *FieldHandlers) ResolveFilePath(ev *model.Event, f *model.FileEvent) string {
 	if !f.IsPathnameStrResolved && len(f.PathnameStr) == 0 {
-		path, err := fh.resolvers.PathResolver.ResolveFileFieldsPath(&f.FileFields, &ev.PIDContext, ev.ContainerContext)
+		path, source, mountPath, rootPath, err := fh.resolvers.PathResolver.ResolveFileFieldsPath(&f.FileFields, &ev.PIDContext, ev.ContainerContext)
 		if err != nil {
 			ev.SetPathResolutionError(f, err)
 		}
 		f.SetPathnameStr(path)
+		f.Source = source
+		f.MountPath = mountPath
+		f.RootPath = rootPath
 	}
 
 	return f.PathnameStr

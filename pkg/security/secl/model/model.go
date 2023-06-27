@@ -732,6 +732,10 @@ type FileEvent struct {
 	// used to mark as already resolved, can be used in case of empty path
 	IsPathnameStrResolved bool `field:"-" json:"-"`
 	IsBasenameStrResolved bool `field:"-" json:"-"`
+
+	Source    string `field:"-" json:"-"`
+	MountPath string `field:"-" json:"-"`
+	RootPath  string `field:"-" json:"-"`
 }
 
 // Equals compare two FileEvent

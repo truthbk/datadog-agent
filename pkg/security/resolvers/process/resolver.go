@@ -636,11 +636,14 @@ func (p *Resolver) SetProcessPath(fileEvent *model.FileEvent, pidCtx *model.PIDC
 		return onError("", &model.ErrInvalidKeyPath{Inode: fileEvent.Inode, MountID: fileEvent.MountID})
 	}
 
-	pathnameStr, err := p.pathResolver.ResolveFileFieldsPath(&fileEvent.FileFields, pidCtx, ctrCtx)
+	pathnameStr, source, mountPath, rootPath, err := p.pathResolver.ResolveFileFieldsPath(&fileEvent.FileFields, pidCtx, ctrCtx)
 	if err != nil {
 		return onError(pathnameStr, err)
 	}
 	setPathname(fileEvent, pathnameStr)
+	fileEvent.Source = source
+	fileEvent.MountPath = mountPath
+	fileEvent.RootPath = rootPath
 
 	return fileEvent.PathnameStr, nil
 }

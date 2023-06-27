@@ -647,20 +647,24 @@ func (dr *Resolver) ResolveFromERPC(mountID uint32, inode uint64, pathID uint32,
 }
 
 // Resolve the pathname of a dentry, starting at the pathnameKey in the pathnames table
-func (dr *Resolver) Resolve(mountID uint32, inode uint64, pathID uint32, cache bool) (string, error) {
+func (dr *Resolver) Resolve(mountID uint32, inode uint64, pathID uint32, cache bool) (string, string, error) {
 	var path string
 	var err = ErrEntryNotFound
 
+	var source string
 	if cache {
 		path, err = dr.ResolveFromCache(mountID, inode, pathID)
+		source = "cache"
 	}
 	if err != nil && dr.config.ERPCDentryResolutionEnabled {
 		path, err = dr.ResolveFromERPC(mountID, inode, pathID, cache)
+		source = "erpc"
 	}
 	if err != nil && err != errTruncatedParentsERPC && dr.config.MapDentryResolutionEnabled {
 		path, err = dr.ResolveFromMap(mountID, inode, pathID, cache)
+		source = "map"
 	}
-	return path, err
+	return path, source, err
 }
 
 // ResolveParentFromCache resolves the parent

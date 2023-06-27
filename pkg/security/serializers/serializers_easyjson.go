@@ -2765,6 +2765,12 @@ func easyjsonA970e379DecodeGithubComDataDogDatadogAgentPkgSecuritySerializers22(
 			out.PackageName = string(in.String())
 		case "package_version":
 			out.PackageVersion = string(in.String())
+		case "source":
+			out.Source = string(in.String())
+		case "mount_path":
+			out.MountPath = string(in.String())
+		case "root_path":
+			out.RootPath = string(in.String())
 		default:
 			in.SkipRecursive()
 		}
@@ -2928,6 +2934,21 @@ func easyjsonA970e379EncodeGithubComDataDogDatadogAgentPkgSecuritySerializers22(
 		const prefix string = ",\"package_version\":"
 		out.RawString(prefix)
 		out.String(string(in.PackageVersion))
+	}
+	if in.Source != "" {
+		const prefix string = ",\"source\":"
+		out.RawString(prefix)
+		out.String(string(in.Source))
+	}
+	if in.MountPath != "" {
+		const prefix string = ",\"mount_path\":"
+		out.RawString(prefix)
+		out.String(string(in.MountPath))
+	}
+	if in.RootPath != "" {
+		const prefix string = ",\"root_path\":"
+		out.RawString(prefix)
+		out.String(string(in.RootPath))
 	}
 	out.RawByte('}')
 }
@@ -3099,6 +3120,12 @@ func easyjsonA970e379DecodeGithubComDataDogDatadogAgentPkgSecuritySerializers23(
 			out.PackageName = string(in.String())
 		case "package_version":
 			out.PackageVersion = string(in.String())
+		case "source":
+			out.Source = string(in.String())
+		case "mount_path":
+			out.MountPath = string(in.String())
+		case "root_path":
+			out.RootPath = string(in.String())
 		default:
 			in.SkipRecursive()
 		}
@@ -3302,6 +3329,21 @@ func easyjsonA970e379EncodeGithubComDataDogDatadogAgentPkgSecuritySerializers23(
 		const prefix string = ",\"package_version\":"
 		out.RawString(prefix)
 		out.String(string(in.PackageVersion))
+	}
+	if in.Source != "" {
+		const prefix string = ",\"source\":"
+		out.RawString(prefix)
+		out.String(string(in.Source))
+	}
+	if in.MountPath != "" {
+		const prefix string = ",\"mount_path\":"
+		out.RawString(prefix)
+		out.String(string(in.MountPath))
+	}
+	if in.RootPath != "" {
+		const prefix string = ",\"root_path\":"
+		out.RawString(prefix)
+		out.String(string(in.RootPath))
 	}
 	out.RawByte('}')
 }

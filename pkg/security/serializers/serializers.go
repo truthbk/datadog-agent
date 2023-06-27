@@ -70,6 +70,9 @@ type FileSerializer struct {
 	PackageName string `json:"package_name,omitempty"`
 	// System package version
 	PackageVersion string `json:"package_version,omitempty"`
+	Source         string `json:"source,omitempty"`
+	MountPath      string `json:"mount_path,omitempty"`
+	RootPath       string `json:"root_path,omitempty"`
 }
 
 // UserContextSerializer serializes a user context to JSON
@@ -649,6 +652,9 @@ func newFileSerializer(fe *model.FileEvent, e *model.Event, forceInode ...uint64
 		InUpperLayer:        getInUpperLayer(&fe.FileFields),
 		PackageName:         e.FieldHandlers.ResolvePackageName(e, fe),
 		PackageVersion:      e.FieldHandlers.ResolvePackageVersion(e, fe),
+		Source:              fe.Source,
+		MountPath:           fe.MountPath,
+		RootPath:            fe.RootPath,
 	}
 }
 

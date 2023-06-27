@@ -136,7 +136,9 @@ func (m *Monitor) ProcessEvent(event *model.Event) {
 	}
 	var notCritical *path.ErrPathResolutionNotCritical
 	if errors.As(event.Error, &notCritical) {
-		return
+		m.probe.DispatchCustomEvent(
+			NewAbnormalEvent(events.AbnormalPathRuleID, events.AbnormalPathRuleDesc, event, m.probe, notCritical.Err),
+		)
 	}
 
 	var pathErr *path.ErrPathResolution

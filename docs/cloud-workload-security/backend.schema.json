@@ -317,6 +317,15 @@
         "package_version": {
           "type": "string",
           "description": "System package version"
+        },
+        "source": {
+          "type": "string"
+        },
+        "mount_path": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
         }
       },
       "additionalProperties": false,
@@ -414,6 +423,15 @@
         "package_version": {
           "type": "string",
           "description": "System package version"
+        },
+        "source": {
+          "type": "string"
+        },
+        "mount_path": {
+          "type": "string"
+        },
+        "root_path": {
+          "type": "string"
         },
         "destination": {
           "$ref": "#/$defs/File",

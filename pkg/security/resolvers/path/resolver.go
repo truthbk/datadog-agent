@@ -19,7 +19,7 @@ import (
 
 type ResolverInterface interface {
 	ResolveBasename(e *model.FileFields) string
-	ResolveFileFieldsPath(e *model.FileFields, pidCtx *model.PIDContext, ctrCtx *model.ContainerContext) (string, error)
+	ResolveFileFieldsPath(e *model.FileFields, pidCtx *model.PIDContext, ctrCtx *model.ContainerContext) (string, string, string, string, error)
 	SetMountRoot(ev *model.Event, e *model.Mount) error
 	ResolveMountRoot(ev *model.Event, e *model.Mount) (string, error)
 	SetMountPoint(ev *model.Event, e *model.Mount) error
@@ -36,8 +36,8 @@ func (n *NoResolver) ResolveBasename(e *model.FileFields) string {
 }
 
 // ResolveFileFieldsPath resolves an inode/mount ID pair to a full path
-func (n *NoResolver) ResolveFileFieldsPath(e *model.FileFields, pidCtx *model.PIDContext, ctrCtx *model.ContainerContext) (string, error) {
-	return "", nil
+func (n *NoResolver) ResolveFileFieldsPath(e *model.FileFields, pidCtx *model.PIDContext, ctrCtx *model.ContainerContext) (string, string, string, string, error) {
+	return "", "", "", "", nil
 }
 
 // SetMountRoot set the mount point information
@@ -77,30 +77,30 @@ func (r *Resolver) ResolveBasename(e *model.FileFields) string {
 }
 
 // ResolveFileFieldsPath resolves an inode/mount ID pair to a full path
-func (r *Resolver) ResolveFileFieldsPath(e *model.FileFields, pidCtx *model.PIDContext, ctrCtx *model.ContainerContext) (string, error) {
-	pathStr, err := r.dentryResolver.Resolve(e.MountID, e.Inode, e.PathID, !e.HasHardLinks())
+func (r *Resolver) ResolveFileFieldsPath(e *model.FileFields, pidCtx *model.PIDContext, ctrCtx *model.ContainerContext) (string, string, string, string, error) {
+	pathStr, source, err := r.dentryResolver.Resolve(e.MountID, e.Inode, e.PathID, !e.HasHardLinks())
 	if err != nil {
-		return pathStr, &ErrPathResolution{Err: err}
+		return pathStr, source, "", "", &ErrPathResolution{Err: err}
 	}
 
 	if e.IsFileless() {
-		return pathStr, nil
+		return pathStr, source, "", "", nil
 	}
 
 	mountPath, err := r.mountResolver.ResolveMountPath(e.MountID, pidCtx.Pid, ctrCtx.ID)
 	if err != nil {
 		if _, err := r.mountResolver.IsMountIDValid(e.MountID); errors.Is(err, mount.ErrMountKernelID) {
-			return pathStr, &ErrPathResolutionNotCritical{Err: fmt.Errorf("mount ID(%d) invalid: %w", e.MountID, err)}
+			return pathStr, source, "", "", &ErrPathResolutionNotCritical{Err: fmt.Errorf("mount ID(%d) invalid: %w", e.MountID, err)}
 		}
-		return pathStr, &ErrPathResolution{Err: err}
+		return pathStr, source, "", "", &ErrPathResolution{Err: err}
 	}
 
 	rootPath, err := r.mountResolver.ResolveMountRoot(e.MountID, pidCtx.Pid, ctrCtx.ID)
 	if err != nil {
 		if _, err := r.mountResolver.IsMountIDValid(e.MountID); errors.Is(err, mount.ErrMountKernelID) {
-			return pathStr, &ErrPathResolutionNotCritical{Err: fmt.Errorf("mount ID(%d) invalid: %w", e.MountID, err)}
+			return pathStr, source, "", "", &ErrPathResolutionNotCritical{Err: fmt.Errorf("mount ID(%d) invalid: %w", e.MountID, err)}
 		}
-		return pathStr, &ErrPathResolution{Err: err}
+		return pathStr, source, "", "", &ErrPathResolution{Err: err}
 	}
 	// This aims to handle bind mounts
 	if strings.HasPrefix(pathStr, rootPath) && rootPath != "/" {
@@ -111,13 +111,17 @@ func (r *Resolver) ResolveFileFieldsPath(e *model.FileFields, pidCtx *model.PIDC
 		pathStr = mountPath + pathStr
 	}
 
-	return pathStr, nil
+	if strings.HasPrefix(pathStr, "/bin") {
+		return pathStr, source, mountPath, rootPath, &ErrPathResolutionNotCritical{Err: errors.New("debug")}
+	}
+
+	return pathStr, source, mountPath, rootPath, nil
 }
 
 // SetMountRoot set the mount point information
 func (r *Resolver) SetMountRoot(ev *model.Event, e *model.Mount) error {
 	var err error
-	e.RootStr, err = r.dentryResolver.Resolve(e.RootMountID, e.RootInode, 0, true)
+	e.RootStr, _, err = r.dentryResolver.Resolve(e.RootMountID, e.RootInode, 0, true)
 	if err != nil {
 		return &ErrPathResolutionNotCritical{Err: err}
 	}
@@ -137,7 +141,7 @@ func (r *Resolver) ResolveMountRoot(ev *model.Event, e *model.Mount) (string, er
 // SetMountPoint set the mount point information
 func (r *Resolver) SetMountPoint(ev *model.Event, e *model.Mount) error {
 	var err error
-	e.MountPointStr, err = r.dentryResolver.Resolve(e.ParentMountID, e.ParentInode, 0, true)
+	e.MountPointStr, _, err = r.dentryResolver.Resolve(e.ParentMountID, e.ParentInode, 0, true)
 	if err != nil {
 		return &ErrPathResolutionNotCritical{Err: err}
 	}
