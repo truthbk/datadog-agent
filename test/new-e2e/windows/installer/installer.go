@@ -61,17 +61,10 @@ func InstallAgentWithDefaultUser(client *ssh.Client, installer string, args stri
 	}
 
 	userargs := ""
-	// Create default user if on domain controller
 	if hostinfo.IsDomainController() {
+		// installer will create account when username and password are provided
 		username, userdomain, _ := DefaultAgentUser(hostinfo)
 		password := "123!@#QWEqwe"
-		userexists, err := windows.LocalUserExists(client, username)
-		if !userexists {
-			err = windows.CreateLocalUser(client, username, password)
-			if err != nil {
-				return err
-			}
-		}
 		userargs = fmt.Sprintf("DDAGENTUSER_NAME=%s\\%s DDAGENTUSER_PASSWORD=%s", userdomain, username, password)
 	}
 

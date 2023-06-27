@@ -84,9 +84,26 @@ func WithExpectedAgentUserFromUsername(client *ssh.Client, username string, pass
 	return func(t *Tester) {
 		var domainpart string
 		var servicedomainpart string
+
+		userexists, err := windows.LocalUserExists(client, username)
+		if err == nil && !userexists && createuser {
+			windows.CreateLocalUser(client, username, password)
+			// TODO: return error
+			} else {
+
+			}
+
 		if t.hostinfo.IsDomainController() {
-			domainpart = windows.NetBIOSName(t.hostinfo.Domain)
-			servicedomainpart = windows.NetBIOSName(t.hostinfo.Domain)
+			// On domain controllers, if the user exists then the domain part comes from the output of LookupAccountName, which
+			// seems to consistently be a NetBIOS name. However, if the installer creates the account and a domain part wasn't provided,
+			// then the FQDN is used.
+			if userexists || createuser {
+				domainpart = windows.NetBIOSName(t.hostinfo.Domain)
+				servicedomainpart = windows.NetBIOSName(t.hostinfo.Domain)
+			} else {
+				domainpart = t.hostinfo.Domain
+				servicedomainpart = t.hostinfo.Domain
+			}
 		} else {
 			domainpart = windows.NetBIOSName(t.hostinfo.Hostname)
 			servicedomainpart = "."
@@ -94,15 +111,6 @@ func WithExpectedAgentUserFromUsername(client *ssh.Client, username string, pass
 		t.username = username
 		t.userdomain = domainpart
 		t.serviceuser = fmt.Sprintf("%s\\%s", servicedomainpart, username)
-
-		userexists, err := windows.LocalUserExists(client, username)
-		if err == nil && !userexists {
-			// user must exist on domain controllers
-			if createuser {
-				windows.CreateLocalUser(client, username, password)
-			}
-			// TODO: return error
-		}
 	}
 }
 

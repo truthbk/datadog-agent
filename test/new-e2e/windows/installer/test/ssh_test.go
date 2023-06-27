@@ -288,32 +288,18 @@ func (s *windowsInstallerSuite) TestUpgradeChangeUser() {
 				s.installer, "",
 				filepath.Join(s.testoutputdir, "upgrade.log"))
 
-			if !t.hostinfo.IsDomainController() {
-				// should always succeed if not domain joined, installer always creates local user with random password
+			if tc.installpassword == tc.createpassword {
+				// creds are correct, install should succeed
+				// account should be created by installer if it does not exist
 				s.Require().NoError(installerr)
 				s.Require().True(t.AssertExpectations(s.Assert(), s.sshclient))
 				return
 			} else {
-				if !tc.createuser {
-					// install fails if account doesn't exist on domain controller
-					s.Require().Error(installerr)
-					// TODO: test rollback?
-					WithExpectedDefaultAgentUser()(t)
-					s.Require().True(t.AssertExpectations(s.Assert(), s.sshclient))
-					return
-				}
-				if tc.installpassword == tc.createpassword {
-					// creds are correct, install should succeed
-					s.Require().NoError(installerr)
-					s.Require().True(t.AssertExpectations(s.Assert(), s.sshclient))
-					return
-				} else {
-					// creds are wrong, install should succeed, but service won't be running
-					s.Require().NoError(installerr)
-					WithExpectAgentRunning(false)(t)
-					s.Require().True(t.AssertExpectations(s.Assert(), s.sshclient))
-					return
-				}
+				// creds are wrong, install should succeed, but service won't be running
+				s.Require().NoError(installerr)
+				WithExpectAgentRunning(false)(t)
+				s.Require().True(t.AssertExpectations(s.Assert(), s.sshclient))
+				return
 			}
 		})
 	}
@@ -326,8 +312,8 @@ func (s *windowsInstallerSuite) TestAgentUser() {
 	var domainpart string
 	var servicedomainpart string
 	if hostinfo.IsDomainController() {
-		domainpart = windows.NetBIOSName(hostinfo.Domain)
-		servicedomainpart = windows.NetBIOSName(hostinfo.Domain)
+		domainpart = hostinfo.Domain
+		servicedomainpart = hostinfo.Domain
 	} else {
 		domainpart = windows.NetBIOSName(hostinfo.Hostname)
 		servicedomainpart = "."
@@ -353,12 +339,6 @@ func (s *windowsInstallerSuite) TestAgentUser() {
 		s.Run(tc.testname, func() {
 			if tc_i > 0 {
 				s.SetupTest()
-			}
-
-			if hostinfo.IsDomainController() && !tc.builtinaccount {
-				// user must exist on domain controllers
-				err = windows.CreateLocalUser(s.sshclient, tc.expecteduser, userpassword)
-				s.Require().NoError(err)
 			}
 
 			t, err := NewTester(s.sshclient,
