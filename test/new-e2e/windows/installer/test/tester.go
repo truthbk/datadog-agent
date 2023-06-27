@@ -251,6 +251,8 @@ func (t *Tester) AssertExpectations(a *assert.Assertions, client *ssh.Client) bo
 	return true
 }
 
+// InstallAgent runs the agent installer on the client, and will automatically pass agent user/password
+// parameters if they are required (like on a DC).
 func (t *Tester) InstallAgent(client *ssh.Client, installerpath string, args string, logfile string) error {
 	var err error
 
@@ -265,6 +267,21 @@ func (t *Tester) InstallAgent(client *ssh.Client, installerpath string, args str
 	} else {
 		err = installer.InstallAgentWithDefaultUser(client, installerpath, args, logfile)
 	}
+
+	return err
+}
+
+// UpgradeAgent is similar to InstallAgent but will not automatically pass agent user/password parameters
+func (t *Tester) UpgradeAgent(client *ssh.Client, installerpath string, args string, logfile string) error {
+	var err error
+
+	if t.installUser != "" {
+		args = args + fmt.Sprintf(" DDAGENTUSER_NAME=%s", t.installUser)
+	}
+	if t.installPassword != "" {
+		args = args + fmt.Sprintf(" DDAGENTUSER_PASSWORD=%s", t.installPassword)
+	}
+	err = installer.InstallAgent(client, installerpath, args, logfile)
 
 	return err
 }

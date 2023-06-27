@@ -14,8 +14,11 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-agent/test/new-e2e/windows"
+	"github.com/DataDog/datadog-agent/test/new-e2e/windows/agent"
+	agenttest "github.com/DataDog/datadog-agent/test/new-e2e/windows/agent/test"
 	"github.com/DataDog/datadog-agent/test/new-e2e/windows/hyperv"
 	"github.com/DataDog/datadog-agent/test/new-e2e/windows/installer"
+	"github.com/cenkalti/backoff"
 
 	"github.com/pkg/sftp"
 	"github.com/stretchr/testify/suite"
@@ -170,14 +173,61 @@ func (s *windowsInstallerSuite) TestDefaultUpgrade() {
 
 	s.Require().True(AssertDefaultInstalledUser(s.Assert(), s.sshclient))
 
+	orig_version, err := agent.GetVersion(s.sshclient)
+	s.Require().NoError(err)
+	fmt.Printf("Agent version: %s", orig_version)
+
 	t, err := NewTester(s.sshclient)
 	s.Require().NoError(err)
 
-	err = t.InstallAgent(s.sshclient, s.installer, "",
+	err = t.UpgradeAgent(s.sshclient, s.installer, "",
 		filepath.Join(s.testoutputdir, "upgrade.log"))
 	s.Require().NoError(err)
 
 	s.Require().True(t.AssertExpectations(s.Assert(), s.sshclient))
+
+	new_version, err := agent.GetVersion(s.sshclient)
+	s.Require().NoError(err)
+	fmt.Printf("agent version after upgrade: %s", new_version)
+	s.Require().NotEqual(orig_version, new_version)
+}
+
+// Tests that the agent functions after rollback
+func (s *windowsInstallerSuite) TestRollback() {
+	err := installer.InstallAgentWithDefaultUser(s.sshclient,
+		s.prevstableinstaller, "",
+		filepath.Join(s.testoutputdir, "install.log"))
+	s.Require().NoError(err)
+
+	s.Require().True(AssertDefaultInstalledUser(s.Assert(), s.sshclient))
+
+	orig_version, err := agent.GetVersion(s.sshclient)
+	s.Require().NoError(err)
+	fmt.Printf("Agent version: %s", orig_version)
+
+	err = installer.InstallAgent(s.sshclient, s.installer, "WIXFAILWHENDEFERRED=1",
+		filepath.Join(s.testoutputdir, "upgrade.log"))
+	s.Require().Error(err)
+
+	new_version, err := agent.GetVersion(s.sshclient)
+	s.Require().NoError(err)
+	fmt.Printf("agent version after rollback: %s", new_version)
+	s.Require().Equal(orig_version, new_version)
+
+	// TODO: ideally the installer will ensure the agent is running after rollback,
+	//       OG installer doesn't so for now we copy the kitchen tests and start the agent
+	_, err = windows.PsExec(s.sshclient, "start-service datadogagent")
+	s.Require().NoError(err)
+
+	// ensure agent is running
+	err = backoff.Retry(func() error {
+		_, err := agent.GetStatus(s.sshclient)
+		return err
+	}, backoff.WithMaxRetries(backoff.NewConstantBackOff(50*time.Millisecond), (1000/50)*300))
+	s.Require().NoError(err)
+	status, err := agent.GetStatus(s.sshclient)
+	s.Require().NoError(err, "agent returns valid json status")
+	agenttest.AssertRunningChecks(s.Assert(), status)
 }
 
 // Tests that the agent can be uninstalled

@@ -30,3 +30,14 @@ func GetStatus(client *ssh.Client) (map[string]any, error) {
 
 	return result, nil
 }
+
+func GetVersion(client *ssh.Client) (string, error) {
+	cmd := fmt.Sprintf("& \"$env:ProgramFiles\\Datadog\\Datadog Agent\\bin\\agent.exe\" version")
+	output, err := windows.PsExec(client, cmd)
+	if err != nil {
+		fmt.Println(output)
+		return "", err
+	}
+
+	return output, nil
+}
