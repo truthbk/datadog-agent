@@ -218,6 +218,18 @@ func (j *JMXFetch) Start(manage bool) error {
 		return fmt.Errorf("incompatible options %q and %q", jvmContainerSupport, jvmCgroupMemoryAwareness)
 	} else if useContainerSupport {
 		javaOptions += jvmContainerSupport
+		maxHeapSizeAsPercentRAM := config.Datadog.GetFloat64("jmx_max_ram_percentage")
+		passOption := true
+		//These options overwrite the -XX:MaxRAMPercentage option, log a warning if they are found in the javaOptions
+		if strings.Contains(javaOptions, "Xmx") || strings.Contains(javaOptions, "XX:MaxHeapSize") {
+			log.Warnf("Java option Xmx and/or XX:MaxHeapSize overrides -XX:MaxRAMPercentage, remove if you want to scale by percent instead of a set memory limit")
+			passOption = false
+		}
+
+		if passOption {
+			maxRAMPercentOption := fmt.Sprintf(" -XX:MaxRAMPercentage=%.4f", maxHeapSizeAsPercentRAM)
+			javaOptions += maxRAMPercentOption
+		}
 	} else if useCgroupMemoryLimit {
 		passOption := true
 		// This option is incompatible with the Xmx and Xms options, log a warning if there are found in the javaOptions
