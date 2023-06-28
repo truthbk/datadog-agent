@@ -16,6 +16,7 @@ import (
 	logConfig "github.com/DataDog/datadog-agent/pkg/logs/config"
 
 	"github.com/DataDog/datadog-agent/pkg/serverless/executioncontext"
+	"github.com/DataDog/datadog-agent/pkg/serverless/logsyncorchestrator"
 	serverlessMetrics "github.com/DataDog/datadog-agent/pkg/serverless/metrics"
 	"github.com/DataDog/datadog-agent/pkg/serverless/tags"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
@@ -58,9 +59,11 @@ type LambdaLogsCollector struct {
 
 	// handleRuntimeDone is the function to be called when a platform.runtimeDone log message is received
 	handleRuntimeDone func()
+
+	logSyncOrchestrator *logsyncorchestrator.LogSyncOrchestrator
 }
 
-func NewLambdaLogCollector(out chan<- *logConfig.ChannelMessage, demux aggregator.Demultiplexer, extraTags *Tags, logsEnabled bool, enhancedMetricsEnabled bool, executionContext *executioncontext.ExecutionContext, handleRuntimeDone func(), lambdaInitMetricChan chan<- *LambdaInitMetric) *LambdaLogsCollector {
+func NewLambdaLogCollector(out chan<- *logConfig.ChannelMessage, demux aggregator.Demultiplexer, extraTags *Tags, logsEnabled bool, enhancedMetricsEnabled bool, executionContext *executioncontext.ExecutionContext, handleRuntimeDone func(), lambdaInitMetricChan chan<- *LambdaInitMetric, logSyncOrchestrator *logsyncorchestrator.LogSyncOrchestrator) *LambdaLogsCollector {
 
 	return &LambdaLogsCollector{
 		In:                     make(chan []LambdaLogAPIMessage, maxBufferedLogs), // Buffered, so we can hold start-up logs before first invocation without blocking
@@ -73,6 +76,7 @@ func NewLambdaLogCollector(out chan<- *logConfig.ChannelMessage, demux aggregato
 		handleRuntimeDone:      handleRuntimeDone,
 		process_once:           &sync.Once{},
 		lambdaInitMetricChan:   lambdaInitMetricChan,
+		logSyncOrchestrator:    logSyncOrchestrator,
 	}
 }
 
@@ -161,6 +165,7 @@ func (lc *LambdaLogsCollector) processLogMessages(messages []LambdaLogAPIMessage
 			if message.stringRecord == "" && message.logType != logTypeFunction {
 				continue
 			}
+			lc.logSyncOrchestrator.TelemetryApiMessageReceivedCount.Inc()
 			if message.objectRecord.requestID != "" {
 				lc.out <- logConfig.NewChannelMessageFromLambda([]byte(message.stringRecord), message.time, lc.arn, message.objectRecord.requestID)
 			} else {

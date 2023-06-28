@@ -19,7 +19,10 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/schedulers"
 	"github.com/DataDog/datadog-agent/pkg/logs/service"
 	"github.com/DataDog/datadog-agent/pkg/logs/sources"
+	// we don't want to directly import that, use an interface here
+	"github.com/DataDog/datadog-agent/pkg/serverless/logsyncorchestrator"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
+	"time"
 )
 
 // Note: Building the logs-agent for serverless separately removes the
@@ -29,7 +32,7 @@ import (
 // NewAgent returns a Logs Agent instance to run in a serverless environment.
 // The Serverless Logs Agent has only one input being the channel to receive the logs to process.
 // It is using a NullAuditor because we've nothing to do after having sent the logs to the intake.
-func NewAgent(sources *sources.LogSources, services *service.Services, tracker *tailers.TailerTracker, processingRules []*config.ProcessingRule, endpoints *config.Endpoints) *Agent {
+func NewAgent(sources *sources.LogSources, services *service.Services, tracker *tailers.TailerTracker, processingRules []*config.ProcessingRule, endpoints *config.Endpoints, logSyncOrchestrator *logsyncorchestrator.LogSyncOrchestrator) *Agent {
 	health := health.RegisterLiveness("logs-agent")
 
 	diagnosticMessageReceiver := diagnostic.NewBufferedMessageReceiver()
@@ -37,6 +40,7 @@ func NewAgent(sources *sources.LogSources, services *service.Services, tracker *
 	// setup the a null auditor, not tracking data in any registry
 	auditor := auditor.NewNullAuditor()
 	destinationsCtx := client.NewDestinationsContext()
+	destinationsCtx.LogSyncOrchestrator = logSyncOrchestrator
 
 	// setup the pipeline provider that provides pairs of processor and sender
 	pipelineProvider := pipeline.NewServerlessProvider(config.NumberOfPipelines, auditor, processingRules, endpoints, destinationsCtx)
@@ -60,5 +64,11 @@ func NewAgent(sources *sources.LogSources, services *service.Services, tracker *
 
 // buildEndpoints builds endpoints for the logs agent
 func buildEndpoints() (*config.Endpoints, error) {
-	return config.BuildServerlessEndpoints(intakeTrackType, config.DefaultIntakeProtocol)
+	config, err := config.BuildServerlessEndpoints(intakeTrackType, config.DefaultIntakeProtocol)
+	if err != nil {
+		return nil, err
+	}
+	// in serverless mode, we never want the batch strategy to flush with a tick
+	config.BatchWait = 365 * 24 * time.Hour
+	return config, nil
 }

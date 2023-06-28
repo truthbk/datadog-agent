@@ -9,7 +9,9 @@ package logs
 
 import (
 	"testing"
+	"time"
 
+	coreConfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,4 +20,5 @@ func TestBuildServerlessEndpoints(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "http-intake.logs.datadoghq.com", endpoints.Main.Host)
 	assert.Equal(t, "lambda-extension", string(endpoints.Main.Origin))
+	assert.True(t, endpoints.BatchWait > coreConfig.DefaultBatchWait*time.Second)
 }
