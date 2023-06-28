@@ -243,7 +243,7 @@ kernel_matrix_testing_run_tests_x64:
     ARCH: "x86_64"
   parallel:
     matrix:
-      - TAG: ["bionic", "focal", "jammy"]
+      - TAG: ["bionic_0", "focal_0", "jammy_0","bionic_1", "focal_1", "jammy_1","bionic_2", "focal_2", "jammy_2","bionic_3", "focal_3", "jammy_3","bionic_4", "focal_4", "jammy_4","bionic_5", "focal_5","jammy_5","bionic_6", "focal_6","jammy_6","bionic_7", "focal_7", "jammy_7"]
 
 kernel_matrix_testing_run_tests_arm64:
   extends:
@@ -252,7 +252,7 @@ kernel_matrix_testing_run_tests_arm64:
     ARCH: "arm64"
   parallel:
     matrix:
-      - TAG: ["focal", "jammy"]
+      - TAG: ["focal_1", "jammy_1","focal_2", "jammy_2","focal_3", "jammy_3","focal_4", "jammy_4","focal_5","jammy_5", "focal_6","jammy_6","focal_7", "jammy_7"]
 
 .kernel_matrix_testing_cleanup:
   stage: kernel_matrix_testing
