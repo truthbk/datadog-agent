@@ -328,6 +328,8 @@ def test_flavor(
 
     def command(test_results, module, module_result):
         with ctx.cd(module.full_path()):
+            print("GOCACHE size before")
+            ctx.run("du -sch $(go env GOCACHE)", warn=True)
             res = ctx.run(
                 cmd.format(
                     packages=' '.join(f"{t}/..." if not t.endswith("/...") else t for t in module.targets), **args
@@ -336,6 +338,8 @@ def test_flavor(
                 out_stream=test_profiler,
                 warn=True,
             )
+            print("GOCACHE size after")
+            ctx.run("du -sch $(go env GOCACHE)", warn=True)
 
         module_result.result_json_path = os.path.join(module.full_path(), GO_TEST_RESULT_TMP_JSON)
 
