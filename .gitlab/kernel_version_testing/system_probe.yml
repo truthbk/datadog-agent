@@ -280,36 +280,36 @@ kernel_matrix_testing_run_tests_arm64:
     matrix:
       - TAG: ["focal_1", "jammy_1","focal_2", "jammy_2","focal_3", "jammy_3","focal_4", "jammy_4","focal_5","jammy_5", "focal_6","jammy_6","focal_7", "jammy_7"]
 
-.kernel_matrix_testing_cleanup:
-  stage: kernel_matrix_testing
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/test-infra-definitions/runner:$TEST_INFRA_DEFINITIONS_BUILDIMAGES
-  needs: ["kernel_matrix_testing_setup_env", "kmt_load_test_1_run_tests_x64", "kmt_load_test_2_run_tests_x64", "kmt_load_test_3_run_tests_x64","kernel_matrix_testing_run_tests_arm64"]
-  tags: ["arch:amd64"]
-  before_script:
-    - !reference [.kernel_matrix_testing_new_profile]
-  script:
-    - |
-      if [ -f $CI_PROJECT_DIR/stack.outputs ]; then
-        INSTANCE_IPS=$(cat $CI_PROJECT_DIR/stack.outputs | grep -e '-instance-ip' | cut -d ' ' -f 2 | tr '\n' ' ' | awk '{$1=$1};1' | tr ' ' ',')
-        IP_FILTER="Name=private-ip-address,Values=$INSTANCE_IPS"
-      else
-        echo "No ${CI_PROJECT_DIR}/stack.outputs file found"
-        IP_FILTER=""
-      fi
-    - INSTANCE_IDS=$(aws ec2 describe-instances --filters "Name=tag:team,Values=ebpf-platform" "Name=tag:pipeline-id,Values=$CI_PIPELINE_ID" "Name=tag:managed-by,Values=pulumi"  $IP_FILTER --output text --query 'Reservations[*].Instances[*].InstanceId' | tr '\n' ' ')
-    - echo $INSTANCE_IDS
-    - |
-      if [ $(echo $INSTANCE_IDS | wc -w) != "0" ]; then
-        aws ec2 terminate-instances --instance-ids $INSTANCE_IDS
-      fi
-
-kernel_matrix_testing_cleanup_success:
-  extends:
-    - .kernel_matrix_testing_cleanup
-  when: on_success
-
-
-kernel_matrix_testing_cleanup_failure:
-  extends:
-    - .kernel_matrix_testing_cleanup
-  when: on_failure
+        #.kernel_matrix_testing_cleanup:
+        #  stage: kernel_matrix_testing
+        #  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/test-infra-definitions/runner:$TEST_INFRA_DEFINITIONS_BUILDIMAGES
+        #  needs: ["kernel_matrix_testing_setup_env", "kmt_load_test_1_run_tests_x64", "kmt_load_test_2_run_tests_x64", "kmt_load_test_3_run_tests_x64","kernel_matrix_testing_run_tests_arm64"]
+        #  tags: ["arch:amd64"]
+        #  before_script:
+        #    - !reference [.kernel_matrix_testing_new_profile]
+        #  script:
+        #    - |
+        #      if [ -f $CI_PROJECT_DIR/stack.outputs ]; then
+        #        INSTANCE_IPS=$(cat $CI_PROJECT_DIR/stack.outputs | grep -e '-instance-ip' | cut -d ' ' -f 2 | tr '\n' ' ' | awk '{$1=$1};1' | tr ' ' ',')
+        #        IP_FILTER="Name=private-ip-address,Values=$INSTANCE_IPS"
+        #      else
+        #        echo "No ${CI_PROJECT_DIR}/stack.outputs file found"
+        #        IP_FILTER=""
+        #      fi
+        #    - INSTANCE_IDS=$(aws ec2 describe-instances --filters "Name=tag:team,Values=ebpf-platform" "Name=tag:pipeline-id,Values=$CI_PIPELINE_ID" "Name=tag:managed-by,Values=pulumi"  $IP_FILTER --output text --query 'Reservations[*].Instances[*].InstanceId' | tr '\n' ' ')
+        #    - echo $INSTANCE_IDS
+        #    - |
+        #      if [ $(echo $INSTANCE_IDS | wc -w) != "0" ]; then
+        #        aws ec2 terminate-instances --instance-ids $INSTANCE_IDS
+        #      fi
+        #
+        #kernel_matrix_testing_cleanup_success:
+        #  extends:
+        #    - .kernel_matrix_testing_cleanup
+        #  when: on_success
+        #
+        #
+        #kernel_matrix_testing_cleanup_failure:
+        #  extends:
+        #    - .kernel_matrix_testing_cleanup
+        #  when: on_failure
