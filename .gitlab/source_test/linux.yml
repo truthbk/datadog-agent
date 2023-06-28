@@ -19,7 +19,6 @@
     - !reference [.retrieve_linux_go_tools_deps]
     - inv -e install-tools
     - inv -e invoke-unit-tests
-    - go build -mod=mod -tags "consul trivy kubeapiserver apm gce fargateprocess containerd zlib jetson orchestrator process jmx secrets systemd etcd zk python test netcgo podman kubelet cri docker ec2 otlp clusterchecks" -gcflags="" -ldflags="-X github.com/DataDog/datadog-agent/pkg/version.Commit=707f4ec -X github.com/DataDog/datadog-agent/pkg/version.AgentVersion=7.47.0-devel+git.205.707f4ec -X github.com/DataDog/datadog-agent/pkg/serializer.AgentPayloadVersion=v5.0.85 -X github.com/DataDog/datadog-agent/pkg/config.ForceDefaultPython=true -X github.com/DataDog/datadog-agent/pkg/config.DefaultPython=3 -r /go/src/github.com/DataDog/datadog-agent/dev/lib " -p 4 -race std cmd
     - inv -e test $FLAVORS --skip-linters --race --profile --rerun-fails=2 --python-runtimes "$PYTHON_RUNTIMES" --cpus 4 $EXTRA_OPTS --save-result-json test_output.json --junit-tar "junit-${CI_JOB_NAME}.tgz"
   artifacts:
     expire_in: 2 weeks
