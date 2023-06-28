@@ -1,7 +1,265 @@
 {
    "vmsets": [
         {
-            "name": "ubuntu_x86_64",
+            "name": "load_test_1_x86_64",
+            "recipe": "distro-x86_64",
+            "arch": "x86_64",
+            "kernels": [
+                {
+                    "dir": "jammy-server-cloudimg-amd64.qcow2",
+                    "tag": "jammy_22_0",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/jammy-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "focal-server-cloudimg-amd64.qcow2",
+                    "tag": "focal_20_0",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/focal-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "bionic-server-cloudimg-amd64.qcow2",
+                    "tag": "bionic_18_0",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/bionic-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "jammy-server-cloudimg-amd64.qcow2",
+                    "tag": "jammy_22_1",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/jammy-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "focal-server-cloudimg-amd64.qcow2",
+                    "tag": "focal_20_1",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/focal-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "bionic-server-cloudimg-amd64.qcow2",
+                    "tag": "bionic_18-1",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/bionic-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "jammy-server-cloudimg-amd64.qcow2",
+                    "tag": "jammy_22_2",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/jammy-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "focal-server-cloudimg-amd64.qcow2",
+                    "tag": "focal_20_2",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/focal-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "bionic-server-cloudimg-amd64.qcow2",
+                    "tag": "bionic_18_2",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/bionic-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "jammy-server-cloudimg-amd64.qcow2",
+                    "tag": "jammy_22_3",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/jammy-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "focal-server-cloudimg-amd64.qcow2",
+                    "tag": "focal_20_3",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/focal-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "bionic-server-cloudimg-amd64.qcow2",
+                    "tag": "bionic_18_3",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/bionic-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "jammy-server-cloudimg-amd64.qcow2",
+                    "tag": "jammy_22_4",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/jammy-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "focal-server-cloudimg-amd64.qcow2",
+                    "tag": "focal_20_4",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/focal-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "bionic-server-cloudimg-amd64.qcow2",
+                    "tag": "bionic_18_4",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/bionic-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "jammy-server-cloudimg-amd64.qcow2",
+                    "tag": "jammy_22_5",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/jammy-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "focal-server-cloudimg-amd64.qcow2",
+                    "tag": "focal_20_5",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/focal-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "bionic-server-cloudimg-amd64.qcow2",
+                    "tag": "bionic_18_5",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/bionic-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "jammy-server-cloudimg-amd64.qcow2",
+                    "tag": "jammy_22_6",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/jammy-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "focal-server-cloudimg-amd64.qcow2",
+                    "tag": "focal_20_6",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/focal-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "bionic-server-cloudimg-amd64.qcow2",
+                    "tag": "bionic_18_6",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/bionic-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "jammy-server-cloudimg-amd64.qcow2",
+                    "tag": "jammy_22_7",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/jammy-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "focal-server-cloudimg-amd64.qcow2",
+                    "tag": "focal_20_7",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/focal-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "bionic-server-cloudimg-amd64.qcow2",
+                    "tag": "bionic_18_7",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/bionic-server-cloudimg-amd64.qcow2"
+                }
+            ],
+            "vcpu": [8],
+            "memory": [4096]
+        },
+        {
+            "name": "load_test_2_x86_64",
+            "recipe": "distro-x86_64",
+            "arch": "x86_64",
+            "kernels": [
+                {
+                    "dir": "jammy-server-cloudimg-amd64.qcow2",
+                    "tag": "jammy_22_0",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/jammy-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "focal-server-cloudimg-amd64.qcow2",
+                    "tag": "focal_20_0",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/focal-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "bionic-server-cloudimg-amd64.qcow2",
+                    "tag": "bionic_18_0",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/bionic-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "jammy-server-cloudimg-amd64.qcow2",
+                    "tag": "jammy_22_1",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/jammy-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "focal-server-cloudimg-amd64.qcow2",
+                    "tag": "focal_20_1",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/focal-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "bionic-server-cloudimg-amd64.qcow2",
+                    "tag": "bionic_18-1",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/bionic-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "jammy-server-cloudimg-amd64.qcow2",
+                    "tag": "jammy_22_2",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/jammy-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "focal-server-cloudimg-amd64.qcow2",
+                    "tag": "focal_20_2",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/focal-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "bionic-server-cloudimg-amd64.qcow2",
+                    "tag": "bionic_18_2",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/bionic-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "jammy-server-cloudimg-amd64.qcow2",
+                    "tag": "jammy_22_3",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/jammy-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "focal-server-cloudimg-amd64.qcow2",
+                    "tag": "focal_20_3",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/focal-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "bionic-server-cloudimg-amd64.qcow2",
+                    "tag": "bionic_18_3",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/bionic-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "jammy-server-cloudimg-amd64.qcow2",
+                    "tag": "jammy_22_4",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/jammy-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "focal-server-cloudimg-amd64.qcow2",
+                    "tag": "focal_20_4",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/focal-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "bionic-server-cloudimg-amd64.qcow2",
+                    "tag": "bionic_18_4",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/bionic-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "jammy-server-cloudimg-amd64.qcow2",
+                    "tag": "jammy_22_5",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/jammy-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "focal-server-cloudimg-amd64.qcow2",
+                    "tag": "focal_20_5",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/focal-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "bionic-server-cloudimg-amd64.qcow2",
+                    "tag": "bionic_18_5",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/bionic-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "jammy-server-cloudimg-amd64.qcow2",
+                    "tag": "jammy_22_6",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/jammy-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "focal-server-cloudimg-amd64.qcow2",
+                    "tag": "focal_20_6",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/focal-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "bionic-server-cloudimg-amd64.qcow2",
+                    "tag": "bionic_18_6",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/bionic-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "jammy-server-cloudimg-amd64.qcow2",
+                    "tag": "jammy_22_7",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/jammy-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "focal-server-cloudimg-amd64.qcow2",
+                    "tag": "focal_20_7",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/focal-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "bionic-server-cloudimg-amd64.qcow2",
+                    "tag": "bionic_18_7",
+                    "image_source": "file:///home/kernel-version-testing/rootfs/bionic-server-cloudimg-amd64.qcow2"
+                }
+            ],
+            "vcpu": [8],
+            "memory": [4096]
+        },
+        {
+            "name": "load_test_3_x86_64",
             "recipe": "distro-x86_64",
             "arch": "x86_64",
             "kernels": [
