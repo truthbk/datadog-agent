@@ -45,7 +45,7 @@ const (
 	ExecEventType
 	// ExitEventType Exit event
 	ExitEventType
-	// InvalidateDentryEventType Dentry invalidated event (DEPRECATED)
+	// InvalidateDentryEventType Dentry invalidated event
 	InvalidateDentryEventType
 	// SetuidEventType setuid event
 	SetuidEventType
