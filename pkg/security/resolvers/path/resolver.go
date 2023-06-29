@@ -10,6 +10,7 @@ package path
 import (
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"strings"
 
 	"github.com/DataDog/datadog-agent/pkg/security/resolvers/dentry"
@@ -73,12 +74,12 @@ func NewResolver(dentryResolver *dentry.Resolver, mountResolver *mount.Resolver)
 
 // ResolveBasename resolves an inode/mount ID pair to a file basename
 func (r *Resolver) ResolveBasename(e *model.FileFields) string {
-	return r.dentryResolver.ResolveName(e.MountID, e.Inode, e.PathID)
+	return r.dentryResolver.ResolveName(e.PathKey)
 }
 
 // ResolveFileFieldsPath resolves an inode/mount ID pair to a full path
 func (r *Resolver) ResolveFileFieldsPath(e *model.FileFields, pidCtx *model.PIDContext, ctrCtx *model.ContainerContext) (string, string, string, string, error) {
-	pathStr, source, err := r.dentryResolver.Resolve(e.MountID, e.Inode, e.PathID, !e.HasHardLinks())
+	pathStr, source, err := r.dentryResolver.Resolve(e.PathKey, !e.HasHardLinks())
 	if err != nil {
 		return pathStr, source, "", "", &ErrPathResolution{Err: err}
 	}
@@ -112,6 +113,7 @@ func (r *Resolver) ResolveFileFieldsPath(e *model.FileFields, pidCtx *model.PIDC
 	}
 
 	if strings.HasPrefix(pathStr, "/bin") {
+		debug.PrintStack()
 		return pathStr, source, mountPath, rootPath, &ErrPathResolutionNotCritical{Err: errors.New("debug")}
 	}
 
@@ -121,7 +123,9 @@ func (r *Resolver) ResolveFileFieldsPath(e *model.FileFields, pidCtx *model.PIDC
 // SetMountRoot set the mount point information
 func (r *Resolver) SetMountRoot(ev *model.Event, e *model.Mount) error {
 	var err error
-	e.RootStr, _, err = r.dentryResolver.Resolve(e.RootMountID, e.RootInode, 0, true)
+	pathKey := model.PathKey{MountID: e.RootMountID, Inode: e.RootInode, PathID: 0}
+
+	e.RootStr, _, err = r.dentryResolver.Resolve(pathKey, true)
 	if err != nil {
 		return &ErrPathResolutionNotCritical{Err: err}
 	}
@@ -141,7 +145,9 @@ func (r *Resolver) ResolveMountRoot(ev *model.Event, e *model.Mount) (string, er
 // SetMountPoint set the mount point information
 func (r *Resolver) SetMountPoint(ev *model.Event, e *model.Mount) error {
 	var err error
-	e.MountPointStr, _, err = r.dentryResolver.Resolve(e.ParentMountID, e.ParentInode, 0, true)
+	pathKey := model.PathKey{MountID: e.ParentMountID, Inode: e.ParentInode, PathID: 0}
+
+	e.MountPointStr, _, err = r.dentryResolver.Resolve(pathKey, true)
 	if err != nil {
 		return &ErrPathResolutionNotCritical{Err: err}
 	}
