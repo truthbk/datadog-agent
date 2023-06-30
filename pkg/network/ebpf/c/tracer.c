@@ -227,7 +227,7 @@ int kretprobe__tcp_close(struct pt_regs *ctx) {
     // If protocol classification is disabled, then we don't have kretprobe__tcp_close_clean_protocols hook
     // so, there is no one to use the map and clean it.
     if (is_protocol_classification_supported()) {
-        bpf_map_update_with_telemetry(proto_classification_tcp_close_args, &pid_tgid, &t, BPF_ANY);
+        bpf_map_update_with_telemetry(close_args, &pid_tgid, &t, BPF_ANY);
         bpf_tail_call_compat(ctx, &close_progs, 1);
         return 0;
     }
@@ -240,10 +240,10 @@ SEC("kretprobe/proto_classification_cleanup")
 int kretprobe__proto_classification_cleanup(struct pt_regs *ctx) {
     u64 pid_tgid = bpf_get_current_pid_tgid();
 
-    conn_tuple_t *tup_ptr = (conn_tuple_t*) bpf_map_lookup_elem(&proto_classification_tcp_close_args, &pid_tgid);
+    conn_tuple_t *tup_ptr = (conn_tuple_t*) bpf_map_lookup_elem(&close_args, &pid_tgid);
     if (tup_ptr) {
         clean_protocol_classification(tup_ptr);
-        bpf_map_delete_elem(&proto_classification_tcp_close_args, &pid_tgid);
+        bpf_map_delete_elem(&close_args, &pid_tgid);
     }
 
     bpf_tail_call_compat(ctx, &close_progs, 0);
@@ -992,7 +992,7 @@ static __always_inline int handle_udp_destroy_sock(void *ctx, u64 pid_tgid, clos
     bpf_map_delete_elem(&close_args, &pid_tgid);
 
     if (t.sport) {
-        cleanup_conn(&t, sk);
+        cleanup_conn(ctx, &t, sk);
         lport = t.sport;
     } else {
         lport = read_sport(sk);
