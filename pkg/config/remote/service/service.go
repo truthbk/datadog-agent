@@ -10,6 +10,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path"
 	"sync"
@@ -53,6 +54,12 @@ const (
 	maximalMaxBackoffTime = 5 * time.Minute
 )
 
+const (
+	// When the agent continuously has the same authorization error when fetching RC updates
+	// The first initialLogRefreshError are logged as ERROR, and then it's only logged as INFO
+	initialFetchErrorLog uint64 = 5
+)
+
 // Service defines the remote config management service responsible for fetching, storing
 // and dispatching the configurations
 type Service struct {
@@ -67,6 +74,9 @@ type Service struct {
 	// The number of errors we're currently tracking within the context of our backoff policy
 	backoffErrorCount int
 
+	// Handle to stop the services main goroutine
+	cancel context.CancelFunc
+
 	clock         clock.Clock
 	hostname      string
 	traceAgentEnv string
@@ -80,6 +90,10 @@ type Service struct {
 	cacheBypassClients cacheBypassClients
 
 	lastUpdateErr error
+
+	// Used to rate limit the 4XX error logs
+	fetchErrorCount    uint64
+	lastFetchErrorType error
 }
 
 // uptaneClient is used to mock the uptane component for testing
@@ -235,6 +249,7 @@ func newRCBackendOrgUUIDProvider(http api.API) uptane.OrgUUIDProvider {
 // Start the remote configuration management service
 func (s *Service) Start(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
+	s.cancel = cancel
 	go func() {
 		defer cancel()
 
@@ -267,6 +282,14 @@ func (s *Service) Start(ctx context.Context) error {
 		}
 	}()
 	return nil
+}
+
+func (s *Service) Stop() error {
+	if s.cancel != nil {
+		s.cancel()
+	}
+
+	return s.db.Close()
 }
 
 func (s *Service) calculateRefreshInterval() time.Duration {
@@ -306,8 +329,25 @@ func (s *Service) refresh() error {
 	if err != nil {
 		s.backoffErrorCount = s.backoffPolicy.IncError(s.backoffErrorCount)
 		s.lastUpdateErr = fmt.Errorf("api: %v", err)
+		if s.lastFetchErrorType != err {
+			s.lastFetchErrorType = err
+			s.fetchErrorCount = 0
+		}
+
+		if errors.Is(err, api.ErrUnauthorized) || errors.Is(err, api.ErrProxy) {
+			if s.fetchErrorCount < initialFetchErrorLog {
+				s.fetchErrorCount++
+				return err
+			}
+			// If we saw the error enough time, we consider that RC not working is a normal behavior
+			// And we only log as INFO
+			// The agent will eventually log this error as INFO every maximalMaxBackoffTime
+			log.Infof("Could not refresh Remote Config: %v", err)
+			return nil
+		}
 		return err
 	}
+	s.fetchErrorCount = 0
 	err = s.uptane.Update(response)
 	if err != nil {
 		s.backoffErrorCount = s.backoffPolicy.IncError(s.backoffErrorCount)

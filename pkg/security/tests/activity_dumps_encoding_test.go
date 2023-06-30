@@ -4,7 +4,6 @@
 // Copyright 2016-present Datadog, Inc.
 
 //go:build functionaltests
-// +build functionaltests
 
 package tests
 
@@ -23,7 +22,7 @@ import (
 var v1testdata []byte
 
 func getTestDataActivityDump(tb testing.TB) *dump.ActivityDump {
-	ad := dump.NewEmptyActivityDump()
+	ad := dump.NewEmptyActivityDump(nil)
 	if err := ad.DecodeFromReader(bytes.NewReader(v1testdata), config.Protobuf); err != nil {
 		tb.Fatal(err)
 	}
@@ -82,7 +81,7 @@ func TestProtobufDecoding(t *testing.T) {
 }
 
 func decodeAD(buffer *bytes.Buffer) (*dump.ActivityDump, error) {
-	decoded := dump.NewEmptyActivityDump()
+	decoded := dump.NewEmptyActivityDump(nil)
 	if err := decoded.DecodeProtobuf(bytes.NewReader(buffer.Bytes())); err != nil {
 		return nil, err
 	}

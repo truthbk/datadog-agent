@@ -6,22 +6,30 @@
 package client
 
 import (
+	"errors"
+	"regexp"
 	"testing"
+	"time"
 
-	"github.com/DataDog/test-infra-definitions/datadog/agent"
+	"github.com/DataDog/test-infra-definitions/components/datadog/agent"
+	"github.com/DataDog/test-infra-definitions/components/os"
+	"github.com/cenkalti/backoff"
 )
 
 var _ clientService[agent.ClientData] = (*Agent)(nil)
 
-// A client Agent that is connected to an agent.Installer defined in test-infra-definition.
+// A client Agent that is connected to an [agent.Installer].
+//
+// [agent.Installer]: https://pkg.go.dev/github.com/DataDog/test-infra-definitions@main/components/datadog/agent#Installer
 type Agent struct {
 	*UpResultDeserializer[agent.ClientData]
 	*vmClient
+	os os.OS
 }
 
 // Create a new instance of Agent
 func NewAgent(installer *agent.Installer) *Agent {
-	agentInstance := &Agent{}
+	agentInstance := &Agent{os: installer.VM().GetOS()}
 	agentInstance.UpResultDeserializer = NewUpResultDeserializer[agent.ClientData](installer, agentInstance)
 	return agentInstance
 }
@@ -33,14 +41,74 @@ func (agent *Agent) initService(t *testing.T, data *agent.ClientData) error {
 	return err
 }
 
-func (agent *Agent) Status() string {
-	return agent.vmClient.Execute("sudo datadog-agent status")
+func (agent *Agent) GetCommand(parameters string) string {
+	return agent.os.GetRunAgentCmd(parameters)
 }
 
-func (agent *Agent) Version() string {
-	return agent.vmClient.Execute("datadog-agent version")
+func (agent *Agent) executeCommand(command string, commandArgs ...AgentArgsOption) string {
+	args := newAgentArgs(commandArgs...)
+	return agent.vmClient.Execute(agent.GetCommand(command) + " " + args.Args)
 }
 
-func (agent *Agent) Config() string {
-	return agent.vmClient.Execute("sudo datadog-agent config")
+func (agent *Agent) Version(commandArgs ...AgentArgsOption) string {
+	return agent.executeCommand("version", commandArgs...)
+}
+
+func (agent *Agent) Config(commandArgs ...AgentArgsOption) string {
+	return agent.executeCommand("config", commandArgs...)
+}
+
+type Status struct {
+	Content string
+}
+
+func newStatus(s string) *Status {
+	return &Status{Content: s}
+}
+
+// isReady true if status contains a valid version
+func (s *Status) isReady() (bool, error) {
+	return regexp.MatchString("={15}\nAgent \\(v7\\.\\d{2}\\..*\n={15}", s.Content)
+}
+
+func (agent *Agent) Status(commandArgs ...AgentArgsOption) *Status {
+	return newStatus(agent.executeCommand("status", commandArgs...))
+}
+
+// IsReady runs status command and returns true if the agent is ready.
+// Use this to wait for agent to be ready before running any command.
+func (a *Agent) IsReady() (bool, error) {
+	return a.Status().isReady()
+}
+
+// WaitForReady blocks up to one minute waiting for agent to be ready.
+// Retries every 100 ms up to one minute.
+// Returns error on failure.
+func (a *Agent) WaitForReady() error {
+	return a.WaitForReadyTimeout(1 * time.Minute)
+}
+
+// WaitForReady blocks up to timeout waiting for agent to be ready.
+// Retries every 100 ms up to timeout.
+// Returns error on failure.
+func (a *Agent) WaitForReadyTimeout(timeout time.Duration) error {
+	interval := 100 * time.Millisecond
+	maxRetries := timeout.Milliseconds() / interval.Milliseconds()
+	err := backoff.Retry(func() error {
+		statusOutput, err := a.vmClient.ExecuteWithError(a.GetCommand("status"))
+		if err != nil {
+			return err
+		}
+
+		isReady, err := newStatus(statusOutput).isReady()
+		if err != nil {
+			return err
+		}
+		if !isReady {
+			return errors.New("agent not ready")
+		}
+
+		return nil
+	}, backoff.WithMaxRetries(backoff.NewConstantBackOff(interval), uint64(maxRetries)))
+	return err
 }

@@ -13,9 +13,9 @@
 #include "skb.h"
 #include "sockfd.h"
 #include "tracer/events.h"
+#include "tracer/maps.h"
 #include "tracer/port.h"
 #include "tracer/tcp_recv.h"
-#include "protocols/classification/tracer-maps.h"
 #include "protocols/classification/protocol-classification.h"
 
 SEC("socket/classifier_entry")
@@ -222,7 +222,7 @@ int kretprobe__tcp_close(struct pt_regs *ctx) {
     log_debug("kprobe/tcp_close: tgid: %u, pid: %u\n", pid_tgid >> 32, pid_tgid & 0xFFFFFFFF);
     log_debug("kprobe/tcp_close: netns: %u, sport: %u, dport: %u\n", t.netns, t.sport, t.dport);
 
-    cleanup_conn(&t, sk);
+    cleanup_conn(ctx, &t, sk);
 
     // If protocol classification is disabled, then we don't have kretprobe__tcp_close_clean_protocols hook
     // so, there is no one to use the map and clean it.
@@ -390,7 +390,24 @@ int kprobe__ip6_make_skb__pre_4_7_0(struct pt_regs *ctx) {
     return 0;
 }
 
+SEC("kprobe/ip6_make_skb")
+int kprobe__ip6_make_skb__pre_5_18_0(struct pt_regs *ctx) {
+    struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
+    size_t len = (size_t)PT_REGS_PARM4(ctx);
+    struct flowi6 *fl6 = (struct flowi6 *)PT_REGS_PARM7(ctx);
+
+    u64 pid_tgid = bpf_get_current_pid_tgid();
+    ip_make_skb_args_t args = {};
+    bpf_probe_read_kernel_with_telemetry(&args.sk, sizeof(args.sk), &sk);
+    bpf_probe_read_kernel_with_telemetry(&args.len, sizeof(args.len), &len);
+    bpf_probe_read_kernel_with_telemetry(&args.fl6, sizeof(args.fl6), &fl6);
+    bpf_map_update_with_telemetry(ip_make_skb_args, &pid_tgid, &args, BPF_ANY);
+    return 0;
+}
+
 #endif // COMPILE_CORE || COMPILE_PREBUILT
+
+#if defined(COMPILE_RUNTIME) || defined(COMPILE_CORE)
 
 SEC("kprobe/ip6_make_skb")
 int kprobe__ip6_make_skb(struct pt_regs *ctx) {
@@ -400,7 +417,10 @@ int kprobe__ip6_make_skb(struct pt_regs *ctx) {
     // commit: https://github.com/torvalds/linux/commit/f37a4cc6bb0ba08c2d9fd7d18a1da87161cbb7f9
     struct inet_cork_full *cork_full = (struct inet_cork_full *)PT_REGS_PARM9(ctx);
     struct flowi6 *fl6 = &cork_full->fl.u.ip6;
-#elif !defined(COMPILE_RUNTIME) || LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0)
+#elif defined(COMPILE_CORE)
+    struct inet_cork_full *cork_full = (struct inet_cork_full *)PT_REGS_PARM9(ctx);
+    struct flowi6 *fl6 = (struct flowi6 *)__builtin_preserve_access_index(&cork_full->fl.u.ip6);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 7, 0)
     // commit: https://github.com/torvalds/linux/commit/26879da58711aa604a1b866cbeedd7e0f78f90ad
     // changed the arguments to ip6_make_skb and introduced the struct ipcm6_cookie
     struct flowi6 *fl6 = (struct flowi6 *)PT_REGS_PARM7(ctx);
@@ -414,9 +434,10 @@ int kprobe__ip6_make_skb(struct pt_regs *ctx) {
     bpf_probe_read_kernel_with_telemetry(&args.len, sizeof(args.len), &len);
     bpf_probe_read_kernel_with_telemetry(&args.fl6, sizeof(args.fl6), &fl6);
     bpf_map_update_with_telemetry(ip_make_skb_args, &pid_tgid, &args, BPF_ANY);
-
     return 0;
 }
+
+#endif // COMPILE_RUNTIME || COMPILE_CORE
 
 SEC("kretprobe/ip6_make_skb")
 int kretprobe__ip6_make_skb(struct pt_regs *ctx) {

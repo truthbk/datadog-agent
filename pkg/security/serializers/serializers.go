@@ -7,7 +7,6 @@
 // Copyright 2016-present Datadog, Inc.
 
 //go:build linux
-// +build linux
 
 package serializers
 
@@ -22,6 +21,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/security/events"
 	"github.com/DataDog/datadog-agent/pkg/security/resolvers"
+	sprocess "github.com/DataDog/datadog-agent/pkg/security/resolvers/process"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/utils"
@@ -240,12 +240,25 @@ type FileEventSerializer struct {
 
 	// New Mount ID
 	NewMountID uint32 `json:"new_mount_id,omitempty"`
-	// Group ID
-	GroupID uint32 `json:"group_id,omitempty"`
 	// Device associated with the file
 	Device uint32 `json:"device,omitempty"`
 	// Filesystem type
 	FSType string `json:"fstype,omitempty"`
+}
+
+// MatchedRuleSerializer serializes a rule
+// easyjson:json
+type MatchedRuleSerializer struct {
+	// ID of the rule
+	ID string `json:"id,omitempty"`
+	// Version of the rule
+	Version string `json:"version,omitempty"`
+	// Tags of the rule
+	Tags []string `json:"tags,omitempty"`
+	// Name of the policy that introduced the rule
+	PolicyName string `json:"policy_name,omitempty"`
+	// Version of the policy that introduced the rule
+	PolicyVersion string `json:"policy_version,omitempty"`
 }
 
 // EventContextSerializer serializes an event context to JSON
@@ -259,6 +272,8 @@ type EventContextSerializer struct {
 	Outcome string `json:"outcome,omitempty"`
 	// True if the event was asynchronous
 	Async bool `json:"async,omitempty"`
+	// The list of rules that the event matched (only valid in the context of an anomaly)
+	MatchedRules []MatchedRuleSerializer `json:"matched_rules,omitempty"`
 }
 
 // ProcessContextSerializer serializes a process context to JSON
@@ -514,7 +529,6 @@ type MountEventSerializer struct {
 	MountPoint                     *FileSerializer `json:"mp,omitempty"`                    // Mount point file information
 	Root                           *FileSerializer `json:"root,omitempty"`                  // Root file information
 	MountID                        uint32          `json:"mount_id"`                        // Mount ID of the new mount
-	GroupID                        uint32          `json:"group_id"`                        // ID of the peer group
 	ParentMountID                  uint32          `json:"parent_mount_id"`                 // Mount ID of the parent mount
 	BindSrcMountID                 uint32          `json:"bind_src_mount_id"`               // Mount ID of the source of a bind mount
 	Device                         uint32          `json:"device"`                          // Device associated with the file
@@ -585,6 +599,21 @@ func newAnomalyDetectionSyscallEventSerializer(e *model.AnomalyDetectionSyscallE
 	return &AnomalyDetectionSyscallEventSerializer{
 		Syscall: e.SyscallID.String(),
 	}
+}
+
+func newMatchedRulesSerializer(r *model.MatchedRule) MatchedRuleSerializer {
+	mrs := MatchedRuleSerializer{
+		ID:            r.RuleID,
+		Version:       r.RuleVersion,
+		PolicyName:    r.PolicyName,
+		PolicyVersion: r.PolicyVersion,
+		Tags:          make([]string, 0, len(r.RuleTags)),
+	}
+
+	for tagName, tagValue := range r.RuleTags {
+		mrs.Tags = append(mrs.Tags, tagName+":"+tagValue)
+	}
+	return mrs
 }
 
 func getInUpperLayer(f *model.FileFields) *bool {
@@ -668,7 +697,7 @@ func newProcessSerializer(ps *model.Process, e *model.Event, resolvers *resolver
 	if ps.IsNotKworker() {
 		argv, argvTruncated := resolvers.ProcessResolver.GetProcessScrubbedArgv(ps)
 		envs, EnvsTruncated := resolvers.ProcessResolver.GetProcessEnvs(ps)
-		argv0, _ := resolvers.ProcessResolver.GetProcessArgv0(ps)
+		argv0, _ := sprocess.GetProcessArgv0(ps)
 
 		psSerializer := &ProcessSerializer{
 			ForkTime: getTimeIfNotZero(ps.ForkTime),
@@ -710,7 +739,7 @@ func newProcessSerializer(ps *model.Process, e *model.Event, resolvers *resolver
 				ID: ps.ContainerID,
 			}
 			if cgroup, _ := resolvers.CGroupResolver.GetWorkload(ps.ContainerID); cgroup != nil {
-				psSerializer.Container.CreatedAt = getTimeIfNotZero(time.Unix(0, int64(cgroup.CreationTime)))
+				psSerializer.Container.CreatedAt = getTimeIfNotZero(time.Unix(0, int64(cgroup.CreatedAt)))
 			}
 		}
 		return psSerializer
@@ -1014,7 +1043,6 @@ func newMountEventSerializer(e *model.Event, resolvers *resolvers.Resolvers) *Mo
 			Inode:   &e.Mount.RootInode,
 		},
 		MountID:         e.Mount.MountID,
-		GroupID:         e.Mount.GroupID,
 		ParentMountID:   e.Mount.ParentMountID,
 		BindSrcMountID:  e.Mount.BindSrcMountID,
 		Device:          e.Mount.Device,
@@ -1071,26 +1099,30 @@ func MarshalCustomEvent(event *events.CustomEvent) ([]byte, error) {
 
 // NewEventSerializer creates a new event serializer based on the event type
 func NewEventSerializer(event *model.Event, resolvers *resolvers.Resolvers) *EventSerializer {
-	var pc model.ProcessContext
-	if entry, _ := event.FieldHandlers.ResolveProcessCacheEntry(event); entry != nil {
-		pc = entry.ProcessContext
-	}
+	pc := event.ProcessContext
 
 	s := &EventSerializer{
 		EventContextSerializer: EventContextSerializer{
 			Name:  model.EventType(event.Type).String(),
 			Async: event.FieldHandlers.ResolveAsync(event),
 		},
-		ProcessContextSerializer: newProcessContextSerializer(&pc, event, resolvers),
+		ProcessContextSerializer: newProcessContextSerializer(pc, event, resolvers),
 		DDContextSerializer:      newDDContextSerializer(event),
 		UserContextSerializer:    newUserContextSerializer(event),
 		Date:                     utils.NewEasyjsonTime(event.FieldHandlers.ResolveEventTime(event)),
 	}
 
-	if id := event.FieldHandlers.ResolveContainerID(event, &event.ContainerContext); id != "" {
+	if event.IsAnomalyDetectionEvent() && len(event.Rules) > 0 {
+		s.EventContextSerializer.MatchedRules = make([]MatchedRuleSerializer, 0, len(event.Rules))
+		for _, r := range event.Rules {
+			s.EventContextSerializer.MatchedRules = append(s.EventContextSerializer.MatchedRules, newMatchedRulesSerializer(r))
+		}
+	}
+
+	if id := event.FieldHandlers.ResolveContainerID(event, event.ContainerContext); id != "" {
 		var creationTime time.Time
 		if cgroup, _ := resolvers.CGroupResolver.GetWorkload(id); cgroup != nil {
-			creationTime = time.Unix(0, int64(cgroup.CreationTime))
+			creationTime = time.Unix(0, int64(cgroup.CreatedAt))
 		}
 		s.ContainerContextSerializer = &ContainerContextSerializer{
 			ID:        id,

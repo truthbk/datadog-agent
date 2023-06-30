@@ -4,7 +4,6 @@
 // Copyright 2016-present Datadog, Inc.
 
 //go:build !windows && kubeapiserver
-// +build !windows,kubeapiserver
 
 // Package start implements 'cluster-agent start'.
 package start
@@ -190,7 +189,7 @@ func start(log log.Component, config config.Component, forwarder defaultforwarde
 	// Serving stale data is better than serving no data at all.
 	opts := aggregator.DefaultAgentDemultiplexerOptions()
 	opts.UseEventPlatformForwarder = false
-	demux := aggregator.InitAndStartAgentDemultiplexer(forwarder, opts, hname)
+	demux := aggregator.InitAndStartAgentDemultiplexer(log, forwarder, opts, hname)
 	demux.AddAgentStartupTelemetry(fmt.Sprintf("%s - Datadog Cluster Agent", version.AgentVersion))
 
 	le, err := leaderelection.GetLeaderEngine()
@@ -223,21 +222,17 @@ func start(log log.Component, config config.Component, forwarder defaultforwarde
 	}
 
 	clusterName := clustername.GetRFC1123CompliantClusterName(context.TODO(), hname)
-	if pkgconfig.Datadog.GetBool("orchestrator_explorer.enabled") {
-		// Generate and persist a cluster ID
-		// this must be a UUID, and ideally be stable for the lifetime of a cluster,
-		// so we store it in a configmap that we try and read before generating a new one.
-		coreClient := apiCl.Cl.CoreV1().(*corev1.CoreV1Client)
-		_, err = apicommon.GetOrCreateClusterID(coreClient)
-		if err != nil {
-			pkglog.Errorf("Failed to generate or retrieve the cluster ID")
-		}
+	// Generate and persist a cluster ID
+	// this must be a UUID, and ideally be stable for the lifetime of a cluster,
+	// so we store it in a configmap that we try and read before generating a new one.
+	coreClient := apiCl.Cl.CoreV1().(*corev1.CoreV1Client)
+	clusterId, err := apicommon.GetOrCreateClusterID(coreClient)
+	if err != nil {
+		pkglog.Errorf("Failed to generate or retrieve the cluster ID")
+	}
 
-		if clusterName == "" {
-			pkglog.Warn("Failed to auto-detect a Kubernetes cluster name. We recommend you set it manually via the cluster_name config option")
-		}
-	} else {
-		pkglog.Info("Orchestrator explorer is disabled")
+	if clusterName == "" {
+		pkglog.Warn("Failed to auto-detect a Kubernetes cluster name. We recommend you set it manually via the cluster_name config option")
 	}
 
 	// FIXME: move LoadComponents and AC.LoadAndRun in their own package so we
@@ -302,6 +297,7 @@ func start(log log.Component, config config.Component, forwarder defaultforwarde
 				K8sClient:           apiCl.Cl,
 				RcClient:            rcClient,
 				ClusterName:         clusterName,
+				ClusterId:           clusterId,
 				StopCh:              stopCh,
 			}
 			if err := admissionpatch.StartControllers(patchCtx); err != nil {
@@ -326,7 +322,7 @@ func start(log log.Component, config config.Component, forwarder defaultforwarde
 			pkglog.Errorf("Could not start admission controller: %v", err)
 		} else {
 			// Webhook and secret controllers are started successfully
-			// Setup the the k8s admission webhook server
+			// Setup the k8s admission webhook server
 			server := admissioncmd.NewServer()
 			server.Register(pkgconfig.Datadog.GetString("admission_controller.inject_config.endpoint"), mutate.InjectConfig, apiCl.DynamicCl)
 			server.Register(pkgconfig.Datadog.GetString("admission_controller.inject_tags.endpoint"), mutate.InjectTags, apiCl.DynamicCl)

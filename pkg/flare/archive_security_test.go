@@ -4,7 +4,6 @@
 // Copyright 2016-present Datadog, Inc.
 
 //go:build !windows
-// +build !windows
 
 package flare
 
@@ -20,7 +19,7 @@ import (
 )
 
 func TestCreateSecurityAgentArchive(t *testing.T) {
-	common.SetupConfig("./test")
+	common.SetupConfigWithWarnings("./test", "")
 	mockConfig := config.Mock(t)
 	mockConfig.Set("compliance_config.dir", "./test/compliance.d")
 	logFilePath := "./test/logs/agent.log"
