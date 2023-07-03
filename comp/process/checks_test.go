@@ -9,7 +9,6 @@ package process
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"runtime"
 	"testing"
@@ -66,7 +65,6 @@ func testCheck(t *testing.T, name string, coreOverrides, sysProbeOverrides map[s
 
 			core.MockBundle,
 		)
-		fmt.Println(deps.M.AllSettings())
 		enabledChecks := make([]string, 0, len(deps.Checks))
 		for _, ch := range deps.Checks {
 			ch := ch.Object()
