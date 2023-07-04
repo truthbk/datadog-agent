@@ -633,12 +633,16 @@ int __attribute__((always_inline)) send_exec_event(ctx_t *ctx) {
     fill_file_metadata(syscall->exec.dentry, &pc.entry.executable.metadata);
     bpf_get_current_comm(&pc.entry.comm, sizeof(pc.entry.comm));
 
+    u32 parent_cookie = 0;
+
     // select the previous cookie entry in cache of the current process
     // (this entry was created by the fork of the current process)
     struct pid_cache_t *fork_entry = (struct pid_cache_t *) bpf_map_lookup_elem(&pid_cache, &tgid);
     if (fork_entry) {
         // Fetch the parent proc cache entry
-        u32 parent_cookie = fork_entry->cookie;
+        parent_cookie = fork_entry->cookie;
+        bpf_printk("> %s %d\n", pc.entry.comm, parent_cookie);
+
         struct proc_cache_t *parent_pc = get_proc_from_cookie(parent_cookie);
         if (parent_pc) {
             // inherit the parent container context
@@ -653,6 +657,7 @@ int __attribute__((always_inline)) send_exec_event(ctx_t *ctx) {
 
     // update pid <-> cookie mapping
     if (fork_entry) {
+        fork_entry->parent_cookie = parent_cookie;
         fork_entry->cookie = cookie;
     } else {
         struct pid_cache_t new_pid_entry = {

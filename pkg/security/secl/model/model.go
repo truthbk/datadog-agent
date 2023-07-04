@@ -619,8 +619,9 @@ type Process struct {
 
 	CreatedAt uint64 `field:"created_at,handler:ResolveProcessCreatedAt"` // SECLDoc[created_at] Definition:`Timestamp of the creation of the process`
 
-	Cookie uint32 `field:"-"`
-	PPid   uint32 `field:"ppid"` // SECLDoc[ppid] Definition:`Parent process ID`
+	ParentCookie uint32 `field:"-"`
+	Cookie       uint32 `field:"-"`
+	PPid         uint32 `field:"ppid"` // SECLDoc[ppid] Definition:`Parent process ID`
 
 	// credentials_t section of pid_cache_t
 	Credentials

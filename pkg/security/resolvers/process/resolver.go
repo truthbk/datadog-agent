@@ -95,6 +95,7 @@ type Resolver struct {
 	envsTruncated             *atomic.Int64
 	envsSize                  *atomic.Int64
 	brokenLineage             *atomic.Int64
+	missingExecLineage        *atomic.Int64
 
 	entryCache    map[uint32]*model.ProcessCacheEntry
 	argsEnvsCache *simplelru.LRU[uint32, *argsEnvsCacheEntry]
@@ -180,8 +181,12 @@ func (p *Resolver) NewProcessCacheEntry(pidContext model.PIDContext) *model.Proc
 }
 
 // CountBrokenLineage increments the counter of broken lineage
-func (p *Resolver) CountBrokenLineage() {
-	p.brokenLineage.Inc()
+func (p *Resolver) CountIncompleteLineage(state model.LineageState) {
+	if state == model.BrokenLineageState {
+		p.brokenLineage.Inc()
+	} else if state == model.MissingExecLineageState {
+		p.missingExecLineage.Inc()
+	}
 }
 
 // SendStats sends process resolver metrics
@@ -263,7 +268,13 @@ func (p *Resolver) SendStats() error {
 	}
 
 	if count := p.brokenLineage.Swap(0); count > 0 {
-		if err := p.statsdClient.Count(metrics.MetricProcessEventBrokenLineage, count, []string{}, 1.0); err != nil {
+		if err := p.statsdClient.Count(metrics.MetricProcessEventBrokenLineage, count, []string{"type:pid"}, 1.0); err != nil {
+			return fmt.Errorf("failed to send process_resolver broken lineage metric: %w", err)
+		}
+	}
+
+	if count := p.missingExecLineage.Swap(0); count > 0 {
+		if err := p.statsdClient.Count(metrics.MetricProcessEventBrokenLineage, count, []string{"type:exec"}, 1.0); err != nil {
 			return fmt.Errorf("failed to send process_resolver broken lineage metric: %w", err)
 		}
 	}
@@ -1158,8 +1169,7 @@ func (p *Resolver) syncCache(proc *process.Process, filledProc *utils.FilledProc
 	p.insertEntry(entry, p.entryCache[pid], model.ProcessCacheEntryFromSnapshot)
 
 	// insert new entry in kernel maps
-	procCacheEntryB := make([]byte, 224)
-	_, err := entry.Process.MarshalProcCache(procCacheEntryB)
+	procCacheEntryB, err := entry.Process.MarshalProcCacheBinary()
 	if err != nil {
 		seclog.Errorf("couldn't marshal proc_cache entry: %s", err)
 	} else {
@@ -1167,8 +1177,8 @@ func (p *Resolver) syncCache(proc *process.Process, filledProc *utils.FilledProc
 			seclog.Errorf("couldn't push proc_cache entry to kernel space: %s", err)
 		}
 	}
-	pidCacheEntryB := make([]byte, 64)
-	_, err = entry.Process.MarshalPidCache(pidCacheEntryB)
+
+	pidCacheEntryB, err := entry.Process.MarshalPidCacheBinary()
 	if err != nil {
 		seclog.Errorf("couldn't marshal prid_cache entry: %s", err)
 	} else {
@@ -1304,6 +1314,7 @@ func NewResolver(manager *manager.Manager, config *config.Config, statsdClient s
 		envsTruncated:             atomic.NewInt64(0),
 		envsSize:                  atomic.NewInt64(0),
 		brokenLineage:             atomic.NewInt64(0),
+		missingExecLineage:        atomic.NewInt64(0),
 		containerResolver:         containerResolver,
 		mountResolver:             mountResolver,
 		cgroupResolver:            cgroupResolver,

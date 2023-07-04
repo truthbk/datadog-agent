@@ -68,22 +68,20 @@ func (e *FileFields) MarshalBinary(data []byte) (int, error) {
 }
 
 // MarshalProcCache marshals a binary representation of itself
-func (e *Process) MarshalProcCache(data []byte) (int, error) {
-	// Marshal proc_cache_t
-	if len(data) < ContainerIDLen {
-		return 0, ErrNotEnoughSpace
-	}
+func (e *Process) MarshalProcCacheBinary() ([]byte, error) {
+	data := make([]byte, 224)
+
 	copy(data[0:ContainerIDLen], e.ContainerID)
 	written := ContainerIDLen
 
 	toAdd, err := MarshalBinary(data[written:], &e.FileEvent)
 	if err != nil {
-		return 0, err
+		return data, err
 	}
 	written += toAdd
 
 	if len(data[written:]) < 88 {
-		return 0, ErrNotEnoughSpace
+		return data, ErrNotEnoughSpace
 	}
 
 	marshalTime(data[written:written+8], e.ExecTime)
@@ -93,8 +91,8 @@ func (e *Process) MarshalProcCache(data []byte) (int, error) {
 	written += 64
 
 	copy(data[written:written+16], e.Comm)
-	written += 16
-	return written, nil
+
+	return data, nil
 }
 
 func marshalTime(data []byte, t time.Time) {
@@ -119,25 +117,22 @@ func (e *Credentials) MarshalBinary(data []byte) (int, error) {
 }
 
 // MarshalPidCache marshals a binary representation of itself
-func (e *Process) MarshalPidCache(data []byte) (int, error) {
-	// Marshal pid_cache_t
-	if len(data) < 24 {
-		return 0, ErrNotEnoughSpace
-	}
+func (e *Process) MarshalPidCacheBinary() ([]byte, error) {
+	data := make([]byte, 72)
+
 	ByteOrder.PutUint32(data[0:4], e.Cookie)
-	ByteOrder.PutUint32(data[4:8], e.PPid)
+	ByteOrder.PutUint32(data[4:8], e.Cookie)
+	ByteOrder.PutUint32(data[8:12], e.PPid)
 
-	marshalTime(data[8:16], e.ForkTime)
-	marshalTime(data[16:24], e.ExitTime)
-	written := 24
+	marshalTime(data[16:24], e.ForkTime)
+	marshalTime(data[24:32], e.ExitTime)
+	written := 32
 
-	n, err := MarshalBinary(data[written:], &e.Credentials)
-	if err != nil {
-		return 0, err
+	if _, err := MarshalBinary(data[written:], &e.Credentials); err != nil {
+		return data, err
 	}
-	written += n
 
-	return written, nil
+	return data, nil
 }
 
 // MarshalBinary marshals a binary representation of itself

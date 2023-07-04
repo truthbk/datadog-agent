@@ -195,7 +195,7 @@ func (e *Process) UnmarshalProcEntryBinary(data []byte) (int, error) {
 
 // UnmarshalPidCacheBinary unmarshalls Unmarshal pid_cache_t
 func (e *Process) UnmarshalPidCacheBinary(data []byte) (int, error) {
-	const size = 64
+	const size = 72
 	if len(data) < size {
 		return 0, ErrNotEnoughData
 	}
@@ -207,24 +207,30 @@ func (e *Process) UnmarshalPidCacheBinary(data []byte) (int, error) {
 	if cookie > 0 {
 		e.Cookie = cookie
 	}
-	e.PPid = ByteOrder.Uint32(data[4:8])
+	parentCookie := ByteOrder.Uint32(data[4:8])
+	if parentCookie > 0 {
+		e.ParentCookie = parentCookie
+	}
+	e.PPid = ByteOrder.Uint32(data[8:12])
 
-	e.ForkTime = unmarshalTime(data[8:16])
-	e.ExitTime = unmarshalTime(data[16:24])
+	// padding
+
+	e.ForkTime = unmarshalTime(data[16:24])
+	e.ExitTime = unmarshalTime(data[24:32])
 
 	// Unmarshal the credentials contained in pid_cache_t
-	read, err := UnmarshalBinary(data[24:], &e.Credentials)
+	read, err := UnmarshalBinary(data[32:], &e.Credentials)
 	if err != nil {
 		return 0, err
 	}
-	read += 24
+	read += 32
 
 	return validateReadSize(size, read)
 }
 
 // UnmarshalBinary unmarshalls a binary representation of itself
 func (e *Process) UnmarshalBinary(data []byte) (int, error) {
-	const size = 256 // size of struct exec_event_t starting from process_entry_t, inclusive
+	const size = 264 // size of struct exec_event_t starting from process_entry_t, inclusive
 	if len(data) < size {
 		return 0, ErrNotEnoughData
 	}

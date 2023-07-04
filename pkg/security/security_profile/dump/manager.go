@@ -618,7 +618,7 @@ func (adm *ActivityDumpManager) SearchTracedProcessCacheEntryCallback(ad *Activi
 		defer ad.Unlock()
 
 		// check process lineage
-		if !entry.HasCompleteLineage() {
+		if entry.GetLineageState() == model.BrokenLineageState {
 			return
 		}
 

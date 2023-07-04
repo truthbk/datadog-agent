@@ -36,6 +36,7 @@ void __attribute__((always_inline)) copy_credentials(struct credentials_t* src, 
 
 void __attribute__((always_inline)) copy_pid_cache_except_exit_ts(struct pid_cache_t* src, struct pid_cache_t* dst) {
     dst->cookie = src->cookie;
+    dst->parent_cookie = src->parent_cookie;
     dst->ppid = src->ppid;
     dst->fork_timestamp = src->fork_timestamp;
     dst->credentials = src->credentials;

@@ -12,9 +12,21 @@ import (
 	"golang.org/x/exp/slices"
 )
 
+// LineageStatus represents the lineage status
+type LineageState int
+
 const (
 	// MaxArgEnvSize maximum size of one argument or environment variable
 	MaxArgEnvSize = 256
+
+	// CompleteLineage all the pids and process
+	CompleteLineageState LineageState = iota
+
+	// MissingExecLineage pids ok but missing runtime exec/exec
+	MissingExecLineageState
+
+	// BrokenLineageState missing pids
+	BrokenLineageState
 )
 
 // SetSpan sets the span
@@ -39,15 +51,21 @@ func (pc *ProcessCacheEntry) SetAncestor(parent *ProcessCacheEntry) {
 	parent.Retain()
 }
 
-// HasCompleteLineage returns false if, from the entry, we cannot ascend the ancestors list to PID 1
-func (pc *ProcessCacheEntry) HasCompleteLineage() bool {
+// GetLineageState returns the state of the lineage
+func (pc *ProcessCacheEntry) GetLineageState() LineageState {
+	state := CompleteLineageState
+
 	for pc != nil {
 		if pc.Pid == 1 {
-			return true
+			return state
 		}
+		if pc.Ancestor != nil && pc.ParentCookie != 0 && pc.ParentCookie != pc.Ancestor.Cookie {
+			state = MissingExecLineageState
+		}
+
 		pc = pc.Ancestor
 	}
-	return false
+	return BrokenLineageState
 }
 
 // Exit a process
