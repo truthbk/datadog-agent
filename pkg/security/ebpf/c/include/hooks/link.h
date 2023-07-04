@@ -77,14 +77,14 @@ int kprobe_vfs_link(struct pt_regs *ctx) {
     syscall->link.target_file.metadata = syscall->link.src_file.metadata;
 
     // we generate a fake target key as the inode is the same
-    syscall->link.target_file.path_key.ino = FAKE_INODE_MSW<<32 | bpf_get_prandom_u32();
-    syscall->link.target_file.path_key.mount_id = syscall->link.src_file.path_key.mount_id;
+    syscall->link.target_file.dentry_key.ino = FAKE_INODE_MSW<<32 | bpf_get_prandom_u32();
+    syscall->link.target_file.dentry_key.mount_id = syscall->link.src_file.dentry_key.mount_id;
     if (is_overlayfs(src_dentry)) {
         syscall->link.target_file.flags |= UPPER_LAYER;
     }
 
     syscall->resolver.dentry = src_dentry;
-    syscall->resolver.key = syscall->link.src_file.path_key;
+    syscall->resolver.key = syscall->link.src_file.dentry_key;
     syscall->resolver.discarder_type = syscall->policy.mode != NO_FILTER ? EVENT_LINK : 0;
     syscall->resolver.callback = PR_PROGKEY_CB_LINK_SRC_KPROBE;
     syscall->resolver.iteration = 0;
@@ -131,7 +131,7 @@ int __attribute__((always_inline)) sys_link_ret(void *ctx, int retval, int dr_ty
 
     if (pass_to_userspace) {
         syscall->resolver.dentry = syscall->link.target_dentry;
-        syscall->resolver.key = syscall->link.target_file.path_key;
+        syscall->resolver.key = syscall->link.target_file.dentry_key;
         syscall->resolver.discarder_type = 0;
         syscall->resolver.callback = PR_PROGKEY_CB_LINK_DST;
         syscall->resolver.iteration = 0;
