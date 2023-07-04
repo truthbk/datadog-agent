@@ -280,10 +280,10 @@ kernel_matrix_testing_run_tests_arm64:
 kernel_matrix_testing_cleanup_success:
   extends:
     - .kernel_matrix_testing_cleanup
-  when: on_success
+  if: "!failure() && !cancelled()"
 
 
 kernel_matrix_testing_cleanup_failure:
   extends:
     - .kernel_matrix_testing_cleanup
-  when: on_failure
+  if: "!success() && !cancelled()"
