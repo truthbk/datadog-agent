@@ -52,7 +52,7 @@ type DeviceCheck struct {
 	sessionCloseErrorCount *atomic.Uint64
 	savedDynamicTags       []string
 	nextAutodetectMetrics  time.Time
-	diagnostics            []metadata.DiagnosticMetadata
+	diagnostics            []metadata.Diagnostic
 }
 
 // NewDeviceCheck returns a new DeviceCheck
@@ -110,15 +110,13 @@ func (d *DeviceCheck) Run(collectionTime time.Time) error {
 	// Fetch and report metrics
 	var checkErr error
 	var deviceStatus metadata.DeviceStatus
-	deviceId := fmt.Sprintf("%s:%s", d.config.Namespace, d.config.IPAddress) // FIXME
 
 	deviceReachable, dynamicTags, values, checkErr := d.getValuesAndTags()
 	tags := common.CopyStrings(staticTags)
 	if checkErr != nil {
 		// FIXME : can have check err and be reachable, see line 244
 		tags = append(tags, d.savedDynamicTags...)
-		d.diagnostics = append(d.diagnostics, metadata.DiagnosticMetadata{
-			DeviceId:   deviceId,
+		d.diagnostics = append(d.diagnostics, metadata.Diagnostic{
 			Severity:   "error",
 			ErrorCode:  1,
 			Diagnostic: "Agent is not able to poll this network device. Check the authentication method and ensure the agent can ping this network device.",
@@ -146,8 +144,7 @@ func (d *DeviceCheck) Run(collectionTime time.Time) error {
 		checkDuration := time.Since(startTime).Seconds()
 
 		if checkDuration > checkDurationThreshold {
-			d.diagnostics = append(d.diagnostics, metadata.DiagnosticMetadata{
-				DeviceId:   deviceId,
+			d.diagnostics = append(d.diagnostics, metadata.Diagnostic{
 				Severity:   "warn",
 				ErrorCode:  2,
 				Diagnostic: fmt.Sprintf("Uhoh, it looks like check duration is high for this device, was %f seconds", checkDuration),
@@ -160,7 +157,15 @@ func (d *DeviceCheck) Run(collectionTime time.Time) error {
 		deviceMetadataTags := append(common.CopyStrings(tags), d.config.InstanceTags...)
 		deviceMetadataTags = append(deviceMetadataTags, common.GetAgentVersionTag())
 
-		d.sender.ReportNetworkDeviceMetadata(d.config, values, deviceMetadataTags, collectionTime, deviceStatus, d.diagnostics)
+		deviceId := fmt.Sprintf("%s:%s", d.config.Namespace, d.config.IPAddress)
+
+		var diagnostics []metadata.DiagnosticMetadata
+
+		if len(d.diagnostics) > 0 {
+			diagnostics = []metadata.DiagnosticMetadata{{DeviceId: deviceId, JsonDiagnostic: d.diagnostics}}
+		}
+
+		d.sender.ReportNetworkDeviceMetadata(d.config, values, deviceMetadataTags, collectionTime, deviceStatus, diagnostics)
 	}
 
 	d.submitTelemetryMetrics(startTime, tags)
@@ -183,13 +188,10 @@ func (d *DeviceCheck) getValuesAndTags() (bool, []string, *valuestore.ResultValu
 	var checkErrors []string
 	var tags []string
 
-	deviceId := fmt.Sprintf("%s:%s", d.config.Namespace, d.config.IPAddress) // FIXME
-
 	// Create connection
 	connErr := d.session.Connect()
 	if connErr != nil {
-		d.diagnostics = append(d.diagnostics, metadata.DiagnosticMetadata{
-			DeviceId:   deviceId,
+		d.diagnostics = append(d.diagnostics, metadata.Diagnostic{
 			Severity:   "error",
 			ErrorCode:  3,
 			Diagnostic: "Agent could not open connection.",
@@ -208,8 +210,7 @@ func (d *DeviceCheck) getValuesAndTags() (bool, []string, *valuestore.ResultValu
 	getNextValue, err := d.session.GetNext([]string{coresnmp.DeviceReachableGetNextOid})
 	if err != nil {
 		deviceReachable = false
-		d.diagnostics = append(d.diagnostics, metadata.DiagnosticMetadata{
-			DeviceId:   deviceId,
+		d.diagnostics = append(d.diagnostics, metadata.Diagnostic{
 			Severity:   "error",
 			ErrorCode:  4,
 			Diagnostic: "Agent is not able to poll this network device. Check the authentication method and ensure the agent can ping this network device.",
@@ -224,8 +225,7 @@ func (d *DeviceCheck) getValuesAndTags() (bool, []string, *valuestore.ResultValu
 
 	err = d.detectMetricsToMonitor(d.session)
 	if err != nil {
-		d.diagnostics = append(d.diagnostics, metadata.DiagnosticMetadata{
-			DeviceId:   deviceId,
+		d.diagnostics = append(d.diagnostics, metadata.Diagnostic{
 			Severity:   "error",
 			ErrorCode:  5,
 			Diagnostic: "Agent was not able to detect a profile for this network device.",

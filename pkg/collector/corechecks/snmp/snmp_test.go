@@ -1559,18 +1559,21 @@ tags:
     }
   ],
   "diagnostics": [
-	{
-	  "device_id": "default:1.2.3.4",
-	  "severity": "error",
-	  "diagnostic": "Agent was not able to detect a profile for this network device.",
-	  "error_code": 5
-	},
     {
-	  "device_id": "default:1.2.3.4",
-	  "severity": "error",
-	  "diagnostic": "Agent is not able to poll this network device. Check the authentication method and ensure the agent can ping this network device.",
-	  "error_code": 1
-	}
+      "device_id": "default:1.2.3.4",
+      "json_diagnostic": [
+	    {
+	      "severity": "error",
+	      "diagnostic": "Agent was not able to detect a profile for this network device.",
+	      "error_code": 5
+	    },
+        {
+	      "severity": "error",
+	      "diagnostic": "Agent is not able to poll this network device. Check the authentication method and ensure the agent can ping this network device.",
+	      "error_code": 1
+	    }
+      ]
+    }
   ],
   "collect_timestamp":946684800
 }
@@ -1662,26 +1665,28 @@ tags:
 		  "subnet": "127.0.0.0/30"
 		}
 	  ],
-	  "diagnostics": [
-		{
-	      "device_id": "default:1.2.3.5",
-	      "severity": "error",
-	      "diagnostic": "Agent is not able to poll this network device. Check the authentication method and ensure the agent can ping this network device.",
-	      "error_code": 4
-	    },
-		{
-	      "device_id": "default:1.2.3.5",
-	      "severity": "error",
-	      "diagnostic": "Agent was not able to detect a profile for this network device.",
-	      "error_code": 5
-	    },
+      "diagnostics": [
         {
-	      "device_id": "default:1.2.3.5",
-	      "severity": "error",
-	      "diagnostic": "Agent is not able to poll this network device. Check the authentication method and ensure the agent can ping this network device.",
-	      "error_code": 1
-	    }
-	  ],
+          "device_id": "default:1.2.3.5",
+          "json_diagnostic": [
+            {
+	          "severity": "error",
+	          "diagnostic": "Agent is not able to poll this network device. Check the authentication method and ensure the agent can ping this network device.",
+	          "error_code": 4
+	        },
+		    {
+	          "severity": "error",
+	          "diagnostic": "Agent was not able to detect a profile for this network device.",
+	          "error_code": 5
+	        },
+            {
+	          "severity": "error",
+	          "diagnostic": "Agent is not able to poll this network device. Check the authentication method and ensure the agent can ping this network device.",
+	          "error_code": 1
+	        }
+         ]
+       }
+      ],
 	  "collect_timestamp":946684800
 	}
 	`, version.AgentVersion))

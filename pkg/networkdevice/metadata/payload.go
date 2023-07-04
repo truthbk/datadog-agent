@@ -125,10 +125,15 @@ type NetflowExporter struct {
 	FlowType  string `json:"flow_type"`
 }
 
-// DiagnosticMetadata contains diagnostic info
-type DiagnosticMetadata struct {
-	DeviceId   string `json:"device_id"`
+// Diagnostic contain data for a diagnostic
+type Diagnostic struct {
 	Severity   string `json:"severity"`
 	Diagnostic string `json:"diagnostic"`
 	ErrorCode  int32  `json:"error_code"`
+}
+
+// DiagnosticMetadata contains diagnostic info
+type DiagnosticMetadata struct {
+	DeviceId       string       `json:"device_id"`
+	JsonDiagnostic []Diagnostic `json:"json_diagnostic"`
 }
