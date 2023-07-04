@@ -16,8 +16,8 @@ struct mount_ref_t {
 };
 
 struct mount_fields_t {
-    struct path_key_t mp_key;
-    struct path_key_t root_key;
+    struct dentry_key_t mp_key;
+    struct dentry_key_t root_key;
     struct pr_ring_buffer_ref_t mp_ref;
     struct pr_ring_buffer_ref_t root_ref;
     dev_t device;

@@ -18,53 +18,53 @@ int hook_mnt_want_write(ctx_t *ctx) {
 
     switch (syscall->type) {
     case EVENT_UTIME:
-        if (syscall->setattr.file.path_key.mount_id > 0) {
+        if (syscall->setattr.file.dentry_key.mount_id > 0) {
             return 0;
         }
-        syscall->setattr.file.path_key.mount_id = get_vfsmount_mount_id(mnt);
+        syscall->setattr.file.dentry_key.mount_id = get_vfsmount_mount_id(mnt);
         break;
     case EVENT_CHMOD:
-        if (syscall->setattr.file.path_key.mount_id > 0) {
+        if (syscall->setattr.file.dentry_key.mount_id > 0) {
             return 0;
         }
-        syscall->setattr.file.path_key.mount_id = get_vfsmount_mount_id(mnt);
+        syscall->setattr.file.dentry_key.mount_id = get_vfsmount_mount_id(mnt);
         break;
     case EVENT_CHOWN:
-        if (syscall->setattr.file.path_key.mount_id > 0) {
+        if (syscall->setattr.file.dentry_key.mount_id > 0) {
             return 0;
         }
-        syscall->setattr.file.path_key.mount_id = get_vfsmount_mount_id(mnt);
+        syscall->setattr.file.dentry_key.mount_id = get_vfsmount_mount_id(mnt);
         break;
     case EVENT_RENAME:
-        if (syscall->rename.src_file.path_key.mount_id > 0) {
+        if (syscall->rename.src_file.dentry_key.mount_id > 0) {
             return 0;
         }
-        syscall->rename.src_file.path_key.mount_id = get_vfsmount_mount_id(mnt);
-        syscall->rename.target_file.path_key.mount_id = syscall->rename.src_file.path_key.mount_id;
+        syscall->rename.src_file.dentry_key.mount_id = get_vfsmount_mount_id(mnt);
+        syscall->rename.target_file.dentry_key.mount_id = syscall->rename.src_file.dentry_key.mount_id;
         break;
     case EVENT_RMDIR:
-        if (syscall->rmdir.file.path_key.mount_id > 0) {
+        if (syscall->rmdir.file.dentry_key.mount_id > 0) {
             return 0;
         }
-        syscall->rmdir.file.path_key.mount_id = get_vfsmount_mount_id(mnt);
+        syscall->rmdir.file.dentry_key.mount_id = get_vfsmount_mount_id(mnt);
         break;
     case EVENT_UNLINK:
-        if (syscall->unlink.file.path_key.mount_id > 0) {
+        if (syscall->unlink.file.dentry_key.mount_id > 0) {
             return 0;
         }
-        syscall->unlink.file.path_key.mount_id = get_vfsmount_mount_id(mnt);
+        syscall->unlink.file.dentry_key.mount_id = get_vfsmount_mount_id(mnt);
         break;
     case EVENT_SETXATTR:
-        if (syscall->xattr.file.path_key.mount_id > 0) {
+        if (syscall->xattr.file.dentry_key.mount_id > 0) {
             return 0;
         }
-        syscall->xattr.file.path_key.mount_id = get_vfsmount_mount_id(mnt);
+        syscall->xattr.file.dentry_key.mount_id = get_vfsmount_mount_id(mnt);
         break;
     case EVENT_REMOVEXATTR:
-        if (syscall->xattr.file.path_key.mount_id > 0) {
+        if (syscall->xattr.file.dentry_key.mount_id > 0) {
             return 0;
         }
-        syscall->xattr.file.path_key.mount_id = get_vfsmount_mount_id(mnt);
+        syscall->xattr.file.dentry_key.mount_id = get_vfsmount_mount_id(mnt);
         break;
     }
     return 0;
@@ -82,22 +82,22 @@ int __attribute__((always_inline)) trace__mnt_want_write_file(ctx_t *ctx) {
 
     switch (syscall->type) {
     case EVENT_CHOWN:
-        if (syscall->setattr.file.path_key.mount_id > 0) {
+        if (syscall->setattr.file.dentry_key.mount_id > 0) {
             return 0;
         }
-        syscall->setattr.file.path_key.mount_id = get_vfsmount_mount_id(mnt);
+        syscall->setattr.file.dentry_key.mount_id = get_vfsmount_mount_id(mnt);
         break;
     case EVENT_SETXATTR:
-        if (syscall->xattr.file.path_key.mount_id > 0) {
+        if (syscall->xattr.file.dentry_key.mount_id > 0) {
             return 0;
         }
-        syscall->xattr.file.path_key.mount_id = get_vfsmount_mount_id(mnt);
+        syscall->xattr.file.dentry_key.mount_id = get_vfsmount_mount_id(mnt);
         break;
     case EVENT_REMOVEXATTR:
-        if (syscall->xattr.file.path_key.mount_id > 0) {
+        if (syscall->xattr.file.dentry_key.mount_id > 0) {
             return 0;
         }
-        syscall->xattr.file.path_key.mount_id = get_vfsmount_mount_id(mnt);
+        syscall->xattr.file.dentry_key.mount_id = get_vfsmount_mount_id(mnt);
         break;
     }
     return 0;
@@ -229,8 +229,7 @@ int kprobe_dr_unshare_mntns_stage_one_callback(struct pt_regs *ctx) {
     struct unshare_mntns_event_t event = {
         .mountfields.mount_id = get_mount_mount_id(syscall->unshare_mntns.newmnt),
         .mountfields.device = get_mount_dev(syscall->unshare_mntns.newmnt),
-        .mountfields.mp_key = syscall->unshare_mntns.mp_key,
-        .mountfields.root_key = syscall->unshare_mntns.root_key,
+        .mountfields.mp_key = syscall->unshare_mntns.mp_dentry_key,
         .mountfields.bind_src_mount_id = 0, // do not consider mnt ns copies as bind mounts
     };
 
@@ -390,7 +389,7 @@ int __attribute__((always_inline)) sys_mount_ret(void *ctx, int retval, int dr_t
     u32 mount_id = get_mount_mount_id(syscall->mount.parent);
 
     struct dentry *dentry = get_mountpoint_dentry(syscall->mount.mp);
-    struct path_key_t mp_key = {
+    struct dentry_key_t mp_key = {
         .mount_id = mount_id,
         .ino = get_dentry_ino(dentry),
         .path_id = get_path_id(mount_id, 0),

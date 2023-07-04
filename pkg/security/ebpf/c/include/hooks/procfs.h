@@ -38,7 +38,7 @@ int hook_security_inode_getattr(ctx_t *ctx) {
     }
 
     struct file_t entry = {
-        .path_key = {
+        .dentry_key = {
             .ino = inode,
             .mount_id = mount_id,
         },

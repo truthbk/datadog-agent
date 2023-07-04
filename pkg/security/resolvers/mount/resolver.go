@@ -9,7 +9,6 @@ package mount
 
 import (
 	"context"
-	"fmt"
 	"path"
 	"strings"
 	"sync"
@@ -42,7 +41,7 @@ func newMountFromMountInfo(mnt *mountinfo.Info) *model.Mount {
 	return &model.Mount{
 		MountID: uint32(mnt.ID),
 		Device:  uint32(unix.Mkdev(uint32(mnt.Major), uint32(mnt.Minor))),
-		ParentPathKey: model.PathKey{
+		ParentDentryKey: model.DentryKey{
 			MountID: uint32(mnt.Parent),
 		},
 		FSType:        mnt.FSType,
@@ -162,7 +161,7 @@ func (mr *Resolver) finalize(first *model.Mount) {
 
 		// finalize children
 		for _, child := range mr.mounts {
-			if child.ParentPathKey.MountID == curr.MountID {
+			if child.ParentDentryKey.MountID == curr.MountID {
 				if _, exists := mr.mounts[child.MountID]; exists {
 					open_queue = append(open_queue, child)
 				}
@@ -283,11 +282,11 @@ func (mr *Resolver) _getMountPath(mountID uint32, cache map[uint32]bool) (string
 	}
 	cache[mountID] = true
 
-	if mount.ParentPathKey.MountID == 0 {
+	if mount.ParentDentryKey.MountID == 0 {
 		return "", ErrMountUndefined
 	}
 
-	parentMountPath, err := mr._getMountPath(mount.ParentPathKey.MountID, cache)
+	parentMountPath, err := mr._getMountPath(mount.ParentDentryKey.MountID, cache)
 	if err != nil {
 		return "", err
 	}
@@ -401,19 +400,12 @@ func (mr *Resolver) resolveMountPath(mountID uint32, containerID string, pid uin
 	path, err := mr.getMountPath(mountID)
 	if err == nil {
 		mr.cacheHitsStats.Inc()
-		if mountID == 2336 {
-			fmt.Printf("2336 mount cache hit\n")
-		}
-
 		// touch the redemption entry to maintain the entry
 		_, _ = mr.redemption.Get(mountID)
 
 		return path, nil
 	}
 	mr.cacheMissStats.Inc()
-	if mountID == 2336 {
-		fmt.Printf("2336 mount cache miss\n")
-	}
 
 	if !mr.opts.UseProcFS {
 		return "", &ErrMountNotFound{MountID: mountID}
@@ -424,25 +416,16 @@ func (mr *Resolver) resolveMountPath(mountID uint32, containerID string, pid uin
 	}
 
 	if err := mr.syncCache(pids...); err != nil {
-		if mountID == 2336 {
-			fmt.Printf("2336 synccache miss\n")
-		}
 		mr.syncCacheMiss(mountID)
 		return "", err
 	}
 
 	path, err = mr.getMountPath(mountID)
 	if err == nil {
-		if mountID == 2336 {
-			fmt.Printf("2336 syncache hit\n")
-		}
 		mr.procHitsStats.Inc()
 		return path, nil
 	}
 	mr.procMissStats.Inc()
-	if mountID == 2336 {
-		fmt.Printf("2336 syncacche miss\n")
-	}
 
 	return "", err
 }
