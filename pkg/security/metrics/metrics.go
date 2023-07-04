@@ -77,6 +77,12 @@ var (
 	// Tags: approver_type, event_type
 	MetricEventApproved = newRuntimeMetric(".approvers.event_approved")
 
+	// syscalls metrics
+
+	// MetricSyscallsMap is the number of inflight events
+	// Tags: event_type
+	MetricSyscallsInFlight = newRuntimeMetric(".syscalls_map.event_inflight")
+
 	// Perf buffer metrics
 
 	// MetricPerfBufferLostWrite is the name of the metric used to count the number of lost events, as reported by a
@@ -247,9 +253,6 @@ var (
 	// MetricSecurityProfileCacheMiss is the name of the metric used to report the count of Security Profile cache misses
 	// Tags: -
 	MetricSecurityProfileCacheMiss = newRuntimeMetric(".security_profile.cache.miss")
-	// MetricSecurityProfileAnomalyDetectionGenerated
-	// Tags: event_type
-	MetricSecurityProfileAnomalyDetectionGenerated = newRuntimeMetric(".security_profile.anomaly_detection.generated")
 	// MetricSecurityProfileEventFiltering
 	// Tags: event_type, profile_state ('no_profile', 'unstable', 'unstable_event_type', 'stable', 'auto_learning', 'workload_warmup'), in_profile ('true', 'false' or none)
 	MetricSecurityProfileEventFiltering = newRuntimeMetric(".security_profile.evaluation.hit")

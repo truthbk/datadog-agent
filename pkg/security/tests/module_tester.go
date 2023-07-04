@@ -52,6 +52,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/proto/api"
 	cgroupModel "github.com/DataDog/datadog-agent/pkg/security/resolvers/cgroup/model"
 	"github.com/DataDog/datadog-agent/pkg/security/resolvers/tags"
+	rulesmodule "github.com/DataDog/datadog-agent/pkg/security/rules"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
@@ -305,6 +306,7 @@ type testModule struct {
 	cmdWrapper    cmdWrapper
 	statsdClient  *StatsdClient
 	proFile       *os.File
+	ruleEngine    *rulesmodule.RuleEngine
 }
 
 var testMod *testModule
@@ -862,11 +864,6 @@ func newTestModule(t testing.TB, macroDefs []*rules.MacroDefinition, ruleDefs []
 		return nil, err
 	}
 
-	emconfig, secconfig, err := genTestConfigs(st.root, opts, st.root)
-	if err != nil {
-		return nil, err
-	}
-
 	if _, err = setTestPolicy(st.root, macroDefs, ruleDefs); err != nil {
 		return nil, err
 	}
@@ -901,6 +898,11 @@ func newTestModule(t testing.TB, macroDefs []*rules.MacroDefinition, ruleDefs []
 		testMod.cleanup()
 	}
 
+	emconfig, secconfig, err := genTestConfigs(st.root, opts, st.root)
+	if err != nil {
+		return nil, err
+	}
+
 	t.Log("Instantiating a new security module")
 
 	statsdClient := NewStatsdClient()
@@ -919,9 +921,10 @@ func newTestModule(t testing.TB, macroDefs []*rules.MacroDefinition, ruleDefs []
 	emopts := eventmonitor.Opts{
 		StatsdClient: statsdClient,
 		ProbeOpts: probe.Opts{
-			StatsdClient:          statsdClient,
-			DontDiscardRuntime:    true,
-			PathResolutionEnabled: true,
+			StatsdClient:              statsdClient,
+			DontDiscardRuntime:        true,
+			PathResolutionEnabled:     true,
+			SyscallsMapMonitorEnabled: true,
 		},
 	}
 	if opts.tagsResolver != nil {
@@ -942,10 +945,11 @@ func newTestModule(t testing.TB, macroDefs []*rules.MacroDefinition, ruleDefs []
 			return nil, fmt.Errorf("failed to create module: %w", err)
 		}
 		testMod.cws = cws
+		testMod.ruleEngine = cws.GetRuleEngine()
 
 		testMod.eventMonitor.RegisterEventConsumer(cws)
 
-		testMod.cws.SetRulesetLoadedCallback(func(es *rules.EvaluationSet, err *multierror.Error) {
+		testMod.ruleEngine.SetRulesetLoadedCallback(func(es *rules.EvaluationSet, err *multierror.Error) {
 			ruleSetloadedErr = err
 			log.Infof("Adding test module as listener")
 			for _, ruleSet := range es.RuleSets {
@@ -1002,7 +1006,7 @@ func (tm *testModule) HandleEvent(event *model.Event) {
 
 func (tm *testModule) HandleCustomEvent(rule *rules.Rule, event *events.CustomEvent) {}
 
-func (tm *testModule) SendEvent(rule *rules.Rule, event module.Event, extTagsCb func() []string, service string) {
+func (tm *testModule) SendEvent(rule *rules.Rule, event events.Event, extTagsCb func() []string, service string) {
 	tm.eventHandlers.RLock()
 	defer tm.eventHandlers.RUnlock()
 
@@ -1027,7 +1031,7 @@ func (tm *testModule) reloadConfiguration() error {
 		return err
 	}
 
-	if err := tm.cws.LoadPolicies([]rules.PolicyProvider{provider}, true); err != nil {
+	if err := tm.ruleEngine.LoadPolicies([]rules.PolicyProvider{provider}, true); err != nil {
 		return fmt.Errorf("failed to reload test module: %w", err)
 	}
 
@@ -1038,7 +1042,7 @@ func (tm *testModule) Root() string {
 	return tm.st.root
 }
 
-func (tm *testModule) RuleMatch(rule *rules.Rule, event eval.Event) {
+func (tm *testModule) RuleMatch(rule *rules.Rule, event eval.Event) bool {
 	tm.eventHandlers.RLock()
 	callback := tm.eventHandlers.onRuleMatch
 	tm.eventHandlers.RUnlock()
@@ -1046,6 +1050,8 @@ func (tm *testModule) RuleMatch(rule *rules.Rule, event eval.Event) {
 	if callback != nil {
 		callback(event.(*model.Event), rule)
 	}
+
+	return true
 }
 
 func (tm *testModule) EventDiscarderFound(rs *rules.RuleSet, event eval.Event, field eval.Field, eventType eval.EventType) {
@@ -1144,7 +1150,7 @@ func GetStatusMetrics(probe *sprobe.Probe) string {
 	}
 
 	status := map[string]interface{}{
-		"kernel-lost": eventStreamMonitor.GetKernelLostCount("events", model.MaxAllEventType),
+		"kernel-lost": eventStreamMonitor.GetKernelLostCount("events", -1, model.MaxKernelEventType),
 		"per-events":  map[string]interface{}{},
 	}
 
@@ -1503,6 +1509,13 @@ func (tm *testModule) validateAbnormalPaths() {
 	assert.Zero(tm.t, tm.statsdClient.Get("datadog.runtime_security.rules.rate_limiter.allow:rule_id:abnormal_path"), "abnormal error detected")
 }
 
+func (tm *testModule) validateSyscallsInFlight() {
+	inflight := tm.statsdClient.GetByPrefix("datadog.runtime_security.syscalls_map.event_inflight:event_type:")
+	for key, value := range inflight {
+		assert.Greater(tm.t, int64(1024), value, "event type: %s leaked: %d", key, value)
+	}
+}
+
 func (tm *testModule) Close() {
 	if !tm.opts.disableRuntimeSecurity {
 		tm.eventMonitor.SendStats()
@@ -1511,6 +1524,9 @@ func (tm *testModule) Close() {
 	if !tm.opts.disableAbnormalPathCheck {
 		tm.validateAbnormalPaths()
 	}
+
+	// make sure we don't leak syscalls
+	tm.validateSyscallsInFlight()
 
 	tm.statsdClient.Flush()
 
