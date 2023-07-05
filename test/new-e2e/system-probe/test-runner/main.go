@@ -139,7 +139,7 @@ func testsToRunArg(pkg string, failedTests map[string][]string) string {
 
 	fmt.Println(color.YellowString(fmt.Sprintf("Rerunning %d tests: %s", len(subTests), strings.Join(subTests, ","))))
 
-	return fmt.Sprintf("-test.run=\"(%s)\"", strings.Join(subTests, "|"))
+	return fmt.Sprintf("-test.run=(%s)", strings.Join(subTests, "|"))
 }
 
 func buildCommandArgs(junitPath string, jsonPath string, file string, testsToRun string) []string {
