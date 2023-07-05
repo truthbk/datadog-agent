@@ -105,11 +105,6 @@ func glob(dir, filePattern string, filterFn func(path string) bool) ([]string, e
 	return matches, nil
 }
 
-func generatePackageName(file string) string {
-	pkg, _ := filepath.Rel(TestDirRoot, filepath.Dir(file))
-	return pkg
-}
-
 func pathToPackage(path string) string {
 	dir, _ := filepath.Rel(TestDirRoot, filepath.Dir(path))
 	return dir
@@ -117,6 +112,9 @@ func pathToPackage(path string) string {
 
 func testsToRunArg(pkg string, failedTests map[string][]string) string {
 	var subTests []string
+	if failedTests == nil {
+		return ""
+	}
 	if _, ok := failedTests[pkg]; !ok {
 		return ""
 	}
@@ -139,14 +137,13 @@ func testsToRunArg(pkg string, failedTests map[string][]string) string {
 		}
 	}
 
-	commaSeperatedLs := strings.Join(subTests, ",")
-	fmt.Println(color.YellowString("Rerunning %d failed tests [%s]", len(subTests), commaSeperatedLs))
+	fmt.Println(color.YellowString(fmt.Sprintf("Rerunning %d tests: %s", len(subTests), strings.Join(subTests, ","))))
 
-	return fmt.Sprintf("-test.run=%s", commaSeperatedLs)
+	return fmt.Sprintf("-test.run=\"(%s)\"", strings.Join(subTests, "|"))
 }
 
-func buildCommandArgs(junitPath string, jsonPath string, file string, failedTests map[string][]string) []string {
-	pkg := generatePackageName(file)
+func buildCommandArgs(junitPath string, jsonPath string, file string, testsToRun string) []string {
+	pkg := pathToPackage(file)
 	junitfilePrefix := strings.ReplaceAll(pkg, "/", "-")
 	xmlpath := filepath.Join(
 		junitPath,
@@ -157,13 +154,12 @@ func buildCommandArgs(junitPath string, jsonPath string, file string, failedTest
 		fmt.Sprintf("%s.json", junitfilePrefix),
 	)
 
-	rerun := testsToRunArg(pathToPackage(file), failedTests)
 	args := []string{
 		"--format", "dots",
 		"--junitfile", xmlpath,
 		"--jsonfile", jsonpath,
 		"--raw-command", "--",
-		"/go/bin/test2json", "-t", "-p", pkg, file, "-test.v", "-test.count=1", "-test.timeout=" + getTimeout(pkg).String(), rerun,
+		"/go/bin/test2json", "-t", "-p", pkg, file, "-test.v", "-test.count=1", "-test.timeout=" + getTimeout(pkg).String(), testsToRun,
 	}
 
 	return args
@@ -330,7 +326,7 @@ func testPass(testConfig *TestConfig, attempt int) (bool, error) {
 			getCIVisibilityDir(XMLDir, attempt),
 			getCIVisibilityDir(JSONDir, attempt),
 			file,
-			retryLs,
+			testsToRunArg(pathToPackage(file), retryLs),
 		)
 		cmd := exec.Command(GoTestSum, args...)
 
