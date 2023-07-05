@@ -100,6 +100,9 @@ kitchen_ubuntu_install_script_iot_agent-a7:
     - .kitchen_test_install_script_iot_agent
 
 kitchen_ubuntu_install_script_dogstatsd-a7:
+  # Run NPM driver installer test on branches, on a reduced number of platforms
+  rules:
+    !reference [.on_default_kitchen_tests_a7]
   extends:
     - .kitchen_scenario_ubuntu_a7_x64
     - .kitchen_test_install_script_dogstatsd
