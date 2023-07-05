@@ -172,31 +172,6 @@ func (dr *Resolver) sendERPCStats() error {
 	return dr.bufferSelector.Put(ebpf.BufferSelectorERPCMonitorKey, dr.activeERPCStatsBuffer)
 }
 
-// DelCacheEntry removes an entry from the cache
-func (dr *Resolver) DelCacheEntry(mountID uint32, inode uint64) {
-	if entries, exists := dr.cache[mountID]; exists {
-		key := model.DentryKey{Inode: inode}
-
-		// Delete path recursively
-		for {
-			path, exists := entries.Get(key)
-			if !exists {
-				break
-			}
-			// this is also call the onEvict function of LRU thus releasing the entry from the pool
-			entries.Remove(key)
-
-			parent := path.Parent
-			if parent.Inode == 0 {
-				break
-			}
-
-			// Prepare next key
-			key = parent
-		}
-	}
-}
-
 // DelCacheEntries removes all the entries belonging to a mountID
 func (dr *Resolver) DelCacheEntries(mountID uint32) {
 	delete(dr.cache, mountID)
@@ -218,7 +193,7 @@ func (dr *Resolver) lookupInodeFromCache(key model.DentryKey) (*DentryCacheEntry
 
 // We need to cache inode by inode instead of caching the whole path in order to be
 // able to invalidate the whole path if one of its element got rename or removed.
-func (dr *Resolver) cacheInode(key model.DentryKey, path *DentryCacheEntry) error {
+func (dr *Resolver) cacheInode(key model.DentryKey, entry *DentryCacheEntry) error {
 	entries, exists := dr.cache[key.MountID]
 	if !exists {
 		var err error
@@ -230,7 +205,7 @@ func (dr *Resolver) cacheInode(key model.DentryKey, path *DentryCacheEntry) erro
 		dr.cache[key.MountID] = entries
 	}
 
-	entries.Add(key, path)
+	entries.Add(key, entry)
 
 	return nil
 }
@@ -303,25 +278,6 @@ func (dr *Resolver) requestResolve(op uint8, pathKey model.DentryKey) (uint32, e
 	return challenge, dr.erpc.Request(&dr.erpcRequest)
 }
 
-func (dr *Resolver) cacheEntries(keys []model.DentryKey, entries []*DentryCacheEntry) error {
-	var cacheEntry *DentryCacheEntry
-
-	if len(keys) != len(entries) {
-		return errors.New("out of bound")
-	}
-
-	for i, k := range keys {
-		cacheEntry = entries[i]
-		if len(keys) > i+1 {
-			cacheEntry.Parent = keys[i+1]
-		}
-
-		_ = dr.cacheInode(k, cacheEntry)
-	}
-
-	return nil
-}
-
 // ResolveParentFromCache resolves the parent
 func (dr *Resolver) ResolveParentFromCache(pathKey model.DentryKey) (model.DentryKey, error) {
 	entry := counterEntry{
@@ -384,19 +340,28 @@ func (dr *Resolver) ResolveParentFromMap(pathKey model.DentryKey) (model.DentryK
 
 // GetParent returns the parent mount_id/inode
 func (dr *Resolver) GetParent(pathKey model.DentryKey) (model.DentryKey, error) {
-	pathKey, err := dr.ResolveParentFromCache(pathKey)
+	parentKey, err := dr.ResolveParentFromCache(pathKey)
 	if err != nil && dr.config.ERPCDentryResolutionEnabled {
-		pathKey, err = dr.ResolveParentFromERPC(pathKey)
-	}
-	if err != nil && dr.config.MapDentryResolutionEnabled {
-		pathKey, err = dr.ResolveParentFromMap(pathKey)
+		parentKey, err = dr.ResolveParentFromERPC(pathKey)
+		if err == nil && parentKey.MountID != 0 && parentKey.Inode != 0 && !IsFakeInode(parentKey.Inode) {
+			entry := dr.newDentryCacheEntry(parentKey)
+			_ = dr.cacheInode(pathKey, entry)
+		}
 	}
 
-	if pathKey.Inode == 0 {
+	if err != nil && dr.config.MapDentryResolutionEnabled {
+		parentKey, err = dr.ResolveParentFromMap(pathKey)
+		if err == nil && parentKey.MountID != 0 && parentKey.Inode != 0 && !IsFakeInode(parentKey.Inode) {
+			entry := dr.newDentryCacheEntry(parentKey)
+			_ = dr.cacheInode(pathKey, entry)
+		}
+	}
+
+	if parentKey.Inode == 0 {
 		return model.DentryKey{}, ErrEntryNotFound
 	}
 
-	return pathKey, err
+	return parentKey, nil
 }
 
 // Start the dentry resolver
