@@ -162,7 +162,7 @@ func buildCommandArgs(junitPath string, jsonPath string, file string, testsToRun
 		"/go/bin/test2json", "-t", "-p", pkg, file, "-test.v", "-test.count=1", "-test.timeout=" + getTimeout(pkg).String(), testsToRun,
 	}
 
-	fmt.Println(strings.Join(args), " ")
+	fmt.Println(strings.Join(args, " "))
 	return args
 }
 
