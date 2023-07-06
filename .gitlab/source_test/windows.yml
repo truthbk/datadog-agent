@@ -30,6 +30,7 @@
       c:\mnt\tasks\winbuildscripts\unittests.bat
     - If ($lastExitCode -ne "0") { throw "Previous command returned $lastExitCode" }
     - Get-ChildItem -Path . -Include *.xml,*junit* -Recurse | Format-Table -Property FullName, Mode, Length, LastWriteTime
+    - Get-ChildItem -Path C:\dev\go\src\github.com\DataDog\datadog-agent -Include *.xml,*junit* -Recurse | Format-Table -Property FullName, Mode, Length, LastWriteTime
   artifacts:
     expire_in: 2 weeks
     when: always
@@ -37,7 +38,7 @@
       - test_output.json
       - junit-*.tgz
     reports:
-      junit: junit-*.xml
+      junit: C:\dev\go\src\github.com\DataDog\datadog-agent\junit-*.xml
 
 .lint_windows_base:
   stage: source_test
