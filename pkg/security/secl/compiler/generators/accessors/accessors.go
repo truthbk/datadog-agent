@@ -38,7 +38,8 @@ const (
 )
 
 var (
-	filename               string
+	modelFile              string
+	typesFile              string
 	pkgname                string
 	output                 string
 	verbose                bool
@@ -338,7 +339,7 @@ func parseFieldDef(def string) (seclField, error) {
 }
 
 // handleSpecRecursive is a recursive function that walks through the fields of a module
-func handleSpecRecursive(module *common.Module, astFile *ast.File, spec interface{}, prefix, aliasPrefix, event string, iterator *common.StructField, dejavu map[string]bool) {
+func handleSpecRecursive(module *common.Module, modelAstFile *ast.File, typesAstFile *ast.File, spec interface{}, prefix, aliasPrefix, event string, iterator *common.StructField, dejavu map[string]bool) {
 	if verbose {
 		fmt.Printf("handleSpec spec: %+v, prefix: %s, aliasPrefix %s, event %s, iterator %+v\n", spec, prefix, aliasPrefix, event, iterator)
 	}
@@ -390,12 +391,21 @@ func handleSpecRecursive(module *common.Module, astFile *ast.File, spec interfac
 				ident, _ = starExpr.X.(*ast.Ident)
 			}
 
+			fmt.Printf("=====> Ident: %s\n", ident.Name)
+
 			if ident != nil {
-				embedded := astFile.Scope.Lookup(ident.Name)
+				embedded := modelAstFile.Scope.Lookup(ident.Name)
 				if embedded != nil {
 					handleEmbedded(module, ident.Name, prefix, event, field.Type)
+					handleSpecRecursive(module, modelAstFile, typesAstFile, embedded.Decl, prefix+"."+ident.Name, aliasPrefix, event, fieldIterator, dejavu)
+				} else if typesAstFile != nil {
+					embedded := typesAstFile.Scope.Lookup(ident.Name)
+					if embedded != nil {
+						handleEmbedded(module, ident.Name, prefix, event, field.Type)
+						handleSpecRecursive(module, typesAstFile, typesAstFile, embedded.Decl, prefix+"."+ident.Name, aliasPrefix, event, fieldIterator, dejavu)
+					}
 
-					handleSpecRecursive(module, astFile, embedded.Decl, prefix+"."+ident.Name, aliasPrefix, event, fieldIterator, dejavu)
+					fmt.Printf("<========Ident: %s\n", ident.Name)
 				}
 			}
 		} else {
@@ -461,7 +471,7 @@ func handleSpecRecursive(module *common.Module, astFile *ast.File, spec interfac
 						log.Printf("failed to resolve symbol for %+v in %s", fieldType, pkgname)
 					} else {
 
-						spec := astFile.Scope.Lookup(fieldType)
+						spec := modelAstFile.Scope.Lookup(fieldType)
 						var newPrefix, newAliasPrefix string
 						if prefix != "" {
 							newPrefix = prefix + "." + fieldBasename
@@ -471,7 +481,7 @@ func handleSpecRecursive(module *common.Module, astFile *ast.File, spec interfac
 							newAliasPrefix = alias
 						}
 
-						handleSpecRecursive(module, astFile, spec.Decl, newPrefix, newAliasPrefix, event, fieldIterator, dejavu)
+						handleSpecRecursive(module, modelAstFile, typesAstFile, spec.Decl, newPrefix, newAliasPrefix, event, fieldIterator, dejavu)
 					}
 				}
 
@@ -514,23 +524,39 @@ func parseTags(tags *structtag.Tags, containerStructName string) (string, []secl
 	return opOverrides, fields
 }
 
-func parseFile(filename string, pkgName string) (*common.Module, error) {
+func getAstAndPkg(file string, cfg *packages.Config) (*packages.Package, *ast.File, error) {
+	pkgs, err := packages.Load(cfg, file)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(pkgs) == 0 || len(pkgs[0].Syntax) == 0 {
+		return nil, nil, errors.New("failed to get syntax from parse file")
+	}
+
+	return pkgs[0], pkgs[0].Syntax[0], nil
+}
+
+func parseFile(modelFile string, typesFile string, pkgName string) (*common.Module, error) {
 	cfg := packages.Config{
 		Mode:       packages.NeedSyntax | packages.NeedTypes | packages.NeedImports,
 		BuildFlags: []string{"-mod=mod", fmt.Sprintf("-tags=%s", buildTags)},
 	}
 
-	pkgs, err := packages.Load(&cfg, filename)
+	pkg, modelAstFile, err := getAstAndPkg(modelFile, &cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(pkgs) == 0 || len(pkgs[0].Syntax) == 0 {
-		return nil, errors.New("failed to get syntax from parse file")
-	}
+	var typesAstFile *ast.File
+	if typesFile != "" {
+		_, typesAstFile, err = getAstAndPkg(typesFile, &cfg)
+		if err != nil {
+			return nil, err
+		}
 
-	pkg := pkgs[0]
-	astFile := pkg.Syntax[0]
+		fmt.Printf("TTTT: %s\n", typesFile)
+	}
 
 	packagesLookupMap = make(map[string]*types.Package)
 	for _, typePackage := range pkg.Imports {
@@ -541,7 +567,7 @@ func parseFile(filename string, pkgName string) (*common.Module, error) {
 
 	formattedBuildTags := formatBuildTags(buildTags)
 	formattedFieldHandlersBuildTags := formatBuildTags(fieldHandlersBuildTags)
-	for _, comment := range astFile.Comments {
+	for _, comment := range modelAstFile.Comments {
 		commentText := comment.Text()
 		if strings.HasPrefix(commentText, "+build ") {
 			formattedBuildTags = append(formattedBuildTags, commentText)
@@ -579,7 +605,7 @@ func parseFile(filename string, pkgName string) (*common.Module, error) {
 		module.TargetPkg = path.Clean(path.Join(pkgName, path.Dir(output)))
 	}
 
-	for _, decl := range astFile.Decls {
+	for _, decl := range modelAstFile.Decls {
 		if decl, ok := decl.(*ast.GenDecl); ok {
 			genaccessors := false
 			if decl.Doc != nil {
@@ -596,7 +622,7 @@ func parseFile(filename string, pkgName string) (*common.Module, error) {
 			}
 
 			for _, spec := range decl.Specs {
-				handleSpecRecursive(module, astFile, spec, "", "", "", nil, make(map[string]bool))
+				handleSpecRecursive(module, modelAstFile, typesAstFile, spec, "", "", "", nil, make(map[string]bool))
 			}
 		}
 	}
@@ -622,6 +648,10 @@ func newField(allFields map[string]*common.StructField, field *common.StructFiel
 			path += "." + node
 		} else {
 			path = node
+		}
+
+		if path == "" {
+			fmt.Printf("OH NO: %+V\n", field.Name)
 		}
 
 		if field, ok := allFields[path]; ok {
@@ -755,7 +785,7 @@ var accessorsTemplateCode string
 var fieldHandlersTemplate string
 
 func main() {
-	module, err := parseFile(filename, pkgname)
+	module, err := parseFile(modelFile, typesFile, pkgname)
 	if err != nil {
 		panic(err)
 	}
@@ -768,7 +798,7 @@ func main() {
 
 	if docOutput != "" {
 		os.Remove(docOutput)
-		if err := doc.GenerateDocJSON(module, path.Dir(filename), docOutput); err != nil {
+		if err := doc.GenerateDocJSON(module, path.Dir(modelFile), docOutput); err != nil {
 			panic(err)
 		}
 	}
@@ -837,7 +867,8 @@ func init() {
 	flag.BoolVar(&verbose, "verbose", false, "Be verbose")
 	flag.StringVar(&docOutput, "doc", "", "Generate documentation JSON")
 	flag.StringVar(&fieldHandlersOutput, "field-handlers", "", "Field handlers output file")
-	flag.StringVar(&filename, "input", os.Getenv("GOFILE"), "Go file to generate decoders from")
+	flag.StringVar(&modelFile, "input", os.Getenv("GOFILE"), "Go file to generate decoders from")
+	flag.StringVar(&typesFile, "types-file", os.Getenv("TYPESFILE"), "Go type file to use with the model file")
 	flag.StringVar(&pkgname, "package", pkgPrefix+"/"+os.Getenv("GOPACKAGE"), "Go package name")
 	flag.StringVar(&buildTags, "tags", "", "build tags used for parsing")
 	flag.StringVar(&fieldHandlersBuildTags, "field-handlers-tags", "", "build tags used for field handlers")

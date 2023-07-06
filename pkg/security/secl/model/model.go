@@ -483,3 +483,30 @@ func (dfh *DefaultFieldHandlers) ResolveEventTime(ev *Event) time.Time {
 func (dfh *DefaultFieldHandlers) GetProcessService(ev *Event) string {
 	return ""
 }
+
+// NetworkContext represents the network context of the event
+type NetworkContext struct {
+	Device NetworkDeviceContext `field:"device"` // network device on which the network packet was captured
+
+	L3Protocol  uint16        `field:"l3_protocol"` // SECLDoc[l3_protocol] Definition:`l3 protocol of the network packet` Constants:`L3 protocols`
+	L4Protocol  uint16        `field:"l4_protocol"` // SECLDoc[l4_protocol] Definition:`l4 protocol of the network packet` Constants:`L4 protocols`
+	Source      IPPortContext `field:"source"`      // source of the network packet
+	Destination IPPortContext `field:"destination"` // destination of the network packet
+	Size        uint32        `field:"size"`        // SECLDoc[size] Definition:`size in bytes of the network packet`
+}
+
+// DNSEvent represents a DNS event
+type DNSEvent struct {
+	ID    uint16 `field:"id" json:"-"`                                             // SECLDoc[id] Definition:`[Experimental] the DNS request ID`
+	Name  string `field:"question.name,opts:length" op_override:"eval.DNSNameCmp"` // SECLDoc[question.name] Definition:`the queried domain name`
+	Type  uint16 `field:"question.type"`                                           // SECLDoc[question.type] Definition:`a two octet code which specifies the DNS question type` Constants:`DNS qtypes`
+	Class uint16 `field:"question.class"`                                          // SECLDoc[question.class] Definition:`the class looked up by the DNS question` Constants:`DNS qclasses`
+	Size  uint16 `field:"question.length"`                                         // SECLDoc[question.length] Definition:`the total DNS request size in bytes`
+	Count uint16 `field:"question.count"`                                          // SECLDoc[question.count] Definition:`the total count of questions in the DNS request`
+}
+
+// SpanContext describes a span context
+type SpanContext struct {
+	SpanID  uint64 `field:"_" json:"-"`
+	TraceID uint64 `field:"_" json:"-"`
+}

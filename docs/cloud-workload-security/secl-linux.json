@@ -1,6 +1,20 @@
 {
   "event_types": [
     {
+      "name": "",
+      "definition": "",
+      "type": "",
+      "from_agent_version": "",
+      "experimental": false,
+      "properties": [
+        {
+          "name": "event.timestamp",
+          "definition": "Timestamp of the event",
+          "property_doc_link": "event-timestamp-doc"
+        }
+      ]
+    },
+    {
       "name": "*",
       "definition": "SECLDoc[event.async] Definition:`True if the syscall was asynchronous`",
       "type": "",
@@ -361,50 +375,6 @@
           "name": "chown.retval",
           "definition": "Return value of the syscall",
           "property_doc_link": "common-syscallevent-retval-doc"
-        }
-      ]
-    },
-    {
-      "name": "dns",
-      "definition": "A DNS request was sent",
-      "type": "Network",
-      "from_agent_version": "7.36",
-      "experimental": false,
-      "properties": [
-        {
-          "name": "dns.id",
-          "definition": "[Experimental] the DNS request ID",
-          "property_doc_link": "dns-id-doc"
-        },
-        {
-          "name": "dns.question.class",
-          "definition": "the class looked up by the DNS question",
-          "property_doc_link": "dns-question-class-doc"
-        },
-        {
-          "name": "dns.question.count",
-          "definition": "the total count of questions in the DNS request",
-          "property_doc_link": "dns-question-count-doc"
-        },
-        {
-          "name": "dns.question.length",
-          "definition": "the total DNS request size in bytes",
-          "property_doc_link": "dns-question-length-doc"
-        },
-        {
-          "name": "dns.question.name",
-          "definition": "the queried domain name",
-          "property_doc_link": "dns-question-name-doc"
-        },
-        {
-          "name": "dns.question.name.length",
-          "definition": "Length of the corresponding string",
-          "property_doc_link": "common-string-length-doc"
-        },
-        {
-          "name": "dns.question.type",
-          "definition": "a two octet code which specifies the DNS question type",
-          "property_doc_link": "dns-question-type-doc"
         }
       ]
     },
@@ -3532,7 +3502,6 @@
         "chmod.file.path",
         "chown.file.name",
         "chown.file.path",
-        "dns.question.name",
         "exec.file.name",
         "exec.file.path",
         "exec.interpreter.file.name",
@@ -4273,82 +4242,22 @@
       "examples": []
     },
     {
-      "name": "dns.id",
-      "link": "dns-id-doc",
-      "type": "int",
-      "definition": "[Experimental] the DNS request ID",
-      "prefixes": [
-        "dns"
-      ],
-      "constants": "",
-      "constants_link": "",
-      "examples": []
-    },
-    {
-      "name": "dns.question.class",
-      "link": "dns-question-class-doc",
-      "type": "int",
-      "definition": "the class looked up by the DNS question",
-      "prefixes": [
-        "dns"
-      ],
-      "constants": "DNS qclasses",
-      "constants_link": "dns-qclasses",
-      "examples": []
-    },
-    {
-      "name": "dns.question.count",
-      "link": "dns-question-count-doc",
-      "type": "int",
-      "definition": "the total count of questions in the DNS request",
-      "prefixes": [
-        "dns"
-      ],
-      "constants": "",
-      "constants_link": "",
-      "examples": []
-    },
-    {
-      "name": "dns.question.length",
-      "link": "dns-question-length-doc",
-      "type": "int",
-      "definition": "the total DNS request size in bytes",
-      "prefixes": [
-        "dns"
-      ],
-      "constants": "",
-      "constants_link": "",
-      "examples": []
-    },
-    {
-      "name": "dns.question.name",
-      "link": "dns-question-name-doc",
-      "type": "string",
-      "definition": "the queried domain name",
-      "prefixes": [
-        "dns"
-      ],
-      "constants": "",
-      "constants_link": "",
-      "examples": []
-    },
-    {
-      "name": "dns.question.type",
-      "link": "dns-question-type-doc",
-      "type": "int",
-      "definition": "a two octet code which specifies the DNS question type",
-      "prefixes": [
-        "dns"
-      ],
-      "constants": "DNS qtypes",
-      "constants_link": "dns-qtypes",
-      "examples": []
-    },
-    {
       "name": "event.async",
       "link": "event-async-doc",
       "type": "bool",
       "definition": "True if the syscall was asynchronous",
+      "prefixes": [
+        ""
+      ],
+      "constants": "",
+      "constants_link": "",
+      "examples": []
+    },
+    {
+      "name": "event.timestamp",
+      "link": "event-timestamp-doc",
+      "type": "int",
+      "definition": "Timestamp of the event",
       "prefixes": [
         ""
       ],

@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-//go:generate go run github.com/DataDog/datadog-agent/pkg/security/secl/compiler/generators/accessors -tags linux -output accessors_linux.go -field-handlers-tags linux -field-handlers field_handlers_linux.go -doc ../../../../docs/cloud-workload-security/secl-linux.json
+//go:generate go run github.com/DataDog/datadog-agent/pkg/security/secl/compiler/generators/accessors -types-file model.go -tags linux -output accessors_linux.go -field-handlers-tags linux -field-handlers field_handlers_linux.go -doc ../../../../docs/cloud-workload-security/secl-linux.json
 
 package model
 
@@ -326,12 +326,6 @@ type Process struct {
 	IsThread bool `field:"is_thread"` // SECLDoc[is_thread] Definition:`Indicates whether the process is considered a thread (that is, a child process that hasn't executed another program)`
 
 	Source uint64 `field:"-" json:"-"`
-}
-
-// SpanContext describes a span context
-type SpanContext struct {
-	SpanID  uint64 `field:"_" json:"-"`
-	TraceID uint64 `field:"_" json:"-"`
 }
 
 // ExecEvent represents a exec event
@@ -748,27 +742,6 @@ type NetworkDeviceContext struct {
 type IPPortContext struct {
 	IPNet net.IPNet `field:"ip"`   // SECLDoc[ip] Definition:`IP address`
 	Port  uint16    `field:"port"` // SECLDoc[port] Definition:`Port number`
-}
-
-// NetworkContext represents the network context of the event
-type NetworkContext struct {
-	Device NetworkDeviceContext `field:"device"` // network device on which the network packet was captured
-
-	L3Protocol  uint16        `field:"l3_protocol"` // SECLDoc[l3_protocol] Definition:`l3 protocol of the network packet` Constants:`L3 protocols`
-	L4Protocol  uint16        `field:"l4_protocol"` // SECLDoc[l4_protocol] Definition:`l4 protocol of the network packet` Constants:`L4 protocols`
-	Source      IPPortContext `field:"source"`      // source of the network packet
-	Destination IPPortContext `field:"destination"` // destination of the network packet
-	Size        uint32        `field:"size"`        // SECLDoc[size] Definition:`size in bytes of the network packet`
-}
-
-// DNSEvent represents a DNS event
-type DNSEvent struct {
-	ID    uint16 `field:"id" json:"-"`                                             // SECLDoc[id] Definition:`[Experimental] the DNS request ID`
-	Name  string `field:"question.name,opts:length" op_override:"eval.DNSNameCmp"` // SECLDoc[question.name] Definition:`the queried domain name`
-	Type  uint16 `field:"question.type"`                                           // SECLDoc[question.type] Definition:`a two octet code which specifies the DNS question type` Constants:`DNS qtypes`
-	Class uint16 `field:"question.class"`                                          // SECLDoc[question.class] Definition:`the class looked up by the DNS question` Constants:`DNS qclasses`
-	Size  uint16 `field:"question.length"`                                         // SECLDoc[question.length] Definition:`the total DNS request size in bytes`
-	Count uint16 `field:"question.count"`                                          // SECLDoc[question.count] Definition:`the total count of questions in the DNS request`
 }
 
 // BindEvent represents a bind event
