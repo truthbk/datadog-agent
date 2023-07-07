@@ -241,7 +241,7 @@ class ModuleTestResult(ModuleResult):
 
                             if action == "fail":
                                 failed_packages.add(package)
-                            elif action == "pass" and package in failed_tests.keys():
+                            elif action == "pass" and package in failed_tests.keys() and len(failed_tests[package]) == 0:
                                 # The package was retried and fully succeeded, removing from the list of packages to report
                                 failed_packages.remove(package)
 
