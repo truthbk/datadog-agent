@@ -1548,7 +1548,7 @@ def start_microvms(
     ssh_key_name=None,
     ssh_key_path=None,
     dependencies_dir=None,
-    shutdown_period=320,
+    shutdown_period=30,
     stack_name="kernel-matrix-testing-system",
     vmconfig=None,
     local=False,
