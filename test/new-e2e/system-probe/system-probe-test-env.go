@@ -179,7 +179,7 @@ func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *SystemProbe
 
 	var upResult auto.UpResult
 	ctx := context.Background()
-	currentAZ = PrimaryAZ
+	currentAZ = BackupAZ
 	b := retry.NewConstant(3 * time.Second)
 	b = retry.WithMaxRetries(3, b)
 	if retryErr := retry.Do(ctx, b, func(_ context.Context) error {
