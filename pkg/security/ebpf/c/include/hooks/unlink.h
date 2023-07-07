@@ -151,7 +151,7 @@ int __attribute__((always_inline)) sys_unlink_ret(void *ctx, int retval) {
     }
 
     if (retval >= 0) {
-        invalidate_inode(ctx, syscall->unlink.file.path_key.mount_id, syscall->unlink.file.path_key.ino, !pass_to_userspace);
+        invalidate_inode(ctx, syscall->unlink.file.dentry_key.mount_id, syscall->unlink.file.dentry_key.ino, !pass_to_userspace);
     }
 
     return 0;

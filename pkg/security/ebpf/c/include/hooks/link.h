@@ -66,7 +66,7 @@ int kprobe_vfs_link(struct pt_regs *ctx) {
 
     // this is a hard link, source and target dentries are on the same filesystem & mount point
     // target_path was set by kprobe/filename_create before we reach this point.
-    syscall->link.src_file.path_key.mount_id = get_path_mount_id(syscall->link.target_path);
+    syscall->link.src_file.dentry_key.mount_id = get_path_mount_id(syscall->link.target_path);
     set_file_inode(src_dentry, &syscall->link.src_file, 0);
 
     if (filter_syscall(syscall, link_approvers)) {
@@ -126,7 +126,7 @@ int __attribute__((always_inline)) sys_link_ret(void *ctx, int retval, int dr_ty
     // invalidate user space inode, so no need to bump the discarder revision in the event
     if (retval >= 0) {
         // for hardlink we need to invalidate the cache as the nlink counter in now > 1
-        invalidate_inode(ctx, syscall->link.src_file.path_key.mount_id, syscall->link.src_file.path_key.ino, !pass_to_userspace);
+        invalidate_inode(ctx, syscall->link.src_file.dentry_key.mount_id, syscall->link.src_file.dentry_key.ino, !pass_to_userspace);
     }
 
     if (pass_to_userspace) {
