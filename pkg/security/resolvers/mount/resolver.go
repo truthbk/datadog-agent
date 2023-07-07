@@ -10,7 +10,6 @@ package mount
 import (
 	"context"
 	"path"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -34,23 +33,6 @@ const (
 	deleteDelayTime       = 5 * time.Second
 	fallbackLimiterPeriod = 5 * time.Second
 )
-
-func parseGroupID(mnt *mountinfo.Info) (uint32, error) {
-	// Has optional fields, which is a space separated list of values.
-	// Example: shared:2 master:7
-	if len(mnt.Optional) > 0 {
-		for _, field := range strings.Split(mnt.Optional, " ") {
-			target, value, found := strings.Cut(field, ":")
-			if found {
-				if target == "shared" || target == "master" {
-					groupID, err := strconv.ParseUint(value, 10, 32)
-					return uint32(groupID), err
-				}
-			}
-		}
-	}
-	return 0, nil
-}
 
 // newMountFromMountInfo - Creates a new Mount from parsed MountInfo data
 func newMountFromMountInfo(mnt *mountinfo.Info) *model.Mount {

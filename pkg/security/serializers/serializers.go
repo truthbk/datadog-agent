@@ -240,8 +240,6 @@ type FileEventSerializer struct {
 
 	// New Mount ID
 	NewMountID uint32 `json:"new_mount_id,omitempty"`
-	// Group ID
-	GroupID uint32 `json:"group_id,omitempty"`
 	// Device associated with the file
 	Device uint32 `json:"device,omitempty"`
 	// Filesystem type
@@ -514,7 +512,6 @@ type MountEventSerializer struct {
 	MountPoint                     *FileSerializer `json:"mp,omitempty"`                    // Mount point file information
 	Root                           *FileSerializer `json:"root,omitempty"`                  // Root file information
 	MountID                        uint32          `json:"mount_id"`                        // Mount ID of the new mount
-	GroupID                        uint32          `json:"group_id"`                        // ID of the peer group
 	ParentMountID                  uint32          `json:"parent_mount_id"`                 // Mount ID of the parent mount
 	BindSrcMountID                 uint32          `json:"bind_src_mount_id"`               // Mount ID of the source of a bind mount
 	Device                         uint32          `json:"device"`                          // Device associated with the file
