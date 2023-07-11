@@ -28,7 +28,7 @@ func (n *USMConsumer) ID() string {
 
 // NewUSMConsumer returns a new USMConsumer instance
 func NewUSMConsumer(evm *eventmonitor.EventMonitor) (*USMConsumer, error) {
-	h := Handler()
+	h := &eventHandler{}
 	if err := evm.AddEventTypeHandler(smodel.ExecEventType, h); err != nil {
 		return nil, err
 	}

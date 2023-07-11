@@ -2,6 +2,7 @@ package events
 
 import (
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 type eventHandler struct{}
@@ -9,7 +10,5 @@ type eventHandler struct{}
 func (h *eventHandler) HandleEvent(ev *model.Event) {
 	ev.ResolveFields()
 
-	for _, h := range e.handlers {
-		h(ev.ProcessContext)
-	}
+	log.Debugf("usm handler %w", ev.ProcessContext)
 }
