@@ -17,8 +17,10 @@ import (
 
 // Component is the component type.
 type Component interface {
+	// AddScheduler adds an AD scheduler to the logs agent
 	AddScheduler(*autodiscovery.AutoConfig)
 
+	// IsRunning returns true if the logs agent is running
 	IsRunning() bool
 }
 
@@ -33,6 +35,6 @@ var Module = fxutil.Component(
 )
 
 // MockModule defines the fx options for the mock component.
-// var MockModule = fxutil.Component(
-// 	fx.Provide(newMock),
-// )
+var MockModule = fxutil.Component(
+	fx.Provide(newMock),
+)
