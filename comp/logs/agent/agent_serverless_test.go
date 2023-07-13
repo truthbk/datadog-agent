@@ -5,7 +5,7 @@
 
 //go:build serverless
 
-package logs
+package agent
 
 import (
 	"testing"
