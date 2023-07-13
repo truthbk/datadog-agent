@@ -41,9 +41,56 @@ message SecurityConfigMessage {
 
 message RunSelfTestParams {}
 
+//message PolicyMessage{
+//    string version = 1;
+//    repeated string MacroMessage = 2;
+//    repeated string RuleMessage = 3;
+//}
+//
+//message MacroMessage {
+//    string MacroID = 1;
+//    string Description = 2;
+//    string Expression = 3;
+//}
+//
+//message RuleMessage {
+//    string RuleID = 1;
+//    string Description = 2;
+//    string Expression = 3;
+//    string AgentExpression = 4;
+//}
+
+message RuleSetReportMessage{
+    repeated RuleEventDetails RuleEventDetails = 1;
+}
+
+message RuleEventDetails{
+    string Mode = 1;
+    repeated string Flags = 2;
+    Approvers Approvers = 3;
+}
+
+message Approvers {
+    string Field = 1;
+    repeated ApproverDetails ApproverDetails = 2;
+}
+
+message ApproverDetails {
+    string Field = 1;
+    string Value = 2;
+    int32 Type = 3;
+}
+
 message ReloadPoliciesParams{}
 
 message ReloadPoliciesResultMessage{}
+
+message GetRuleSetReportParams{}
+
+message GetRuleSetReportResultMessage{
+    RuleSetReportMessage RuleSetReportMessage = 1;
+    string Error = 2;
+}
 
 message SecuritySelfTestResultMessage {
     bool Ok = 1;
@@ -241,6 +288,7 @@ service SecurityModule {
     rpc GetConfig(GetConfigParams) returns (SecurityConfigMessage) {}
     rpc GetStatus(GetStatusParams) returns (Status) {}
     rpc RunSelfTest(RunSelfTestParams) returns (SecuritySelfTestResultMessage) {}
+    rpc GetRuleSetReport(GetRuleSetReportParams) returns (GetRuleSetReportResultMessage) {}
     rpc ReloadPolicies(ReloadPoliciesParams) returns (ReloadPoliciesResultMessage) {}
     rpc DumpNetworkNamespace(DumpNetworkNamespaceParams) returns (DumpNetworkNamespaceMessage) {}
     rpc DumpDiscarders(DumpDiscardersParams) returns (DumpDiscardersMessage) {}
