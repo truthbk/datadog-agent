@@ -36,7 +36,7 @@ func (a *agent) NewAgentState(
 	tracker *tailers.TailerTracker,
 	processingRules []*config.ProcessingRule,
 	endpoints *config.Endpoints,
-) *agentPipeline {
+) *logsAgentState {
 	health := health.RegisterLiveness("logs-agent")
 
 	// setup the auditor
@@ -63,7 +63,7 @@ func (a *agent) NewAgentState(
 	lnchrs.AddLauncher(windowsevent.NewLauncher())
 	lnchrs.AddLauncher(container.NewLauncher(sources))
 
-	return &agentPipeline{
+	return &logsAgentState{
 		sources:                   sources,
 		services:                  services,
 		endpoints:                 endpoints,

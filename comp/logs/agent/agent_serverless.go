@@ -8,7 +8,11 @@
 package agent
 
 import (
+	"context"
+
+	logComponent "github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
+	pkgConfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/logs/auditor"
 	"github.com/DataDog/datadog-agent/pkg/logs/client"
 	"github.com/DataDog/datadog-agent/pkg/logs/diagnostic"
@@ -20,7 +24,28 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/sources"
 	"github.com/DataDog/datadog-agent/pkg/logs/tailers"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
+	"go.uber.org/atomic"
 )
+
+// A compat version of the component for the serverless agent exposing the Start and Stop methods
+type ServerlessLogsAgent interface {
+	Component
+	Start() error
+	Stop()
+}
+
+func NewServerlessLogsAgent() ServerlessLogsAgent {
+	logsAgent := &agent{log: logComponent.NewTemporaryLoggerWithoutInit(), config: pkgConfig.Datadog, started: atomic.NewBool(false)}
+	return logsAgent
+}
+
+func (a *agent) Start() error {
+	return a.start(context.TODO())
+}
+
+func (a *agent) Stop() {
+	a.stop(context.TODO())
+}
 
 // Note: Building the logs-agent for serverless separately removes the
 // dependency on autodiscovery, file launchers, and some schedulers
@@ -29,7 +54,13 @@ import (
 // NewAgent returns a Logs Agent instance to run in a serverless environment.
 // The Serverless Logs Agent has only one input being the channel to receive the logs to process.
 // It is using a NullAuditor because we've nothing to do after having sent the logs to the intake.
-func NewAgent(sources *sources.LogSources, services *service.Services, tracker *tailers.TailerTracker, processingRules []*config.ProcessingRule, endpoints *config.Endpoints) *Agent {
+func (a *agent) NewAgentState(
+	sources *sources.LogSources,
+	services *service.Services,
+	tracker *tailers.TailerTracker,
+	processingRules []*config.ProcessingRule,
+	endpoints *config.Endpoints,
+) *logsAgentState {
 	health := health.RegisterLiveness("logs-agent")
 
 	diagnosticMessageReceiver := diagnostic.NewBufferedMessageReceiver(nil)
@@ -45,7 +76,7 @@ func NewAgent(sources *sources.LogSources, services *service.Services, tracker *
 	lnchrs := launchers.NewLaunchers(sources, pipelineProvider, auditor, tracker)
 	lnchrs.AddLauncher(channel.NewLauncher())
 
-	return &Agent{
+	return &logsAgentState{
 		sources:                   sources,
 		services:                  services,
 		schedulers:                schedulers.NewSchedulers(sources, services),
