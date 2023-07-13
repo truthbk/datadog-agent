@@ -14,7 +14,7 @@ BPF_HASH_MAP(connection_protocol, conn_tuple_t, protocol_stack_t, 0)
 // Otherwise use a LRU map instead. Note that Kernels older than 4.10 will use
 // this map definifition in the context of either pre-built or CO-RE, but in this
 // case we change the map spec during load time from userspace.
-BPF_LRU_MAP(connection_protocol, conn_tuple_t, protocol_stack_t, 0)
+BPF_LRU_MAP_FLAGS(connection_protocol, conn_tuple_t, protocol_stack_t, 0, BPF_F_NO_COMMON_LRU)
 #endif
 
 static __always_inline protocol_stack_t* get_protocol_stack(conn_tuple_t *skb_tup) {
