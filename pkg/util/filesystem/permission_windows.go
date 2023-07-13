@@ -8,10 +8,11 @@ package filesystem
 
 import (
 	"fmt"
-	"syscall"
 
 	"github.com/hectane/go-acl"
 	"golang.org/x/sys/windows"
+
+	"github.com/DataDog/datadog-agent/pkg/util/winutil"
 )
 
 // Permission handles permissions for Unix and Windows
@@ -31,33 +32,15 @@ func NewPermission() (*Permission, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	currentUserSid, err := getCurrentUserSid()
+	currentUserSid, err := winutil.GetCurrentUserSid()
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get current user sid %v", err)
+		return nil, fmt.Errorf("unable to get current user sid %v", err)
 	}
 	return &Permission{
 		currentUserSid:   currentUserSid,
 		administratorSid: administratorSid,
 		systemSid:        systemSid,
 	}, nil
-}
-
-func getCurrentUserSid() (*windows.SID, error) {
-	token, err := syscall.OpenCurrentProcessToken()
-	if err != nil {
-		return nil, fmt.Errorf("Couldn't get process token %v", err)
-	}
-	defer token.Close()
-	user, err := token.GetTokenUser()
-	if err != nil {
-		return nil, fmt.Errorf("Couldn't get token user %v", err)
-	}
-	sidString, err := user.User.Sid.String()
-	if err != nil {
-		return nil, fmt.Errorf("Couldn't get user sid string %v", err)
-	}
-	return windows.StringToSid(sidString)
 }
 
 // RestrictAccessToUser update the ACL of a file so only the current user and ADMIN/SYSTEM can access it
@@ -69,6 +52,21 @@ func (p *Permission) RestrictAccessToUser(path string) error {
 		acl.GrantSid(windows.GENERIC_ALL, p.administratorSid),
 		acl.GrantSid(windows.GENERIC_ALL, p.systemSid),
 		acl.GrantSid(windows.GENERIC_ALL, p.currentUserSid))
+}
+
+// RestrictAccessToUser update the ACL of a file so only the agent user and ADMIN/SYSTEM can access it
+func (p *Permission) RestrictAccessToAgentUser(path string) error {
+	ddAgentUserSid, err := winutil.GetDDAgentUserSID()
+	if err != nil {
+		return fmt.Errorf("unable to get agent user SID: %v", err)
+	}
+	return acl.Apply(
+		path,
+		true,  // replace the file permissions
+		false, // don't inherit
+		acl.GrantSid(windows.GENERIC_ALL, p.administratorSid),
+		acl.GrantSid(windows.GENERIC_ALL, p.systemSid),
+		acl.GrantSid(windows.GENERIC_ALL, ddAgentUserSid))
 }
 
 // RemoveAccessToOtherUsers on Windows this function calls RestrictAccessToUser

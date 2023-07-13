@@ -56,6 +56,11 @@ func (p *Permission) RestrictAccessToUser(path string) error {
 	return nil
 }
 
+// RestrictAccessToAgentUser is the same as RestrictAccessToUser on non-windows OSes
+func (p *Permission) RestrictAccessToAgentUser(path string) error {
+	return p.RestrictAccessToUser(path)
+}
+
 // RemoveAccessToOtherUsers on Unix this calls RestrictAccessToUser and then removes all access to the file for 'group'
 // and 'other'
 func (p *Permission) RemoveAccessToOtherUsers(path string) error {

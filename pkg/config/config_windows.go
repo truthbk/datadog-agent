@@ -31,7 +31,7 @@ var (
 )
 
 // ServiceName is the name that'll be used to register the Agent
-const ServiceName = "DatadogAgent"
+const ServiceName = winutil.DatadogAgentServiceName
 
 func osinit() {
 	pd, err := winutil.GetProgramDataDir()

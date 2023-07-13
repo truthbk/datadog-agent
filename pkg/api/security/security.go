@@ -241,7 +241,7 @@ func saveAuthToken(token, tokenPath string) error {
 		return err
 	}
 
-	if err := perms.RestrictAccessToUser(tokenPath); err != nil {
+	if err := perms.RestrictAccessToAgentUser(tokenPath); err != nil {
 		log.Errorf("Failed to write auth token acl %s", err)
 		return err
 	}

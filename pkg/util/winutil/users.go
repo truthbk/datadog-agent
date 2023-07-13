@@ -15,9 +15,9 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-// GetSidFromUser grabs and returns the windows SID for the current user or an error.
+// GetCurrentUserSid returns the windows SID for the current user or an error.
 // The *SID returned does not need to be freed by the caller.
-func GetSidFromUser() (*windows.SID, error) {
+func GetCurrentUserSid() (*windows.SID, error) {
 	log.Infof("Getting sidstring from user")
 	tok, e := syscall.OpenCurrentProcessToken()
 	if e != nil {
@@ -58,4 +58,30 @@ func IsUserAnAdmin() (bool, error) {
 		return false, nil
 	}
 	return true, nil
+}
+
+// GetDDAgentUserSID returns the SID of the ddagentuser configured at installation time by
+// by looking up the user the datadogagent service is configured to execute as.
+// unit tests may need to override this method, for example with GetCurrentUserSid, since the Windows
+// Services may not be installed.
+var GetDDAgentUserSID = func() (*windows.SID, error) {
+	mgr, err := OpenSCManager(windows.SC_MANAGER_CONNECT)
+	if err != nil {
+		return nil, fmt.Errorf("could not connect to SCM: %v", err)
+	}
+	defer mgr.Disconnect()
+
+	service, err := OpenService(mgr, DatadogAgentServiceName, windows.SERVICE_QUERY_CONFIG)
+	if err != nil {
+		return nil, fmt.Errorf("could not open service %s: %v", DatadogAgentServiceName, err)
+	}
+	defer service.Close()
+
+	config, err := service.Config()
+	if err != nil {
+		return nil, fmt.Errorf("could not query service config %s: %v", DatadogAgentServiceName, err)
+	}
+
+	sid, _, _, err := windows.LookupSID("", config.ServiceStartName)
+	return sid, err
 }

@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGetSidFromUser(t *testing.T) {
-	sid, err := GetSidFromUser()
+func TestGetCurrentUserSid(t *testing.T) {
+	sid, err := GetCurrentUserSid()
 	t.Logf("The SID found was: %v", sid)
 	assert.Nil(t, err)
 	assert.NotNil(t, sid)

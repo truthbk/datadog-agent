@@ -19,8 +19,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/winutil"
 )
 
-const ddAgentServiceName = "datadogagent"
-
 // commandContext sets up an exec.Cmd for running with a context
 func commandContext(ctx context.Context, name string, arg ...string) (*exec.Cmd, func(), error) {
 	cmd := exec.CommandContext(ctx, name, arg...)
@@ -31,7 +29,7 @@ func commandContext(ctx context.Context, name string, arg ...string) (*exec.Cmd,
 	}
 	defer windows.FreeSid(localSystem)
 
-	currentUser, err := winutil.GetSidFromUser()
+	currentUser, err := winutil.GetCurrentUserSid()
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not get SID for current user: %s", err)
 	}
@@ -58,14 +56,14 @@ func commandContext(ctx context.Context, name string, arg ...string) (*exec.Cmd,
 // getDDAgentServiceToken retrieves token from the running Datadog Agent service
 func getDDAgentServiceToken() (windows.Token, error) {
 	var token, duplicatedToken windows.Token
-	pid, err := getServicePid(ddAgentServiceName)
+	pid, err := getServicePid(winutil.DatadogAgentServiceName)
 	if err != nil {
-		return windows.Token(0), fmt.Errorf("could not get pid of %s service: %s", ddAgentServiceName, err)
+		return windows.Token(0), fmt.Errorf("could not get pid of %s service: %s", winutil.DatadogAgentServiceName, err)
 	}
 
 	procHandle, err := windows.OpenProcess(windows.PROCESS_QUERY_INFORMATION, false, pid)
 	if err != nil {
-		return windows.Token(0), fmt.Errorf("could not get pid of %s service: %s", ddAgentServiceName, err)
+		return windows.Token(0), fmt.Errorf("could not get pid of %s service: %s", winutil.DatadogAgentServiceName, err)
 	}
 
 	defer windows.CloseHandle(procHandle)
@@ -77,7 +75,7 @@ func getDDAgentServiceToken() (windows.Token, error) {
 	defer windows.CloseHandle(windows.Handle(token))
 
 	if err := windows.DuplicateTokenEx(token, windows.MAXIMUM_ALLOWED, nil, windows.SecurityDelegation, windows.TokenPrimary, &duplicatedToken); err != nil {
-		return windows.Token(0), fmt.Errorf("error duplicating %s service token: %s", ddAgentServiceName, err)
+		return windows.Token(0), fmt.Errorf("error duplicating %s service token: %s", winutil.DatadogAgentServiceName, err)
 	}
 
 	return duplicatedToken, nil

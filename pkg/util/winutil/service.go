@@ -23,6 +23,7 @@ import (
 
 const (
 	defaultServiceCommandTimeout = 10
+	DatadogAgentServiceName      = "DatadogAgent"
 )
 
 var (

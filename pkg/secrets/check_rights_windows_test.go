@@ -30,7 +30,7 @@ func setCorrectRight(path string) {
 
 func testCheckRightsStub() {
 	// Stub for CI since running as Administrator and no installer data
-	getDDAgentUserSID = winutil.GetSidFromUser
+	winutil.GetDDAgentUserSID = winutil.GetCurrentUserSid
 }
 
 func TestWrongPath(t *testing.T) {

@@ -13,7 +13,6 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/windows"
-	"golang.org/x/sys/windows/registry"
 
 	"github.com/DataDog/datadog-agent/pkg/util/winutil"
 )
@@ -147,7 +146,7 @@ func getSecretUserSID() (*windows.SID, error) {
 	}
 	defer windows.FreeSid(localSystem)
 
-	currentUser, err := winutil.GetSidFromUser()
+	currentUser, err := winutil.GetCurrentUserSid()
 	if err != nil {
 		return nil, fmt.Errorf("could not get SID for current user: %s", err)
 	}
@@ -160,37 +159,11 @@ func getSecretUserSID() (*windows.SID, error) {
 	}
 
 	if elevated || currentUser.Equals(localSystem) {
-		ddUser, err := getDDAgentUserSID()
+		ddUser, err := winutil.GetDDAgentUserSID()
 		if err != nil {
 			return nil, fmt.Errorf("could not resolve SID for ddagentuser user: %s", err)
 		}
 		secretUser = ddUser
 	}
 	return secretUser, nil
-}
-
-// getDDAgentUserSID returns the SID of the ddagentuser configured at installation time
-var getDDAgentUserSID = func() (*windows.SID, error) {
-	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Datadog\Datadog Agent`, registry.QUERY_VALUE)
-	if err != nil {
-		return nil, fmt.Errorf("could not open installer registry key: %s", err)
-	}
-	defer k.Close()
-
-	user, _, err := k.GetStringValue("installedUser")
-	if err != nil {
-		return nil, fmt.Errorf("could not read installedUser in registry: %s", err)
-	}
-
-	domain, _, err := k.GetStringValue("installedDomain")
-	if err != nil {
-		return nil, fmt.Errorf("could not read installedDomain in registry: %s", err)
-	}
-
-	if domain != "" {
-		user = domain + `\` + user
-	}
-
-	sid, _, _, err := windows.LookupSID("", user)
-	return sid, err
 }
