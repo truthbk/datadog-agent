@@ -48,3 +48,6 @@ func (a *mockLogsAgent) IsRunning() bool {
 func (a *mockLogsAgent) GetMessageReceiver() *diagnostic.BufferedMessageReceiver {
 	return nil
 }
+
+func (a *mockLogsAgent) Flush(ctx context.Context) {
+}

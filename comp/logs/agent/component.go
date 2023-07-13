@@ -7,6 +7,8 @@
 package agent
 
 import (
+	"context"
+
 	"go.uber.org/fx"
 
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery"
@@ -26,6 +28,9 @@ type Component interface {
 
 	// GetMessageReceiver gets the diagnostic message receiver
 	GetMessageReceiver() *diagnostic.BufferedMessageReceiver
+
+	// Flush flushes synchronously the pipelines managed by the Logs Agent.
+	Flush(ctx context.Context)
 }
 
 // Mock implements mock-specific methods.
