@@ -7,6 +7,7 @@ package agent
 
 import (
 	"context"
+	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/logs/diagnostic"
 	"github.com/DataDog/datadog-agent/pkg/logs/schedulers"
@@ -16,10 +17,17 @@ import (
 type mockLogsAgent struct {
 	isRunning       bool
 	addedSchedulers []schedulers.Scheduler
+	hasFlushed      bool
+	flushDelay      time.Duration
 }
 
 func newMock(deps dependencies) Component {
-	logsAgent := &mockLogsAgent{}
+	logsAgent := &mockLogsAgent{
+		hasFlushed:      false,
+		addedSchedulers: make([]schedulers.Scheduler, 0),
+		isRunning:       false,
+		flushDelay:      0,
+	}
 	deps.Lc.Append(fx.Hook{
 		OnStart: logsAgent.start,
 		OnStop:  logsAgent.stop,
@@ -49,5 +57,21 @@ func (a *mockLogsAgent) GetMessageReceiver() *diagnostic.BufferedMessageReceiver
 	return nil
 }
 
+// Serverless methods
+func (a *mockLogsAgent) Start() error {
+	a.start(context.TODO())
+	return nil
+}
+
+func (a *mockLogsAgent) Stop() {
+	a.stop(context.TODO())
+}
+
 func (a *mockLogsAgent) Flush(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		a.hasFlushed = false
+	case <-time.NewTimer(a.flushDelay).C:
+		a.hasFlushed = true
+	}
 }
