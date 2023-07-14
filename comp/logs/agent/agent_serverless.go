@@ -93,7 +93,7 @@ func (a *agent) NewAgentState(
 }
 
 // buildEndpoints builds endpoints for the logs agent
-func buildEndpoints(coreConfig pkgConfig.ConfigReader) (*config.Endpoints, error) {
+func buildEndpoints(coreConfig pkgConfig.ConfigReaderLoader) (*config.Endpoints, error) {
 	return config.BuildServerlessEndpoints(coreConfig, intakeTrackType, config.DefaultIntakeProtocol)
 }
 

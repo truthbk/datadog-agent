@@ -19,6 +19,7 @@ import (
 )
 
 func initStatus() {
+	// TODO
 	InitStatus(util.CreateSources([]*sources.LogSource{
 		sources.NewLogSource("foo", &config.LogsConfig{Type: "foo"}),
 		sources.NewLogSource("bar", &config.LogsConfig{Type: "foo"}),
