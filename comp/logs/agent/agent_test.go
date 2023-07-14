@@ -8,6 +8,7 @@
 package agent
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -15,18 +16,24 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/atomic"
+	"go.uber.org/fx"
 
+	configComponent "github.com/DataDog/datadog-agent/comp/core/config"
 	coreConfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/logs/client/http"
 	"github.com/DataDog/datadog-agent/pkg/logs/client/mock"
 	"github.com/DataDog/datadog-agent/pkg/logs/client/tcp"
 	"github.com/DataDog/datadog-agent/pkg/logs/sources"
 
+	"github.com/DataDog/datadog-agent/comp/core"
+	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
 	"github.com/DataDog/datadog-agent/pkg/logs/metrics"
 	"github.com/DataDog/datadog-agent/pkg/logs/service"
 	"github.com/DataDog/datadog-agent/pkg/logs/tailers"
 
+	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/testutil"
 )
 
@@ -36,11 +43,19 @@ type AgentTestSuite struct {
 	testLogFile string
 	fakeLogs    int64
 
-	source *sources.LogSource
+	source          *sources.LogSource
+	configOverrides map[string]interface{}
+}
+
+type testDeps struct {
+	fx.In
+
+	Config configComponent.Component
+	Log    log.Component
 }
 
 func (suite *AgentTestSuite) SetupTest() {
-	mockConfig := coreConfig.Mock(nil)
+	suite.configOverrides = map[string]interface{}{}
 
 	var err error
 
@@ -61,9 +76,9 @@ func (suite *AgentTestSuite) SetupTest() {
 	}
 	suite.source = sources.NewLogSource("", &logConfig)
 
-	mockConfig.Set("logs_config.run_path", suite.testDir)
+	suite.configOverrides["logs_config.run_path"] = suite.testDir
 	// Shorter grace period for tests.
-	mockConfig.Set("logs_config.stop_grace_period", 1)
+	suite.configOverrides["logs_config.stop_grace_period"] = 1
 }
 
 func (suite *AgentTestSuite) TearDownTest() {
@@ -75,20 +90,31 @@ func (suite *AgentTestSuite) TearDownTest() {
 	metrics.DestinationLogsDropped.Init()
 }
 
-func createAgent(endpoints *config.Endpoints) (*Agent, *sources.LogSources, *service.Services) {
+func createAgent(suite *AgentTestSuite, endpoints *config.Endpoints) (*agent, *sources.LogSources, *service.Services) {
 	// setup the sources and the services
 	sources := sources.NewLogSources()
 	services := service.NewServices()
 
-	// setup and start the agent
-	agent = NewAgent(sources, services, tailers.NewTailerTracker(), nil, endpoints)
+	deps := fxutil.Test[testDeps](suite.T(), fx.Options(
+		core.MockBundle,
+		fx.Replace(configComponent.MockParams{Overrides: suite.configOverrides}),
+	))
+
+	agent := &agent{
+		log:     deps.Log,
+		config:  deps.Config,
+		started: atomic.NewBool(false),
+	}
+
+	agent.state = agent.NewAgentState(sources, services, tailers.NewTailerTracker(), nil, endpoints)
+
 	return agent, sources, services
 }
 
 func (suite *AgentTestSuite) testAgent(endpoints *config.Endpoints) {
 	coreConfig.SetFeatures(suite.T(), coreConfig.Docker, coreConfig.Kubernetes)
 
-	agent, sources, _ := createAgent(endpoints)
+	agent, sources, _ := createAgent(suite, endpoints)
 
 	zero := int64(0)
 	assert.Equal(suite.T(), zero, metrics.LogsDecoded.Value())
@@ -97,13 +123,13 @@ func (suite *AgentTestSuite) testAgent(endpoints *config.Endpoints) {
 	assert.Equal(suite.T(), zero, metrics.DestinationErrors.Value())
 	assert.Equal(suite.T(), "{}", metrics.DestinationLogsDropped.String())
 
-	agent.Start()
+	agent.startPipeline()
 	sources.AddSource(suite.source)
 	// Give the agent at most 4 second to send the logs. (seems to be slow on Windows/AppVeyor)
 	testutil.AssertTrueBeforeTimeout(suite.T(), 10*time.Millisecond, 4*time.Second, func() bool {
 		return suite.fakeLogs == metrics.LogsSent.Value()
 	})
-	agent.Stop()
+	agent.stop(context.TODO())
 
 	assert.Equal(suite.T(), suite.fakeLogs, metrics.LogsDecoded.Value())
 	assert.Equal(suite.T(), suite.fakeLogs, metrics.LogsProcessed.Value())
@@ -135,15 +161,15 @@ func (suite *AgentTestSuite) TestAgentStopsWithWrongBackendTcp() {
 
 	coreConfig.SetFeatures(suite.T(), coreConfig.Docker, coreConfig.Kubernetes)
 
-	agent, sources, _ := createAgent(endpoints)
+	agent, sources, _ := createAgent(suite, endpoints)
 
-	agent.Start()
+	agent.startPipeline()
 	sources.AddSource(suite.source)
 	// Give the agent at most one second to process the logs.
 	testutil.AssertTrueBeforeTimeout(suite.T(), 10*time.Millisecond, 2*time.Second, func() bool {
 		return suite.fakeLogs == metrics.LogsProcessed.Value()
 	})
-	agent.Stop()
+	agent.stop(context.TODO())
 
 	// The context gets canceled when the agent stops. At this point the additional sender is stuck
 	// trying to establish a connection. `agent.Stop()` will cancel it and the error telemetry will be updated
