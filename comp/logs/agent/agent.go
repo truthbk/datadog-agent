@@ -29,7 +29,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/metadata/inventories"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 	"github.com/DataDog/datadog-agent/pkg/util"
-	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/util/startstop"
 	"go.uber.org/atomic"
 	"go.uber.org/fx"
@@ -77,9 +76,11 @@ type agent struct {
 	log    logComponent.Component
 	config pkgConfig.ConfigReader
 
+	// It is possible for the logs agent to fail or not startup for some reason but not block the rest of the agent from running.
+	// state will be nil if startup fails.
 	state *logsAgentState
 
-	// started is true if the agent has ever been started
+	// started is true if the logs agent is running
 	started *atomic.Bool
 }
 
@@ -93,24 +94,25 @@ func newLogsAgent(deps dependencies) Component {
 }
 
 func (a *agent) start(context.Context) error {
-	if a.config.GetBool("logs_enabled") || a.config.GetBool("log_enabled") {
-		if a.config.GetBool("log_enabled") {
-			a.log.Warn(`"log_enabled" is deprecated, use "logs_enabled" instead`)
-		}
-
-		log.Info("Starting logs-agent...")
-		err := a.createAgentState()
-
-		if err != nil {
-			a.log.Error("Could not start logs-agent: ", err)
-			return err
-		}
-
-		a.startPipeline()
-		a.log.Info("logs-agent started")
-	} else {
+	if !a.config.GetBool("logs_enabled") && !a.config.GetBool("log_enabled") {
 		a.log.Info("logs-agent disabled")
+		return nil
 	}
+
+	if a.config.GetBool("log_enabled") {
+		a.log.Warn(`"log_enabled" is deprecated, use "logs_enabled" instead`)
+	}
+
+	a.log.Info("Starting logs-agent...")
+	err := a.createAgentState()
+
+	if err != nil {
+		a.log.Error("Could not start logs-agent: ", err)
+		return err
+	}
+
+	a.startPipeline()
+	a.log.Info("logs-agent started")
 
 	return nil
 }
@@ -144,7 +146,7 @@ func (a *agent) createAgentState() error {
 	}
 
 	if config.HasMultiLineRule(processingRules) {
-		log.Warn(multiLineWarning)
+		a.log.Warn(multiLineWarning)
 		status.AddGlobalWarning(invalidProcessingRules, multiLineWarning)
 	}
 
@@ -176,10 +178,10 @@ func (a *agent) startPipeline() {
 
 func (a *agent) stop(context.Context) error {
 	if !a.IsRunning() {
-		log.Info("Can't stop the logs agent because it is not running")
+		a.log.Info("Can't stop the logs agent because it is not running")
 		return nil
 	}
-	log.Info("Stopping logs-agent")
+	a.log.Info("Stopping logs-agent")
 
 	status.Clear()
 
@@ -206,7 +208,7 @@ func (a *agent) stop(context.Context) error {
 	select {
 	case <-c:
 	case <-time.After(timeout):
-		log.Info("Timed out when stopping logs-agent, forcing it to stop now")
+		a.log.Info("Timed out when stopping logs-agent, forcing it to stop now")
 		// We force all destinations to read/flush all the messages they get without
 		// trying to write to the network.
 		a.state.destinationsCtx.Stop()
@@ -218,15 +220,15 @@ func (a *agent) stop(context.Context) error {
 		select {
 		case <-c:
 		case <-timeout.C:
-			log.Warn("Force close of the Logs Agent, dumping the Go routines.")
+			a.log.Warn("Force close of the Logs Agent, dumping the Go routines.")
 			if stack, err := util.GetGoRoutinesDump(); err != nil {
-				log.Warnf("can't get the Go routines dump: %s\n", err)
+				a.log.Warnf("can't get the Go routines dump: %s\n", err)
 			} else {
-				log.Warn(stack)
+				a.log.Warn(stack)
 			}
 		}
 	}
-	log.Info("logs-agent stopped")
+	a.log.Info("logs-agent stopped")
 	return nil
 }
 
@@ -241,21 +243,8 @@ func (a *agent) IsRunning() bool {
 
 func (a *agent) GetMessageReceiver() *diagnostic.BufferedMessageReceiver {
 	if !a.IsRunning() {
-		log.Info("Can't get message receiver because the logs agent is not running")
+		a.log.Info("Can't get message receiver because the logs agent is not running")
 		return nil
 	}
 	return a.state.diagnosticMessageReceiver
-}
-
-// Flush flushes synchronously the running instance of the Logs Agent.
-// Use a WithTimeout context in order to have a flush that can be cancelled.
-func (a *agent) Flush(ctx context.Context) {
-	if !a.IsRunning() {
-		log.Info("Can't flush the logs agent because it is not running")
-		return
-	}
-
-	log.Info("Triggering a flush in the logs-agent")
-	a.state.pipelineProvider.Flush(ctx)
-	log.Debug("Flush in the logs-agent done.")
 }
