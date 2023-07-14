@@ -236,10 +236,18 @@ func (c *collector) getResourceTags(ctx context.Context, entity *workloadmeta.EC
 			metaVersion = "v3"
 			break
 		}
+
+		// The Amazon ECS container agent injects an environment variable into each container in a task.
+		// https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-metadata-endpoint-v3.html
+		// https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-metadata-endpoint-v4.html
+		log.Errorf("cannot find metadata v3 or v4 API uri from env vars of the container %#v", container)
 	}
 
 	if metaURI == "" {
-		log.Errorf("failed to get client for metadata v3 or v4 API from task %q and the following containers: %v", entity.ID, entity.Containers)
+		log.Errorf("failed to get client for metadata v3 or v4 API from task %q", entity.ID)
+		if !config.IsFeaturePresent(config.Docker) {
+			log.Warn("if any containers don't have any env vars, ensure the connection between Datadog Agent and Docker because env vars are collected from Docker API")
+		}
 		return rt
 	}
 
