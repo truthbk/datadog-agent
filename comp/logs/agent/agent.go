@@ -74,7 +74,7 @@ type logsAgentState struct {
 // a description of its operation.
 type agent struct {
 	log    logComponent.Component
-	config pkgConfig.ConfigReader
+	config pkgConfig.ConfigReaderLoader
 
 	// It is possible for the logs agent to fail or not startup for some reason but not block the rest of the agent from running.
 	// state will be nil if startup fails.
@@ -124,7 +124,7 @@ func (a *agent) createAgentState() error {
 	tracker := tailers.NewTailerTracker()
 
 	// setup the server config
-	endpoints, err := buildEndpoints()
+	endpoints, err := buildEndpoints(a.config)
 
 	if err != nil {
 		message := fmt.Sprintf("Invalid endpoints: %v", err)
@@ -138,7 +138,7 @@ func (a *agent) createAgentState() error {
 	inventories.SetAgentMetadata(inventories.AgentLogsTransport, status.CurrentTransport)
 
 	// setup global processing rules
-	processingRules, err := config.GlobalProcessingRules()
+	processingRules, err := config.GlobalProcessingRules(a.config)
 	if err != nil {
 		message := fmt.Sprintf("Invalid processing rules: %v", err)
 		status.AddGlobalError(invalidProcessingRules, message)

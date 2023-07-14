@@ -77,6 +77,11 @@ type ConfigReaderWriter interface {
 	ConfigWriter
 }
 
+type ConfigReaderLoader interface {
+	ConfigLoader
+	ConfigReader
+}
+
 type ConfigLoader interface {
 	// API implemented by viper.Viper
 

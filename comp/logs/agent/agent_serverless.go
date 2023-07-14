@@ -93,8 +93,8 @@ func (a *agent) NewAgentState(
 }
 
 // buildEndpoints builds endpoints for the logs agent
-func buildEndpoints() (*config.Endpoints, error) {
-	return config.BuildServerlessEndpoints(intakeTrackType, config.DefaultIntakeProtocol)
+func buildEndpoints(coreConfig pkgConfig.ConfigReader) (*config.Endpoints, error) {
+	return config.BuildServerlessEndpoints(coreConfig, intakeTrackType, config.DefaultIntakeProtocol)
 }
 
 // Flush flushes synchronously the running instance of the Logs Agent.

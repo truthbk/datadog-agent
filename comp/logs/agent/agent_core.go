@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
+	pkgConfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/logs/auditor"
 	"github.com/DataDog/datadog-agent/pkg/logs/client"
 	"github.com/DataDog/datadog-agent/pkg/logs/client/http"
@@ -79,10 +80,10 @@ func (a *agent) NewAgentState(
 }
 
 // buildEndpoints builds endpoints for the logs agent
-func buildEndpoints() (*config.Endpoints, error) {
+func buildEndpoints(coreConfig pkgConfig.ConfigReader) (*config.Endpoints, error) {
 	httpConnectivity := config.HTTPConnectivityFailure
-	if endpoints, err := config.BuildHTTPEndpointsWithVectorOverride(intakeTrackType, AgentJSONIntakeProtocol, config.DefaultIntakeOrigin); err == nil {
+	if endpoints, err := config.BuildHTTPEndpointsWithVectorOverride(coreConfig, intakeTrackType, AgentJSONIntakeProtocol, config.DefaultIntakeOrigin); err == nil {
 		httpConnectivity = http.CheckConnectivity(endpoints.Main)
 	}
-	return config.BuildEndpointsWithVectorOverride(httpConnectivity, intakeTrackType, AgentJSONIntakeProtocol, config.DefaultIntakeOrigin)
+	return config.BuildEndpointsWithVectorOverride(coreConfig, httpConnectivity, intakeTrackType, AgentJSONIntakeProtocol, config.DefaultIntakeOrigin)
 }
