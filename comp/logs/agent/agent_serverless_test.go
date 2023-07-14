@@ -14,6 +14,10 @@ import (
 )
 
 func TestBuildServerlessEndpoints(t *testing.T) {
+	config := fxutil.Test[config.Component](t, fx.Options(
+		config.MockModule,
+	))
+
 	endpoints, err := buildEndpoints()
 	assert.Nil(t, err)
 	assert.Equal(t, "http-intake.logs.datadoghq.com", endpoints.Main.Host)

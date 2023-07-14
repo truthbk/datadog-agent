@@ -7,6 +7,8 @@
 package agent
 
 import (
+	"context"
+
 	"go.uber.org/fx"
 
 	"github.com/DataDog/datadog-agent/pkg/logs/diagnostic"
@@ -26,6 +28,16 @@ type Component interface {
 
 	// GetMessageReceiver gets the diagnostic message receiver
 	GetMessageReceiver() *diagnostic.BufferedMessageReceiver
+}
+
+// A compat version of the component for the serverless agent exposing the Start and Stop methods
+type ServerlessLogsAgent interface {
+	Component
+	Start() error
+	Stop()
+
+	// Flush flushes synchronously the pipelines managed by the Logs Agent.
+	Flush(ctx context.Context)
 }
 
 // Mock implements mock-specific methods.
