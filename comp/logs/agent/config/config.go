@@ -57,7 +57,7 @@ var (
 )
 
 // GlobalProcessingRules returns the global processing rules to apply to all logs.
-func GlobalProcessingRules(coreConfig pkgConfig.ConfigReaderLoader) ([]*ProcessingRule, error) {
+func GlobalProcessingRules(coreConfig pkgConfig.ConfigReader) ([]*ProcessingRule, error) {
 	var rules []*ProcessingRule
 	var err error
 	raw := coreConfig.Get("logs_config.processing_rules")
@@ -94,12 +94,12 @@ func HasMultiLineRule(rules []*ProcessingRule) bool {
 }
 
 // BuildEndpoints returns the endpoints to send logs.
-func BuildEndpoints(coreConfig pkgConfig.ConfigReaderLoader, httpConnectivity HTTPConnectivity, intakeTrackType IntakeTrackType, intakeProtocol IntakeProtocol, intakeOrigin IntakeOrigin) (*Endpoints, error) {
+func BuildEndpoints(coreConfig pkgConfig.ConfigReader, httpConnectivity HTTPConnectivity, intakeTrackType IntakeTrackType, intakeProtocol IntakeProtocol, intakeOrigin IntakeOrigin) (*Endpoints, error) {
 	return BuildEndpointsWithConfig(coreConfig, defaultLogsConfigKeys(coreConfig), httpEndpointPrefix, httpConnectivity, intakeTrackType, intakeProtocol, intakeOrigin)
 }
 
 // BuildEndpointsWithVectorOverride returns the endpoints to send logs and enforce Vector override config keys
-func BuildEndpointsWithVectorOverride(coreConfig pkgConfig.ConfigReaderLoader, httpConnectivity HTTPConnectivity, intakeTrackType IntakeTrackType, intakeProtocol IntakeProtocol, intakeOrigin IntakeOrigin) (*Endpoints, error) {
+func BuildEndpointsWithVectorOverride(coreConfig pkgConfig.ConfigReader, httpConnectivity HTTPConnectivity, intakeTrackType IntakeTrackType, intakeProtocol IntakeProtocol, intakeOrigin IntakeOrigin) (*Endpoints, error) {
 	return BuildEndpointsWithConfig(coreConfig, defaultLogsConfigKeysWithVectorOverride(coreConfig), httpEndpointPrefix, httpConnectivity, intakeTrackType, intakeProtocol, intakeOrigin)
 }
 
@@ -120,18 +120,18 @@ func BuildEndpointsWithConfig(coreConfig pkgConfig.ConfigReader, logsConfig *Log
 }
 
 // BuildServerlessEndpoints returns the endpoints to send logs for the Serverless agent.
-func BuildServerlessEndpoints(coreConfig pkgConfig.ConfigReaderLoader, intakeTrackType IntakeTrackType, intakeProtocol IntakeProtocol) (*Endpoints, error) {
+func BuildServerlessEndpoints(coreConfig pkgConfig.ConfigReader, intakeTrackType IntakeTrackType, intakeProtocol IntakeProtocol) (*Endpoints, error) {
 	// pkgConfig.SanitizeAPIKeyConfig(coreConfig, "logs_config.api_key") Don't think this is needed
 	return BuildHTTPEndpointsWithConfig(coreConfig, defaultLogsConfigKeys(coreConfig), serverlessHTTPEndpointPrefix, intakeTrackType, intakeProtocol, ServerlessIntakeOrigin)
 }
 
 // ExpectedTagsDuration returns a duration of the time expected tags will be submitted for.
-func ExpectedTagsDuration(coreConfig pkgConfig.ConfigReaderLoader) time.Duration {
+func ExpectedTagsDuration(coreConfig pkgConfig.ConfigReader) time.Duration {
 	return defaultLogsConfigKeys(coreConfig).expectedTagsDuration()
 }
 
 // IsExpectedTagsSet returns boolean showing if expected tags feature is enabled.
-func IsExpectedTagsSet(coreConfig pkgConfig.ConfigReaderLoader) bool {
+func IsExpectedTagsSet(coreConfig pkgConfig.ConfigReader) bool {
 	return ExpectedTagsDuration(coreConfig) > 0
 }
 
@@ -181,12 +181,12 @@ func buildTCPEndpoints(coreConfig pkgConfig.ConfigReader, logsConfig *LogsConfig
 }
 
 // BuildHTTPEndpoints returns the HTTP endpoints to send logs to.
-func BuildHTTPEndpoints(coreConfig pkgConfig.ConfigReaderLoader, intakeTrackType IntakeTrackType, intakeProtocol IntakeProtocol, intakeOrigin IntakeOrigin) (*Endpoints, error) {
+func BuildHTTPEndpoints(coreConfig pkgConfig.ConfigReader, intakeTrackType IntakeTrackType, intakeProtocol IntakeProtocol, intakeOrigin IntakeOrigin) (*Endpoints, error) {
 	return BuildHTTPEndpointsWithConfig(coreConfig, defaultLogsConfigKeys(coreConfig), httpEndpointPrefix, intakeTrackType, intakeProtocol, intakeOrigin)
 }
 
 // BuildHTTPEndpointsWithVectorOverride returns the HTTP endpoints to send logs to.
-func BuildHTTPEndpointsWithVectorOverride(coreConfig pkgConfig.ConfigReaderLoader, intakeTrackType IntakeTrackType, intakeProtocol IntakeProtocol, intakeOrigin IntakeOrigin) (*Endpoints, error) {
+func BuildHTTPEndpointsWithVectorOverride(coreConfig pkgConfig.ConfigReader, intakeTrackType IntakeTrackType, intakeProtocol IntakeProtocol, intakeOrigin IntakeOrigin) (*Endpoints, error) {
 	return BuildHTTPEndpointsWithConfig(coreConfig, defaultLogsConfigKeysWithVectorOverride(coreConfig), httpEndpointPrefix, intakeTrackType, intakeProtocol, intakeOrigin)
 }
 
@@ -334,11 +334,11 @@ func parseAddressAsHost(address string) (string, int, error) {
 }
 
 // TaggerWarmupDuration is used to configure the tag providers
-func TaggerWarmupDuration(coreConfig pkgConfig.ConfigReaderLoader) time.Duration {
+func TaggerWarmupDuration(coreConfig pkgConfig.ConfigReader) time.Duration {
 	return defaultLogsConfigKeys(coreConfig).taggerWarmupDuration()
 }
 
 // AggregationTimeout is used when performing aggregation operations
-func AggregationTimeout(coreConfig pkgConfig.ConfigReaderLoader) time.Duration {
+func AggregationTimeout(coreConfig pkgConfig.ConfigReader) time.Duration {
 	return defaultLogsConfigKeys(coreConfig).aggregationTimeout()
 }

@@ -74,7 +74,7 @@ type logsAgentState struct {
 // a description of its operation.
 type agent struct {
 	log    logComponent.Component
-	config pkgConfig.ConfigReaderLoader
+	config pkgConfig.ConfigReader
 
 	// It is possible for the logs agent to fail or not startup for some reason but not block the rest of the agent from running.
 	// state will be nil if startup fails.

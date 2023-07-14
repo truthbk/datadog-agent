@@ -65,6 +65,10 @@ type ConfigReader interface {
 	IsSectionSet(section string) bool
 
 	Warnings() *Warnings
+
+	UnmarshalKey(key string, rawVal interface{}, opts ...viper.DecoderConfigOption) error
+	Unmarshal(rawVal interface{}) error
+	UnmarshalExact(rawVal interface{}) error
 }
 
 type ConfigWriter interface {
@@ -77,11 +81,6 @@ type ConfigReaderWriter interface {
 	ConfigWriter
 }
 
-type ConfigReaderLoader interface {
-	ConfigLoader
-	ConfigReader
-}
-
 type ConfigLoader interface {
 	// API implemented by viper.Viper
 
@@ -92,10 +91,6 @@ type ConfigLoader interface {
 	BindEnv(input ...string)
 	SetEnvKeyReplacer(r *strings.Replacer)
 	SetEnvKeyTransformer(key string, fn func(string) interface{})
-
-	UnmarshalKey(key string, rawVal interface{}, opts ...viper.DecoderConfigOption) error
-	Unmarshal(rawVal interface{}) error
-	UnmarshalExact(rawVal interface{}) error
 
 	ReadInConfig() error
 	ReadConfig(in io.Reader) error

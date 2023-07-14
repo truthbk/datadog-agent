@@ -28,7 +28,7 @@ type LogConfig config.ConfigReader
 
 // Component is the component type.
 type Component interface {
-	config.ConfigReaderLoader
+	config.ConfigReader
 
 	// Warnings returns config warnings collected during setup.
 	Warnings() *config.Warnings
