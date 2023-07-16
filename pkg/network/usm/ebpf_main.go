@@ -338,17 +338,17 @@ func (e *ebpfProgram) init(buf bytecode.AssetReader, options manager.Options) er
 			EditorFlag: manager.EditMaxEntries,
 		},
 		http2IterationsMap: {
-			Type:       ebpf.Hash,
+			Type:       ebpf.LRUHash,
 			MaxEntries: e.cfg.MaxTrackedConnections,
 			EditorFlag: manager.EditMaxEntries,
 		},
 		http2DynamicCounterTableMap: {
-			Type:       ebpf.Hash,
+			Type:       ebpf.LRUHash,
 			MaxEntries: e.cfg.MaxTrackedConnections,
 			EditorFlag: manager.EditMaxEntries,
 		},
 		http2DynamicTableMap: {
-			Type:       ebpf.Hash,
+			Type:       ebpf.LRUHash,
 			MaxEntries: e.cfg.MaxTrackedConnections,
 			EditorFlag: manager.EditMaxEntries,
 		},
