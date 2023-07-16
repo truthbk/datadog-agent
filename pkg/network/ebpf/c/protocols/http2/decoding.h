@@ -362,6 +362,8 @@ int socket__http2_filter(struct __sk_buff *skb) {
     }
     dispatcher_arguments_t iterations_key;
     bpf_memcpy(&iterations_key, args, sizeof(dispatcher_arguments_t));
+    dispatcher_arguments_t iterations_key_for_deletion;
+    bpf_memcpy(&iterations_key_for_deletion, args, sizeof(dispatcher_arguments_t));
 
     // A single packet can contain multiple HTTP/2 frames, due to instruction limitations we have divided the
     // processing into multiple tail calls, where each tail call process a single frame. We must have context when
@@ -372,7 +374,7 @@ int socket__http2_filter(struct __sk_buff *skb) {
     if (tail_call_state == NULL) {
         http2_tail_call_state_t iteration_value = {};
         iteration_value.offset = iterations_key.skb_info.data_off;
-        bpf_map_update_elem(&http2_iterations, &iterations_key, &iteration_value, BPF_NOEXIST);
+        bpf_map_update_elem(&http2_iterations, &iterations_key_for_deletion, &iteration_value, BPF_NOEXIST);
         tail_call_state = bpf_map_lookup_elem(&http2_iterations, &iterations_key);
         if (tail_call_state == NULL) {
             return 0;
@@ -413,7 +415,7 @@ int socket__http2_filter(struct __sk_buff *skb) {
     }
 
 delete_iteration:
-    bpf_map_delete_elem(&http2_iterations, &iterations_key);
+    bpf_map_delete_elem(&http2_iterations, &iterations_key_for_deletion);
 
     return 0;
 }

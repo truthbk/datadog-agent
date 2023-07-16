@@ -594,7 +594,7 @@ func testGRPCScenarios(t *testing.T) {
 				monitor, err := usm.NewMonitor(cfg, nil, nil, nil)
 				require.NoError(t, err)
 				require.NoError(t, monitor.Start())
-				defer monitor.Stop()
+				t.Cleanup(monitor.Stop)
 
 				tt.runClients(t, val)
 
