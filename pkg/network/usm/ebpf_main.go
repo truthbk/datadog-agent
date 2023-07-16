@@ -29,7 +29,10 @@ import (
 )
 
 const (
-	http2InFlightMap = "http2_in_flight"
+	http2InFlightMap            = "http2_in_flight"
+	http2IterationsMap          = "http2_iterations"
+	http2DynamicCounterTableMap = "http2_dynamic_counter_table"
+	http2DynamicTableMap        = "http2_dynamic_table"
 
 	// ELF section of the BPF_PROG_TYPE_SOCKET_FILTER program used
 	// to classify protocols and dispatch the correct handlers.
@@ -330,6 +333,21 @@ func (e *ebpfProgram) init(buf bytecode.AssetReader, options manager.Options) er
 
 	options.MapSpecEditors = map[string]manager.MapSpecEditor{
 		http2InFlightMap: {
+			Type:       ebpf.Hash,
+			MaxEntries: e.cfg.MaxTrackedConnections,
+			EditorFlag: manager.EditMaxEntries,
+		},
+		http2IterationsMap: {
+			Type:       ebpf.Hash,
+			MaxEntries: e.cfg.MaxTrackedConnections,
+			EditorFlag: manager.EditMaxEntries,
+		},
+		http2DynamicCounterTableMap: {
+			Type:       ebpf.Hash,
+			MaxEntries: e.cfg.MaxTrackedConnections,
+			EditorFlag: manager.EditMaxEntries,
+		},
+		http2DynamicTableMap: {
 			Type:       ebpf.Hash,
 			MaxEntries: e.cfg.MaxTrackedConnections,
 			EditorFlag: manager.EditMaxEntries,
