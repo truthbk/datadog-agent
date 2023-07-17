@@ -13,6 +13,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/eventmonitor"
 	emconfig "github.com/DataDog/datadog-agent/pkg/eventmonitor/config"
 	"github.com/DataDog/datadog-agent/pkg/network/events"
+	usmevents "github.com/DataDog/datadog-agent/pkg/network/usm/events"
 	procevents "github.com/DataDog/datadog-agent/pkg/process/events"
 	secconfig "github.com/DataDog/datadog-agent/pkg/security/config"
 	secmodule "github.com/DataDog/datadog-agent/pkg/security/module"
@@ -72,6 +73,13 @@ var EventMonitor = module.Factory{
 			evm.RegisterEventConsumer(process)
 			log.Info("event monitoring process-agent consumer initialized")
 		}
+
+		usm, err := usmevents.NewUSMConsumer(evm)
+		if err != nil {
+			return nil, err
+		}
+		evm.RegisterEventConsumer(usm)
+		log.Info("event monitoring universal service monitoring consumer initialized")
 
 		return evm, err
 	},
