@@ -260,7 +260,7 @@ func (a *agent) Start() error {
 }
 
 func (a *agent) Stop() {
-	a.stop(context.TODO())
+	_ = a.stop(context.TODO())
 }
 
 // Flush flushes synchronously the running instance of the Logs Agent.

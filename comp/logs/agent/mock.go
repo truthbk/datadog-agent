@@ -59,12 +59,11 @@ func (a *mockLogsAgent) GetMessageReceiver() *diagnostic.BufferedMessageReceiver
 
 // Serverless methods
 func (a *mockLogsAgent) Start() error {
-	a.start(context.TODO())
-	return nil
+	return a.start(context.TODO())
 }
 
 func (a *mockLogsAgent) Stop() {
-	a.stop(context.TODO())
+	_ = a.stop(context.TODO())
 }
 
 func (a *mockLogsAgent) Flush(ctx context.Context) {
