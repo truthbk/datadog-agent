@@ -234,6 +234,10 @@ func (a *agent) stop(context.Context) error {
 
 // AddScheduler adds the given scheduler to the agent.
 func (a *agent) AddScheduler(scheduler schedulers.Scheduler) {
+	if !a.IsRunning() {
+		a.log.Info("Can't add a scheduler because the logs agent is not running")
+		return
+	}
 	a.state.schedulers.AddScheduler(scheduler)
 }
 
@@ -249,14 +253,22 @@ func (a *agent) GetMessageReceiver() *diagnostic.BufferedMessageReceiver {
 	return a.state.diagnosticMessageReceiver
 }
 
-// Serverless agent
+// Serverless agent methods
 func NewServerlessLogsAgent() ServerlessLogsAgent {
 	logsAgent := &agent{log: logComponent.NewTemporaryLoggerWithoutInit(), config: pkgConfig.Datadog, started: atomic.NewBool(false)}
 	return logsAgent
 }
 
 func (a *agent) Start() error {
-	return a.start(context.TODO())
+	err := a.createAgentState()
+	if err != nil {
+		a.log.Error("Could not start logs-agent: ", err)
+		return err
+	}
+
+	a.startPipeline()
+	a.log.Info("logs-agent started")
+	return nil
 }
 
 func (a *agent) Stop() {
