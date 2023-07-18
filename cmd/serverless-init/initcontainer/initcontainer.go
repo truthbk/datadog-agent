@@ -28,6 +28,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/serverless/metrics"
 	"github.com/DataDog/datadog-agent/pkg/serverless/trace"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/spf13/afero"
 )
 
 // Run is the entrypoint of the init process. It will spawn the customer process
@@ -57,6 +58,11 @@ func execute(
 	args []string,
 ) error {
 	commandName, commandArgs := buildCommandParam(args)
+
+	// Add our tracer settings
+	fs := afero.NewOsFs()
+	AutoInstrumentTracer(fs)
+
 	cmd := exec.Command(commandName, commandArgs...)
 	cmd.Stdout = &serverlessLog.CustomWriter{
 		LogConfig: config,
