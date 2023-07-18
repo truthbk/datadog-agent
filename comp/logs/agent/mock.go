@@ -21,7 +21,7 @@ type mockLogsAgent struct {
 	flushDelay      time.Duration
 }
 
-func newMock(deps dependencies) Component {
+func newMock(deps dependencies) Mock {
 	logsAgent := &mockLogsAgent{
 		hasFlushed:      false,
 		addedSchedulers: make([]schedulers.Scheduler, 0),

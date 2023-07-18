@@ -30,7 +30,7 @@ type Component interface {
 	GetMessageReceiver() *diagnostic.BufferedMessageReceiver
 }
 
-// A compat version of the component for the serverless agent exposing the Start and Stop methods
+// A compat version of the component for the serverless agent
 type ServerlessLogsAgent interface {
 	Component
 	Start() error
@@ -53,4 +53,5 @@ var Module = fxutil.Component(
 // MockModule defines the fx options for the mock component.
 var MockModule = fxutil.Component(
 	fx.Provide(newMock),
+	fx.Provide(func(m Mock) Component { return m.(Component) }),
 )

@@ -252,38 +252,3 @@ func (a *agent) GetMessageReceiver() *diagnostic.BufferedMessageReceiver {
 	}
 	return a.state.diagnosticMessageReceiver
 }
-
-// Serverless agent methods
-func NewServerlessLogsAgent() ServerlessLogsAgent {
-	logsAgent := &agent{log: logComponent.NewTemporaryLoggerWithoutInit(), config: pkgConfig.Datadog, started: atomic.NewBool(false)}
-	return logsAgent
-}
-
-func (a *agent) Start() error {
-	err := a.createAgentState()
-	if err != nil {
-		a.log.Error("Could not start logs-agent: ", err)
-		return err
-	}
-
-	a.startPipeline()
-	a.log.Info("logs-agent started")
-	return nil
-}
-
-func (a *agent) Stop() {
-	_ = a.stop(context.TODO())
-}
-
-// Flush flushes synchronously the running instance of the Logs Agent.
-// Use a WithTimeout context in order to have a flush that can be cancelled.
-func (a *agent) Flush(ctx context.Context) {
-	if !a.IsRunning() {
-		a.log.Info("Can't flush the logs agent because it is not running")
-		return
-	}
-
-	a.log.Info("Triggering a flush in the logs-agent")
-	a.state.pipelineProvider.Flush(ctx)
-	a.log.Debug("Flush in the logs-agent done.")
-}
