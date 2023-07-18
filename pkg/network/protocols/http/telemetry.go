@@ -8,6 +8,7 @@
 package http
 
 import (
+	"fmt"
 	libtelemetry "github.com/DataDog/datadog-agent/pkg/network/protocols/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -25,8 +26,8 @@ type Telemetry struct {
 	aggregations *libtelemetry.Counter
 }
 
-func NewTelemetry() *Telemetry {
-	metricGroup := libtelemetry.NewMetricGroup("usm.http")
+func NewTelemetry(proto string) *Telemetry {
+	metricGroup := libtelemetry.NewMetricGroup(fmt.Sprintf("usm.%s", proto))
 
 	return &Telemetry{
 		metricGroup: metricGroup,

@@ -144,7 +144,7 @@ func NewMonitor(c *config.Config, connectionProtocolMap, sockFD *ebpf.Map, bpfTe
 	var http2Statkeeper *http.StatKeeper
 	var http2Telemetry *http.Telemetry
 	if c.EnableHTTP2Monitoring {
-		http2Telemetry = http.NewTelemetry()
+		http2Telemetry = http.NewTelemetry("http2")
 
 		// for now the max HTTP2 entries would be taken from the maxHTTPEntries.
 		http2Statkeeper = http.NewStatkeeper(c, http2Telemetry)
