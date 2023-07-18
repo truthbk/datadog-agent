@@ -21,8 +21,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/network/types"
 )
 
-func requestLatency(responseLastSeen uint64, requestStarted uint64) float64 {
-	return protocols.NSTimestampToFloat(uint64(responseLastSeen - requestStarted))
+func requestLatency(responseLastSeen uint64, requestStarted uint64) int64 {
+	return int64(responseLastSeen) - int64(requestStarted)
 }
 
 func isIPV4(tup *driver.ConnTupleType) bool {

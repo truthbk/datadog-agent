@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-agent/pkg/network/config"
+	"github.com/DataDog/datadog-agent/pkg/network/protocols"
 	"github.com/DataDog/datadog-agent/pkg/process/util"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
@@ -105,9 +106,17 @@ func (h *StatKeeper) add(tx Transaction) {
 	if latency <= 0 {
 		h.telemetry.malformed.Add(1)
 		if h.oversizedLogLimit.ShouldLog() {
-			log.Warnf("latency should never be equal to 0: %s", tx.String())
+			log.Warnf("latency should never be <= 0 (%d): %s", latency, tx.String())
 		}
 		return
+	}
+
+	// testing
+	l := time.Duration(latency)
+	if l.Seconds() > 50.0 {
+		if h.oversizedLogLimit.ShouldLog() {
+			log.Warnf("latency should never be > 50s (%d): %s", latency, tx.String())
+		}
 	}
 
 	key := h.newKey(tx, path, fullPath)
@@ -122,7 +131,7 @@ func (h *StatKeeper) add(tx Transaction) {
 		h.stats[key] = stats
 	}
 
-	stats.AddRequest(tx.StatusCode(), latency, tx.StaticTags(), tx.DynamicTags())
+	stats.AddRequest(tx.StatusCode(), protocols.NSTimestampToFloat(uint64(latency)), tx.StaticTags(), tx.DynamicTags())
 }
 
 func (h *StatKeeper) newKey(tx Transaction, path string, fullPath bool) Key {

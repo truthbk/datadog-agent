@@ -12,7 +12,7 @@ import (
 )
 
 type Transaction interface {
-	RequestLatency() float64
+	RequestLatency() int64
 	ConnTuple() types.ConnectionKey
 	Method() Method
 	SetRequestMethod(Method)

@@ -10,7 +10,7 @@ package http
 import (
 	"bytes"
 	"encoding/hex"
-	"github.com/DataDog/datadog-agent/pkg/network/protocols"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -48,11 +48,11 @@ func (tx *EbpfTx) Path(buffer []byte) ([]byte, bool) {
 }
 
 // RequestLatency returns the latency of the request in nanoseconds
-func (tx *EbpfTx) RequestLatency() float64 {
+func (tx *EbpfTx) RequestLatency() int64 {
 	if uint64(tx.Request_started) == 0 || uint64(tx.Response_last_seen) == 0 {
 		return 0
 	}
-	return protocols.NSTimestampToFloat(tx.Response_last_seen - tx.Request_started)
+	return int64(tx.Response_last_seen) - int64(tx.Request_started)
 }
 
 // Incomplete returns true if the transaction contains only the request or response information
@@ -113,9 +113,12 @@ func (tx *EbpfTx) DynamicTags() []string {
 func (tx *EbpfTx) String() string {
 	var output strings.Builder
 	output.WriteString("ebpfTx{")
+	output.WriteString("Started: '" + strconv.FormatUint(tx.Request_started, 10) + "', ")
+	output.WriteString("LastSeen: '" + strconv.FormatUint(tx.Response_last_seen, 10) + "', ")
 	output.WriteString("Method: '" + Method(tx.Request_method).String() + "', ")
 	output.WriteString("Tags: '0x" + strconv.FormatUint(tx.Tags, 16) + "', ")
 	output.WriteString("Fragment: '" + hex.EncodeToString(tx.Request_fragment[:]) + "', ")
+	output.WriteString("Tuple: '" + fmt.Sprintf("%#+v", tx.ConnTuple()) + "', ")
 	output.WriteString("}")
 	return output.String()
 }
