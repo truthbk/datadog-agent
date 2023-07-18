@@ -649,6 +649,21 @@ func initEBPFProgram(t *testing.T) *ddebpf.PerfHandler {
 				MaxEntries: 1,
 				EditorFlag: manager.EditMaxEntries,
 			},
+			http2IterationsMap: {
+				Type:       ebpf.LRUHash,
+				MaxEntries: 1,
+				EditorFlag: manager.EditMaxEntries,
+			},
+			http2DynamicCounterTableMap: {
+				Type:       ebpf.LRUHash,
+				MaxEntries: 1,
+				EditorFlag: manager.EditMaxEntries,
+			},
+			http2DynamicTableMap: {
+				Type:       ebpf.LRUHash,
+				MaxEntries: 1,
+				EditorFlag: manager.EditMaxEntries,
+			},
 		},
 		ActivatedProbes: []manager.ProbesSelector{
 			&manager.ProbeSelector{
