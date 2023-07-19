@@ -61,6 +61,12 @@ func dstIPHigh(tup *driver.ConnTupleType) uint64 {
 	return ipHigh(isIPV4(tup), tup.RemoteAddr)
 }
 
+// PacketNow return the timestamp in nanoseconds relative to the kernel driver time
+func PacketNow() int64 {
+	// need to double check driver implementation before merge
+	return time.Now().UnixNano()
+}
+
 // --------------------------
 //
 // driverHttpTX interface

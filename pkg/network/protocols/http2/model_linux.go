@@ -14,9 +14,21 @@ import (
 
 	"golang.org/x/net/http2/hpack"
 
+	"github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/network/protocols/http"
 	"github.com/DataDog/datadog-agent/pkg/network/types"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
+
+// PacketNow return the timestamp in nanoseconds relative to the kernel boot time
+func PacketNow() int64 {
+	now, err := ebpf.NowNanoseconds()
+	if err != nil {
+		log.Errorf("statkeeper ebpf.NowNanoseconds() failed %s", err)
+		return 0
+	}
+	return now
+}
 
 // Path returns the URL from the request fragment captured in eBPF.
 func (tx *EbpfTx) Path(buffer []byte) ([]byte, bool) {
