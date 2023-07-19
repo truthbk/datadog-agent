@@ -5,73 +5,73 @@
 
 package network
 
-// ConnectionBuffer encapsulates a resizing buffer for ConnectionStat objects
-type ConnectionBuffer struct {
-	buf           []ConnectionStats
+// DataBuffer encapsulates a resizing buffer for T objects
+type DataBuffer[T any] struct {
+	buf           []T
 	off           int
 	minBufferSize int
 }
 
-// NewConnectionBuffer creates a ConnectionBuffer with initial size `size`.
-func NewConnectionBuffer(initSize, minSize int) *ConnectionBuffer {
-	return &ConnectionBuffer{
-		buf:           make([]ConnectionStats, initSize),
+// NewDataBuffer creates a DataBuffer with initial size `initSize`.
+func NewDataBuffer[T any](initSize, minSize int) *DataBuffer[T] {
+	return &DataBuffer[T]{
+		buf:           make([]T, initSize),
 		minBufferSize: minSize,
 	}
 }
 
-// Next returns the next `ConnectionStats` object available for writing.
+// Next returns the next `T` object available for writing.
 // It will resize the internal buffer if necessary.
-func (b *ConnectionBuffer) Next() *ConnectionStats {
+func (b *DataBuffer[T]) Next() *T {
 	if b.off >= len(b.buf) {
-		b.buf = append(b.buf, ConnectionStats{})
+		b.buf = append(b.buf, *new(T))
 	}
 	c := &b.buf[b.off]
 	b.off++
 	return c
 }
 
-// Append slice to ConnectionBuffer
-func (b *ConnectionBuffer) Append(slice []ConnectionStats) {
+// Append slice to DataBuffer
+func (b *DataBuffer[T]) Append(slice []T) {
 	b.buf = append(b.buf[:b.off], slice...)
 	b.off += len(slice)
 }
 
 // Reclaim captures the last n entries for usage again.
-func (b *ConnectionBuffer) Reclaim(n int) {
+func (b *DataBuffer[T]) Reclaim(n int) {
 	b.off -= n
 	if b.off < 0 {
 		b.off = 0
 	}
 }
 
-// Connections returns a slice of all the `ConnectionStats` objects returned via `Next`
+// Objects returns a slice of all the `T` objects returned via `Next`
 // since the last `Reset`.
-func (b *ConnectionBuffer) Connections() []ConnectionStats {
+func (b *DataBuffer[T]) Objects() []T {
 	return b.buf[:b.off]
 }
 
-// Len returns the count of the number of written `ConnectionStats` objects since last `Reset`.
-func (b *ConnectionBuffer) Len() int {
+// Len returns the count of the number of written `T` objects since last `Reset`.
+func (b *DataBuffer[T]) Len() int {
 	return b.off
 }
 
 // Capacity returns the current capacity of the buffer
-func (b *ConnectionBuffer) Capacity() int {
+func (b *DataBuffer[T]) Capacity() int {
 	return cap(b.buf)
 }
 
 // Reset returns the written object count back to zero. It may resize the internal buffer based on past usage.
-func (b *ConnectionBuffer) Reset() {
+func (b *DataBuffer[T]) Reset() {
 	// shrink buffer if less than half used
 	half := cap(b.buf) / 2
 	if b.off <= half && half >= b.minBufferSize {
-		b.buf = make([]ConnectionStats, half)
+		b.buf = make([]T, half)
 		b.off = 0
 		return
 	}
 
-	zero := ConnectionStats{}
+	zero := *new(T)
 	for i := 0; i < b.off; i++ {
 		b.buf[i] = zero
 	}

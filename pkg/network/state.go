@@ -262,7 +262,7 @@ func (ns *networkState) GetDelta(
 	// Update all connections with relevant up-to-date stats for client
 	ns.mergeConnections(id, connsByKey, clientBuffer)
 
-	conns := clientBuffer.Connections()
+	conns := clientBuffer.Objects()
 	ns.determineConnectionIntraHost(conns)
 	if len(dnsStats) > 0 {
 		ns.storeDNSStats(dnsStats)

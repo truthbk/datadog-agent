@@ -15,7 +15,7 @@ const defaultClientBufferSize = 1024
 // calls `GetConnections`.
 type clientBuffer struct {
 	clientID string
-	*ConnectionBuffer
+	*DataBuffer[ConnectionStats]
 	// TODO: consider recycling objects for HTTP and DNS data as well
 }
 
@@ -35,8 +35,8 @@ func (p *clientBufferPool) Get(clientID string) *clientBuffer {
 	}
 
 	return &clientBuffer{
-		clientID:         clientID,
-		ConnectionBuffer: NewConnectionBuffer(defaultClientBufferSize, 256),
+		clientID:   clientID,
+		DataBuffer: NewDataBuffer[ConnectionStats](defaultClientBufferSize, 256),
 	}
 }
 

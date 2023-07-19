@@ -37,9 +37,9 @@ func TestPerfBatchManagerExtract(t *testing.T) {
 		batch.C2.Tup.Pid = 3
 		batch.C3.Tup.Pid = 4
 
-		buffer := network.NewConnectionBuffer(256, 256)
+		buffer := network.NewDataBuffer[network.ConnectionStats](256, 256)
 		manager.ExtractBatchInto(buffer, batch, 0)
-		conns := buffer.Connections()
+		conns := buffer.Objects()
 		assert.Len(t, conns, 4)
 		assert.Equal(t, uint32(1), conns[0].Pid)
 		assert.Equal(t, uint32(2), conns[1].Pid)
@@ -62,9 +62,9 @@ func TestPerfBatchManagerExtract(t *testing.T) {
 			0: {offset: 3},
 		}
 
-		buffer := network.NewConnectionBuffer(256, 256)
+		buffer := network.NewDataBuffer[network.ConnectionStats](256, 256)
 		manager.ExtractBatchInto(buffer, batch, 0)
-		conns := buffer.Connections()
+		conns := buffer.Objects()
 		assert.Len(t, conns, 1)
 		assert.Equal(t, uint32(4), conns[0].Pid)
 	})
@@ -86,9 +86,9 @@ func TestGetPendingConns(t *testing.T) {
 	}
 	updateBatch()
 
-	buffer := network.NewConnectionBuffer(256, 256)
+	buffer := network.NewDataBuffer[network.ConnectionStats](256, 256)
 	manager.GetPendingConns(buffer)
-	pendingConns := buffer.Connections()
+	pendingConns := buffer.Objects()
 	assert.GreaterOrEqual(t, len(pendingConns), 2)
 	for _, pid := range []uint32{pidMax + 1, pidMax + 2} {
 		found := false
@@ -111,7 +111,7 @@ func TestGetPendingConns(t *testing.T) {
 	// We should now get only the connection that hasn't been processed before
 	buffer.Reset()
 	manager.GetPendingConns(buffer)
-	pendingConns = buffer.Connections()
+	pendingConns = buffer.Objects()
 	assert.GreaterOrEqual(t, len(pendingConns), 1)
 	var found bool
 	for _, p := range pendingConns {
@@ -138,7 +138,7 @@ func TestPerfBatchStateCleanup(t *testing.T) {
 	err := manager.batchMap.Put(unsafe.Pointer(&cpu), unsafe.Pointer(batch))
 	require.NoError(t, err)
 
-	buffer := network.NewConnectionBuffer(256, 256)
+	buffer := network.NewDataBuffer[network.ConnectionStats](256, 256)
 	manager.GetPendingConns(buffer)
 	_, ok := manager.stateByCPU[cpu].processed[batch.Id]
 	require.True(t, ok)

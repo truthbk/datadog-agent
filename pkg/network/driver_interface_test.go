@@ -10,10 +10,11 @@ package network
 import (
 	"testing"
 
-	"github.com/DataDog/datadog-agent/pkg/network/config"
-	"github.com/DataDog/datadog-agent/pkg/network/driver"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/windows"
+
+	"github.com/DataDog/datadog-agent/pkg/network/config"
+	"github.com/DataDog/datadog-agent/pkg/network/driver"
 )
 
 type TestDriverHandleInfiniteLoop struct {
@@ -61,8 +62,8 @@ func TestConnectionStatsInfiniteLoop(t *testing.T) {
 	startSize := 10
 	minSize := 10
 
-	activeBuf := NewConnectionBuffer(startSize, minSize)
-	closedBuf := NewConnectionBuffer(startSize, minSize)
+	activeBuf := NewDataBuffer[ConnectionStats](startSize, minSize)
+	closedBuf := NewDataBuffer[ConnectionStats](startSize, minSize)
 
 	di, err := NewDriverInterface(config.New(), func(flags uint32, handleType driver.HandleType) (driver.Handle, error) {
 		return &TestDriverHandleInfiniteLoop{t: t}, nil

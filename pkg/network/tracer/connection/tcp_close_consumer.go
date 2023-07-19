@@ -34,7 +34,7 @@ type tcpCloseConsumer struct {
 	perfHandler  *ddebpf.PerfHandler
 	batchManager *perfBatchManager
 	requests     chan chan struct{}
-	buffer       *network.ConnectionBuffer
+	buffer       *network.DataBuffer[network.ConnectionStats]
 	once         sync.Once
 	closed       chan struct{}
 	ch           *cookieHasher
@@ -45,7 +45,7 @@ func newTCPCloseConsumer(perfHandler *ddebpf.PerfHandler, batchManager *perfBatc
 		perfHandler:  perfHandler,
 		batchManager: batchManager,
 		requests:     make(chan chan struct{}),
-		buffer:       network.NewConnectionBuffer(netebpf.BatchSize, netebpf.BatchSize),
+		buffer:       network.NewDataBuffer[network.ConnectionStats](netebpf.BatchSize, netebpf.BatchSize),
 		closed:       make(chan struct{}),
 		ch:           newCookieHasher(),
 	}
@@ -122,7 +122,7 @@ func (c *tcpCloseConsumer) Start(callback func([]network.ConnectionStats)) {
 
 				closerConsumerTelemetry.perfReceived.Add(float64(c.buffer.Len()))
 				closedCount += uint64(c.buffer.Len())
-				callback(c.buffer.Connections())
+				callback(c.buffer.Objects())
 				c.buffer.Reset()
 				batchData.Done()
 			case lc, ok := <-c.perfHandler.LostChannel:
@@ -132,9 +132,9 @@ func (c *tcpCloseConsumer) Start(callback func([]network.ConnectionStats)) {
 				closerConsumerTelemetry.perfLost.Add(float64(lc * netebpf.BatchSize))
 				lostCount += lc * netebpf.BatchSize
 			case request := <-c.requests:
-				oneTimeBuffer := network.NewConnectionBuffer(32, 32)
+				oneTimeBuffer := network.NewDataBuffer[network.ConnectionStats](32, 32)
 				c.batchManager.GetPendingConns(oneTimeBuffer)
-				callback(oneTimeBuffer.Connections())
+				callback(oneTimeBuffer.Objects())
 				close(request)
 
 				closedCount += uint64(oneTimeBuffer.Len())

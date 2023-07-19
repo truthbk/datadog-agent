@@ -59,7 +59,7 @@ type Tracer interface {
 	Stop()
 	// GetConnections returns the list of currently active connections, using the buffer provided.
 	// The optional filter function is used to prevent unwanted connections from being returned and consuming resources.
-	GetConnections(buffer *network.ConnectionBuffer, filter func(*network.ConnectionStats) bool) error
+	GetConnections(buffer *network.DataBuffer[network.ConnectionStats], filter func(*network.ConnectionStats) bool) error
 	// FlushPending forces any closed connections waiting for batching to be processed immediately.
 	FlushPending()
 	// Remove deletes the connection from tracking state.
@@ -324,7 +324,7 @@ func (t *tracer) GetMap(name string) *ebpf.Map {
 	return m
 }
 
-func (t *tracer) GetConnections(buffer *network.ConnectionBuffer, filter func(*network.ConnectionStats) bool) error {
+func (t *tracer) GetConnections(buffer *network.DataBuffer[network.ConnectionStats], filter func(*network.ConnectionStats) bool) error {
 	// Iterate through all key-value pairs in map
 	key, stats := &netebpf.ConnTuple{}, &netebpf.ConnStats{}
 	seen := make(map[netebpf.ConnTuple]struct{})

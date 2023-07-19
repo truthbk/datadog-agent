@@ -9,7 +9,6 @@ package network
 
 import (
 	"fmt"
-	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	"math"
 	"sync"
 	"time"
@@ -19,6 +18,7 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/network/config"
 	"github.com/DataDog/datadog-agent/pkg/network/driver"
+	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
@@ -266,7 +266,7 @@ func printClassification(fd *driver.PerFlowData) {
 	}
 }
 
-func (di *DriverInterface) getFlowConnectionStats(ioctl uint32, connbuffer *driverReadBuffer, outbuffer *ConnectionBuffer, filter func(*ConnectionStats) bool) (int, error, int, int) {
+func (di *DriverInterface) getFlowConnectionStats(ioctl uint32, connbuffer *driverReadBuffer, outbuffer *DataBuffer[ConnectionStats], filter func(*ConnectionStats) bool) (int, error, int, int) {
 
 	start := outbuffer.Len()
 
@@ -331,7 +331,7 @@ func (di *DriverInterface) getFlowConnectionStats(ioctl uint32, connbuffer *driv
 
 // GetConnectionStats will read all open flows from the driver and convert them into ConnectionStats.
 // It returns the count of connections added to the active and closed buffers, respectively.
-func (di *DriverInterface) GetOpenConnectionStats(openBuf *ConnectionBuffer, filter func(*ConnectionStats) bool) (int, error) {
+func (di *DriverInterface) GetOpenConnectionStats(openBuf *DataBuffer[ConnectionStats], filter func(*ConnectionStats) bool) (int, error) {
 	di.openBufferLock.Lock()
 	defer di.openBufferLock.Unlock()
 
@@ -349,7 +349,7 @@ func (di *DriverInterface) GetOpenConnectionStats(openBuf *ConnectionBuffer, fil
 
 // GetConnectionStats will read all closed from the driver and convert them into ConnectionStats.
 // It returns the count of connections added to the active and closed buffers, respectively.
-func (di *DriverInterface) GetClosedConnectionStats(closedBuf *ConnectionBuffer, filter func(*ConnectionStats) bool) (int, error) {
+func (di *DriverInterface) GetClosedConnectionStats(closedBuf *DataBuffer[ConnectionStats], filter func(*ConnectionStats) bool) (int, error) {
 	di.closedBufferLock.Lock()
 	defer di.closedBufferLock.Unlock()
 
