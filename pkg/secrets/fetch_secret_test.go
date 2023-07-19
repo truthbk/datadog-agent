@@ -81,14 +81,23 @@ func TestLimitBuffer(t *testing.T) {
 	assert.Equal(t, []byte("012ab"), lb.buf.Bytes())
 }
 
+func TestExecCommandError42(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		t.Run(fmt.Sprintf("i=%v", i), TestExecCommandError)
+	}
+}
+
 func TestExecCommandError(t *testing.T) {
+	fmt.Fprintf(os.Stderr, "*1\n")
 	t.Cleanup(resetPackageVars)
 
 	inputPayload := "{\"version\": \"" + PayloadVersion + "\" , \"secrets\": [\"sec1\", \"sec2\"]}"
 
 	// empty secretBackendCommand
 	secretBackendCommand = ""
+	fmt.Fprintf(os.Stderr, "*2\n")
 	_, err := execCommand(inputPayload)
+	fmt.Fprintf(os.Stderr, "*3\n")
 	require.NotNil(t, err)
 
 	// test timeout
@@ -102,40 +111,56 @@ func TestExecCommandError(t *testing.T) {
 
 	// test simple (no error)
 	secretBackendCommand = "./test/simple/simple" + binExtension
+	fmt.Fprintf(os.Stderr, "*4\n")
 	setCorrectRight(secretBackendCommand)
+	fmt.Fprintf(os.Stderr, "*5\n")
 	resp, err := execCommand(inputPayload)
+	fmt.Fprintf(os.Stderr, "*6\n")
 	require.NoError(t, err)
 	require.Equal(t, []byte("{\"handle1\":{\"value\":\"simple_password\"}}"), resp)
 
 	// test error
 	secretBackendCommand = "./test/error/error" + binExtension
+	fmt.Fprintf(os.Stderr, "*7\n")
 	setCorrectRight(secretBackendCommand)
+	fmt.Fprintf(os.Stderr, "*8\n")
 	_, err = execCommand(inputPayload)
 	require.NotNil(t, err)
 
 	// test arguments
 	secretBackendCommand = "./test/argument/argument" + binExtension
+	fmt.Fprintf(os.Stderr, "*9\n")
 	setCorrectRight(secretBackendCommand)
+	fmt.Fprintf(os.Stderr, "*10\n")
 	secretBackendArguments = []string{"arg1"}
+	fmt.Fprintf(os.Stderr, "*11\n")
 	_, err = execCommand(inputPayload)
 	require.NotNil(t, err)
 	secretBackendArguments = []string{"arg1", "arg2"}
+	fmt.Fprintf(os.Stderr, "*12\n")
 	resp, err = execCommand(inputPayload)
+	fmt.Fprintf(os.Stderr, "*13\n")
 	require.NoError(t, err)
 	require.Equal(t, []byte("{\"handle1\":{\"value\":\"arg_password\"}}"), resp)
 
 	// test input
 	secretBackendCommand = "./test/input/input" + binExtension
+	fmt.Fprintf(os.Stderr, "*14\n")
 	setCorrectRight(secretBackendCommand)
+	fmt.Fprintf(os.Stderr, "*15\n")
 	resp, err = execCommand(inputPayload)
+	fmt.Fprintf(os.Stderr, "*16\n")
 	require.NoError(t, err)
 	require.Equal(t, []byte("{\"handle1\":{\"value\":\"input_password\"}}"), resp)
 
 	// test buffer limit
 	secretBackendCommand = "./test/response_too_long/response_too_long" + binExtension
+	fmt.Fprintf(os.Stderr, "*17\n")
 	setCorrectRight(secretBackendCommand)
+	fmt.Fprintf(os.Stderr, "*18\n")
 	SecretBackendOutputMaxSize = 20
 	_, err = execCommand(inputPayload)
+	fmt.Fprintf(os.Stderr, "*19\n")
 	require.NotNil(t, err)
 	assert.Equal(t, "error while running './test/response_too_long/response_too_long"+binExtension+"': command output was too long: exceeded 20 bytes", err.Error())
 }

@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -42,6 +43,7 @@ func (b *limitBuffer) Write(p []byte) (n int, err error) {
 }
 
 func execCommand(inputPayload string) ([]byte, error) {
+	fmt.Fprintf(os.Stderr, "execCommand*1\n")
 	ctx, cancel := context.WithTimeout(context.Background(),
 		time.Duration(secretBackendTimeout)*time.Second)
 	defer cancel()
@@ -52,10 +54,11 @@ func execCommand(inputPayload string) ([]byte, error) {
 	}
 	defer done()
 
+	fmt.Fprintf(os.Stderr, "execCommand*2\n")
 	if err := checkRights(cmd.Path, secretBackendCommandAllowGroupExec); err != nil {
 		return nil, err
 	}
-
+	fmt.Fprintf(os.Stderr, "execCommand*3\n")
 	cmd.Stdin = strings.NewReader(inputPayload)
 
 	stdout := limitBuffer{
@@ -76,13 +79,16 @@ func execCommand(inputPayload string) ([]byte, error) {
 	// datadog.yaml.
 	log.Debugf("%s | calling secret_backend_command with payload: '%s'", time.Now().String(), inputPayload)
 	start := time.Now()
+	fmt.Fprintf(os.Stderr, "execCommand*4\n")
 	err = cmd.Run()
+	fmt.Fprintf(os.Stderr, "execCommand*5\n")
 	elapsed := time.Since(start)
 	log.Debugf("%s | secret_backend_command '%s' completed in %s", time.Now().String(), secretBackendCommand, elapsed)
 
 	// We always log stderr to allow a secret_backend_command to logs info in the agent log file. This is useful to
 	// troubleshoot secret_backend_command in a containerized environment.
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "execCommand*6\n")
 		log.Errorf("secret_backend_command stderr: %s", stderr.buf.String())
 
 		exitCode := "unknown"
@@ -97,11 +103,13 @@ func execCommand(inputPayload string) ([]byte, error) {
 		if ctx.Err() == context.DeadlineExceeded {
 			return nil, fmt.Errorf("error while running '%s': command timeout", secretBackendCommand)
 		}
+		fmt.Fprintf(os.Stderr, "execCommand*7\n")
 		return nil, fmt.Errorf("error while running '%s': %s", secretBackendCommand, err)
 	}
 
 	log.Debugf("secret_backend_command stderr: %s", stderr.buf.String())
 
+	fmt.Fprintf(os.Stderr, "execCommand*8\n")
 	tlmSecretBackendElapsed.Add(float64(elapsed.Milliseconds()), secretBackendCommand, "0")
 	return stdout.buf.Bytes(), nil
 }
