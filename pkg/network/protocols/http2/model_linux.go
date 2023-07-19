@@ -8,6 +8,8 @@
 package http2
 
 import (
+	"fmt"
+	"strconv"
 	"strings"
 
 	"golang.org/x/net/http2/hpack"
@@ -122,12 +124,15 @@ func (tx *EbpfTx) DynamicTags() []string {
 func (tx *EbpfTx) String() string {
 	var output strings.Builder
 	output.WriteString("http2.ebpfTx{")
+	output.WriteString("Started: '" + strconv.FormatUint(tx.Request_started, 10) + "', ")
+	output.WriteString("LastSeen: '" + strconv.FormatUint(tx.Response_last_seen, 10) + "', ")
 	output.WriteString("Method: '" + http.Method(tx.Request_method).String() + "', ")
 	buf := make([]byte, 0, tx.Path_size)
 	path, ok := tx.Path(buf)
 	if ok {
 		output.WriteString("Path: '" + string(path) + "', ")
 	}
+	output.WriteString("Tuple: '" + fmt.Sprintf("%#+v", tx.ConnTuple()) + "', ")
 	output.WriteString("}")
 	return output.String()
 }
