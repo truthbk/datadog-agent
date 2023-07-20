@@ -63,6 +63,12 @@ func (h *StatKeeper) Process(tx Transaction) {
 		return
 	}
 	*/
+	if tx.Incomplete() {
+		if h.oversizedLogLimit.ShouldLog() {
+			log.Warnf("http incomplete : %s", tx.String())
+		}
+		return
+	}
 
 	h.add(tx)
 }
