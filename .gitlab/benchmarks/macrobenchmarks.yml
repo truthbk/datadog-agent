@@ -30,6 +30,8 @@ variables:
     KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: datadog-agent
     KUBERNETES_MEMORY_REQUEST: "2Gi"
     KUBERNETES_MEMORY_LIMIT: "2Gi"
+    DD_APM_MAX_CPU_PERCENT: 0
+    DD_APM_MAX_MEMORY: 0
   # Workaround: Currently we're not running the benchmarks on every PR, but GitHub still shows them as pending.
   # By marking the benchmarks as allow_failure, this should go away. (This workaround should be removed once the
   # benchmarks get changed to run on every PR)
