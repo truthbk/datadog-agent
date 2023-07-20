@@ -57,10 +57,12 @@ func (h *StatKeeper) Process(tx Transaction) {
 	h.mux.Lock()
 	defer h.mux.Unlock()
 
+	/* testing disable incomplete
 	if tx.Incomplete() {
 		h.incomplete.Add(tx)
 		return
 	}
+	*/
 
 	h.add(tx)
 }
