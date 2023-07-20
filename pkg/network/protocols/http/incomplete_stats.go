@@ -75,6 +75,9 @@ func (b *incompleteBuffer) Add(tx Transaction) {
 		SrcIPHigh: connTuple.SrcIPHigh,
 		SrcIPLow:  connTuple.SrcIPLow,
 		SrcPort:   connTuple.SrcPort,
+		DstIPHigh: connTuple.DstIPHigh,
+		DstIPLow:  connTuple.DstIPLow,
+		DstPort:   connTuple.DstPort,
 	}
 
 	parts, ok := b.data[key]
