@@ -40,9 +40,8 @@ type StatKeeper struct {
 }
 
 func NewStatkeeper(c *config.Config, telemetry *Telemetry) *StatKeeper {
-	return &StatKeeper{
+	r := &StatKeeper{
 		stats:                       make(map[Key]*RequestStats),
-		incomplete:                  newIncompleteBuffer(c, telemetry),
 		maxEntries:                  c.MaxHTTPStatsBuffered,
 		replaceRules:                c.HTTPReplaceRules,
 		enableStatusCodeAggregation: c.EnableHTTPStatsByStatusCode,
@@ -51,6 +50,8 @@ func NewStatkeeper(c *config.Config, telemetry *Telemetry) *StatKeeper {
 		telemetry:                   telemetry,
 		oversizedLogLimit:           util.NewLogLimit(10, time.Minute*10),
 	}
+	r.incomplete = newIncompleteBuffer(c, telemetry, r.oversizedLogLimit)
+	return r
 }
 
 func (h *StatKeeper) Process(tx Transaction) {
@@ -64,9 +65,6 @@ func (h *StatKeeper) Process(tx Transaction) {
 	}
 	*/
 	if tx.Incomplete() {
-		if h.oversizedLogLimit.ShouldLog() {
-			log.Warnf("http incomplete : %s", tx.String())
-		}
 		h.incomplete.Add(tx)
 		return
 	}
@@ -115,7 +113,7 @@ func (h *StatKeeper) add(tx Transaction) {
 	if latency <= 0 {
 		h.telemetry.malformed.Add(1)
 		if h.oversizedLogLimit.ShouldLog() {
-			log.Warnf("latency should never be <= 0 (%d): %s", latency, tx.String())
+			log.Warnf("latency should never be <= 0 (%v): %s", time.Duration(latency), tx.String())
 		}
 		return
 	}
@@ -124,7 +122,7 @@ func (h *StatKeeper) add(tx Transaction) {
 	l := time.Duration(latency)
 	if l.Seconds() > 50.0 {
 		if h.oversizedLogLimit.ShouldLog() {
-			log.Warnf("latency should never be > 50s (%d): %s", latency, tx.String())
+			log.Warnf("latency should never be > 50s (%v): %s", time.Duration(latency), tx.String())
 		}
 	}
 

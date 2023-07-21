@@ -138,6 +138,7 @@ func (tx *EbpfTx) String() string {
 	output.WriteString("http2.ebpfTx{")
 	output.WriteString("Started: '" + strconv.FormatUint(tx.Request_started, 10) + "', ")
 	output.WriteString("LastSeen: '" + strconv.FormatUint(tx.Response_last_seen, 10) + "', ")
+	output.WriteString("ResponseStatusCode: '" + strconv.FormatUint(uint64(tx.Response_status_code), 10) + "', ")
 	output.WriteString("Method: '" + http.Method(tx.Request_method).String() + "', ")
 	buf := make([]byte, 0, tx.Path_size)
 	path, ok := tx.Path(buf)

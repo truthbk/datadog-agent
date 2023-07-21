@@ -13,6 +13,8 @@ import (
 
 	"github.com/DataDog/datadog-agent/pkg/network/config"
 	"github.com/DataDog/datadog-agent/pkg/network/types"
+	"github.com/DataDog/datadog-agent/pkg/process/util"
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 const defaultMinAge = 30 * time.Second
@@ -46,6 +48,8 @@ type incompleteBuffer struct {
 	maxEntries int
 	telemetry  *Telemetry
 	minAgeNano int64
+
+	oversizedLogLimit *util.LogLimit
 }
 
 type txParts struct {
@@ -60,12 +64,14 @@ func newTXParts() *txParts {
 	}
 }
 
-func newIncompleteBuffer(c *config.Config, telemetry *Telemetry) *incompleteBuffer {
+func newIncompleteBuffer(c *config.Config, telemetry *Telemetry, oversizedLogLimit *util.LogLimit) *incompleteBuffer {
 	return &incompleteBuffer{
 		data:       make(map[types.ConnectionKey]*txParts),
 		maxEntries: c.MaxHTTPStatsBuffered,
 		telemetry:  telemetry,
 		minAgeNano: defaultMinAge.Nanoseconds(),
+
+		oversizedLogLimit: oversizedLogLimit,
 	}
 }
 
@@ -129,6 +135,9 @@ func (b *incompleteBuffer) Flush(nowUnixNano int64) []Transaction {
 			request := parts.requests[i]
 			response := parts.responses[j]
 			if request.RequestStarted() > response.ResponseLastSeen() {
+				if b.oversizedLogLimit.ShouldLog() {
+					log.Warnf("http request dropped : %s", request.String())
+				}
 				j++
 				continue
 			}
@@ -139,6 +148,10 @@ func (b *incompleteBuffer) Flush(nowUnixNano int64) []Transaction {
 			joined = append(joined, request)
 			i++
 			j++
+
+			if b.oversizedLogLimit.ShouldLog() {
+				log.Warnf("http request joined : (%v) %s", time.Duration(request.RequestLatency()), request.String())
+			}
 		}
 
 		// now that we have finished matching requests and responses
@@ -160,7 +173,12 @@ func (b *incompleteBuffer) Flush(nowUnixNano int64) []Transaction {
 
 func (b *incompleteBuffer) shouldKeep(tx Transaction, now int64) bool {
 	then := int64(tx.RequestStarted())
-	return (now - then) < b.minAgeNano
+	ret := (now - then) < b.minAgeNano
+
+	if ret == false && b.oversizedLogLimit.ShouldLog() {
+		log.Warnf("http request orphan dropped : %s", tx.String())
+	}
+	return ret
 }
 
 type byRequestTime []Transaction

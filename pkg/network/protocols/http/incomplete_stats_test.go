@@ -15,13 +15,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/DataDog/datadog-agent/pkg/network/config"
+	"github.com/DataDog/datadog-agent/pkg/process/util"
 )
 
 func TestOrphanEntries(t *testing.T) {
 	t.Run("orphan entries can be joined even after flushing", func(t *testing.T) {
 		now := time.Now()
 		tel := NewTelemetry()
-		buffer := newIncompleteBuffer(config.New(), tel)
+		buffer := newIncompleteBuffer(config.New(), tel, util.NewLogLimit(10, time.Minute*10))
 		request := &EbpfTx{
 			Request_fragment: requestFragment([]byte("GET /foo/bar")),
 			Request_started:  uint64(now.UnixNano()),
@@ -50,7 +51,7 @@ func TestOrphanEntries(t *testing.T) {
 
 	t.Run("orphan entries are not kept indefinitely", func(t *testing.T) {
 		tel := NewTelemetry()
-		buffer := newIncompleteBuffer(config.New(), tel)
+		buffer := newIncompleteBuffer(config.New(), tel, util.NewLogLimit(10, time.Minute*10))
 		now := time.Now()
 		buffer.minAgeNano = (30 * time.Second).Nanoseconds()
 		request := &EbpfTx{
