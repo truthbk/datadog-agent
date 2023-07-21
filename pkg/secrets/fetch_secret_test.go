@@ -82,8 +82,10 @@ func TestLimitBuffer(t *testing.T) {
 }
 
 func TestExecCommandError42(t *testing.T) {
+	t.Cleanup(resetPackageVars)
 	for i := 0; i < 100; i++ {
 		t.Run(fmt.Sprintf("i=%v", i), TestExecCommandError)
+		resetPackageVars()
 	}
 }
 
@@ -158,6 +160,10 @@ func TestExecCommandError(t *testing.T) {
 	fmt.Fprintf(os.Stderr, "*17\n")
 	setCorrectRight(secretBackendCommand)
 	fmt.Fprintf(os.Stderr, "*18\n")
+	old := SecretBackendOutputMaxSize
+	defer func() {
+		SecretBackendOutputMaxSize = old
+	}()
 	SecretBackendOutputMaxSize = 20
 	_, err = execCommand(inputPayload)
 	fmt.Fprintf(os.Stderr, "*19\n")
