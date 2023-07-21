@@ -30,6 +30,11 @@ func PacketNow() int64 {
 	return now
 }
 
+// debugging
+func (tx *EbpfTx) IsHTTP() bool {
+	return false
+}
+
 // Path returns the URL from the request fragment captured in eBPF.
 func (tx *EbpfTx) Path(buffer []byte) ([]byte, bool) {
 	if tx.Path_size == 0 || int(tx.Path_size) > len(tx.Request_path[:tx.Path_size]) {

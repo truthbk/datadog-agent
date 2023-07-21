@@ -29,6 +29,11 @@ func PacketNow() int64 {
 	return now
 }
 
+// debugging
+func (tx *EbpfTx) IsHTTP() bool {
+	return true
+}
+
 // Path returns the URL from the request fragment captured in eBPF with
 // GET variables excluded.
 // Example:

@@ -26,4 +26,6 @@ type Transaction interface {
 	ResponseLastSeen() uint64
 	SetResponseLastSeen(ls uint64)
 	RequestStarted() uint64
+
+	IsHTTP() bool
 }

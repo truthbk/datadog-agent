@@ -64,7 +64,7 @@ func (h *StatKeeper) Process(tx Transaction) {
 		return
 	}
 	*/
-	if tx.Incomplete() {
+	if tx.IsHTTP() && tx.Incomplete() {
 		h.incomplete.Add(tx)
 		return
 	}
