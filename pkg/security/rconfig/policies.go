@@ -8,6 +8,7 @@ package rconfig
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -73,8 +74,16 @@ func (r *RCPolicyProvider) rcDefaultsUpdateCallback(configs map[string]state.Raw
 	}
 
 	r.Lock()
+	defer r.Unlock()
+
+	if reflect.DeepEqual(configs, r.lastDefaults) {
+		log.Infof("already had RC default policy")
+		return
+	}
+
+	log.Info("new default policies from remote-config policy provider")
+
 	r.lastDefaults = configs
-	r.Unlock()
 
 	log.Info("new policies from remote-config policy provider")
 
@@ -89,10 +98,16 @@ func (r *RCPolicyProvider) rcCustomsUpdateCallback(configs map[string]state.RawC
 	}
 
 	r.Lock()
-	r.lastCustoms = configs
-	r.Unlock()
+	defer r.Unlock()
 
-	log.Info("new policies from remote-config policy provider")
+	if reflect.DeepEqual(configs, r.lastCustoms) {
+		log.Infof("already had RC custom policy")
+		return
+	}
+
+	r.lastCustoms = configs
+
+	log.Infof("new custom policies from remote-config policy provider")
 
 	if r.onNewPoliciesReadyCb != nil {
 		r.onNewPoliciesReadyCb()
