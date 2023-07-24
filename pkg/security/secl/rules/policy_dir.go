@@ -38,7 +38,11 @@ func (p *PoliciesDirProvider) SetOnNewPoliciesReadyCb(cb func()) {
 }
 
 // Start starts the policy dir provider
-func (p *PoliciesDirProvider) Start() {}
+func (p *PoliciesDirProvider) Start() {
+	if p.onNewPoliciesReadyCb != nil {
+		p.onNewPoliciesReadyCb()
+	}
+}
 
 func (p *PoliciesDirProvider) loadPolicy(filename string, macroFilters []MacroFilter, ruleFilters []RuleFilter) (*Policy, error) {
 	f, err := os.Open(filename)
