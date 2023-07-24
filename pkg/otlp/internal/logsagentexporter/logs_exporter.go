@@ -8,12 +8,13 @@ package logsagentexporter
 import (
 	"context"
 	"errors"
+	"strings"
+	"time"
+
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
 	"github.com/DataDog/datadog-agent/pkg/logs/sources"
 	"github.com/DataDog/datadog-agent/pkg/util/scrubber"
 	"go.uber.org/zap"
-	"strings"
-	"time"
 
 	logsmapping "github.com/DataDog/opentelemetry-mapping-go/pkg/otlp/logs"
 	"go.opentelemetry.io/collector/pdata/plog"
