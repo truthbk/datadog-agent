@@ -68,6 +68,10 @@ func (r *RCPolicyProvider) Start() {
 }
 
 func (r *RCPolicyProvider) rcDefaultsUpdateCallback(configs map[string]state.RawConfig) {
+	if len(configs) == 0 {
+		return
+	}
+
 	r.Lock()
 	r.lastDefaults = configs
 	r.Unlock()
@@ -80,6 +84,10 @@ func (r *RCPolicyProvider) rcDefaultsUpdateCallback(configs map[string]state.Raw
 }
 
 func (r *RCPolicyProvider) rcCustomsUpdateCallback(configs map[string]state.RawConfig) {
+	if len(configs) == 0 {
+		return
+	}
+
 	r.Lock()
 	r.lastCustoms = configs
 	r.Unlock()
