@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/skydive-project/go-debouncer"
 
 	"github.com/DataDog/datadog-agent/pkg/config/remote"
 	"github.com/DataDog/datadog-agent/pkg/config/remote/data"
@@ -25,7 +24,6 @@ import (
 
 const (
 	securityAgentRCPollInterval = time.Second * 1
-	debounceDelay               = 5 * time.Second
 )
 
 // RCPolicyProvider defines a remote config policy provider
@@ -36,7 +34,6 @@ type RCPolicyProvider struct {
 	onNewPoliciesReadyCb func()
 	lastDefaults         map[string]state.RawConfig
 	lastCustoms          map[string]state.RawConfig
-	debouncer            *debouncer.Debouncer
 }
 
 var _ rules.PolicyProvider = (*RCPolicyProvider)(nil)
@@ -56,7 +53,6 @@ func NewRCPolicyProvider() (*RCPolicyProvider, error) {
 	r := &RCPolicyProvider{
 		client: c,
 	}
-	r.debouncer = debouncer.New(debounceDelay, r.onNewPoliciesReady)
 
 	return r, nil
 }
@@ -64,8 +60,6 @@ func NewRCPolicyProvider() (*RCPolicyProvider, error) {
 // Start starts the Remote Config policy provider and subscribes to updates
 func (r *RCPolicyProvider) Start() {
 	log.Info("remote-config policies provider started")
-
-	r.debouncer.Start()
 
 	r.client.Subscribe(state.ProductCWSDD, r.rcDefaultsUpdateCallback)
 	r.client.Subscribe(state.ProductCWSCustom, r.rcCustomsUpdateCallback)
@@ -80,7 +74,9 @@ func (r *RCPolicyProvider) rcDefaultsUpdateCallback(configs map[string]state.Raw
 
 	log.Info("new policies from remote-config policy provider")
 
-	r.debouncer.Call()
+	if r.onNewPoliciesReadyCb != nil {
+		r.onNewPoliciesReadyCb()
+	}
 }
 
 func (r *RCPolicyProvider) rcCustomsUpdateCallback(configs map[string]state.RawConfig) {
@@ -90,7 +86,9 @@ func (r *RCPolicyProvider) rcCustomsUpdateCallback(configs map[string]state.RawC
 
 	log.Info("new policies from remote-config policy provider")
 
-	r.debouncer.Call()
+	if r.onNewPoliciesReadyCb != nil {
+		r.onNewPoliciesReadyCb()
+	}
 }
 
 func normalize(policy *rules.Policy) {
@@ -147,7 +145,6 @@ func (r *RCPolicyProvider) onNewPoliciesReady() {
 
 // Close stops the client
 func (r *RCPolicyProvider) Close() error {
-	r.debouncer.Stop()
 	r.client.Close()
 	return nil
 }
