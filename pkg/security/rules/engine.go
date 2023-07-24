@@ -125,9 +125,8 @@ func (e *RuleEngine) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	}
 
 	policyProviders := e.gatherPolicyProviders()
-	if err := e.LoadPolicies(policyProviders, true); err != nil {
-		return fmt.Errorf("failed to load policies: %s", err)
-	}
+	e.policyLoader.SetProviders(policyProviders)
+	e.policyProviders = policyProviders
 
 	signal.Notify(e.sighupChan, syscall.SIGHUP)
 
@@ -153,7 +152,7 @@ func (e *RuleEngine) Start(ctx context.Context, wg *sync.WaitGroup) error {
 		}
 	}()
 
-	for _, provider := range e.policyProviders {
+	for _, provider := range policyProviders {
 		provider.Start()
 	}
 
@@ -205,8 +204,8 @@ func (e *RuleEngine) LoadPolicies(policyProviders []rules.PolicyProvider, sendLo
 	e.reloading.Store(true)
 	defer e.reloading.Store(false)
 
-	// load policies
 	e.policyLoader.SetProviders(policyProviders)
+	e.policyProviders = policyProviders
 
 	evaluationSet, err := e.probe.NewEvaluationSet(e.getEventTypeEnabled(), []string{ProbeEvaluationRuleSetTagValue, ThreatScoreRuleSetTagValue})
 	if err != nil {
@@ -220,7 +219,6 @@ func (e *RuleEngine) LoadPolicies(policyProviders []rules.PolicyProvider, sendLo
 
 	// update current policies related module attributes
 	e.policiesVersions = getPoliciesVersions(evaluationSet)
-	e.policyProviders = policyProviders
 
 	// notify listeners
 	if e.rulesLoaded != nil {
