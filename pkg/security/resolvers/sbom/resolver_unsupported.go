@@ -20,6 +20,16 @@ import (
 type Resolver struct {
 }
 
+type SBOMListener interface {
+}
+
+type SBOM struct {
+}
+
+func (s *SBOM) WorkloadSelector() cgroupModel.WorkloadSelector {
+	return cgroupModel.WorkloadSelector{}
+}
+
 func NewSBOMResolver(c *config.RuntimeSecurityConfig, statsdClient statsd.ClientInterface) (*Resolver, error) {
 	return &Resolver{}, nil
 }
@@ -36,6 +46,9 @@ func (r *Resolver) ResolvePackage(containerID string, file *model.FileEvent) *Pa
 
 func (r *Resolver) SendStats() error {
 	return nil
+}
+
+func (r *Resolver) RegisterListener(listener SBOMListener) {
 }
 
 func (r *Resolver) Start(ctx context.Context) {

@@ -67,6 +67,11 @@ func (s *SBOM) IsComputed() bool {
 	return s.scanSuccessful.Load()
 }
 
+// WorkloadSelector returns the workload selector
+func (s *SBOM) WorkloadSelector() cgroupModel.WorkloadSelector {
+	return s.cgroup.WorkloadSelector
+}
+
 // reset (thread unsafe) cleans up internal fields before a SBOM is inserted in cache, the goal is to save space and delete references
 // to structs that will be GCed
 func (s *SBOM) reset() {
@@ -91,6 +96,11 @@ func NewSBOM(host string, source string, id string, cgroup *cgroupModel.CacheEnt
 	}, nil
 }
 
+// SBOMListener
+type SBOMListener interface {
+	SBOMGenerated(*SBOM)
+}
+
 // Resolver is the Software Bill-Of-material resolver
 type Resolver struct {
 	sbomsLock      sync.RWMutex
@@ -100,6 +110,7 @@ type Resolver struct {
 	scannerChan    chan *SBOM
 	statsdClient   statsd.ClientInterface
 	sbomScanner    *sbomscanner.Scanner
+	sbomListeners  []SBOMListener
 
 	sbomGenerations       *atomic.Uint64
 	failedSBOMGenerations *atomic.Uint64
@@ -189,6 +200,11 @@ func (r *Resolver) Start(ctx context.Context) {
 					return r.analyzeWorkload(sbom)
 				}, retry.Attempts(maxSBOMGenerationRetries), retry.Delay(20*time.Millisecond)); err != nil {
 					seclog.Errorf(err.Error())
+					continue
+				}
+
+				for _, listener := range r.sbomListeners {
+					listener.SBOMGenerated(sbom)
 				}
 			}
 		}
@@ -482,4 +498,8 @@ func (r *Resolver) SendStats() error {
 	}
 
 	return nil
+}
+
+func (r *Resolver) RegisterListener(listener SBOMListener) {
+	r.sbomListeners = append(r.sbomListeners, listener)
 }

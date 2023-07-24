@@ -29,6 +29,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/proto/api"
 	"github.com/DataDog/datadog-agent/pkg/security/resolvers"
 	cgroupModel "github.com/DataDog/datadog-agent/pkg/security/resolvers/cgroup/model"
+	"github.com/DataDog/datadog-agent/pkg/security/resolvers/sbom"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/seclog"
 	"github.com/DataDog/datadog-agent/pkg/security/security_profile/activity_tree"
@@ -296,6 +297,8 @@ func NewActivityDumpManager(config *config.Config, statsdClient statsd.ClientInt
 		return nil, fmt.Errorf("failed to push load controller config settings to kernel space: %w", err)
 	}
 	adm.loadController = loadController
+
+	resolvers.SBOMResolver.RegisterListener(adm)
 
 	adm.prepareContextTags()
 	return adm, nil
@@ -839,6 +842,15 @@ func (adm *ActivityDumpManager) FakeDumpOverweight(name string) {
 	}
 }
 
+// GetActiveDumps returns the active dumps
+func (adm *ActivityDumpManager) GetActiveDumps() []*ActivityDump {
+	adm.Lock()
+	activeDumps := make([]*ActivityDump, 0, len(adm.activeDumps))
+	copy(activeDumps, adm.activeDumps)
+	adm.Unlock()
+	return activeDumps
+}
+
 // StopDumpsWithSelector stops the active dumps for the given selector and prevent a workload with the provided selector from ever being dumped again
 func (adm *ActivityDumpManager) StopDumpsWithSelector(selector cgroupModel.WorkloadSelector) {
 	counter, ok := adm.dumpLimiter.Get(selector)
@@ -867,4 +879,47 @@ func (adm *ActivityDumpManager) StopDumpsWithSelector(selector cgroupModel.Workl
 		ad.Unlock()
 	}
 	return
+}
+
+func (adm *ActivityDumpManager) enrichFiles(process *activity_tree.ProcessNode, files map[string]*activity_tree.FileNode) {
+	for _, file := range files {
+		if pkg := adm.resolvers.SBOMResolver.ResolvePackage(process.Process.ContainerID, file.File); pkg != nil {
+			file.File.PkgName = pkg.Name
+			file.File.PkgVersion = pkg.Version
+			file.File.PkgSrcVersion = pkg.SrcVersion
+		}
+
+		if len(file.Children) > 0 {
+			adm.enrichFiles(process, file.Children)
+		}
+	}
+}
+
+func (adm *ActivityDumpManager) enrichProcessNode(process *activity_tree.ProcessNode) {
+	if pkg := adm.resolvers.SBOMResolver.ResolvePackage(process.Process.ContainerID, &process.Process.FileEvent); pkg != nil {
+		process.Process.FileEvent.PkgName = pkg.Name
+		process.Process.FileEvent.PkgVersion = pkg.Version
+		process.Process.FileEvent.PkgSrcVersion = pkg.SrcVersion
+	}
+
+	adm.enrichFiles(process, process.Files)
+
+	for _, child := range process.Children {
+		adm.enrichProcessNode(child)
+	}
+}
+
+func (adm *ActivityDumpManager) enrichActivityDump(d *ActivityDump) {
+	for _, process := range d.ActivityTree.ProcessNodes {
+		adm.enrichProcessNode(process)
+	}
+}
+
+// SBOMGenerated is called by the SBOM resolver when a SBOM was successfully generated for a workload
+func (adm *ActivityDumpManager) SBOMGenerated(sbom *sbom.SBOM) {
+	for _, dump := range adm.GetActiveDumps() {
+		if dump.GetWorkloadSelector().Match(sbom.WorkloadSelector()) {
+			adm.enrichActivityDump(dump)
+		}
+	}
 }
