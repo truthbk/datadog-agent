@@ -780,6 +780,8 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 			event.LoadModule.File.SetPathnameStr("")
 			event.LoadModule.File.SetBasenameStr("")
 		}
+
+		fmt.Printf(">>> LoadModule event:\n%+v\n", event.LoadModule)
 	case model.UnloadModuleEventType:
 		if _, err = event.UnloadModule.UnmarshalBinary(data[offset:]); err != nil {
 			seclog.Errorf("failed to decode unload_module event: %s (offset %d, len %d)", err, offset, len(data))
@@ -860,6 +862,9 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 	event.ProcessCacheEntry = entry
 	if event.ProcessCacheEntry == nil {
 		panic("should always return a process cache entry")
+	}
+	if eventType == model.LoadModuleEventType {
+		fmt.Printf(">>> LoadModule event process cache entry:\n%+v\n", event.ProcessCacheEntry)
 	}
 
 	// resolve the container context

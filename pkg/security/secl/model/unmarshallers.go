@@ -799,26 +799,25 @@ func (e *LoadModuleEvent) UnmarshalBinary(data []byte) (int, error) {
 		return 0, err
 	}
 
-	if len(data)-read < 188 {
+	if len(data)-read < 192 {
 		return 0, ErrNotEnoughData
 	}
 
 	e.Name, err = UnmarshalString(data[read:read+56], 56)
-	read += 56
-
 	if err != nil {
 		return 0, err
 	}
+	read += 56
 
 	e.Args, err = UnmarshalString(data[read:read+128], 128)
+	if err != nil {
+		return 0, err
+	}
 	read += 128
 
 	e.ArgsTruncated = ByteOrder.Uint32(data[read:read+4]) == uint32(1)
 	read += 4
 
-	if err != nil {
-		return 0, err
-	}
 	e.LoadedFromMemory = ByteOrder.Uint32(data[read:read+4]) == uint32(1)
 	read += 4
 
