@@ -8,7 +8,6 @@
 package ebpftest
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -23,7 +22,6 @@ func TestBuildModeConstants(t *testing.T) {
 		assert.False(t, cfg.EnableCORE)
 		assert.False(t, cfg.AllowPrecompiledFallback)
 		assert.False(t, cfg.AllowRuntimeCompiledFallback)
-		assert.Equal(t, "false", os.Getenv("NETWORK_TRACER_FENTRY_TESTS"))
 	})
 	TestBuildMode(t, RuntimeCompiled, "", func(t *testing.T) {
 		cfg := ebpf.NewConfig()
@@ -31,7 +29,6 @@ func TestBuildModeConstants(t *testing.T) {
 		assert.False(t, cfg.EnableCORE)
 		assert.False(t, cfg.AllowPrecompiledFallback)
 		assert.False(t, cfg.AllowRuntimeCompiledFallback)
-		assert.Equal(t, "false", os.Getenv("NETWORK_TRACER_FENTRY_TESTS"))
 	})
 	TestBuildMode(t, CORE, "", func(t *testing.T) {
 		cfg := ebpf.NewConfig()
@@ -39,7 +36,6 @@ func TestBuildModeConstants(t *testing.T) {
 		assert.True(t, cfg.EnableCORE)
 		assert.False(t, cfg.AllowPrecompiledFallback)
 		assert.False(t, cfg.AllowRuntimeCompiledFallback)
-		assert.Equal(t, "false", os.Getenv("NETWORK_TRACER_FENTRY_TESTS"))
 	})
 	TestBuildMode(t, Fentry, "", func(t *testing.T) {
 		cfg := ebpf.NewConfig()
@@ -47,6 +43,5 @@ func TestBuildModeConstants(t *testing.T) {
 		assert.True(t, cfg.EnableCORE)
 		assert.False(t, cfg.AllowPrecompiledFallback)
 		assert.False(t, cfg.AllowRuntimeCompiledFallback)
-		assert.Equal(t, "true", os.Getenv("NETWORK_TRACER_FENTRY_TESTS"))
 	})
 }

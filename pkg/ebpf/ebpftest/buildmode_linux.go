@@ -6,25 +6,27 @@
 package ebpftest
 
 import (
-	"os"
-	"runtime"
 	"testing"
 
-	"github.com/DataDog/gopsutil/host"
+	"github.com/cilium/ebpf"
+	"github.com/cilium/ebpf/features"
 
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
+	"github.com/DataDog/gopsutil/host"
 )
 
 var hostinfo *host.InfoStat
 var kv = kernel.MustHostVersion()
+var fentrySupported bool
 
 func init() {
 	hostinfo, _ = host.Info()
+	fentrySupported = features.HaveProgramType(ebpf.Tracing) == nil
 }
 
 func SupportedBuildModes() []BuildMode {
 	modes := []BuildMode{Prebuilt, RuntimeCompiled, CORE}
-	if os.Getenv("TEST_FENTRY_OVERRIDE") == "true" || (runtime.GOARCH == "amd64" && (hostinfo.Platform == "amazon" || hostinfo.Platform == "amzn") && kv.Major() == 5 && kv.Minor() == 10) {
+	if fentrySupported {
 		modes = append(modes, Fentry)
 	}
 	return modes

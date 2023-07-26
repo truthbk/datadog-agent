@@ -27,6 +27,8 @@ import (
 	"time"
 
 	"github.com/cihub/seelog"
+	"github.com/cilium/ebpf"
+	"github.com/cilium/ebpf/features"
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -48,9 +50,11 @@ var (
 	serverMessageSize = 2 << 14
 	payloadSizesTCP   = []int{2 << 5, 2 << 8, 2 << 10, 2 << 12, 2 << 14, 2 << 15}
 	payloadSizesUDP   = []int{2 << 5, 2 << 8, 2 << 12, 2 << 14}
+	fentrySupported   = false
 )
 
 func TestMain(m *testing.M) {
+	fentrySupported = features.HaveProgramType(ebpf.Tracing) == nil
 	logLevel := os.Getenv("DD_LOG_LEVEL")
 	if logLevel == "" {
 		logLevel = "warn"
@@ -71,8 +75,7 @@ func TestTracerSuite(t *testing.T) {
 }
 
 func isFentry() bool {
-	fentryTests := os.Getenv("NETWORK_TRACER_FENTRY_TESTS")
-	return fentryTests == "true"
+	return fentrySupported
 }
 
 func setupTracer(t testing.TB, cfg *config.Config) *Tracer {
