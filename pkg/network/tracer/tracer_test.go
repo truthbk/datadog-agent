@@ -27,8 +27,6 @@ import (
 	"time"
 
 	"github.com/cihub/seelog"
-	"github.com/cilium/ebpf"
-	"github.com/cilium/ebpf/features"
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -54,7 +52,13 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	fentrySupported = features.HaveProgramType(ebpf.Tracing) == nil
+	for _, m := range ebpftest.SupportedBuildModes() {
+		if m == ebpftest.Fentry {
+			fentrySupported = true
+			break
+		}
+	}
+
 	logLevel := os.Getenv("DD_LOG_LEVEL")
 	if logLevel == "" {
 		logLevel = "warn"

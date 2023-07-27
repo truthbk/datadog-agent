@@ -6,6 +6,7 @@
 package ebpftest
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/cilium/ebpf"
@@ -18,7 +19,7 @@ var kv = kernel.MustHostVersion()
 var fentrySupported bool
 
 func init() {
-	fentrySupported = features.HaveProgramType(ebpf.Tracing) == nil
+	fentrySupported = runtime.GOARCH == "amd64" && features.HaveProgramType(ebpf.Tracing) == nil
 }
 
 func SupportedBuildModes() []BuildMode {
