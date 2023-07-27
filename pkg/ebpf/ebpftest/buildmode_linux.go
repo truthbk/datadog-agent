@@ -12,15 +12,12 @@ import (
 	"github.com/cilium/ebpf/features"
 
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
-	"github.com/DataDog/gopsutil/host"
 )
 
-var hostinfo *host.InfoStat
 var kv = kernel.MustHostVersion()
 var fentrySupported bool
 
 func init() {
-	hostinfo, _ = host.Info()
 	fentrySupported = features.HaveProgramType(ebpf.Tracing) == nil
 }
 
