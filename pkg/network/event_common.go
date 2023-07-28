@@ -265,7 +265,9 @@ type ConnectionStats struct {
 	IntraHost bool
 	IsAssured bool
 
-	ContainerID *string
+	ContainerID struct {
+		Source, Dest *string
+	}
 
 	ProtocolStack protocols.Stack
 }
