@@ -32,6 +32,7 @@ static __always_inline http2_stream_t *http2_fetch_stream(const http2_stream_key
     }
 
     const __u32 zero = 0;
+    // Do we need percpu array here?
     http2_stream_ptr = bpf_map_lookup_elem(&http2_stream_heap, &zero);
     if (http2_stream_ptr == NULL) {
         return NULL;
@@ -289,8 +290,10 @@ static __always_inline void handle_end_of_stream(http2_stream_t *current_stream,
     bpf_map_delete_elem(&http2_in_flight, http2_stream_key_template);
 }
 
-static __always_inline void process_headers_frame(struct __sk_buff *skb, http2_stream_t *current_stream, skb_info_t *skb_info, conn_tuple_t *tup, dynamic_table_index_t *dynamic_index, struct http2_frame *current_frame_header) {
+static __always_inline void process_headers_frame(struct __sk_buff *skb, http2_stream_t *current_stream, skb_info_t *skb_info, conn_tuple_t *tup, struct http2_frame *current_frame_header) {
     const __u32 zero = 0;
+    dynamic_table_index_t dynamic_index = {};
+    dynamic_index.tup = *tup;
 
     // Allocating an array of headers, to hold all interesting headers from the frame.
     http2_header_t *headers_to_process = bpf_map_lookup_elem(&http2_headers_to_process, &zero);
@@ -299,17 +302,18 @@ static __always_inline void process_headers_frame(struct __sk_buff *skb, http2_s
     }
     bpf_memset(headers_to_process, 0, HTTP2_MAX_HEADERS_COUNT_FOR_PROCESSING * sizeof(http2_header_t));
 
-    __u8 interesting_headers = filter_relevant_headers(skb, skb_info, tup, dynamic_index, headers_to_process, current_frame_header->length);
+    __u8 interesting_headers = filter_relevant_headers(skb, skb_info, tup, &dynamic_index, headers_to_process, current_frame_header->length);
     if (interesting_headers > 0) {
-        process_headers(skb, dynamic_index, current_stream, headers_to_process, interesting_headers);
+        process_headers(skb, &dynamic_index, current_stream, headers_to_process, interesting_headers);
     }
+    // cleanup for debugging
+    bpf_memset(headers_to_process, 0, HTTP2_MAX_HEADERS_COUNT_FOR_PROCESSING * sizeof(http2_header_t));
 }
 
-static __always_inline bool http2_entrypoint(struct __sk_buff *skb, skb_info_t *skb_info, conn_tuple_t *tup, http2_ctx_t *http2_ctx) {
+static __always_inline bool http2_entrypoint(struct __sk_buff *skb, skb_info_t *skb_info, conn_tuple_t *tup) {
     // Checking for preface
     if (skb_info->data_off + HTTP2_MARKER_SIZE <= skb->len) {
         char preface[HTTP2_MARKER_SIZE];
-        bpf_memset((char*)preface, 0, HTTP2_MARKER_SIZE);
         bpf_skb_load_bytes(skb, skb_info->data_off, preface, HTTP2_MARKER_SIZE);
         if (is_http2_preface(preface, HTTP2_MARKER_SIZE)) {
             skb_info->data_off += HTTP2_MARKER_SIZE;
@@ -318,18 +322,16 @@ static __always_inline bool http2_entrypoint(struct __sk_buff *skb, skb_info_t *
 
     // Checking we can read HTTP2_FRAME_HEADER_SIZE from the skb.
     if (skb_info->data_off + HTTP2_FRAME_HEADER_SIZE > skb->len) {
+        log_debug("http2_entrypoint cannot read frame header: %lu %lu %lu\n", tup->sport, tup->dport, skb_info->data_off);
         return false;
     }
 
-    char frame_buf[HTTP2_FRAME_HEADER_SIZE];
-    bpf_memset((char*)frame_buf, 0, sizeof(frame_buf));
-
     // read frame.
-    bpf_skb_load_bytes(skb, skb_info->data_off, frame_buf, HTTP2_FRAME_HEADER_SIZE);
+    struct http2_frame current_frame = {};
+    bpf_skb_load_bytes(skb, skb_info->data_off, (char*)&current_frame, HTTP2_FRAME_HEADER_SIZE);
     skb_info->data_off += HTTP2_FRAME_HEADER_SIZE;
 
-    struct http2_frame current_frame = {};
-    if (!read_http2_frame_header(frame_buf, HTTP2_FRAME_HEADER_SIZE, &current_frame)){
+    if (!read_http2_frame_header2(&current_frame)){
         log_debug("[http2] unable to read_http2_frame_header offset %lu\n", skb_info->data_off);
         return false;
     }
@@ -343,21 +345,25 @@ static __always_inline bool http2_entrypoint(struct __sk_buff *skb, skb_info_t *
         return true;
     }
 
-    http2_ctx->http2_stream_key.stream_id = current_frame.stream_id;
-    http2_stream_t *current_stream = http2_fetch_stream(&http2_ctx->http2_stream_key);
+    http2_stream_key_t http2_stream_key = {};
+    http2_stream_key.tup = *tup;
+    normalize_tuple(&http2_stream_key.tup);
+
+    http2_stream_key.stream_id = current_frame.stream_id;
+    http2_stream_t *current_stream = http2_fetch_stream(&http2_stream_key);
     if (current_stream == NULL) {
         skb_info->data_off += current_frame.length;
         return true;
     }
 
     if (is_headers_frame) {
-        process_headers_frame(skb, current_stream, skb_info, tup, &http2_ctx->dynamic_index, &current_frame);
+        process_headers_frame(skb, current_stream, skb_info, tup, &current_frame);
     } else {
         skb_info->data_off += current_frame.length;
     }
 
     if (is_end_of_stream) {
-        handle_end_of_stream(current_stream, &http2_ctx->http2_stream_key);
+        handle_end_of_stream(current_stream, &http2_stream_key);
     }
 
     return true;
@@ -368,18 +374,16 @@ int socket__http2_filter(struct __sk_buff *skb) {
     const __u32 zero = 0;
     dispatcher_arguments_t *args = bpf_map_lookup_elem(&dispatcher_arguments, &zero);
     if (args == NULL) {
-        log_debug("http2_filter failed to fetch arguments for tail call\n");
         return 0;
     }
-    dispatcher_arguments_t dispatcher_args_copy;
-    bpf_memcpy(&dispatcher_args_copy, args, sizeof(dispatcher_arguments_t));
+    dispatcher_arguments_t dispatcher_args_copy = *args;
 
     // Some functions might change and override fields in dispatcher_args_copy.skb_info. Since it is used as a key
     // in a map, we cannot allow it to be modified. Thus, having a local copy of skb_info.
-    skb_info_t local_skb_info = dispatcher_args_copy.skb_info;
+    __u32 orig_data_off = dispatcher_args_copy.skb_info.data_off;
 
     // If we detected a tcp termination we should stop processing the packet, and clear its dynamic table by deleting the counter.
-    if (is_tcp_termination(&local_skb_info)) {
+    if (is_tcp_termination(&dispatcher_args_copy.skb_info)) {
         // Deleting the entry for the original tuple.
         bpf_map_delete_elem(&http2_dynamic_counter_table, &dispatcher_args_copy.tup);
         // In case of local host, the protocol will be deleted for both (client->server) and (server->client),
@@ -405,35 +409,25 @@ int socket__http2_filter(struct __sk_buff *skb) {
         }
     }
 
-    http2_ctx_t *http2_ctx = bpf_map_lookup_elem(&http2_ctx_heap, &zero);
-    if (http2_ctx == NULL) {
-        goto delete_iteration;
-    }
-
-    // create the http2 ctx for the current http2 frame.
-    bpf_memset(http2_ctx, 0, sizeof(http2_ctx_t));
-    http2_ctx->http2_stream_key.tup = dispatcher_args_copy.tup;
-    normalize_tuple(&http2_ctx->http2_stream_key.tup);
-    http2_ctx->dynamic_index.tup = dispatcher_args_copy.tup;
-    local_skb_info.data_off = tail_call_state->offset;
-
+    dispatcher_args_copy.skb_info.data_off = tail_call_state->offset;
     // perform the http2 decoding part.
-    if (!http2_entrypoint(skb, &local_skb_info, &dispatcher_args_copy.tup, http2_ctx)) {
+    if (!http2_entrypoint(skb, &dispatcher_args_copy.skb_info, &dispatcher_args_copy.tup)) {
         goto delete_iteration;
     }
 
-    if (local_skb_info.data_off >= skb->len) {
+    if (dispatcher_args_copy.skb_info.data_off >= skb->len) {
         goto delete_iteration;
     }
 
     // update the tail calls state when the http2 decoding part was completed successfully.
     tail_call_state->iteration += 1;
     if (tail_call_state->iteration < HTTP2_MAX_FRAMES_ITERATIONS) {
-        tail_call_state->offset = local_skb_info.data_off;
+        tail_call_state->offset = dispatcher_args_copy.skb_info.data_off;
         bpf_tail_call_compat(skb, &protocols_progs, PROG_HTTP2);
     }
 
 delete_iteration:
+    dispatcher_args_copy.skb_info.data_off = orig_data_off;
     bpf_map_delete_elem(&http2_iterations, &dispatcher_args_copy);
 
     return 0;
