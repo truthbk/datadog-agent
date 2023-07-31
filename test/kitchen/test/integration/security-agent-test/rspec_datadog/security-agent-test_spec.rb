@@ -1,3 +1,5 @@
+# encoding: utf-8
+
 require 'csv'
 require 'fileutils'
 require 'kernel_out_spec_helper'
