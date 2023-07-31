@@ -5,7 +5,7 @@ set -eo xtrace
 GOVERSION=$1
 RETRY_COUNT=$2
 ARCH=$3
-RUNNER_CMD=$4
+RUNNER_CMD="$(shift 3; echo "$*")"
 KITCHEN_DOCKERS=/kitchen-docker
 
 # Add provisioning steps here !
