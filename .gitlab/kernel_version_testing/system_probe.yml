@@ -278,9 +278,9 @@ kernel_matrix_testing_setup_env:
     - pulumi login $(cat $STACK_DIR | tr -d '\n')
     # Set ServerAliveInterval in ssh config to 300 seconds. This is done because during downloading the server network can become overloaded, and it may be
     # unresponsive for some time. Set a high interval so that the ssh connection is not needlessly terminated.
-    - touch ~/.ssh/config
+    - touch /etc/ssh/ssh_config
     - |
-      cat >> ~/.ssh/config <<EOF
+      cat >> /etc/ssh/ssh_config <<EOF
       Host *
           ServerAliveInterval 300
           TCPKeepAlive no
