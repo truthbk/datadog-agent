@@ -1442,7 +1442,6 @@ func NewProbe(config *config.Config, opts Opts) (*Probe, error) {
 		RingBufferSize:          uint32(p.Config.Probe.EventStreamBufferSize),
 		PathResolutionEnabled:   p.Opts.PathResolutionEnabled,
 		SecurityProfileMaxCount: p.Config.RuntimeSecurity.SecurityProfileMaxCount,
-		UsePathRings:            haveMmapableMaps,
 	})
 
 	if config.RuntimeSecurity.ActivityDumpEnabled {
@@ -1607,9 +1606,9 @@ func NewProbe(config *config.Config, opts Opts) (*Probe, error) {
 	p.scrubber.AddCustomSensitiveWords(config.Probe.CustomSensitiveWords)
 
 	resolversOpts := resolvers.ResolversOpts{
-		PathResolutionEnabled:  opts.PathResolutionEnabled,
-		TagsResolver:           opts.TagsResolver,
-		UsePathRingsResolution: true,
+		PathResolutionEnabled:          opts.PathResolutionEnabled,
+		TagsResolver:                   opts.TagsResolver,
+		UseMMapablePathRingsResolution: haveMmapableMaps,
 	}
 	p.resolvers, err = resolvers.NewResolvers(config, p.Manager, p.StatsdClient, p.scrubber, p.Erpc, resolversOpts)
 	if err != nil {

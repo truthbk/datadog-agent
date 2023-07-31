@@ -152,7 +152,6 @@ type MapSpecEditorOpts struct {
 	RingBufferSize          uint32
 	PathResolutionEnabled   bool
 	SecurityProfileMaxCount int
-	UsePathRings            bool
 }
 
 // AllMapSpecEditors returns the list of map editors
@@ -224,13 +223,15 @@ func AllMapSpecEditors(numCPU int, opts MapSpecEditorOpts) map[string]manager.Ma
 		}
 	}
 
-	if opts.UsePathRings {
-		editors["pr_ringbufs"] = manager.MapSpecEditor{
-			MaxEntries: uint32(numCPU),
-			Flags:      unix.BPF_F_MMAPABLE,
-			EditorFlag: manager.EditMaxEntries | manager.EditFlags,
-		}
+	pathRingBufsSpecs := manager.MapSpecEditor{
+		MaxEntries: uint32(numCPU),
+		EditorFlag: manager.EditMaxEntries,
 	}
+	if opts.UseMmapableMaps {
+		pathRingBufsSpecs.Flags = unix.BPF_F_MMAPABLE
+		pathRingBufsSpecs.EditorFlag |= manager.EditFlags
+	}
+	editors["pr_ringbufs"] = pathRingBufsSpecs
 
 	return editors
 }
