@@ -35,7 +35,13 @@ var state = jmxState{
 func (s *jmxState) scheduleCheck(c *JMXCheck) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	if !s.runner.started {
+	// Only start the runner if it hasnt already been started AND
+	// the check trying to start it isnt jmxfetch_telemetry
+	// as there is no point to spin up jmxfetch to track itself
+	// if it isnt tracking anything else
+	log.Infof("CALEB: In shedule check with name: " + c.name)
+	if !s.runner.started && c.name != "jmxfetch_telemetry" {
+		log.Infof("CALEB: Starting the runner for check with name: " + c.name)
 		err := check.Retry(5*time.Second, 3, s.runner.startRunner, "jmxfetch")
 		if err != nil {
 			return err
