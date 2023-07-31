@@ -356,13 +356,29 @@ kmt_run_tracer_excluded_tests_x64:
       - TAG: ["bionic", "focal", "jammy"]
 
 
-kernel_matrix_testing_run_tests_arm64:
+kmt_run_tracer_only_tests_arm64:
   extends:
     - .kernel_matrix_testing_run_tests
-  needs: ["kernel_matrix_testing_setup_env", "upload_dependencies_arm64", "upload_system_probe_tests_arm64", "upload_minimized_btfs_arm64"]
+  needs: ["kernel_matrix_testing_setup_env", "upload_dependencies_x64", "upload_system_probe_tests_x64", "upload_minimized_btfs_x64"]
   timeout: 3h
   variables:
     ARCH: "arm64"
+    VMSET: "tracer_only"
+    RUNNER_CMD: "-include-packages ./pkg/network/tracer"
+  parallel:
+    matrix:
+      - TAG: ["focal", "jammy"]
+
+
+kmt_run_tracer_excluded_tests_arm64:
+  extends:
+    - .kernel_matrix_testing_run_tests
+  needs: ["kernel_matrix_testing_setup_env", "upload_dependencies_x64", "upload_system_probe_tests_x64", "upload_minimized_btfs_x64"]
+  timeout: 3h
+  variables:
+    ARCH: "arm64"
+    VMSET: "general"
+    RUMMER_CMD: "-exclude-packages ./pkg/network/tracer"
   parallel:
     matrix:
       - TAG: ["focal", "jammy"]
