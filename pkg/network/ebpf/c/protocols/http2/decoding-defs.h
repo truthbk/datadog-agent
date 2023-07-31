@@ -90,11 +90,6 @@ typedef struct {
     __u8 request_path[HTTP2_MAX_PATH_LEN] __attribute__ ((aligned (8)));
 } http2_stream_t;
 
-typedef struct {
-    dynamic_table_index_t dynamic_index;
-    http2_stream_key_t http2_stream_key;
-} http2_ctx_t;
-
 typedef enum {
     kStaticHeader  = 0,
     kExistingDynamicHeader = 1,
@@ -118,5 +113,39 @@ typedef enum {
     HEADER_NOT_INTERESTING,
     HEADER_INTERESTING,
 } parse_result_t;
+
+/* Header parsing helper macros */
+#define is_indexed(x)               ((x) & (1 << 7))
+#define is_literal(x)               ((x) & (1 << 6))
+#define is_literal_never_indexed(x) ((x) & (1 << 4))
+#define is_literal_ne(x) ((x) & (1 << 4))
+
+/* Header parsing helper structs */
+
+// field_index represents the different way a header index can be formatted
+// according to the HPACK specification (RFC 7541: 6. Binary format)
+// We not handling the case of non-indexed field.
+typedef union {
+    struct {
+        __u8 index : 7;
+        __u8 reserved : 1;
+    } __attribute__((packed)) indexed;
+    struct {
+        __u8 index : 6;
+        __u8 reserved : 2;
+    } __attribute__((packed)) literal;
+    struct {
+        __u8 index : 4;
+        __u8 reserved : 4;
+    } __attribute__((packed)) literal_not_indexed;
+    __u8 raw;
+} __attribute__((packed)) field_index;
+
+// hpack_length represents the length of a string as represented in HPACK
+// (see RFC 7541: 5.2 String Literal Representation).
+typedef struct {
+    __u8 length : 7;
+    __u8 is_huffman : 1;
+} __attribute__((packed)) hpack_length;
 
 #endif

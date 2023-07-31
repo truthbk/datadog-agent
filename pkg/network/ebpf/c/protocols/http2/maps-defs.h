@@ -19,15 +19,17 @@ BPF_LRU_MAP(http2_in_flight, http2_stream_key_t, http2_stream_t, 0)
 /* This map serves the purpose of maintaining the current state of tail calls for each frame,
    identified by a tuple consisting of con_tup and skb_info.
    It allows retrieval of both the current offset and the number of iterations that have already been executed. */
-BPF_LRU_MAP(http2_iterations, dispatcher_arguments_t, http2_tail_call_state_t, 1024)
+BPF_HASH_MAP(http2_iterations, dispatcher_arguments_t, http2_tail_call_state_t, 1024)
 
 /* Allocating an array of headers, to hold all interesting headers from the frame. */
 BPF_PERCPU_ARRAY_MAP(http2_headers_to_process, __u32, http2_header_t[HTTP2_MAX_HEADERS_COUNT_FOR_PROCESSING], 1)
+BPF_PERCPU_ARRAY_MAP(http2_headers_heap, __u32, http2_header_t[HTTP2_MAX_HEADERS_COUNT_FOR_FILTERING], 1)
 
 /* Allocating a stream on the heap, the stream is used to save the current stream info. */
 BPF_PERCPU_ARRAY_MAP(http2_stream_heap, __u32, http2_stream_t, 1)
 
 /* Allocating a ctx on the heap, in order to save the ctx between the current stream. */
-BPF_PERCPU_ARRAY_MAP(http2_ctx_heap, __u32, http2_ctx_t, 1)
+BPF_PERCPU_ARRAY_MAP(dynamic_table_index_heap, __u32, dynamic_table_index_t, 1)
+BPF_PERCPU_ARRAY_MAP(http2_stream_key_heap, __u32, http2_stream_key_t, 1)
 
 #endif

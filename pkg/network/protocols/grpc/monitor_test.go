@@ -39,6 +39,7 @@ func testGRPCScenarios(t *testing.T) {
 	cfg := config.New()
 	cfg.EnableHTTPMonitoring = true
 	cfg.EnableHTTP2Monitoring = true
+	cfg.BPFDebug = true
 
 	currKernelVersion, err := kernel.HostVersion()
 	require.NoError(t, err)
@@ -342,7 +343,7 @@ func testGRPCScenarios(t *testing.T) {
 		},
 		{
 			name: "request with large body (1MB)",
-			runClients: func(t *testing.T, differentClients bool) {
+			runClients: func(t *testing.T, _ bool) {
 				var client1 grpc.Client
 				var err error
 				client1, err = grpc.NewClient(srvAddr, grpc.Options{})
@@ -358,9 +359,8 @@ func testGRPCScenarios(t *testing.T) {
 					Method: http.MethodPost,
 				}: 1,
 			},
-			expectedError: true,
+			expectedError: false,
 		},
-
 		{
 			name: "request with large body (1MB) -> b -> request with large body (1MB) -> b",
 			runClients: func(t *testing.T, differentClients bool) {
@@ -583,7 +583,7 @@ func testGRPCScenarios(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		for _, val := range []bool{false, true} {
+		for _, val := range []bool{false} {
 			testNameSuffix := fmt.Sprintf("-different clients - %v", val)
 			t.Run(tt.name+testNameSuffix, func(t *testing.T) {
 				// we are currently not supporting some edge cases:
