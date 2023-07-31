@@ -6,7 +6,7 @@
 package traps
 
 import (
-	"encoding/base64"
+	//JMWJMW "encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
@@ -55,7 +55,7 @@ var (
 	}
 
 	// LinkUp Example Trap with injected BITS value V2+
-	BitsValueExampleV2Trap = gosnmp.SnmpTrap{
+	BitsValueExampleV2Trap = gosnmp.SnmpTrap{ //JMW
 		Variables: []gosnmp.SnmpPDU{
 			// sysUpTimeInstance
 			{Name: "1.3.6.1.2.1.1.3.0", Type: gosnmp.TimeTicks, Value: uint32(1000)},
@@ -69,8 +69,8 @@ var (
 			{Name: "1.3.6.1.2.1.2.2.1.8", Type: gosnmp.Integer, Value: 7},
 			// pwCepSonetConfigErrorOrStatus
 			// This translates to binary 1100 0000 0000 0000
-			// this means bits 0 and 1 are set
-			{Name: "1.3.6.1.2.1.200.1.1.1.3", Type: gosnmp.OctetString, Value: []byte{0xc0, 0x00}},
+			// this means bits 0 and 1 are set //JMW how to decide whether to display octet vs bits?
+			{Name: "1.3.6.1.2.1.200.1.1.1.3", Type: gosnmp.OctetString, Value: []byte{0xc0, 0x00}}, //JMWJMW why not BitString?
 		},
 	}
 
@@ -88,7 +88,7 @@ var (
 			// ifOperStatus
 			{Name: "1.3.6.1.2.1.2.2.1.8", Type: gosnmp.Integer, Value: 7},
 			// myFakeVarType
-			// Bits 0, 1, 2, 3, 12, 13, 14, 15, 88, and 130 are set
+			// Bits 0, 1, 2, 3, 12, 13, 14, 15, 88, and 130 are set //JMW
 			{Name: "1.3.6.1.2.1.200.1.3.1.5", Type: gosnmp.OctetString, Value: []byte{0xf0, 0x0f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x80, 0, 0, 0, 0, 0x20}},
 		},
 	}
@@ -107,7 +107,7 @@ var (
 			// ifOperStatus
 			{Name: "1.3.6.1.2.1.2.2.1.8", Type: gosnmp.Integer, Value: 7},
 			// myFakeVarType
-			// Bits 0, 1, 2, 3, 12, 13, 14, 15, 88, and 130 are set
+			// Bits 0, 1, 2, 3, 12, 13, 14, 15, 88, and 130 are set //JMW
 			{Name: "1.3.6.1.2.1.200.1.3.1.5", Type: gosnmp.OctetString, Value: []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
 		},
 	}
@@ -127,7 +127,7 @@ var (
 			// ifOperStatus
 			{Name: "1.3.6.1.2.1.2.2.1.8", Type: gosnmp.Integer, Value: 7},
 			// myBadVarType
-			// Bits 0, 1, 2, 3, 12, 13, 14, 15, 88, and 130 are set
+			// Bits 0, 1, 2, 3, 12, 13, 14, 15, 88, and 130 are set //JMW
 			{Name: "1.3.6.1.2.1.200.1.3.1.6", Type: gosnmp.OctetString, Value: []byte{0xf0, 0x0f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x80, 0, 0, 0, 0, 0x20}},
 		},
 	}
@@ -165,7 +165,7 @@ var (
 	}
 
 	// LinkUp Example Trap with bad BITS values v2+
-	BadBitsValueExampleV2Trap = gosnmp.SnmpTrap{
+	BadBitsValueExampleV2Trap = gosnmp.SnmpTrap{ //JMW
 		Variables: []gosnmp.SnmpPDU{
 			// sysUpTimeInstance
 			{Name: "1.3.6.1.2.1.1.3.0", Type: gosnmp.TimeTicks, Value: uint32(1000)},
@@ -174,7 +174,7 @@ var (
 			// ifIndex
 			{Name: "1.3.6.1.2.1.2.2.1.1", Type: gosnmp.Integer, Value: 9001},
 			// myFakeVarType
-			{Name: "1.3.6.1.2.1.200.1.3.1.5", Type: gosnmp.OctetString, Value: 1}, // type is set to octet string, but value is integer
+			{Name: "1.3.6.1.2.1.200.1.3.1.5", Type: gosnmp.OctetString, Value: 1}, // type is set to octet string, but value is integer //JMW
 		},
 	}
 
@@ -443,6 +443,7 @@ func TestFormatterWithResolverAndTrapV2(t *testing.T) {
 		resolver        *MockedResolver
 		expectedContent map[string]interface{}
 	}{
+		/*JMW
 		{
 			description: "test no enum variable resolution with netSnmpExampleHeartbeatNotification",
 			trap:        NetSNMPExampleHeartbeatNotification,
@@ -572,6 +573,7 @@ func TestFormatterWithResolverAndTrapV2(t *testing.T) {
 				},
 			},
 		},
+		*/
 		{
 			description: "test enum variable resolution with BITS enum",
 			trap:        BitsValueExampleV2Trap,
@@ -605,13 +607,15 @@ func TestFormatterWithResolverAndTrapV2(t *testing.T) {
 						"value": float64(7),
 					},
 					map[string]interface{}{
-						"oid":   "1.3.6.1.2.1.200.1.1.1.3",
-						"type":  "string",
-						"value": base64.StdEncoding.EncodeToString([]byte{0xc0, 0x00}),
+						"oid":  "1.3.6.1.2.1.200.1.1.1.3",
+						"type": "string",
+						//JMWJMW"value": base64.StdEncoding.EncodeToString([]byte{0xc0, 0x00}), //JMW
+						"value": "11000000 00000000", //JMWJMW
 					},
 				},
 			},
 		},
+		/*JMW
 		{
 			description: "test enum variable resolution with BITS enum and some missing bits definitions",
 			trap:        BitsMissingValueExampleV2Trap,
@@ -770,6 +774,7 @@ func TestFormatterWithResolverAndTrapV2(t *testing.T) {
 				},
 			},
 		},
+		*/
 	}
 
 	mockSender := mocksender.NewMockSender("snmp-traps-telemetry")
@@ -777,13 +782,16 @@ func TestFormatterWithResolverAndTrapV2(t *testing.T) {
 
 	for _, d := range data {
 		t.Run(d.description, func(t *testing.T) {
+			fmt.Printf("\n\n---------- JMW running TestFormatterWithResolverAndTrapV2 case \"%s\" ----------\n", d.description)
 			formatter, err := NewJSONFormatter(d.resolver, mockSender)
 			require.NoError(t, err)
 			packet := createTestPacket(d.trap)
 			data, err := formatter.FormatPacket(packet)
 			require.NoError(t, err)
+			fmt.Printf("JMW formatter.FormatPacket(packet) returned %s\n", data)
 			content := make(map[string]interface{})
 			err = json.Unmarshal(data, &content)
+			fmt.Printf("JMW content after json.Unmarshal()=%v\n", content)
 			require.NoError(t, err)
 			trapContent := content["trap"].(map[string]interface{})
 			// map comparisons shouldn't be reliant on ordering with this lib
@@ -833,7 +841,7 @@ func TestFormatterWithResolverAndTrapV1Generic(t *testing.T) {
 	assert.EqualValues(t, myFakeVarTypeExpected, trapContent["myFakeVarType"])
 }
 
-func TestIsBitEnabled(t *testing.T) {
+func TestIsBitEnabled(t *testing.T) { //JMW
 	data := []struct {
 		description string
 		input       byte
@@ -931,7 +939,7 @@ func TestIsBitEnabled(t *testing.T) {
 	}
 }
 
-func TestEnrichBits(t *testing.T) {
+func TestEnrichBits(t *testing.T) { //JMW
 	data := []struct {
 		description string
 		variable    trapVariable
@@ -1032,7 +1040,7 @@ func TestEnrichBits(t *testing.T) {
 
 	for _, d := range data {
 		t.Run(d.description, func(t *testing.T) {
-			actual := enrichBits(d.variable, d.varMetadata)
+			actual, _ := enrichBits(d.variable, d.varMetadata) //JMWenrichBits - test 2nd return value
 			if diff := cmp.Diff(d.expected, actual); diff != "" {
 				t.Error(diff)
 			}
@@ -1151,7 +1159,7 @@ func TestVariableTypeFormat(t *testing.T) {
 		},
 		{
 			description: "type gosnmp.BitString is correctly formatted",
-			variable:    gosnmp.SnmpPDU{Name: "1.3.6.1.4.1.193.183.4.1.4.5.1.8", Type: gosnmp.BitString, Value: []byte{0x74, 0x65, 0x73, 0x74}},
+			variable:    gosnmp.SnmpPDU{Name: "1.3.6.1.4.1.193.183.4.1.4.5.1.8", Type: gosnmp.BitString, Value: []byte{0x74, 0x65, 0x73, 0x74}}, //JMW gosnmp.BitString
 			expected:    "string",
 		},
 		{

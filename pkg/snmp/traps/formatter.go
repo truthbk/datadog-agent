@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"strings"
+	"time" //JMW
 	"unicode"
 
 	"github.com/gosnmp/gosnmp"
@@ -76,14 +77,14 @@ func NewJSONFormatter(oidResolver OIDResolver, aggregator sender.Sender) (JSONFo
 //	   ],
 //	  }
 //	}
-func (f JSONFormatter) FormatPacket(packet *SnmpPacket) ([]byte, error) {
+func (f JSONFormatter) FormatPacket(packet *SnmpPacket) ([]byte, error) { //JMW0
 	payload := make(map[string]interface{})
 	var formattedTrap map[string]interface{}
 	var err error
 	if packet.Content.Version == gosnmp.Version1 {
 		formattedTrap = f.formatV1Trap(packet)
 	} else {
-		formattedTrap, err = f.formatTrap(packet)
+		formattedTrap, err = f.formatTrap(packet) //JMW1
 		if err != nil {
 			return nil, err
 		}
@@ -92,7 +93,9 @@ func (f JSONFormatter) FormatPacket(packet *SnmpPacket) ([]byte, error) {
 	formattedTrap["ddtags"] = strings.Join(packet.getTags(), ",")
 	formattedTrap["timestamp"] = packet.Timestamp
 	payload["trap"] = formattedTrap
-	return json.Marshal(payload)
+	fmt.Printf("JMW------- FormatPacket() payload=%v\n------------\n\n", payload)
+	//JMWreturn json.Marshal(payload)
+	return json.MarshalIndent(payload, "", "    ") //JMW
 }
 
 func (f JSONFormatter) formatV1Trap(packet *SnmpPacket) map[string]interface{} {
@@ -136,7 +139,7 @@ func (f JSONFormatter) formatV1Trap(packet *SnmpPacket) map[string]interface{} {
 	return data
 }
 
-func (f JSONFormatter) formatTrap(packet *SnmpPacket) (map[string]interface{}, error) {
+func (f JSONFormatter) formatTrap(packet *SnmpPacket) (map[string]interface{}, error) { //JMW2
 	/*
 		An SNMP v2 or v3 trap packet consists in the following variables (PDUs):
 		{sysUpTime.0, snmpTrapOID.0, additionalDataVariables...}
@@ -175,8 +178,8 @@ func (f JSONFormatter) formatTrap(packet *SnmpPacket) (map[string]interface{}, e
 		data["snmpTrapMIB"] = trapMetadata.MIBName
 	}
 
-	parsedVariables, enrichedValues := f.parseVariables(trapOID, variables[2:])
-	enrichmentFailed := len(variables) - 2 - len(enrichedValues) // Subtract 2 for sysUpTime and trapOID
+	parsedVariables, enrichedValues := f.parseVariables(trapOID, variables[2:]) //JMW3
+	enrichmentFailed := len(variables) - 2 - len(enrichedValues)                // Subtract 2 for sysUpTime and trapOID
 	if enrichmentFailed > 0 {
 		f.aggregator.Count(telemetryVarsNotEnriched, float64(enrichmentFailed), "", tags)
 	}
@@ -229,36 +232,51 @@ func enrichEnum(variable trapVariable, varMetadata VariableMetadata) interface{}
 	return variable.Value
 }
 
-// enrichBits checks to see if the variable has a mapping in bits and
+// enrichBits checks to see if the variable has a mapping in bits and //JMW
 // returns the mapping if it exists, otherwise returns the value unchanged
-func enrichBits(variable trapVariable, varMetadata VariableMetadata) interface{} {
+// JMW separate func for getting string from bits
+func enrichBits(variable trapVariable, varMetadata VariableMetadata) (interface{}, string) {
+	fmt.Printf("      JMW enrichBits() tv=%v varMetadata = %v\n", variable, varMetadata)
 	// do bitwise search
 	bytes, ok := variable.Value.([]byte)
 	if !ok {
 		log.Warnf("unable to enrich variable %q %s with BITS mapping, received value was not []byte, was %T", varMetadata.Name, variable.OID, variable.Value)
-		return variable.Value
+		return variable.Value, ""
 	}
 	enabledValues := make([]interface{}, 0)
+	start := time.Now()
+	//JMW should number of bits (len(varMetadata.Bits) determine length of string, for example, w/ 4 bits, should it display "1101" or "11010000"?
+	//  JMW per discussion with Ken, NO, because we have seen out-of-date MIB info before so it is possible that we could be missing some fields in our traps_db, so always display
+	//  the full info from all bytes in the snmp packet PDU's BITS (byte slice)
+	var bitString strings.Builder
+	bitString.Grow(len(bytes)*8 + len(bytes) - 1) //JMW 617ns vs 683ns (avg/5) w/out
+	space := ""
 	for i, b := range bytes {
+		bitString.WriteString(space)
 		for j := 0; j < 8; j++ {
-			position := j + i*8 // position is the index in the current byte plus 8 * the position in the byte array
-			enabled, err := isBitEnabled(uint8(b), j)
+			position := j + i*8                       // position is the index in the current byte plus 8 * the position in the byte array
+			enabled, err := isBitEnabled(uint8(b), j) //JMW use bits package instead?
 			if err != nil {
 				log.Debugf("unable to determine status at position %d: %s", position, err.Error())
 				continue
 			}
 			if enabled {
+				bitString.WriteString("1")
 				if value, ok := varMetadata.Bits[position]; !ok {
 					log.Debugf("unable to find enum mapping for value %d variable %q", i, varMetadata.Name)
 					enabledValues = append(enabledValues, position)
 				} else {
 					enabledValues = append(enabledValues, value)
 				}
+			} else {
+				bitString.WriteString("0")
 			}
 		}
+		space = " "
 	}
-
-	return enabledValues
+	elapsed := time.Since(start)
+	fmt.Printf("      JMW enrichBits() ----- bitString=%q (0x%x) ----- returning enabledValues=%v elapsed=%v\n", bitString.String(), bytes, enabledValues, elapsed) //JMWJMWJMW
+	return enabledValues, bitString.String()
 }
 
 func parseSysUpTime(variable gosnmp.SnmpPDU) (uint32, error) {
@@ -294,7 +312,8 @@ func parseSnmpTrapOID(variable gosnmp.SnmpPDU) (string, error) {
 	return NormalizeOID(value), nil
 }
 
-func (f JSONFormatter) parseVariables(trapOID string, variables []gosnmp.SnmpPDU) ([]trapVariable, map[string]interface{}) {
+func (f JSONFormatter) parseVariables(trapOID string, variables []gosnmp.SnmpPDU) ([]trapVariable, map[string]interface{}) { //JMW4
+	fmt.Printf("JMW parseVariables(trapOID=%v, variables=%v)\n", trapOID, variables)
 	var parsedVariables []trapVariable
 	enrichedValues := make(map[string]interface{})
 
@@ -308,6 +327,8 @@ func (f JSONFormatter) parseVariables(trapOID string, variables []gosnmp.SnmpPDU
 			Value:   variable.Value,
 		}
 
+		fmt.Printf("  JMW in parseVariables() for loop: variable=%v tv=%v\n", variable, tv)
+
 		varMetadata, err := f.oidResolver.GetVariableMetadata(trapOID, varOID)
 		if err != nil {
 			log.Debugf("unable to enrich variable: %s", err)
@@ -316,21 +337,32 @@ func (f JSONFormatter) parseVariables(trapOID string, variables []gosnmp.SnmpPDU
 			continue
 		}
 
+		fmt.Printf("    JMW in parseVariables() for loop varMetadata=%v\n", varMetadata)
+
 		if len(varMetadata.Enumeration) > 0 && len(varMetadata.Bits) > 0 {
 			log.Errorf("Unable to enrich variable, trap variable %q has mappings for both integer enum and bits.", varMetadata.Name)
 		} else if len(varMetadata.Enumeration) > 0 {
+			fmt.Printf("      JMW Enumeration: varMetadata=%v\n", varMetadata)
 			enrichedValues[varMetadata.Name] = enrichEnum(tv, varMetadata)
 		} else if len(varMetadata.Bits) > 0 {
-			enrichedValues[varMetadata.Name] = enrichBits(tv, varMetadata)
+			//JMW is there ever a case where len(varMetadata.Bits) == 0 but it is a bit string?
+			//  JMW per discussion with Ken, NO, if this is the case let it fall  thru to the default (the final else)
+			fmt.Printf("      JMW Bits: varMetadata=%v\n", varMetadata)
+			enrichedValues[varMetadata.Name], tv.Value = enrichBits(tv, varMetadata) //JMW5 //JMWenrichBits
+			//fmt.Printf("**************JMW type of tv.Value=%T\n", tv.Value) //JMW []uint8
+			//fmt.Printf("**************JMW overwriting tv.Value=%v with \"JMWOVERWRITESTRING\"\n", tv.Value)
+			//tv.Value = "JMWOVERWRITESTRING"
+			//fmt.Printf("**************JMW type of tv.Value=%T\n", tv.Value) //JMW string
 		} else {
-			// only format the value if it's not an enum type
-			tv.Value = formatValue(variable)
+			// only format the value if it's not an enum type //JMW or Bits type, right?
+			tv.Value = formatValue(variable) //JMWJMWJMW do it here?
 			enrichedValues[varMetadata.Name] = tv.Value
 		}
 
 		parsedVariables = append(parsedVariables, tv)
 	}
 
+	fmt.Printf("JMW parseVariables() returning parsedVariables=%v, enrichedValues=%v\n", parsedVariables, enrichedValues)
 	return parsedVariables, enrichedValues
 }
 
@@ -342,7 +374,13 @@ func formatType(variable gosnmp.SnmpPDU) string {
 		return "boolean"
 	case gosnmp.Integer, gosnmp.Uinteger32:
 		return "integer"
-	case gosnmp.OctetString, gosnmp.BitString:
+	//JMWMON add test that exercises BitString
+	//JMWMON look at "garbage" (actually base64 encoded) OctetStrings in tests
+	case gosnmp.OctetString: //JMW - split into 2 separate case stmts?
+		fmt.Printf("  JMW in formatType() got gosnmp.OctetString %v\n", variable)
+		return "string"
+	case gosnmp.BitString: //JMW - split into 2 separate case stmts?
+		fmt.Printf("    JMW in formatType() got gosnmp.BitString %v\n", variable)
 		return "string"
 	case gosnmp.Null:
 		return "null"
@@ -383,6 +421,7 @@ func formatValue(variable gosnmp.SnmpPDU) interface{} {
 		if variable.Type == gosnmp.ObjectIdentifier {
 			return NormalizeOID(variable.Value.(string))
 		}
+		//JMWJMWJWM if variable.Type == BitString generate string of bits???
 		return variable.Value
 	default:
 		return variable.Value
@@ -407,7 +446,7 @@ func formatVersion(packet *gosnmp.SnmpPacket) string {
 // Each byte is little endian meaning if
 // you have the binary 10000000, passing position 0
 // would return true and 7 would return false
-func isBitEnabled(n uint8, pos int) (bool, error) {
+func isBitEnabled(n uint8, pos int) (bool, error) { //JMW
 	if pos < 0 || pos > 7 {
 		return false, fmt.Errorf("invalid position %d, must be 0-7", pos)
 	}

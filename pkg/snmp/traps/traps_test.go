@@ -26,6 +26,7 @@ import (
 // List of variables for a NetSNMP::ExampleHeartBeatNotification trap message.
 // See: http://www.circitor.fr/Mibs/Html/N/NET-SNMP-EXAMPLES-MIB.php#netSnmpExampleHeartbeatNotification
 var (
+	//JMW add test trap w/ gosnmp.BitString
 	NetSNMPExampleHeartbeatNotification = gosnmp.SnmpTrap{
 		Variables: []gosnmp.SnmpPDU{
 			// sysUpTimeInstance
