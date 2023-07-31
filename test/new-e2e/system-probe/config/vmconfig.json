@@ -1,7 +1,35 @@
 {
     "vmsets": [
         {
-            "name": "distro_x86_64",
+            "name": "tracer_only_x86_64",
+            "recipe": "distro-x86_64",
+            "arch": "x86_64",
+            "kernels": [
+                {
+                    "dir": "bionic-server-cloudimg-amd64.qcow2",
+                    "tag": "bionic",
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/bionic-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "jammy-server-cloudimg-amd64.qcow2",
+                    "tag": "jammy",
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/jammy-server-cloudimg-amd64.qcow2"
+                },
+                {
+                    "dir": "focal-server-cloudimg-amd64.qcow2",
+                    "tag": "focal",
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/focal-server-cloudimg-amd64.qcow2"
+                }
+            ],
+            "vcpu": [
+                4
+            ],
+            "memory": [
+                8192
+            ]
+        },
+        {
+            "name": "general_x86_64",
             "recipe": "distro-x86_64",
             "arch": "x86_64",
             "kernels": [
