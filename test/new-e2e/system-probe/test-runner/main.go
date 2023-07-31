@@ -299,6 +299,14 @@ func buildTestConfiguration() *TestConfig {
 		excludeLs = strings.Split(*excludePackagesPtr, ",")
 	}
 
+	if len(packagesLs) != 0 {
+		fmt.Printf("Runner targeting packages: %v\n", packagesLs)
+	} else if len(excludeLs) != 0 {
+		fmt.Printf("Runner targetting packages: %v\n", excludeLs)
+	} else {
+		fmt.Println("Runner targetting all packages")
+	}
+
 	return &TestConfig{
 		retryCount:      *retryPtr,
 		includePackages: packagesLs,
