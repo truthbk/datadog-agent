@@ -328,7 +328,7 @@ kmt_run_tracer_only_tests_x64:
   variables:
     ARCH: "x86_64"
     VMSET: "tracer_only"
-    RUNNER_CMD: "-include-packages ./pkg/network/tracer"
+    RUNNER_CMD: "-include-packages pkg/network/tracer"
   parallel:
     matrix:
       - TAG: ["bionic", "focal", "jammy"]
@@ -341,7 +341,7 @@ kmt_run_tracer_excluded_tests_x64:
   variables:
     ARCH: "x86_64"
     VMSET: "general"
-    RUNNER_CMD: "-exclude-packages ./pkg/network/tracer"
+    RUNNER_CMD: "-exclude-packages pkg/network/tracer"
   parallel:
     matrix:
       - TAG: ["bionic", "focal", "jammy"]
