@@ -57,7 +57,31 @@
             ]
         },
         {
-            "name": "distro_arm64",
+            "name": "tracer_only_arm64",
+            "recipe": "distro-arm64",
+            "arch": "arm64",
+            "kernels": [
+                {
+                    "dir": "focal-server-cloudimg-arm64.qcow2",
+                    "tag": "focal",
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/focal-server-cloudimg-arm64.qcow2"
+                },
+                {
+                    "dir": "jammy-server-cloudimg-arm64.qcow2",
+                    "tag": "jammy",
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/jammy-server-cloudimg-arm64.qcow2"
+                }
+            ],
+            "machine": "virt",
+            "vcpu": [
+                4
+            ],
+            "memory": [
+                8192
+            ]
+        },
+        {
+            "name": "general_arm64",
             "recipe": "distro-arm64",
             "arch": "arm64",
             "kernels": [
@@ -80,5 +104,6 @@
                 8192
             ]
         }
+
     ]
 }
