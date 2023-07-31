@@ -580,6 +580,7 @@ func InitConfig(config Config) {
 	config.BindEnvAndSetDefault("statsd_metric_namespace_blacklist", StandardStatsdPrefixes)
 	config.BindEnvAndSetDefault("statsd_metric_blocklist", []string{})
 	config.BindEnvAndSetDefault("statsd_metric_blocklist_match_prefix", false)
+	config.BindEnvAndSetDefault("statsd_enable_influx_flavor_tags", false)
 
 	// Autoconfig
 	config.BindEnvAndSetDefault("autoconf_template_dir", "/datadog/check_configs")

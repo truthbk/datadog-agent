@@ -563,44 +563,95 @@ func TestParseManyPipes(t *testing.T) {
 
 }
 
-// https://github.com/influxdata/telegraf/tree/master/plugins/inputs/statsd#influx-statsd
 func TestTelegrafInfluxStatsdFormat(t *testing.T) {
-	t.Skip() // influx flavor is not supported
-	sample, err := parseMetricSample(t, make(map[string]any), []byte("service.messages.received,deployment=telemetryA,operation=none,model_name=customer:1|g"))
+	cfg := map[string]any{}
+	cfg["statsd_enable_influx_flavor_tags"] = true
 
-	assert.NoError(t, err)
+	t.Run("multiple key/value tags", func(t *testing.T) {
+		sample, err := parseMetricSample(t, cfg, []byte("service.messages.received,deployment=telemetryA,operation=none,model_name=customer:1|g"))
 
-	assert.Equal(t, "service.messages.received", sample.name)
-	assert.InEpsilon(t, 1, sample.value, epsilon)
-	require.Nil(t, sample.values)
-	assert.Equal(t, gaugeType, sample.metricType)
+		assert.NoError(t, err)
 
-	assert.Len(t, sample.tags, 3)
-	assert.Equal(t, "deployment=telemetryA", sample.tags[0])
-	assert.Equal(t, "operation=none", sample.tags[1])
-	assert.Equal(t, "model_name=customer", sample.tags[2])
+		assert.Equal(t, "service.messages.received", sample.name)
+		assert.InEpsilon(t, 1, sample.value, epsilon)
+		require.Nil(t, sample.values)
+		assert.Equal(t, gaugeType, sample.metricType)
 
-	assert.InEpsilon(t, 1.0, sample.sampleRate, epsilon)
-	assert.Zero(t, sample.ts)
-}
+		assert.Len(t, sample.tags, 3)
+		assert.Equal(t, "deployment:telemetryA", sample.tags[0])
+		assert.Equal(t, "operation:none", sample.tags[1])
+		assert.Equal(t, "model_name:customer", sample.tags[2])
 
-// https://docs.sysdig.com/en/docs/sysdig-monitor/integrations/working-with-integrations/custom-integrations/integrate-statsd-metrics/#metric-labels
-func TestSysdigStatsdFormat(t *testing.T) {
-	t.Skip() // sysdig format is not supported
-	sample, err := parseMetricSample(t, make(map[string]any), []byte("service.messages.received#deployment=telemetryA,operation=none,model_name=customer:1|g"))
+		assert.InEpsilon(t, 1.0, sample.sampleRate, epsilon)
+		assert.Zero(t, sample.ts)
+	})
 
-	assert.NoError(t, err)
+	t.Run("some tags with key-only", func(t *testing.T) {
+		sample, err := parseMetricSample(t, cfg, []byte("service.messages.received,deployment=telemetryA,operation=none,beta_flag_enabled:1|g"))
 
-	assert.Equal(t, "service.messages.received", sample.name)
-	assert.InEpsilon(t, 1, sample.value, epsilon)
-	require.Nil(t, sample.values)
-	assert.Equal(t, gaugeType, sample.metricType)
+		assert.NoError(t, err)
 
-	assert.Len(t, sample.tags, 3)
-	assert.Equal(t, "deployment=telemetryA", sample.tags[0])
-	assert.Equal(t, "operation=none", sample.tags[1])
-	assert.Equal(t, "model_name=customer", sample.tags[2])
+		assert.Equal(t, "service.messages.received", sample.name)
+		assert.InEpsilon(t, 1, sample.value, epsilon)
+		require.Nil(t, sample.values)
+		assert.Equal(t, gaugeType, sample.metricType)
 
-	assert.InEpsilon(t, 1.0, sample.sampleRate, epsilon)
-	assert.Zero(t, sample.ts)
+		assert.Len(t, sample.tags, 3)
+		assert.Equal(t, "deployment:telemetryA", sample.tags[0])
+		assert.Equal(t, "operation:none", sample.tags[1])
+		assert.Equal(t, "beta_flag_enabled", sample.tags[2])
+
+		assert.InEpsilon(t, 1.0, sample.sampleRate, epsilon)
+		assert.Zero(t, sample.ts)
+	})
+
+	t.Run("one tag", func(t *testing.T) {
+		sample, err := parseMetricSample(t, cfg, []byte("service.messages.received,deployment=telemetryA:1|g"))
+
+		assert.NoError(t, err)
+
+		assert.Equal(t, "service.messages.received", sample.name)
+		assert.InEpsilon(t, 1, sample.value, epsilon)
+		require.Nil(t, sample.values)
+		assert.Equal(t, gaugeType, sample.metricType)
+
+		assert.Len(t, sample.tags, 1)
+		assert.Equal(t, "deployment:telemetryA", sample.tags[0])
+
+		assert.InEpsilon(t, 1.0, sample.sampleRate, epsilon)
+		assert.Zero(t, sample.ts)
+	})
+
+	t.Run("empty tagset", func(t *testing.T) {
+		// panic
+		sample, err := parseMetricSample(t, cfg, []byte("service.messages.received:1|g"))
+
+		assert.NoError(t, err)
+
+		assert.Equal(t, "service.messages.received", sample.name)
+		assert.InEpsilon(t, 1, sample.value, epsilon)
+		require.Nil(t, sample.values)
+		assert.Equal(t, gaugeType, sample.metricType)
+
+		assert.Len(t, sample.tags, 0)
+
+		assert.InEpsilon(t, 1.0, sample.sampleRate, epsilon)
+		assert.Zero(t, sample.ts)
+	})
+
+	t.Run("empty tagset just a trailing comma", func(t *testing.T) {
+		sample, err := parseMetricSample(t, cfg, []byte("service.messages.received,:1|g"))
+
+		assert.NoError(t, err)
+
+		assert.Equal(t, "service.messages.received", sample.name)
+		assert.InEpsilon(t, 1, sample.value, epsilon)
+		require.Nil(t, sample.values)
+		assert.Equal(t, gaugeType, sample.metricType)
+
+		assert.Len(t, sample.tags, 0)
+
+		assert.InEpsilon(t, 1.0, sample.sampleRate, epsilon)
+		assert.Zero(t, sample.ts)
+	})
 }

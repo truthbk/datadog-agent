@@ -30,6 +30,7 @@ var (
 	fieldSeparator = []byte("|")
 	colonSeparator = []byte(":")
 	commaSeparator = []byte(",")
+	equalSeparator = []byte("=")
 
 	// containerIDFieldPrefix is the prefix for a common field holding the sender's container ID
 	containerIDFieldPrefix = []byte("c:")
@@ -48,17 +49,22 @@ type parser struct {
 
 	// readTimestamps is true if the parser has to read timestamps from messages.
 	readTimestamps bool
+
+	// if true then the 'name' section of the dogstatsd message will be parsed for influxdb-style tags
+	influxTagsEnabled bool
 }
 
 func newParser(cfg config.ConfigReader, float64List *float64ListPool) *parser {
 	stringInternerCacheSize := cfg.GetInt("dogstatsd_string_interner_size")
 	readTimestamps := cfg.GetBool("dogstatsd_no_aggregation_pipeline")
+	influxTagsEnabled := cfg.GetBool("statsd_enable_influx_flavor_tags")
 
 	return &parser{
-		interner:         newStringInterner(stringInternerCacheSize),
-		readTimestamps:   readTimestamps,
-		float64List:      float64List,
-		dsdOriginEnabled: cfg.GetBool("dogstatsd_origin_detection_client"),
+		interner:          newStringInterner(stringInternerCacheSize),
+		readTimestamps:    readTimestamps,
+		float64List:       float64List,
+		dsdOriginEnabled:  cfg.GetBool("dogstatsd_origin_detection_client"),
+		influxTagsEnabled: influxTagsEnabled,
 	}
 }
 
@@ -82,6 +88,50 @@ func nextField(message []byte) ([]byte, []byte) {
 		return message, nil
 	}
 	return message[:sepIndex], message[sepIndex+1:]
+}
+
+// In our parsing logic, we consider the name to be everything before the colon
+// When using an influx-flavored statsd, the rawName here will be something like
+// 'service.messages.received,deployment=telemetryA,operation=none,model_name=customer'
+// Ref https://github.com/influxdata/telegraf/tree/66dc5ce940f7c4a88abc1f715935331bceaed82b/plugins/inputs/statsd#influx-statsd
+func (p *parser) parseInfluxTagsFromName(rawName []byte) ([]byte, []string) {
+
+	nameEndPos := bytes.Index(rawName, commaSeparator)
+	if nameEndPos == -1 {
+		return rawName, nil
+	}
+
+	name := rawName[0:nameEndPos]
+	rawTags := rawName[nameEndPos+1:]
+	if len(rawTags) == 0 {
+		return name, nil
+	}
+
+	tagsCount := bytes.Count(rawTags, commaSeparator)
+	tagsList := make([]string, tagsCount+1)
+
+	replaceTagSeparator := func(rawTag []byte) {
+		tagSeparatorIdx := bytes.Index(rawTag, equalSeparator)
+		if tagSeparatorIdx != -1 {
+			rawTag[tagSeparatorIdx] = ':'
+		}
+	}
+
+	i := 0
+	for i < tagsCount {
+		tagPos := bytes.Index(rawTags, commaSeparator)
+		if tagPos < 0 {
+			break
+		}
+		tagCandidate := rawTags[:tagPos]
+		replaceTagSeparator(tagCandidate) // replace in-place
+		tagsList[i] = p.interner.LoadOrStore(tagCandidate)
+		rawTags = rawTags[tagPos+len(commaSeparator):]
+		i++
+	}
+	replaceTagSeparator(rawTags)
+	tagsList[i] = p.interner.LoadOrStore(rawTags)
+	return name, tagsList
 }
 
 func (p *parser) parseTags(rawTags []byte) []string {
@@ -114,10 +164,15 @@ func (p *parser) parseMetricSample(message []byte) (dogstatsdMetricSample, error
 		return dogstatsdMetricSample{}, fmt.Errorf("invalid dogstatsd message format")
 	}
 
+	var tags []string
 	rawNameAndValue, message := nextField(message)
 	name, rawValue, err := parseMetricSampleNameAndRawValue(rawNameAndValue)
 	if err != nil {
 		return dogstatsdMetricSample{}, err
+	}
+
+	if p.influxTagsEnabled {
+		name, tags = p.parseInfluxTagsFromName(name)
 	}
 
 	rawMetricType, message := nextField(message)
@@ -152,7 +207,6 @@ func (p *parser) parseMetricSample(message []byte) (dogstatsdMetricSample, error
 	// sample rate, tags, container ID, timestamp, ...
 
 	sampleRate := 1.0
-	var tags []string
 	var containerID []byte
 	var optionalField []byte
 	var timestamp time.Time
