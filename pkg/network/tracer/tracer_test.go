@@ -79,7 +79,7 @@ func TestTracerSuite(t *testing.T) {
 }
 
 func isFentry() bool {
-	return fentrySupported
+	return fentrySupported && os.Getenv("NETWORK_TRACER_FENTRY_TESTS") != ""
 }
 
 func setupTracer(t testing.TB, cfg *config.Config) *Tracer {
