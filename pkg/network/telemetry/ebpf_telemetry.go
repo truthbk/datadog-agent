@@ -312,7 +312,8 @@ func PatchEBPFTelemetry(m *manager.Manager, enable bool, undefinedProbes []manag
 		return nil
 	}
 
-	patchEBPFTelemetry(m, asm.Mov.Reg(asm.R1, asm.R1), specs)
+	patchEBPFTelemetry(m, asm.StoreXAdd(asm.R1, asm.R2, asm.Word), specs)
+	//	patchEBPFTelemetry(m, asm.Mov.Reg(asm.R1, asm.R1), specs)
 	return nil
 }
 
