@@ -126,8 +126,8 @@ func newExecTestEventWithAncestors(lineage []model.Process) *model.Event {
 	cursor := ancestor
 	maxPid := uint32(len(lineageDup)) + 1
 
-	nextPid := func(current uint32, isExecChild bool) uint32 {
-		if isExecChild {
+	nextPid := func(current uint32, IsExecExec bool) uint32 {
+		if IsExecExec {
 			return current
 		}
 		return current - 1
@@ -137,7 +137,7 @@ func newExecTestEventWithAncestors(lineage []model.Process) *model.Event {
 	for _, p := range lineageDup[1:] {
 		cursor.Process = p
 		cursor.Process.Pid = currentPid
-		currentPid = nextPid(currentPid, cursor.Process.IsExecChild)
+		currentPid = nextPid(currentPid, cursor.Process.IsExecExec)
 		cursor.Ancestor = new(model.ProcessCacheEntry)
 		cursor.Parent = &cursor.Ancestor.Process
 		cursor = cursor.Ancestor
@@ -158,7 +158,7 @@ func newExecTestEventWithAncestors(lineage []model.Process) *model.Event {
 		},
 	}
 
-	lineageDup[0].Pid = nextPid(maxPid, !lineageDup[0].IsExecChild)
+	lineageDup[0].Pid = nextPid(maxPid, !lineageDup[0].IsExecExec)
 
 	evt := &model.Event{
 		Type:             uint32(model.ExecEventType),
@@ -470,7 +470,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 							Children: []*ProcessNode{
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/ls",
 										},
@@ -532,7 +532,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 							Children: []*ProcessNode{
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/ls",
 										},
@@ -576,7 +576,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 							Children: []*ProcessNode{
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/id",
 										},
@@ -584,7 +584,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 								},
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/ls",
 										},
@@ -646,7 +646,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 							Children: []*ProcessNode{
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/id",
 										},
@@ -654,7 +654,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 								},
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/ls",
 										},
@@ -689,7 +689,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 					Children: []*ProcessNode{
 						{
 							Process: model.Process{
-								IsExecChild: true,
+								IsExecExec: true,
 								FileEvent: model.FileEvent{
 									PathnameStr: "/bin/ls",
 								},
@@ -731,7 +731,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 					Children: []*ProcessNode{
 						{
 							Process: model.Process{
-								IsExecChild: true,
+								IsExecExec: true,
 								FileEvent: model.FileEvent{
 									PathnameStr: "/bin/ls",
 								},
@@ -781,7 +781,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 							Children: []*ProcessNode{
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/webserver2",
 										},
@@ -796,7 +796,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 										},
 										{
 											Process: model.Process{
-												IsExecChild: true,
+												IsExecExec: true,
 												FileEvent: model.FileEvent{
 													PathnameStr: "/bin/webserver3",
 												},
@@ -804,7 +804,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 											Children: []*ProcessNode{
 												{
 													Process: model.Process{
-														IsExecChild: true,
+														IsExecExec: true,
 														FileEvent: model.FileEvent{
 															PathnameStr: "/bin/webserver4",
 														},
@@ -812,7 +812,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 													Children: []*ProcessNode{
 														{
 															Process: model.Process{
-																IsExecChild: true,
+																IsExecExec: true,
 																FileEvent: model.FileEvent{
 																	PathnameStr: "/bin/ls",
 																},
@@ -896,7 +896,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 							Children: []*ProcessNode{
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/webserver2",
 										},
@@ -911,7 +911,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 										},
 										{
 											Process: model.Process{
-												IsExecChild: true,
+												IsExecExec: true,
 												FileEvent: model.FileEvent{
 													PathnameStr: "/bin/webserver3",
 												},
@@ -919,7 +919,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 											Children: []*ProcessNode{
 												{
 													Process: model.Process{
-														IsExecChild: true,
+														IsExecExec: true,
 														FileEvent: model.FileEvent{
 															PathnameStr: "/bin/webserver4",
 														},
@@ -927,7 +927,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 													Children: []*ProcessNode{
 														{
 															Process: model.Process{
-																IsExecChild: true,
+																IsExecExec: true,
 																FileEvent: model.FileEvent{
 																	PathnameStr: "/bin/ls",
 																},
@@ -992,7 +992,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 					Children: []*ProcessNode{
 						{
 							Process: model.Process{
-								IsExecChild: true,
+								IsExecExec: true,
 								FileEvent: model.FileEvent{
 									PathnameStr: "/bin/webserver2",
 								},
@@ -1007,7 +1007,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 								},
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/webserver3",
 										},
@@ -1015,7 +1015,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 									Children: []*ProcessNode{
 										{
 											Process: model.Process{
-												IsExecChild: true,
+												IsExecExec: true,
 												FileEvent: model.FileEvent{
 													PathnameStr: "/bin/webserver4",
 												},
@@ -1023,7 +1023,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 											Children: []*ProcessNode{
 												{
 													Process: model.Process{
-														IsExecChild: true,
+														IsExecExec: true,
 														FileEvent: model.FileEvent{
 															PathnameStr: "/bin/ls",
 														},
@@ -1087,7 +1087,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 					Children: []*ProcessNode{
 						{
 							Process: model.Process{
-								IsExecChild: true,
+								IsExecExec: true,
 								FileEvent: model.FileEvent{
 									PathnameStr: "/bin/webserver2",
 								},
@@ -1102,7 +1102,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 								},
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/webserver3",
 										},
@@ -1110,7 +1110,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 									Children: []*ProcessNode{
 										{
 											Process: model.Process{
-												IsExecChild: true,
+												IsExecExec: true,
 												FileEvent: model.FileEvent{
 													PathnameStr: "/bin/webserver4",
 												},
@@ -1118,7 +1118,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 											Children: []*ProcessNode{
 												{
 													Process: model.Process{
-														IsExecChild: true,
+														IsExecExec: true,
 														FileEvent: model.FileEvent{
 															PathnameStr: "/bin/ls",
 														},
@@ -1208,7 +1208,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 				},
 			},
 			{
-				IsExecChild: true,
+				IsExecExec:  true,
 				ContainerID: "123",
 				FileEvent: model.FileEvent{
 					PathnameStr: "/bin/ls",
@@ -1246,7 +1246,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 							Children: []*ProcessNode{
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/ls",
 										},
@@ -1305,7 +1305,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 				},
 			},
 			{
-				IsExecChild: true,
+				IsExecExec:  true,
 				ContainerID: "123",
 				FileEvent: model.FileEvent{
 					PathnameStr: "/bin/webserver",
@@ -1347,7 +1347,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 					Children: []*ProcessNode{
 						{
 							Process: model.Process{
-								IsExecChild: true,
+								IsExecExec: true,
 								FileEvent: model.FileEvent{
 									PathnameStr: "/bin/webserver",
 								},
@@ -1415,7 +1415,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 				},
 			},
 			{
-				IsExecChild: true,
+				IsExecExec:  true,
 				ContainerID: "123",
 				FileEvent: model.FileEvent{
 					PathnameStr: "/bin/webserver",
@@ -1427,7 +1427,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 				},
 			},
 			{
-				IsExecChild: true,
+				IsExecExec:  true,
 				ContainerID: "123",
 				FileEvent: model.FileEvent{
 					PathnameStr: "/bin/apache",
@@ -1469,7 +1469,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 					Children: []*ProcessNode{
 						{
 							Process: model.Process{
-								IsExecChild: true,
+								IsExecExec: true,
 								FileEvent: model.FileEvent{
 									PathnameStr: "/bin/webserver",
 								},
@@ -1484,7 +1484,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 								},
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/apache",
 										},
@@ -1554,7 +1554,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 				},
 			},
 			{
-				IsExecChild: true,
+				IsExecExec:  true,
 				ContainerID: "123",
 				FileEvent: model.FileEvent{
 					PathnameStr: "/bin/webserver",
@@ -1566,7 +1566,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 				},
 			},
 			{
-				IsExecChild: true,
+				IsExecExec:  true,
 				ContainerID: "123",
 				FileEvent: model.FileEvent{
 					PathnameStr: "/bin/apache",
@@ -1608,7 +1608,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 					Children: []*ProcessNode{
 						{
 							Process: model.Process{
-								IsExecChild: true,
+								IsExecExec: true,
 								FileEvent: model.FileEvent{
 									PathnameStr: "/bin/webserver",
 								},
@@ -1616,7 +1616,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 							Children: []*ProcessNode{
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/apache",
 										},
@@ -1716,7 +1716,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 				},
 			},
 			{
-				IsExecChild: true,
+				IsExecExec:  true,
 				ContainerID: "123",
 				FileEvent: model.FileEvent{
 					PathnameStr: "/bin/webserver",
@@ -1728,7 +1728,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 				},
 			},
 			{
-				IsExecChild: true,
+				IsExecExec:  true,
 				ContainerID: "123",
 				FileEvent: model.FileEvent{
 					PathnameStr: "/bin/apache",
@@ -1751,7 +1751,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 				},
 			},
 			{
-				IsExecChild: true,
+				IsExecExec:  true,
 				ContainerID: "123",
 				FileEvent: model.FileEvent{
 					PathnameStr: "/bin/id",
@@ -1763,7 +1763,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 				},
 			},
 			{
-				IsExecChild: true,
+				IsExecExec:  true,
 				ContainerID: "123",
 				FileEvent: model.FileEvent{
 					PathnameStr: "/bin/ls",
@@ -1797,7 +1797,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 				},
 			},
 			{
-				IsExecChild: true,
+				IsExecExec:  true,
 				ContainerID: "123",
 				FileEvent: model.FileEvent{
 					PathnameStr: "/bin/bpftool",
@@ -1809,7 +1809,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 				},
 			},
 			{
-				IsExecChild: true,
+				IsExecExec:  true,
 				ContainerID: "123",
 				FileEvent: model.FileEvent{
 					PathnameStr: "/bin/du",
@@ -1840,7 +1840,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 					Children: []*ProcessNode{
 						{
 							Process: model.Process{
-								IsExecChild: true,
+								IsExecExec: true,
 								FileEvent: model.FileEvent{
 									PathnameStr: "/bin/webserver",
 								},
@@ -1848,7 +1848,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 							Children: []*ProcessNode{
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/apache",
 										},
@@ -1863,7 +1863,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 											Children: []*ProcessNode{
 												{
 													Process: model.Process{
-														IsExecChild: true,
+														IsExecExec: true,
 														FileEvent: model.FileEvent{
 															PathnameStr: "/bin/id",
 														},
@@ -1871,7 +1871,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 													Children: []*ProcessNode{
 														{
 															Process: model.Process{
-																IsExecChild: true,
+																IsExecExec: true,
 																FileEvent: model.FileEvent{
 																	PathnameStr: "/bin/ls",
 																},
@@ -1893,7 +1893,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 																			Children: []*ProcessNode{
 																				{
 																					Process: model.Process{
-																						IsExecChild: true,
+																						IsExecExec: true,
 																						FileEvent: model.FileEvent{
 																							PathnameStr: "/bin/bpftool",
 																						},
@@ -1901,7 +1901,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 																					Children: []*ProcessNode{
 																						{
 																							Process: model.Process{
-																								IsExecChild: true,
+																								IsExecExec: true,
 																								FileEvent: model.FileEvent{
 																									PathnameStr: "/bin/du",
 																								},
@@ -2273,7 +2273,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 							Children: []*ProcessNode{
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/wc",
 										},
@@ -2298,7 +2298,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 				},
 			},
 			{
-				IsExecChild: true,
+				IsExecExec:  true,
 				ContainerID: "123",
 				FileEvent: model.FileEvent{
 					PathnameStr: "/bin/webserver",
@@ -2340,7 +2340,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 					Children: []*ProcessNode{
 						{
 							Process: model.Process{
-								IsExecChild: true,
+								IsExecExec: true,
 								FileEvent: model.FileEvent{
 									PathnameStr: "/bin/webserver",
 								},
@@ -2355,8 +2355,8 @@ var activityTreeInsertExecEventTestCases = []struct {
 									Children: []*ProcessNode{
 										{
 											Process: model.Process{
-												IsExecChild: true,
-												ExecTime:    time.Date(2023, 06, 23, 1, 2, 3, 4, time.UTC),
+												IsExecExec: true,
+												ExecTime:   time.Date(2023, 06, 23, 1, 2, 3, 4, time.UTC),
 												FileEvent: model.FileEvent{
 													PathnameStr: "/bin/wc",
 												},
@@ -2397,7 +2397,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 					Children: []*ProcessNode{
 						{
 							Process: model.Process{
-								IsExecChild: true,
+								IsExecExec: true,
 								FileEvent: model.FileEvent{
 									PathnameStr: "/bin/apache",
 								},
@@ -2429,7 +2429,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 				},
 			},
 			{
-				IsExecChild: true,
+				IsExecExec:  true,
 				ContainerID: "123",
 				FileEvent: model.FileEvent{
 					PathnameStr: "/bin/apache",
@@ -2471,7 +2471,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 					Children: []*ProcessNode{
 						{
 							Process: model.Process{
-								IsExecChild: true,
+								IsExecExec: true,
 								FileEvent: model.FileEvent{
 									PathnameStr: "/bin/webserver",
 								},
@@ -2479,7 +2479,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 							Children: []*ProcessNode{
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/apache",
 										},
@@ -2538,7 +2538,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 					Children: []*ProcessNode{
 						{
 							Process: model.Process{
-								IsExecChild: true,
+								IsExecExec: true,
 								FileEvent: model.FileEvent{
 									PathnameStr: "/bin/date",
 								},
@@ -2546,7 +2546,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 							Children: []*ProcessNode{
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/apache",
 										},
@@ -2580,7 +2580,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 				},
 			},
 			{
-				IsExecChild: true,
+				IsExecExec:  true,
 				ContainerID: "123",
 				FileEvent: model.FileEvent{
 					PathnameStr: "/bin/du",
@@ -2592,7 +2592,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 				},
 			},
 			{
-				IsExecChild: true,
+				IsExecExec:  true,
 				ContainerID: "123",
 				FileEvent: model.FileEvent{
 					PathnameStr: "/bin/apache",
@@ -2634,7 +2634,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 					Children: []*ProcessNode{
 						{
 							Process: model.Process{
-								IsExecChild: true,
+								IsExecExec: true,
 								FileEvent: model.FileEvent{
 									PathnameStr: "/bin/du",
 								},
@@ -2642,7 +2642,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 							Children: []*ProcessNode{
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/webserver",
 										},
@@ -2650,7 +2650,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 									Children: []*ProcessNode{
 										{
 											Process: model.Process{
-												IsExecChild: true,
+												IsExecExec: true,
 												FileEvent: model.FileEvent{
 													PathnameStr: "/bin/date",
 												},
@@ -2658,7 +2658,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 											Children: []*ProcessNode{
 												{
 													Process: model.Process{
-														IsExecChild: true,
+														IsExecExec: true,
 														FileEvent: model.FileEvent{
 															PathnameStr: "/bin/apache",
 														},
@@ -2730,7 +2730,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 							Children: []*ProcessNode{
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/webserver2",
 										},
@@ -2745,7 +2745,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 										},
 										{
 											Process: model.Process{
-												IsExecChild: true,
+												IsExecExec: true,
 												FileEvent: model.FileEvent{
 													PathnameStr: "/bin/webserver3",
 												},
@@ -2760,7 +2760,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 													Children: []*ProcessNode{
 														{
 															Process: model.Process{
-																IsExecChild: true,
+																IsExecExec: true,
 																FileEvent: model.FileEvent{
 																	PathnameStr: "/bin/ls",
 																},
@@ -2866,7 +2866,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 							Children: []*ProcessNode{
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/webserver2",
 										},
@@ -2881,7 +2881,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 										},
 										{
 											Process: model.Process{
-												IsExecChild: true,
+												IsExecExec: true,
 												FileEvent: model.FileEvent{
 													PathnameStr: "/bin/webserver3",
 												},
@@ -2896,7 +2896,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 													Children: []*ProcessNode{
 														{
 															Process: model.Process{
-																IsExecChild: true,
+																IsExecExec: true,
 																FileEvent: model.FileEvent{
 																	PathnameStr: "/bin/ls",
 																},
@@ -3004,7 +3004,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 				},
 			},
 			{
-				IsExecChild: true,
+				IsExecExec:  true,
 				ContainerID: "123",
 				FileEvent: model.FileEvent{
 					PathnameStr: "/bin/webserver1",
@@ -3042,7 +3042,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 							Children: []*ProcessNode{
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/webserver1",
 										},
@@ -3108,7 +3108,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 				},
 			},
 			{
-				IsExecChild: true,
+				IsExecExec:  true,
 				ContainerID: "123",
 				FileEvent: model.FileEvent{
 					PathnameStr: "/bin/apache",
@@ -3146,7 +3146,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 						},
 						{
 							Process: model.Process{
-								IsExecChild: true,
+								IsExecExec: true,
 								FileEvent: model.FileEvent{
 									PathnameStr: "/bin/apache",
 								},
@@ -3193,7 +3193,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 							Children: []*ProcessNode{
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/webserver3",
 										},
@@ -3236,7 +3236,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 				},
 			},
 			{
-				IsExecChild: true,
+				IsExecExec:  true,
 				ContainerID: "123",
 				FileEvent: model.FileEvent{
 					PathnameStr: "/bin/webserver1",
@@ -3248,7 +3248,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 				},
 			},
 			{
-				IsExecChild: true,
+				IsExecExec:  true,
 				ContainerID: "123",
 				FileEvent: model.FileEvent{
 					PathnameStr: "/bin/webserver3",
@@ -3286,7 +3286,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 							Children: []*ProcessNode{
 								{
 									Process: model.Process{
-										IsExecChild: true,
+										IsExecExec: true,
 										FileEvent: model.FileEvent{
 											PathnameStr: "/bin/webserver1",
 										},
@@ -3294,7 +3294,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 									Children: []*ProcessNode{
 										{
 											Process: model.Process{
-												IsExecChild: true,
+												IsExecExec: true,
 												FileEvent: model.FileEvent{
 													PathnameStr: "/bin/webserver2",
 												},
@@ -3302,7 +3302,7 @@ var activityTreeInsertExecEventTestCases = []struct {
 											Children: []*ProcessNode{
 												{
 													Process: model.Process{
-														IsExecChild: true,
+														IsExecExec: true,
 														FileEvent: model.FileEvent{
 															PathnameStr: "/bin/webserver3",
 														},

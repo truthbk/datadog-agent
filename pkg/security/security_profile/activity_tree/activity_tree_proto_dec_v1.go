@@ -83,7 +83,7 @@ func protoDecodeProcessNode(p *adproto.ProcessInfo) model.Process {
 		PPid:        p.Ppid,
 		Cookie:      p.Cookie,
 		IsThread:    p.IsThread,
-		IsExecChild: p.IsExecChild,
+		IsExecExec:  p.IsExecChild,
 		FileEvent:   *protoDecodeFileEvent(p.File),
 		ContainerID: p.ContainerId,
 		SpanID:      p.SpanId,

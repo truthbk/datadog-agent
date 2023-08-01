@@ -71,7 +71,7 @@ func NewProcessNode(entry *model.ProcessCacheEntry, generationType NodeGeneratio
 
 // nolint: unused
 func (pn *ProcessNode) debug(w io.Writer, prefix string) {
-	fmt.Fprintf(w, "%s- process: %s (is_exec_child:%v)\n", prefix, pn.Process.FileEvent.PathnameStr, pn.Process.IsExecChild)
+	fmt.Fprintf(w, "%s- process: %s (is_exec_exec:%v)\n", prefix, pn.Process.FileEvent.PathnameStr, pn.Process.IsExecExec)
 	if len(pn.Files) > 0 {
 		fmt.Fprintf(w, "%s  files:\n", prefix)
 		sortedFiles := make([]*FileNode, 0, len(pn.Files))

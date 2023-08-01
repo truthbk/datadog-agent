@@ -863,9 +863,9 @@
           "type": "boolean",
           "description": "Indicates whether the process is a kworker"
         },
-        "is_exec_child": {
+        "is_exec_exec": {
           "type": "boolean",
-          "description": "Indicates wether the process is an exec child of its parent"
+          "description": "Indicates wether the process is an exec following an other exec"
         },
         "source": {
           "type": "string",
@@ -987,9 +987,9 @@
           "type": "boolean",
           "description": "Indicates whether the process is a kworker"
         },
-        "is_exec_child": {
+        "is_exec_exec": {
           "type": "boolean",
-          "description": "Indicates wether the process is an exec child of its parent"
+          "description": "Indicates wether the process is an exec following an other exec"
         },
         "source": {
           "type": "string",
