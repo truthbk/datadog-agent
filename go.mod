@@ -659,3 +659,5 @@ replace github.com/moby/buildkit v0.11.0 => github.com/moby/buildkit v0.11.4
 
 // Fixes a panic in trivy, see gitlab.com/cznic/libc/-/issues/25
 replace modernc.org/sqlite v1.17.3 => modernc.org/sqlite v1.19.3
+
+replace github.com/DataDog/agent-payload/v5 => github.com/DataDog/agent-payload/v5 v5.0.92-0.20230801164620-85110db06d59
