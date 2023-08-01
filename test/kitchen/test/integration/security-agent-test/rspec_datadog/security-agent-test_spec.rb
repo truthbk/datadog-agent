@@ -47,7 +47,10 @@ shared_examples "passes" do |bundle, env|
   base_env = {
     "CI"=>"true",
     "DD_SYSTEM_PROBE_BPF_DIR"=>"/tmp/security-agent/ebpf_bytecode",
-    "GOVERSION"=>"unknown"
+    "GOVERSION"=>"unknown",
+    "LANG"=>"en_US.UTF-8",
+    "LC_ALL"=>"en_US.UTF-8",
+    "LANGUAGE"=>"en_US:en"
   }
   final_env = base_env.merge(env)
 
@@ -73,6 +76,7 @@ shared_examples "passes" do |bundle, env|
 
       if bundle == "docker"
         cmd = gotestsum_test2json_cmd.concat(["docker", "exec", "-e", "DD_SYSTEM_PROBE_BPF_DIR=#{final_env["DD_SYSTEM_PROBE_BPF_DIR"]}",
+          "-e", "LANG=#{final_env["LANG"]}", "-e", "LC_ALL=#{final_env["LC_ALL"]}", "-e", "LANGUAGE=#{final_env["LANGUAGE"]}",
           "docker-testsuite", testsuite_file_path, "-status-metrics", "--env", "docker", "-test.v", "-test.count=1"])
         output_line_tag = "d"
       else
