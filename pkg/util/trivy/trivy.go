@@ -28,6 +28,7 @@ import (
 	"github.com/aquasecurity/trivy/pkg/fanal/artifact"
 	image2 "github.com/aquasecurity/trivy/pkg/fanal/artifact/image"
 	local2 "github.com/aquasecurity/trivy/pkg/fanal/artifact/local"
+	"github.com/aquasecurity/trivy/pkg/fanal/artifact/vm"
 	"github.com/aquasecurity/trivy/pkg/fanal/cache"
 	ftypes "github.com/aquasecurity/trivy/pkg/fanal/types"
 	"github.com/aquasecurity/trivy/pkg/sbom/cyclonedx"
@@ -317,6 +318,22 @@ func (c *Collector) scanImage(ctx context.Context, fanalImage ftypes.Image, imgM
 	}
 
 	bom, err := c.scan(ctx, imageArtifact, applier.NewApplier(c.cache), imgMeta)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal report to sbom format, err: %w", err)
+	}
+
+	return bom, nil
+}
+
+func (c *Collector) ScanVM(ctx context.Context, target, region string, scanOptions sbom.ScanOptions) (sbom.Report, error) {
+	opts := getDefaultArtifactOption("", scanOptions)
+	opts.AWSRegion = region
+	vmArtifact, err := vm.NewArtifact(target, c.cache, opts)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create artifact from image, err: %w", err)
+	}
+
+	bom, err := c.scan(ctx, vmArtifact, applier.NewApplier(c.cache), nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal report to sbom format, err: %w", err)
 	}

@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/epforwarder"
 	"github.com/DataDog/datadog-agent/pkg/sbom"
 	"github.com/DataDog/datadog-agent/pkg/sbom/collectors/host"
+	"github.com/DataDog/datadog-agent/pkg/sbom/collectors/vm"
 	sbomscanner "github.com/DataDog/datadog-agent/pkg/sbom/scanner"
 	"github.com/DataDog/datadog-agent/pkg/security/utils"
 	"github.com/DataDog/datadog-agent/pkg/tagger"
@@ -47,11 +48,16 @@ type processor struct {
 	hostSBOM          bool
 	hostScanOpts      sbom.ScanOptions
 	hostname          string
+	vmScanOpts        sbom.ScanOptions
 }
 
 func newProcessor(workloadmetaStore workloadmeta.Store, sender sender.Sender, maxNbItem int, maxRetentionTime time.Duration, hostSBOM bool) (*processor, error) {
 	hostScanOpts := sbom.ScanOptionsFromConfig(ddConfig.Datadog, false)
 	hostScanOpts.NoCache = true
+
+	vmScanOpts := sbom.ScanOptionsFromConfig(ddConfig.Datadog, false)
+	vmScanOpts.Timeout = 3 * time.Minute
+
 	sbomScanner := sbomscanner.GetGlobalScanner()
 	if sbomScanner == nil {
 		return nil, errors.New("failed to get global SBOM scanner")
@@ -80,6 +86,7 @@ func newProcessor(workloadmetaStore workloadmeta.Store, sender sender.Sender, ma
 		hostSBOM:          hostSBOM,
 		hostScanOpts:      hostScanOpts,
 		hostname:          hostname,
+		vmScanOpts:        vmScanOpts,
 	}, nil
 }
 
@@ -167,6 +174,47 @@ func (p *processor) processContainerImagesRefresh(allImages []*workloadmeta.Cont
 	for _, img := range allImages {
 		p.processImageSBOM(img)
 	}
+}
+
+func (p *processor) processEBS(target, region string) {
+	log.Debugf("Triggering volume SBOM")
+
+	ch := make(chan sbom.ScanResult, 1)
+	scanRequest := &vm.ScanRequest{Path: target, Region: region}
+
+	if err := p.sbomScanner.Scan(scanRequest, p.vmScanOpts, ch); err != nil {
+		log.Errorf("Failed to trigger SBOM generation for VM: %s", err)
+		return
+	}
+
+	go func() {
+		result := <-ch
+
+		if result.Error != nil {
+			// TODO: add a retry mechanism for retryable errors
+			log.Errorf("Failed to generate SBOM for VM: %s", result.Error)
+			return
+		}
+
+		log.Debugf("Successfully generated SBOM for VM: %v, %v", result.CreatedAt, result.Duration)
+
+		bom, err := result.Report.ToCycloneDX()
+		if err != nil {
+			log.Errorf("Failed to extract SBOM from VM: %s", err)
+			return
+		}
+
+		p.queue <- &model.SBOMEntity{
+			Type:               model.SBOMSourceType_HOST_FILE_SYSTEM, // TODO(lebauce): chance to VM_VOLUME
+			Id:                 p.hostname,
+			GeneratedAt:        timestamppb.New(result.CreatedAt),
+			InUse:              true,
+			GenerationDuration: convertDuration(result.Duration),
+			Sbom: &model.SBOMEntity_Cyclonedx{
+				Cyclonedx: convertBOM(bom),
+			},
+		}
+	}()
 }
 
 func (p *processor) processHostRefresh() {
