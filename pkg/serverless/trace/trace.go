@@ -24,6 +24,7 @@ type ServerlessTraceAgent struct {
 	ta           *agent.Agent
 	spanModifier *spanModifier
 	cancel       context.CancelFunc
+	Telemetry    telemetry.TelemetryCollector
 }
 
 // Load abstracts the file configuration loading
@@ -85,7 +86,8 @@ func (s *ServerlessTraceAgent) Start(enabled bool, loadConfig Load, lambdaSpanCh
 			context, cancel := context.WithCancel(context.Background())
 			tc.Hostname = ""
 			tc.SynchronousFlushing = true
-			s.ta = agent.NewAgent(context, tc, telemetry.NewNoopCollector())
+			s.Telemetry = telemetry.NewCollector(tc)
+			s.ta = agent.NewAgent(context, tc, s.Telemetry)
 			s.spanModifier = &spanModifier{
 				coldStartSpanId: coldStartSpanId,
 				lambdaSpanChan:  lambdaSpanChan,
