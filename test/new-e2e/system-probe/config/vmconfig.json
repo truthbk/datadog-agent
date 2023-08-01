@@ -36,12 +36,12 @@
                 {
                     "dir": "focal-server-cloudimg-arm64.qcow2",
                     "tag": "focal",
-                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/focal-server-cloudimg-arm64.qcow2"
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/focal-server-cloudimg-arm64.qcow2-test-only"
                 },
                 {
                     "dir": "jammy-server-cloudimg-arm64.qcow2",
                     "tag": "jammy",
-                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/jammy-server-cloudimg-arm64.qcow2"
+                    "image_source": "https://dd-agent-omnibus.s3.amazonaws.com/kernel-version-testing/rootfs/jammy-server-cloudimg-arm64.qcow2-test-only"
                 }
             ],
             "machine": "virt",
