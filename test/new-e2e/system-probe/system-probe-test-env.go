@@ -150,13 +150,11 @@ func isExitMissingError(err error) bool {
 	return strings.Contains(err.Error(), "remote command exited without exit status or exit signal")
 }
 
-func emitErrorMetric(errorStr string) error {
+func emitErrorMetric(errorStr string) {
 	err := exec.Command("datadog-ci", "metric", "--level", "job", "--metric", fmt.Sprintf("\"setup_env_error:%s\"", errorStr)).Run()
 	if err != nil {
-		return fmt.Errorf("failed to emit job level metric: %w", err)
+		log.Println("failed to emit metrics:", emitErrorErr)
 	}
-
-	return nil
 }
 
 func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *SystemProbeEnvOpts) (*TestEnv, error) {
@@ -218,8 +216,6 @@ func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *SystemProbe
 	// connection issues in the worst case.
 	b = retry.WithMaxRetries(4, b)
 	if retryErr := retry.Do(ctx, b, func(_ context.Context) error {
-		var emitErrorErr error
-
 		if az := getAvailabilityZone(opts.InfraEnv, currentAZ); az != "" {
 			config["ddinfra:aws/defaultSubnets"] = auto.ConfigValue{Value: az}
 		}
@@ -247,20 +243,17 @@ func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *SystemProbe
 				fmt.Printf("[Error] Insufficient instance capacity in %s. Retrying stack with %s as the AZ.", getAvailabilityZone(opts.InfraEnv, currentAZ), getAvailabilityZone(opts.InfraEnv, currentAZ+1))
 				currentAZ += 1
 
-				emitErrorErr = emitErrorMetric(InsufficientInstanceCapacity)
+				emitErrorMetric(InsufficientInstanceCapacity)
 				return retry.RetryableError(err)
 			} else if isExitMissingError(err) {
-				emitErrorErr = emitErrorMetric(RemoteCmdExitWithoutSignal)
+				emitErrorMetric(RemoteCmdExitWithoutSignal)
 			} else if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-				emitErrorErr = emitErrorMetric(NetworkTimeoutError)
+				emitErrorMetric(NetworkTimeoutError)
 			} else {
-				emitErrorErr = emitErrorMetric(OtherError)
+				emitErrorMetric(OtherError)
 				return err
 			}
 
-			if emitErrorErr != nil {
-				log.Println("failed to emit metrics:", emitErrorErr)
-			}
 		}
 
 		return nil
