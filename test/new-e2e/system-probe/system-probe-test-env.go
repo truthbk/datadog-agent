@@ -12,7 +12,9 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -21,6 +23,7 @@ import (
 
 	"github.com/DataDog/test-infra-definitions/scenarios/aws/microVMs/microvms"
 	"github.com/sethvargo/go-retry"
+	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/terminal"
 	"golang.org/x/term"
 
@@ -29,6 +32,14 @@ import (
 
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+)
+
+const (
+	RemoteCmdExitWithoutSignal   = "remote_cmd_exited_without_status"
+	FailedToDialLibvirt          = "failed_to_dial_libvirt"
+	InsufficientInstanceCapacity = "insufficient_instance_capacity"
+	NetworkTimeoutError          = "network_timeout_error"
+	OtherError                   = "other_error"
 )
 
 const (
@@ -135,6 +146,34 @@ func getAvailabilityZone(env string, azIndx int) string {
 	return ""
 }
 
+func emitErrorMetric(errorStr string) error {
+	key, err := datadogAgentAPIKey()
+	if err != nil {
+		return fmt.Errorf("failed to emit job level metric: %w", err)
+	}
+
+	cmd := exec.Command("datadog-ci", "metric", "--level", "job", "--metric", fmt.Sprintf("\"setup_env_error:%s\"", errorStr))
+	cmd.Env = append(
+		os.Environ(),
+		fmt.Sprintf("DATADOG_API_KEY=%s", key),
+	)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to emit job level metric: %w", err)
+	}
+
+	return nil
+}
+
+func datadogAgentAPIKey() (string, error) {
+	awsManager := credentials.NewManager()
+	key, err := awsManager.GetCredential(credentials.AWSSSMStore, "ci.datadog-agent.datadog_api_key_org2")
+	if err != nil {
+		return "", fmt.Errorf("failed to get DATADOG_API_KEY from ssm: %w", err)
+	}
+
+	return key, nil
+}
+
 func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *SystemProbeEnvOpts) (*TestEnv, error) {
 	var err error
 	var sudoPassword string
@@ -205,12 +244,24 @@ func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *SystemProbe
 			return nil
 		}, opts.FailOnMissing)
 		if err != nil {
+			switch err.(type) {
+			case ssh.ExitMissingError:
+				emitErrorMetric(RemoteCmdExitWithoutSignal)
+			case net.Error:
+				if err.Timeout() {
+					emitErrorMetric(NetworkTimeoutError)
+				}
+			default:
+			}
+
 			// Retry if we failed to dial libvirt.
 			// Libvirt daemon on the server occasionally crashes with the following error
 			// "End of file while reading data: Input/output error"
 			// The root cause of this is unknown. The problem usually fixes itself upon retry.
 			if strings.Contains(err.Error(), "failed to dial libvirt") {
 				fmt.Println("[Error] Failed to dial libvirt. Retrying stack.")
+
+				emitErrorMetric(FailedToDialLibvirt)
 				return retry.RetryableError(err)
 
 				// Retry if we have capacity issues in our current AZ.
@@ -218,8 +269,11 @@ func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *SystemProbe
 			} else if strings.Contains(err.Error(), "InsufficientInstanceCapacity") {
 				fmt.Printf("[Error] Insufficient instance capacity in %s. Retrying stack with %s as the AZ.", getAvailabilityZone(opts.InfraEnv, currentAZ), getAvailabilityZone(opts.InfraEnv, currentAZ+1))
 				currentAZ += 1
+
+				emitErrorMetric(InsufficientInstanceCapacity)
 				return retry.RetryableError(err)
 			} else {
+				emitErrorMetric(OtherError)
 				return err
 			}
 		}
