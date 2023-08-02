@@ -158,7 +158,7 @@ func isValidTTYName(ttyName string) bool {
 
 // UnmarshalProcEntryBinary unmarshalls process_entry_t from process.h
 func (e *Process) UnmarshalProcEntryBinary(data []byte) (int, error) {
-	const size = 192
+	const size = 184
 	if len(data) < size {
 		return 0, ErrNotEnoughData
 	}
@@ -224,7 +224,7 @@ func (e *Process) UnmarshalPidCacheBinary(data []byte) (int, error) {
 
 // UnmarshalBinary unmarshalls a binary representation of itself
 func (e *Process) UnmarshalBinary(data []byte) (int, error) {
-	const size = 320 // size of struct exec_event_t starting from process_entry_t, inclusive
+	const size = 304 // size of struct exec_event_t starting from process_entry_t, inclusive
 	if len(data) < size {
 		return 0, ErrNotEnoughData
 	}
@@ -344,21 +344,21 @@ func (p *DentryKey) UnmarshalBinary(data []byte) (int, error) {
 }
 
 func (pr *PathRingBufferRef) UnmarshalBinary(data []byte) (int, error) {
-	if len(data) < 32 {
+	if len(data) < 24 {
 		return 0, ErrNotEnoughData
 	}
-	pr.Hash = ByteOrder.Uint64(data[0:8])
-	pr.Length = ByteOrder.Uint64(data[8:16])
-	pr.ReadCursor = ByteOrder.Uint64(data[16:24])
-	pr.CPU = ByteOrder.Uint32(data[24:28])
+	pr.Watermark = ByteOrder.Uint64(data[0:8])
+	pr.ReadCursor = ByteOrder.Uint32(data[8:12])
+	pr.Length = ByteOrder.Uint32(data[12:16])
+	pr.CPU = ByteOrder.Uint32(data[16:20])
 
 	// +4 for padding
-	return 28 + 4, nil
+	return 20 + 4, nil
 }
 
 // UnmarshalBinary unmarshalls a binary representation of itself
 func (e *FileFields) UnmarshalBinary(data []byte) (int, error) {
-	if len(data) < 104 {
+	if len(data) < 96 {
 		return 0, ErrNotEnoughData
 	}
 
@@ -394,7 +394,7 @@ func (e *FileFields) UnmarshalBinary(data []byte) (int, error) {
 		return n, err
 	}
 
-	return 104, nil
+	return 96, nil
 }
 
 // UnmarshalBinary unmarshalls a binary representation of itself
@@ -425,7 +425,7 @@ func (e *MkdirEvent) UnmarshalBinary(data []byte) (int, error) {
 
 // UnmarshalBinary unmarshalls a binary representation of itself
 func (m *Mount) UnmarshalBinary(data []byte) (int, error) {
-	const size = 128
+	const size = 112
 	if len(data) < size {
 		return 0, ErrNotEnoughData
 	}

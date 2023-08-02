@@ -1311,9 +1311,9 @@ type AnomalyDetectionSyscallEvent struct {
 }
 
 type PathRingBufferRef struct {
-	Hash       uint64 `field:"-"`
-	Length     uint64 `field:"-"`
-	ReadCursor uint64 `field:"-"`
+	Watermark  uint64 `field:"-"`
+	ReadCursor uint32 `field:"-"`
+	Length     uint32 `field:"-"`
 	CPU        uint32 `field:"-"`
 }
 

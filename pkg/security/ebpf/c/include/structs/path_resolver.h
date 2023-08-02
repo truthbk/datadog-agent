@@ -9,18 +9,18 @@ struct pr_ring_buffer {
 
 // struct stored in per-cpu map
 struct pr_ring_buffer_ctx {
-    u64 hash;
-    u64 len;
-    u64 read_cursor;
-    u64 write_cursor;
+    u64 watermark;
+    u32 write_cursor;
+    u32 read_cursor;
+    u32 len;
     u32 cpu;
 };
 
 // struct used by events structs
 struct pr_ring_buffer_ref_t {
-    u64 hash;
-    u64 len;
-    u64 read_cursor;
+    u64 watermark;
+    u32 read_cursor;
+    u32 len;
     u32 cpu;
     u32 padding;
 };

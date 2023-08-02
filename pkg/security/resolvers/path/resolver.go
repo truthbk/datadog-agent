@@ -8,6 +8,7 @@
 package path
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"hash"
@@ -126,26 +127,31 @@ func (cause pathResolutionFailureCause) String() string {
 	return pathResolutionFailureCauses[cause]
 }
 
-const PathRingBuffersSize = uint64(131072)
+const (
+	PathRingBuffersSize = uint32(131072)
+	WatermarkSize       = uint32(8)
+)
 
 // Resolver describes a resolvers for path and file names
 type PathRingsResolver struct {
 	mountResolver   *mount.Resolver
 	statsdClient    statsd.ClientInterface
 	fnv1a           hash.Hash64
-	numCPU          uint64
+	numCPU          uint32
 	pathRings       []byte
 	failureCounters [maxFailureCause]*atomic.Int64
 	successCounter  *atomic.Int64
+	watermarkBuffer *bytes.Buffer
 }
 
 // NewResolver returns a new path resolver
 func NewPathRingsResolver(mountResolver *mount.Resolver, statsdClient statsd.ClientInterface) *PathRingsResolver {
 	pr := &PathRingsResolver{
-		mountResolver:  mountResolver,
-		statsdClient:   statsdClient,
-		fnv1a:          fnv.New64a(),
-		successCounter: atomic.NewInt64(0),
+		mountResolver:   mountResolver,
+		statsdClient:    statsdClient,
+		fnv1a:           fnv.New64a(),
+		successCounter:  atomic.NewInt64(0),
+		watermarkBuffer: bytes.NewBuffer(make([]byte, 0, WatermarkSize)),
 	}
 
 	for i := 0; i < int(maxFailureCause); i++ {
@@ -156,7 +162,7 @@ func NewPathRingsResolver(mountResolver *mount.Resolver, statsdClient statsd.Cli
 }
 
 func (pr *PathRingsResolver) resolvePath(ref *model.PathRingBufferRef) (string, error) {
-	if ref.Length == math.MaxUint64 {
+	if ref.Length == math.MaxUint32 {
 		pr.failureCounters[truncated].Inc()
 		return "", errTruncatedPath
 	}
@@ -181,23 +187,72 @@ func (pr *PathRingsResolver) resolvePath(ref *model.PathRingBufferRef) (string, 
 		return "", fmt.Errorf("path ref CPU number is invalid: %d", ref.CPU)
 	}
 
-	var pathStr string
-	ringBufferOffset := uint64(uint64(ref.CPU) * PathRingBuffersSize)
-	if ref.ReadCursor+ref.Length > PathRingBuffersSize {
-		firstPart := model.NullTerminatedString(pr.pathRings[ringBufferOffset+ref.ReadCursor : ringBufferOffset+PathRingBuffersSize])
-		remaining := ref.Length - (PathRingBuffersSize - ref.ReadCursor)
-		secondPart := model.NullTerminatedString(pr.pathRings[ringBufferOffset : ringBufferOffset+remaining])
-		pathStr = firstPart + secondPart
+	bufferOffset := ref.CPU * PathRingBuffersSize
+	readOffset := ref.ReadCursor
+
+	pr.watermarkBuffer.Reset()
+	if readOffset+WatermarkSize > PathRingBuffersSize {
+		if _, err := pr.watermarkBuffer.Write(pr.pathRings[bufferOffset+readOffset : bufferOffset+PathRingBuffersSize]); err != nil {
+			return "", err
+		}
+		remaining := WatermarkSize - (PathRingBuffersSize - readOffset)
+		if _, err := pr.watermarkBuffer.Write(pr.pathRings[bufferOffset : bufferOffset+remaining]); err != nil {
+			return "", err
+		}
+		readOffset = remaining
 	} else {
-		pathStr = model.NullTerminatedString(pr.pathRings[ringBufferOffset+ref.ReadCursor : ringBufferOffset+ref.ReadCursor+ref.Length])
+		if _, err := pr.watermarkBuffer.Write(pr.pathRings[bufferOffset+readOffset : bufferOffset+readOffset+WatermarkSize]); err != nil {
+			return "", err
+		}
+		readOffset += WatermarkSize
 	}
 
-	pr.fnv1a.Reset()
-	pr.fnv1a.Write([]byte(pathStr))
-	hash := pr.fnv1a.Sum64()
-	if ref.Hash != hash {
-		pr.failureCounters[hashMismatch].Inc()
-		return "", fmt.Errorf("path ref hash mismatch (expected %d, got %d)", ref.Hash, hash)
+	if pr.watermarkBuffer.Len() != int(WatermarkSize) {
+		return "", fmt.Errorf("front watermark has invalid size: %d", pr.watermarkBuffer.Len())
+	}
+
+	frontWatermark := model.ByteOrder.Uint64(pr.watermarkBuffer.Bytes())
+	if frontWatermark != ref.Watermark {
+		return "", fmt.Errorf("front waterwark has invalid value")
+	}
+
+	var pathStr string
+
+	if readOffset+ref.Length > PathRingBuffersSize {
+		firstPart := model.NullTerminatedString(pr.pathRings[bufferOffset+readOffset : bufferOffset+PathRingBuffersSize])
+		remaining := ref.Length - (PathRingBuffersSize - readOffset)
+		secondPart := model.NullTerminatedString(pr.pathRings[bufferOffset : bufferOffset+remaining])
+		pathStr = firstPart + secondPart
+		readOffset = remaining
+	} else {
+		pathStr = model.NullTerminatedString(pr.pathRings[bufferOffset+readOffset : bufferOffset+readOffset+ref.Length])
+		readOffset += ref.Length
+	}
+
+	pr.watermarkBuffer.Reset()
+	if readOffset+WatermarkSize > PathRingBuffersSize {
+		if _, err := pr.watermarkBuffer.Write(pr.pathRings[bufferOffset+readOffset : bufferOffset+PathRingBuffersSize]); err != nil {
+			return "", err
+		}
+		remaining := WatermarkSize - (PathRingBuffersSize - readOffset)
+		if _, err := pr.watermarkBuffer.Write(pr.pathRings[bufferOffset : bufferOffset+remaining]); err != nil {
+			return "", err
+		}
+		readOffset = remaining
+	} else {
+		if _, err := pr.watermarkBuffer.Write(pr.pathRings[bufferOffset+readOffset : bufferOffset+readOffset+WatermarkSize]); err != nil {
+			return "", err
+		}
+		readOffset += WatermarkSize
+	}
+
+	if pr.watermarkBuffer.Len() != int(WatermarkSize) {
+		return "", fmt.Errorf("back watermark has invalid size: %d", pr.watermarkBuffer.Len())
+	}
+
+	backWatermark := model.ByteOrder.Uint64(pr.watermarkBuffer.Bytes())
+	if backWatermark != ref.Watermark {
+		return "", fmt.Errorf("back waterwark has invalid value")
 	}
 
 	if pathStr != "/" {
@@ -305,7 +360,7 @@ func (pr *PathRingsResolver) Start(m *manager.Manager) error {
 	if err != nil {
 		return err
 	}
-	pr.numCPU = uint64(numCPU)
+	pr.numCPU = uint32(numCPU)
 
 	pathRingsMap, err := managerhelper.Map(m, "pr_ringbufs")
 	if err != nil {

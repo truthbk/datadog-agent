@@ -85,9 +85,9 @@ int kprobe_handle_executable_path_cb(struct pt_regs *ctx) {
         return 0;
     }
 
-    syscall->exec.file.path_ref.hash = ringbuf_ctx->hash;
-    syscall->exec.file.path_ref.len = ringbuf_ctx->len;
     syscall->exec.file.path_ref.read_cursor = ringbuf_ctx->read_cursor;
+    syscall->exec.file.path_ref.watermark = ringbuf_ctx->watermark;
+    syscall->exec.file.path_ref.len = ringbuf_ctx->len;
     syscall->exec.file.path_ref.cpu = ringbuf_ctx->cpu;
 
     return 0;
@@ -659,9 +659,9 @@ int __attribute__((always_inline)) send_exec_event(ctx_t *ctx) {
                 },
                 .flags = syscall->exec.file.flags,
                 .path_ref = {
-                    .hash = syscall->exec.file.path_ref.hash,
-                    .len = syscall->exec.file.path_ref.len,
                     .read_cursor = syscall->exec.file.path_ref.read_cursor,
+                    .watermark = syscall->exec.file.path_ref.watermark,
+                    .len = syscall->exec.file.path_ref.len,
                     .cpu = syscall->exec.file.path_ref.cpu,
                 },
             },
