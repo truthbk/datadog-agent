@@ -55,7 +55,13 @@ type dependencies struct {
 	Config configComponent.Component
 }
 
-type logsAgentState struct {
+// Agent represents the data pipeline that collects, decodes,
+// processes and sends logs to the backend.  See the package README for
+// a description of its operation.
+type agent struct {
+	log    logComponent.Component
+	config pkgConfig.ConfigReader
+
 	sources                   *sources.LogSources
 	services                  *service.Services
 	endpoints                 *config.Endpoints
@@ -67,18 +73,6 @@ type logsAgentState struct {
 	launchers                 *launchers.Launchers
 	health                    *health.Handle
 	diagnosticMessageReceiver *diagnostic.BufferedMessageReceiver
-}
-
-// Agent represents the data pipeline that collects, decodes,
-// processes and sends logs to the backend.  See the package README for
-// a description of its operation.
-type agent struct {
-	log    logComponent.Component
-	config pkgConfig.ConfigReader
-
-	// It is possible for the logs agent to fail or not startup for some reason but not block the rest of the agent from running.
-	// state will be nil if startup fails.
-	state *logsAgentState
 
 	// started is true if the logs agent is running
 	started *atomic.Bool
@@ -107,7 +101,7 @@ func newLogsAgent(deps dependencies) util.Optional[Component] {
 
 func (a *agent) start(context.Context) error {
 	a.log.Info("Starting logs-agent...")
-	err := a.createAgentState()
+	err := a.setupAgent()
 
 	if err != nil {
 		a.log.Error("Could not start logs-agent: ", err)
@@ -120,11 +114,11 @@ func (a *agent) start(context.Context) error {
 	return nil
 }
 
-func (a *agent) createAgentState() error {
+func (a *agent) setupAgent() error {
 	// setup the sources and the services
-	sources := sources.NewLogSources()
-	services := service.NewServices()
-	tracker := tailers.NewTailerTracker()
+	a.sources = sources.NewLogSources()
+	a.services = service.NewServices()
+	a.tracker = tailers.NewTailerTracker()
 
 	// setup the server config
 	endpoints, err := buildEndpoints(a.config)
@@ -134,6 +128,9 @@ func (a *agent) createAgentState() error {
 		status.AddGlobalError(invalidEndpoints, message)
 		return errors.New(message)
 	}
+
+	a.endpoints = endpoints
+
 	status.CurrentTransport = status.TransportTCP
 	if endpoints.UseHTTP {
 		status.CurrentTransport = status.TransportHTTP
@@ -153,7 +150,7 @@ func (a *agent) createAgentState() error {
 		status.AddGlobalWarning(invalidProcessingRules, multiLineWarning)
 	}
 
-	a.state = a.NewAgentState(sources, services, tracker, processingRules, endpoints)
+	a.SetupPipeline(processingRules)
 	return nil
 }
 
@@ -166,15 +163,15 @@ func (a *agent) startPipeline() {
 	a.started.Store(true)
 
 	// setup the status
-	status.Init(a.started, a.state.endpoints, a.state.sources, a.state.tracker, metrics.LogsExpvars)
+	status.Init(a.started, a.endpoints, a.sources, a.tracker, metrics.LogsExpvars)
 
 	starter := startstop.NewStarter(
-		a.state.destinationsCtx,
-		a.state.auditor,
-		a.state.pipelineProvider,
-		a.state.diagnosticMessageReceiver,
-		a.state.launchers,
-		a.state.schedulers,
+		a.destinationsCtx,
+		a.auditor,
+		a.pipelineProvider,
+		a.diagnosticMessageReceiver,
+		a.launchers,
+		a.schedulers,
 	)
 	starter.Start()
 }
@@ -189,12 +186,12 @@ func (a *agent) stop(context.Context) error {
 	status.Clear()
 
 	stopper := startstop.NewSerialStopper(
-		a.state.schedulers,
-		a.state.launchers,
-		a.state.pipelineProvider,
-		a.state.auditor,
-		a.state.destinationsCtx,
-		a.state.diagnosticMessageReceiver,
+		a.schedulers,
+		a.launchers,
+		a.pipelineProvider,
+		a.auditor,
+		a.destinationsCtx,
+		a.diagnosticMessageReceiver,
 	)
 
 	// This will try to stop everything in order, including the potentially blocking
@@ -214,7 +211,7 @@ func (a *agent) stop(context.Context) error {
 		a.log.Info("Timed out when stopping logs-agent, forcing it to stop now")
 		// We force all destinations to read/flush all the messages they get without
 		// trying to write to the network.
-		a.state.destinationsCtx.Stop()
+		a.destinationsCtx.Stop()
 		// Wait again for the stopper to complete.
 		// In some situation, the stopper unfortunately never succeed to complete,
 		// we've already reached the grace period, give it some more seconds and
@@ -241,11 +238,11 @@ func (a *agent) AddScheduler(scheduler schedulers.Scheduler) {
 		a.log.Info("Can't add a scheduler because the logs agent is not running")
 		return
 	}
-	a.state.schedulers.AddScheduler(scheduler)
+	a.schedulers.AddScheduler(scheduler)
 }
 
 func (a *agent) IsRunning() bool {
-	return a.state != nil && a.started.Load()
+	return a != nil && a.started.Load()
 }
 
 func (a *agent) GetMessageReceiver() *diagnostic.BufferedMessageReceiver {
@@ -253,7 +250,7 @@ func (a *agent) GetMessageReceiver() *diagnostic.BufferedMessageReceiver {
 		a.log.Info("Can't get message receiver because the logs agent is not running")
 		return nil
 	}
-	return a.state.diagnosticMessageReceiver
+	return a.diagnosticMessageReceiver
 }
 
 func (a *agent) GetPipelineProvider() pipeline.Provider {
@@ -261,5 +258,5 @@ func (a *agent) GetPipelineProvider() pipeline.Provider {
 		a.log.Info("Can't get message receiver because the logs agent is not running")
 		return nil
 	}
-	return a.state.pipelineProvider
+	return a.pipelineProvider
 }

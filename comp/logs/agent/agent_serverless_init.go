@@ -17,9 +17,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/launchers/channel"
 	"github.com/DataDog/datadog-agent/pkg/logs/pipeline"
 	"github.com/DataDog/datadog-agent/pkg/logs/schedulers"
-	"github.com/DataDog/datadog-agent/pkg/logs/service"
-	"github.com/DataDog/datadog-agent/pkg/logs/sources"
-	"github.com/DataDog/datadog-agent/pkg/logs/tailers"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 )
 
@@ -30,13 +27,9 @@ import (
 // NewAgent returns a Logs Agent instance to run in a serverless environment.
 // The Serverless Logs Agent has only one input being the channel to receive the logs to process.
 // It is using a NullAuditor because we've nothing to do after having sent the logs to the intake.
-func (a *agent) NewAgentState(
-	sources *sources.LogSources,
-	services *service.Services,
-	tracker *tailers.TailerTracker,
+func (a *agent) SetupPipeline(
 	processingRules []*config.ProcessingRule,
-	endpoints *config.Endpoints,
-) *logsAgentState {
+) {
 	health := health.RegisterLiveness("logs-agent")
 
 	diagnosticMessageReceiver := diagnostic.NewBufferedMessageReceiver(nil)
@@ -52,17 +45,13 @@ func (a *agent) NewAgentState(
 	lnchrs := launchers.NewLaunchers(sources, pipelineProvider, auditor, tracker)
 	lnchrs.AddLauncher(channel.NewLauncher())
 
-	return &logsAgentState{
-		sources:                   sources,
-		services:                  services,
-		schedulers:                schedulers.NewSchedulers(sources, services),
-		auditor:                   auditor,
-		destinationsCtx:           destinationsCtx,
-		pipelineProvider:          pipelineProvider,
-		launchers:                 lnchrs,
-		health:                    health,
-		diagnosticMessageReceiver: diagnosticMessageReceiver,
-	}
+	a.schedulers = schedulers.NewSchedulers(a.sources, a.services)
+	a.auditor = auditor
+	a.destinationsCtx = destinationsCtx
+	a.pipelineProvider = pipelineProvider
+	a.launchers = lnchrs
+	a.health = health
+	a.diagnosticMessageReceiver = diagnosticMessageReceiver
 }
 
 // buildEndpoints builds endpoints for the logs agent

@@ -24,20 +24,13 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/launchers/windowsevent"
 	"github.com/DataDog/datadog-agent/pkg/logs/pipeline"
 	"github.com/DataDog/datadog-agent/pkg/logs/schedulers"
-	"github.com/DataDog/datadog-agent/pkg/logs/service"
-	"github.com/DataDog/datadog-agent/pkg/logs/sources"
-	"github.com/DataDog/datadog-agent/pkg/logs/tailers"
 	"github.com/DataDog/datadog-agent/pkg/status/health"
 )
 
 // NewAgent returns a new Logs Agent
-func (a *agent) NewAgentState(
-	sources *sources.LogSources,
-	services *service.Services,
-	tracker *tailers.TailerTracker,
+func (a *agent) SetupPipeline(
 	processingRules []*config.ProcessingRule,
-	endpoints *config.Endpoints,
-) *logsAgentState {
+) {
 	health := health.RegisterLiveness("logs-agent")
 
 	// setup the auditor
@@ -49,10 +42,10 @@ func (a *agent) NewAgentState(
 	diagnosticMessageReceiver := diagnostic.NewBufferedMessageReceiver(nil)
 
 	// setup the pipeline provider that provides pairs of processor and sender
-	pipelineProvider := pipeline.NewProvider(config.NumberOfPipelines, auditor, diagnosticMessageReceiver, processingRules, endpoints, destinationsCtx)
+	pipelineProvider := pipeline.NewProvider(config.NumberOfPipelines, auditor, diagnosticMessageReceiver, processingRules, a.endpoints, destinationsCtx)
 
 	// setup the launchers
-	lnchrs := launchers.NewLaunchers(sources, pipelineProvider, auditor, tracker)
+	lnchrs := launchers.NewLaunchers(a.sources, pipelineProvider, auditor, a.tracker)
 	lnchrs.AddLauncher(filelauncher.NewLauncher(
 		a.config.GetInt("logs_config.open_files_limit"),
 		filelauncher.DefaultSleepDuration,
@@ -62,21 +55,16 @@ func (a *agent) NewAgentState(
 	lnchrs.AddLauncher(listener.NewLauncher(a.config.GetInt("logs_config.frame_size")))
 	lnchrs.AddLauncher(journald.NewLauncher())
 	lnchrs.AddLauncher(windowsevent.NewLauncher())
-	lnchrs.AddLauncher(container.NewLauncher(sources))
+	lnchrs.AddLauncher(container.NewLauncher(a.sources))
 
-	return &logsAgentState{
-		sources:                   sources,
-		services:                  services,
-		endpoints:                 endpoints,
-		tracker:                   tracker,
-		schedulers:                schedulers.NewSchedulers(sources, services),
-		auditor:                   auditor,
-		destinationsCtx:           destinationsCtx,
-		pipelineProvider:          pipelineProvider,
-		launchers:                 lnchrs,
-		health:                    health,
-		diagnosticMessageReceiver: diagnosticMessageReceiver,
-	}
+	a.schedulers = schedulers.NewSchedulers(a.sources, a.services)
+	a.auditor = auditor
+	a.destinationsCtx = destinationsCtx
+	a.pipelineProvider = pipelineProvider
+	a.launchers = lnchrs
+	a.health = health
+	a.diagnosticMessageReceiver = diagnosticMessageReceiver
+
 }
 
 // buildEndpoints builds endpoints for the logs agent

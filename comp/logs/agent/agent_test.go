@@ -106,7 +106,7 @@ func createAgent(suite *AgentTestSuite, endpoints *config.Endpoints) (*agent, *s
 		started: atomic.NewBool(false),
 	}
 
-	agent.state = agent.NewAgentState(sources, services, tailers.NewTailerTracker(), nil, endpoints)
+	agent.state = agent.SetupPipeline(sources, services, tailers.NewTailerTracker(), nil, endpoints)
 
 	return agent, sources, services
 }

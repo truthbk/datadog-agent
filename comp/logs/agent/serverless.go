@@ -19,7 +19,7 @@ func NewServerlessLogsAgent() ServerlessLogsAgent {
 }
 
 func (a *agent) Start() error {
-	err := a.createAgentState()
+	err := a.setupAgent()
 	if err != nil {
 		a.log.Error("Could not start logs-agent: ", err)
 		return err
@@ -43,6 +43,6 @@ func (a *agent) Flush(ctx context.Context) {
 	}
 
 	a.log.Info("Triggering a flush in the logs-agent")
-	a.state.pipelineProvider.Flush(ctx)
+	a.pipelineProvider.Flush(ctx)
 	a.log.Debug("Flush in the logs-agent done.")
 }
