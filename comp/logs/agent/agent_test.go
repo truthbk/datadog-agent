@@ -25,6 +25,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/client/mock"
 	"github.com/DataDog/datadog-agent/pkg/logs/client/tcp"
 	"github.com/DataDog/datadog-agent/pkg/logs/sources"
+	"github.com/DataDog/datadog-agent/pkg/logs/tailers"
 
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/log"
@@ -103,9 +104,14 @@ func createAgent(suite *AgentTestSuite, endpoints *config.Endpoints) (*agent, *s
 		log:     deps.Log,
 		config:  deps.Config,
 		started: atomic.NewBool(false),
+
+		sources:   sources,
+		services:  services,
+		tracker:   tailers.NewTailerTracker(),
+		endpoints: endpoints,
 	}
 
-	agent.SetupPipeline(nil)
+	agent.setupAgent()
 
 	return agent, sources, services
 }

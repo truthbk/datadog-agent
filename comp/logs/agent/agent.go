@@ -84,7 +84,15 @@ func newLogsAgent(deps dependencies) util.Optional[Component] {
 			deps.Log.Warn(`"log_enabled" is deprecated, use "logs_enabled" instead`)
 		}
 
-		logsAgent := &agent{log: deps.Log, config: deps.Config, started: atomic.NewBool(false)}
+		logsAgent := &agent{
+			log:     deps.Log,
+			config:  deps.Config,
+			started: atomic.NewBool(false),
+
+			sources:  sources.NewLogSources(),
+			services: service.NewServices(),
+			tracker:  tailers.NewTailerTracker(),
+		}
 		deps.Lc.Append(fx.Hook{
 			OnStart: logsAgent.start,
 			OnStop:  logsAgent.stop,
@@ -99,7 +107,19 @@ func newLogsAgent(deps dependencies) util.Optional[Component] {
 
 func (a *agent) start(context.Context) error {
 	a.log.Info("Starting logs-agent...")
-	err := a.setupAgent()
+
+	// setup the server config
+	endpoints, err := buildEndpoints(a.config)
+
+	if err != nil {
+		message := fmt.Sprintf("Invalid endpoints: %v", err)
+		status.AddGlobalError(invalidEndpoints, message)
+		return errors.New(message)
+	}
+
+	a.endpoints = endpoints
+
+	err = a.setupAgent()
 
 	if err != nil {
 		a.log.Error("Could not start logs-agent: ", err)
@@ -113,24 +133,9 @@ func (a *agent) start(context.Context) error {
 }
 
 func (a *agent) setupAgent() error {
-	// setup the sources and the services
-	a.sources = sources.NewLogSources()
-	a.services = service.NewServices()
-	a.tracker = tailers.NewTailerTracker()
-
-	// setup the server config
-	endpoints, err := buildEndpoints(a.config)
-
-	if err != nil {
-		message := fmt.Sprintf("Invalid endpoints: %v", err)
-		status.AddGlobalError(invalidEndpoints, message)
-		return errors.New(message)
-	}
-
-	a.endpoints = endpoints
 
 	status.CurrentTransport = status.TransportTCP
-	if endpoints.UseHTTP {
+	if a.endpoints.UseHTTP {
 		status.CurrentTransport = status.TransportHTTP
 	}
 	inventories.SetAgentMetadata(inventories.AgentLogsTransport, status.CurrentTransport)
