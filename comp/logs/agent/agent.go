@@ -79,7 +79,6 @@ type agent struct {
 }
 
 func newLogsAgent(deps dependencies) util.Optional[Component] {
-
 	if deps.Config.GetBool("logs_enabled") || deps.Config.GetBool("log_enabled") {
 		if deps.Config.GetBool("log_enabled") {
 			deps.Log.Warn(`"log_enabled" is deprecated, use "logs_enabled" instead`)
@@ -96,7 +95,6 @@ func newLogsAgent(deps dependencies) util.Optional[Component] {
 
 	deps.Log.Info("logs-agent disabled")
 	return util.NewNoneOptional[Component]()
-
 }
 
 func (a *agent) start(context.Context) error {
@@ -157,9 +155,6 @@ func (a *agent) setupAgent() error {
 // Start starts all the elements of the data pipeline
 // in the right order to prevent data loss
 func (a *agent) startPipeline() {
-	if a.IsRunning() {
-		panic("logs agent cannot be started more than once")
-	}
 	a.started.Store(true)
 
 	// setup the status
@@ -177,10 +172,6 @@ func (a *agent) startPipeline() {
 }
 
 func (a *agent) stop(context.Context) error {
-	if !a.IsRunning() {
-		a.log.Info("Can't stop the logs agent because it is not running")
-		return nil
-	}
 	a.log.Info("Stopping logs-agent")
 
 	status.Clear()
@@ -234,29 +225,13 @@ func (a *agent) stop(context.Context) error {
 
 // AddScheduler adds the given scheduler to the agent.
 func (a *agent) AddScheduler(scheduler schedulers.Scheduler) {
-	if !a.IsRunning() {
-		a.log.Info("Can't add a scheduler because the logs agent is not running")
-		return
-	}
 	a.schedulers.AddScheduler(scheduler)
 }
 
-func (a *agent) IsRunning() bool {
-	return a != nil && a.started.Load()
-}
-
 func (a *agent) GetMessageReceiver() *diagnostic.BufferedMessageReceiver {
-	if !a.IsRunning() {
-		a.log.Info("Can't get message receiver because the logs agent is not running")
-		return nil
-	}
 	return a.diagnosticMessageReceiver
 }
 
 func (a *agent) GetPipelineProvider() pipeline.Provider {
-	if !a.IsRunning() {
-		a.log.Info("Can't get message receiver because the logs agent is not running")
-		return nil
-	}
 	return a.pipelineProvider
 }

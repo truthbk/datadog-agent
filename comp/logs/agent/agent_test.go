@@ -31,7 +31,6 @@ import (
 	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
 	"github.com/DataDog/datadog-agent/pkg/logs/metrics"
 	"github.com/DataDog/datadog-agent/pkg/logs/service"
-	"github.com/DataDog/datadog-agent/pkg/logs/tailers"
 
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/testutil"
@@ -106,7 +105,7 @@ func createAgent(suite *AgentTestSuite, endpoints *config.Endpoints) (*agent, *s
 		started: atomic.NewBool(false),
 	}
 
-	agent.state = agent.SetupPipeline(sources, services, tailers.NewTailerTracker(), nil, endpoints)
+	agent.SetupPipeline(nil)
 
 	return agent, sources, services
 }
@@ -191,7 +190,7 @@ func (suite *AgentTestSuite) TestGetPipelineProvider() {
 	endpoint := tcp.AddrToEndPoint(l.Addr())
 	endpoints := config.NewEndpoints(endpoint, nil, true, false)
 
-	agent, _, _ := createAgent(endpoints)
+	agent, _, _ := createAgent(suite, endpoints)
 	agent.Start()
 
 	assert.NotNil(suite.T(), agent.GetPipelineProvider())

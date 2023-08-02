@@ -35,18 +35,17 @@ func (a *agent) SetupPipeline(
 	diagnosticMessageReceiver := diagnostic.NewBufferedMessageReceiver(nil)
 
 	// setup the a null auditor, not tracking data in any registry
-	auditor := auditor.NewNullAuditor()
+	a.auditor = auditor.NewNullAuditor()
 	destinationsCtx := client.NewDestinationsContext()
 
 	// setup the pipeline provider that provides pairs of processor and sender
-	pipelineProvider := pipeline.NewServerlessProvider(config.NumberOfPipelines, auditor, processingRules, endpoints, destinationsCtx)
+	pipelineProvider := pipeline.NewServerlessProvider(config.NumberOfPipelines, a.auditor, processingRules, a.endpoints, destinationsCtx)
 
 	// setup the sole launcher for this agent
-	lnchrs := launchers.NewLaunchers(sources, pipelineProvider, auditor, tracker)
+	lnchrs := launchers.NewLaunchers(a.sources, pipelineProvider, a.auditor, a.tracker)
 	lnchrs.AddLauncher(channel.NewLauncher())
 
 	a.schedulers = schedulers.NewSchedulers(a.sources, a.services)
-	a.auditor = auditor
 	a.destinationsCtx = destinationsCtx
 	a.pipelineProvider = pipelineProvider
 	a.launchers = lnchrs

@@ -37,11 +37,6 @@ func (a *agent) Stop() {
 // Flush flushes synchronously the running instance of the Logs Agent.
 // Use a WithTimeout context in order to have a flush that can be cancelled.
 func (a *agent) Flush(ctx context.Context) {
-	if !a.IsRunning() {
-		a.log.Info("Can't flush the logs agent because it is not running")
-		return
-	}
-
 	a.log.Info("Triggering a flush in the logs-agent")
 	a.pipelineProvider.Flush(ctx)
 	a.log.Debug("Flush in the logs-agent done.")

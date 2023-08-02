@@ -24,9 +24,6 @@ type Component interface {
 	// AddScheduler adds an AD scheduler to the logs agent
 	AddScheduler(scheduler schedulers.Scheduler)
 
-	// IsRunning returns true if the logs agent is running
-	IsRunning() bool
-
 	// GetMessageReceiver gets the diagnostic message receiver
 	GetMessageReceiver() *diagnostic.BufferedMessageReceiver
 
