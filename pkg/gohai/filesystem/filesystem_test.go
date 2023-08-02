@@ -21,9 +21,13 @@ func TestGetTimeout(t *testing.T) {
 	require.ErrorIs(t, err, ErrTimeoutExceeded)
 }
 
-func TestCollect(t *testing.T) {
-	marshallable, err := new(FileSystem).Collect()
+func TestAsJSON(t *testing.T) {
+	fsInfo, err := CollectInfo()
 	require.NoError(t, err)
+
+	marshallable, warnings, err := fsInfo.AsJSON()
+	require.NoError(t, err)
+	require.Empty(t, warnings)
 
 	marshalled, err := json.Marshal(marshallable)
 	require.NoError(t, err)
@@ -64,8 +68,8 @@ func TestCollect(t *testing.T) {
 	}
 }
 
-func TestGet(t *testing.T) {
-	mounts, err := Get()
+func TestCollectInfo(t *testing.T) {
+	mounts, err := CollectInfo()
 	require.NoError(t, err)
 
 	require.NotEmpty(t, mounts)

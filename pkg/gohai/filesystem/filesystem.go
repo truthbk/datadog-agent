@@ -8,8 +8,9 @@ package filesystem
 
 import (
 	"errors"
-	"strconv"
 	"time"
+
+	"github.com/DataDog/datadog-agent/pkg/gohai/utils"
 )
 
 // FileSystem implements the Collector interface, providing information about mounted filesystems.
@@ -31,36 +32,15 @@ var (
 	ErrTimeoutExceeded = errors.New("timeout exceeded")
 )
 
-const name = "filesystem"
+type MountInfos []MountInfo
 
-// Name implements the Collector interface.
-func (fs *FileSystem) Name() string {
-	return name
-}
-
-// Collect implements the Collector interface.
-func (fs *FileSystem) Collect() (interface{}, error) {
-	mounts, err := Get()
-	if err != nil {
-		return nil, err
-	}
-
-	results := make([]interface{}, len(mounts))
-	for idx, mount := range mounts {
-		tmpMount := mount
-		results[idx] = map[string]string{
-			"name":       tmpMount.Name,
-			"kb_size":    strconv.FormatUint(tmpMount.SizeKB, 10),
-			"mounted_on": tmpMount.MountedOn,
-		}
-	}
-
-	return results, nil
-}
-
-// Get returns the list of mounted filesystems
-func Get() ([]MountInfo, error) {
+// CollectInfo returns the list of mounted filesystems
+func CollectInfo() (MountInfos, error) {
 	return getWithTimeout(timeout)
+}
+
+func (mountInfos *MountInfos) AsJSON() (interface{}, []string, error) {
+	return utils.AsJSON(mountInfos, false)
 }
 
 func getWithTimeout(timeout time.Duration) ([]MountInfo, error) {

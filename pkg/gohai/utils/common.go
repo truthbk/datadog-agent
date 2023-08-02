@@ -12,7 +12,7 @@ import (
 )
 
 var ErrNoFieldCollected = errors.New("no field was collected")
-var ErrArgNotStruct = errors.New("argument is not a struct")
+var ErrUnexpectedType = errors.New("argument is not a supported type")
 var ErrNotCollectable = fmt.Errorf("cannot be collected on %s %s", runtime.GOOS, runtime.GOARCH)
 var ErrNotExported = errors.New("field not exported by the struct")
 var ErrCannotRender = errors.New("field inner type cannot be rendered")
@@ -54,7 +54,25 @@ func getValueMethod(fieldTy reflect.StructField) (reflect.Method, bool) {
 	return valueMethod, true
 }
 
-// AsJSON takes a structure and returns a marshal-able object representing the fields of the struct,
+// AsJSON takes any type and returns a marshal-able object representing that type.
+// It works on structs, slices and arrays.
+func AsJSON[T any](val *T, useDefault bool) (interface{}, []string, error) {
+	reflVal := reflect.ValueOf(val).Elem()
+
+	switch reflVal.Kind() {
+	case reflect.Array:
+		return sliceAsJSON(val, useDefault)
+	case reflect.Slice:
+		return sliceAsJSON(val, useDefault)
+	case reflect.Struct:
+		return structAsJSON(val, useDefault)
+	default:
+		return nil, nil, ErrUnexpectedType
+	}
+
+}
+
+// structAsJSON takes a structure and returns a marshal-able object representing the fields of the struct,
 // the lists of errors for fields for which the collection failed, and an error if it failed.
 //
 // If useDefault is true, fields which failed to be collected will be included in the marshal-able object
@@ -67,14 +85,9 @@ func getValueMethod(fieldTy reflect.StructField) (reflect.Method, bool) {
 // collected on the platform are ignored.
 //
 // If the error is non-nil, the first two parameters are unspecified.
-func AsJSON[T any](info *T, useDefault bool) (interface{}, []string, error) {
+func structAsJSON[T any](info *T, useDefault bool) (interface{}, []string, error) {
 	reflVal := reflect.ValueOf(info).Elem()
 	reflType := reflect.TypeOf(info).Elem()
-
-	// info has to be a struct
-	if reflVal.Kind() != reflect.Struct {
-		return nil, nil, ErrArgNotStruct
-	}
 
 	values := make(map[string]interface{})
 	warns := []string{}
@@ -138,4 +151,15 @@ func AsJSON[T any](info *T, useDefault bool) (interface{}, []string, error) {
 	}
 
 	return values, warns, nil
+}
+
+func sliceAsJSON[T any](val *T, useDefault bool) (interface{}, []string, error) {
+	reflVal := reflect.ValueOf(val).Elem()
+
+	ret := make([]interface{}, reflVal.Len())
+	for i := 0; i < reflVal.Len(); i++ {
+
+	}
+
+	return nil, nil, nil
 }
