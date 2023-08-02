@@ -153,7 +153,7 @@ func isExitMissingError(err error) bool {
 func emitErrorMetric(errorStr string) {
 	err := exec.Command("datadog-ci", "metric", "--level", "job", "--metric", fmt.Sprintf("\"setup_env_error:%s\"", errorStr)).Run()
 	if err != nil {
-		log.Println("failed to emit metrics:", emitErrorErr)
+		log.Println("failed to emit metrics:", err)
 	}
 }
 
