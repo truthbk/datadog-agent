@@ -10,24 +10,27 @@ import (
 
 	logComponent "github.com/DataDog/datadog-agent/comp/core/log"
 	pkgConfig "github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/logs/service"
+	"github.com/DataDog/datadog-agent/pkg/logs/sources"
+	"github.com/DataDog/datadog-agent/pkg/logs/tailers"
 	"go.uber.org/atomic"
 )
 
 func NewServerlessLogsAgent() ServerlessLogsAgent {
-	logsAgent := &agent{log: logComponent.NewTemporaryLoggerWithoutInit(), config: pkgConfig.Datadog, started: atomic.NewBool(false)}
+	logsAgent := &agent{
+		log:     logComponent.NewTemporaryLoggerWithoutInit(),
+		config:  pkgConfig.Datadog,
+		started: atomic.NewBool(false),
+
+		sources:  sources.NewLogSources(),
+		services: service.NewServices(),
+		tracker:  tailers.NewTailerTracker(),
+	}
 	return logsAgent
 }
 
 func (a *agent) Start() error {
-	err := a.setupAgent()
-	if err != nil {
-		a.log.Error("Could not start logs-agent: ", err)
-		return err
-	}
-
-	a.startPipeline()
-	a.log.Info("logs-agent started")
-	return nil
+	return a.start(context.TODO())
 }
 
 func (a *agent) Stop() {
