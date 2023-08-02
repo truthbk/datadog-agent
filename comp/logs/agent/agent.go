@@ -84,25 +84,28 @@ type agent struct {
 	started *atomic.Bool
 }
 
-func newLogsAgent(deps dependencies) Component {
-	logsAgent := &agent{log: deps.Log, config: deps.Config, started: atomic.NewBool(false)}
-	deps.Lc.Append(fx.Hook{
-		OnStart: logsAgent.start,
-		OnStop:  logsAgent.stop,
-	})
-	return logsAgent
+func newLogsAgent(deps dependencies) util.Optional[Component] {
+
+	if deps.Config.GetBool("logs_enabled") || deps.Config.GetBool("log_enabled") {
+		if deps.Config.GetBool("log_enabled") {
+			deps.Log.Warn(`"log_enabled" is deprecated, use "logs_enabled" instead`)
+		}
+
+		logsAgent := &agent{log: deps.Log, config: deps.Config, started: atomic.NewBool(false)}
+		deps.Lc.Append(fx.Hook{
+			OnStart: logsAgent.start,
+			OnStop:  logsAgent.stop,
+		})
+
+		return util.NewOptional[Component](logsAgent)
+	}
+
+	deps.Log.Info("logs-agent disabled")
+	return util.NewNoneOptional[Component]()
+
 }
 
 func (a *agent) start(context.Context) error {
-	if !a.config.GetBool("logs_enabled") && !a.config.GetBool("log_enabled") {
-		a.log.Info("logs-agent disabled")
-		return nil
-	}
-
-	if a.config.GetBool("log_enabled") {
-		a.log.Warn(`"log_enabled" is deprecated, use "logs_enabled" instead`)
-	}
-
 	a.log.Info("Starting logs-agent...")
 	err := a.createAgentState()
 
@@ -251,4 +254,12 @@ func (a *agent) GetMessageReceiver() *diagnostic.BufferedMessageReceiver {
 		return nil
 	}
 	return a.state.diagnosticMessageReceiver
+}
+
+func (a *agent) GetPipelineProvider() pipeline.Provider {
+	if !a.IsRunning() {
+		a.log.Info("Can't get message receiver because the logs agent is not running")
+		return nil
+	}
+	return a.state.pipelineProvider
 }

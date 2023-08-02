@@ -49,6 +49,12 @@ type ConfigReader interface {
 
 	IsSet(key string) bool
 
+	// UnmarshalKey Unmarshal a configuration key into a struct
+	UnmarshalKey(key string, rawVal interface{}, opts ...viper.DecoderConfigOption) error
+
+	Unmarshal(rawVal interface{}) error
+	UnmarshalExact(rawVal interface{}) error
+
 	// IsKnown returns whether this key is known
 	IsKnown(key string) bool
 
@@ -65,10 +71,6 @@ type ConfigReader interface {
 	IsSectionSet(section string) bool
 
 	Warnings() *Warnings
-
-	UnmarshalKey(key string, rawVal interface{}, opts ...viper.DecoderConfigOption) error
-	Unmarshal(rawVal interface{}) error
-	UnmarshalExact(rawVal interface{}) error
 }
 
 type ConfigWriter interface {

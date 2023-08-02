@@ -49,6 +49,11 @@ whitelist_file "embedded/lib/python3.9/site-packages/pymqi"
 
 source git: 'https://github.com/DataDog/integrations-core.git'
 
+gcc_version = ENV['GCC_VERSION']
+if gcc_version.nil? || gcc_version.empty?
+  gcc_version = '10.4.0'
+end
+
 integrations_core_version = ENV['INTEGRATIONS_CORE_VERSION']
 if integrations_core_version.nil? || integrations_core_version.empty?
   integrations_core_version = 'master'
@@ -94,11 +99,24 @@ if arm?
   blacklist_packages.push(/^pymqi==/)
 end
 
+if redhat? && !arm?
+  # RPM builds are done on CentOS 6 which is based on glibc v2.12 however newer libraries require v2.17, see:
+  # https://blog.rust-lang.org/2022/08/01/Increasing-glibc-kernel-requirements.html
+  dependency 'pydantic-core-py3'
+  blacklist_packages.push(/^pydantic-core==/)
+end
+
 # _64_bit checks the kernel arch.  On windows, the builder is 64 bit
 # even when doing a 32 bit build.  Do a specific check for the 32 bit
 # build
 if arm? || !_64_bit? || (windows? && windows_arch_i386?)
   blacklist_packages.push(/^orjson==/)
+end
+
+if linux?
+  # We need to use cython<3.0.0 to build oracledb
+  dependency 'oracledb-py3'
+  blacklist_packages.push(/^oracledb==/)
 end
 
 final_constraints_file = 'final_constraints-py3.txt'
@@ -180,6 +198,12 @@ build do
     # See: https://github.com/python/cpython/blob/v3.8.8/Lib/distutils/sysconfig.py#L227
     if linux? || windows?
       nix_build_env["CFLAGS"] += " -std=c99"
+    end
+
+    # We only have gcc 10.4.0 on linux for now
+    if linux?
+      nix_build_env["CC"] = "/opt/gcc-#{gcc_version}/bin/gcc"
+      nix_build_env["CXX"] = "/opt/gcc-#{gcc_version}/bin/g++"
     end
 
     #
