@@ -116,7 +116,7 @@ func GetEnv(key, fallback string) string {
 	return fallback
 }
 
-func credentials() (string, error) {
+func askPass() (string, error) {
 	var fd int
 	if terminal.IsTerminal(syscall.Stdin) {
 		fd = syscall.Stdin
@@ -147,31 +147,12 @@ func getAvailabilityZone(env string, azIndx int) string {
 }
 
 func emitErrorMetric(errorStr string) error {
-	key, err := datadogAgentAPIKey()
+	err := exec.Command("datadog-ci", "metric", "--level", "job", "--metric", fmt.Sprintf("\"setup_env_error:%s\"", errorStr)).Run()
 	if err != nil {
-		return fmt.Errorf("failed to emit job level metric: %w", err)
-	}
-
-	cmd := exec.Command("datadog-ci", "metric", "--level", "job", "--metric", fmt.Sprintf("\"setup_env_error:%s\"", errorStr))
-	cmd.Env = append(
-		os.Environ(),
-		fmt.Sprintf("DATADOG_API_KEY=%s", key),
-	)
-	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to emit job level metric: %w", err)
 	}
 
 	return nil
-}
-
-func datadogAgentAPIKey() (string, error) {
-	awsManager := credentials.NewManager()
-	key, err := awsManager.GetCredential(credentials.AWSSSMStore, "ci.datadog-agent.datadog_api_key_org2")
-	if err != nil {
-		return "", fmt.Errorf("failed to get DATADOG_API_KEY from ssm: %w", err)
-	}
-
-	return key, nil
 }
 
 func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *SystemProbeEnvOpts) (*TestEnv, error) {
@@ -186,7 +167,7 @@ func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *SystemProbe
 	stackManager := infra.GetStackManager()
 
 	if opts.Local {
-		sudoPassword, err = credentials()
+		sudoPassword, err = askPass()
 		if err != nil {
 			return nil, fmt.Errorf("Unable to get password: %w", err)
 		}
@@ -245,10 +226,10 @@ func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *SystemProbe
 		}, opts.FailOnMissing)
 		if err != nil {
 			switch err.(type) {
-			case ssh.ExitMissingError:
+			case *ssh.ExitMissingError:
 				emitErrorMetric(RemoteCmdExitWithoutSignal)
 			case net.Error:
-				if err.Timeout() {
+				if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 					emitErrorMetric(NetworkTimeoutError)
 				}
 			default:
