@@ -8,13 +8,13 @@
 package sbom
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/DataDog/datadog-agent/comp/remote-config/rcclient"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
@@ -160,41 +160,45 @@ func (c *Check) Configure(integrationConfigDigest uint64, config, initConfig int
 
 	c.rcClient.Subscribe("DEBUG", func(configs map[string]state.RawConfig) {
 		for _, cfg := range configs {
-			task, err := rcclient.ParseConfigAgentTask(cfg.Config, cfg.Metadata)
-			if err != nil {
+			var data map[string]string
+			if err := json.Unmarshal(cfg.Config, &data); err != nil {
 				log.Warnf("Failed to parse agent task: %w", err)
 			}
 
-			switch task.Config.TaskType {
+			taskType := data["type"]
+
+			switch taskType {
 			case "sbom-ebs-scan":
-				target, found := task.Config.TaskArgs["id"]
+				target, found := data["id"]
 				if !found {
 					log.Errorf("No target in SBOM scan request")
 				}
 
-				region, found := task.Config.TaskArgs["region"]
+				region, found := data["region"]
 				if !found {
 					log.Errorf("No region of volume in SBOM scan request")
 				}
 
-				hostname, found := task.Config.TaskArgs["hostname"]
+				hostname, found := data["hostname"]
 				if !found {
 					log.Errorf("No hostname specified in SBOM scan request")
 				}
 
-				c.processor.processEBS(target, region, hostname)
+				c.processor.processEBS("ebs:"+target, region, hostname)
 			case "sbom-lambda-scan":
-				region, found := task.Config.TaskArgs["region"]
+				region, found := data["region"]
 				if !found {
 					log.Errorf("No region of Lambda in SBOM scan request")
 				}
 
-				functionName, found := task.Config.TaskArgs["function_name"]
+				functionName, found := data["function_name"]
 				if !found {
 					log.Errorf("No function name specified in SBOM scan request")
 				}
 
 				c.processor.processLambda(functionName, region)
+			default:
+				log.Errorf("Unsupported scan request type '%s'", taskType)
 			}
 		}
 	})
