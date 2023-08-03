@@ -153,12 +153,12 @@ func (c *Check) Configure(integrationConfigDigest uint64, config, initConfig int
 		return fmt.Errorf("failed to parse agent version: %v", err)
 	}
 
-	c.rcClient, err = remote.NewUnverifiedGRPCClient("core-agent", agentVersion.String(), []data.Product{data.ProductAgentTask}, 3*time.Second)
+	c.rcClient, err = remote.NewUnverifiedGRPCClient("core-agent", agentVersion.String(), []data.Product{"DEBUG"}, 3*time.Second)
 	if err != nil {
 		return err
 	}
 
-	c.rcClient.Subscribe(state.ProductAgentTask, func(configs map[string]state.RawConfig) {
+	c.rcClient.Subscribe("DEBUG", func(configs map[string]state.RawConfig) {
 		for _, cfg := range configs {
 			task, err := rcclient.ParseConfigAgentTask(cfg.Config, cfg.Metadata)
 			if err != nil {
