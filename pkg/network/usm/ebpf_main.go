@@ -140,6 +140,12 @@ func newEBPFProgram(c *config.Config, connectionProtocolMap, sockFD *ebpf.Map, b
 			},
 			{
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					EBPFFuncName: "tracepoint__net__netif_rx",
+					UID:          probeUID,
+				},
+			},
+			{
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
 					EBPFFuncName: protocolDispatcherSocketFilterFunction,
 					UID:          probeUID,
 				},
@@ -375,6 +381,12 @@ func (e *ebpfProgram) init(buf bytecode.AssetReader, options manager.Options) er
 		&manager.ProbeSelector{
 			ProbeIdentificationPair: manager.ProbeIdentificationPair{
 				EBPFFuncName: "tracepoint__net__netif_receive_skb",
+				UID:          probeUID,
+			},
+		},
+		&manager.ProbeSelector{
+			ProbeIdentificationPair: manager.ProbeIdentificationPair{
+				EBPFFuncName: "tracepoint__net__netif_rx",
 				UID:          probeUID,
 			},
 		},
