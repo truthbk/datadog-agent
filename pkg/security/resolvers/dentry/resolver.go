@@ -21,8 +21,6 @@ import (
 	"go.uber.org/atomic"
 	"golang.org/x/sys/unix"
 
-	"strings"
-
 	manager "github.com/DataDog/ebpf-manager"
 
 	"github.com/DataDog/datadog-agent/pkg/security/ebpf"
@@ -222,28 +220,6 @@ func (dr *Resolver) newDentryCacheEntry(parent model.DentryKey) *DentryCacheEntr
 	return &DentryCacheEntry{
 		Parent: parent,
 	}
-}
-
-func ComputeFilenameFromParts(parts []string) string {
-	if len(parts) == 0 {
-		return "/"
-	}
-
-	var builder strings.Builder
-
-	// pre-allocation
-	for _, part := range parts {
-		builder.Grow(len(part) + 1)
-	}
-
-	// reverse iteration
-	for i := 0; i < len(parts); i++ {
-		j := len(parts) - 1 - i
-
-		builder.WriteRune('/')
-		builder.WriteString(parts[j])
-	}
-	return builder.String()
 }
 
 // preventSegmentMajorPageFault prepares the userspace memory area where the dentry resolver response is written. Used in kernel versions where BPF_F_MMAPABLE array maps are not yet available.
