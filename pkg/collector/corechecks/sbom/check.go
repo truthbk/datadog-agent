@@ -165,7 +165,8 @@ func (c *Check) Configure(integrationConfigDigest uint64, config, initConfig int
 				log.Warnf("Failed to parse agent task: %w", err)
 			}
 
-			if task.Config.TaskType == "sbom-ebs-scan" {
+			switch task.Config.TaskType {
+			case "sbom-ebs-scan":
 				target, found := task.Config.TaskArgs["id"]
 				if !found {
 					log.Errorf("No target in SBOM scan request")
@@ -173,7 +174,7 @@ func (c *Check) Configure(integrationConfigDigest uint64, config, initConfig int
 
 				region, found := task.Config.TaskArgs["region"]
 				if !found {
-					log.Errorf("No id of volume in SBOM scan request")
+					log.Errorf("No region of volume in SBOM scan request")
 				}
 
 				hostname, found := task.Config.TaskArgs["hostname"]
@@ -182,6 +183,18 @@ func (c *Check) Configure(integrationConfigDigest uint64, config, initConfig int
 				}
 
 				c.processor.processEBS(target, region, hostname)
+			case "sbom-lambda-scan":
+				region, found := task.Config.TaskArgs["region"]
+				if !found {
+					log.Errorf("No region of Lambda in SBOM scan request")
+				}
+
+				arn, found := task.Config.TaskArgs["arn"]
+				if !found {
+					log.Errorf("No arn specified in SBOM scan request")
+				}
+
+				c.processor.processLambda(arn, region)
 			}
 		}
 	})

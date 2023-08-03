@@ -217,8 +217,8 @@ func (p *processor) processEBS(target, region, id string) {
 	}()
 }
 
-func (p *processor) processLambdaRefresh(arn string, region string) {
-	log.Debugf("Triggering Lambda SBOM refresh")
+func (p *processor) processLambda(arn string, region string) {
+	log.Debugf("Triggering Lambda SBOM")
 
 	ch := make(chan sbom.ScanResult, 1)
 	scanRequest := &lambda.ScanRequest{Arn: arn, Region: region}
