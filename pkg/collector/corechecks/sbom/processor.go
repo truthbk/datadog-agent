@@ -217,6 +217,53 @@ func (p *processor) processEBS(target, region, id string) {
 	}()
 }
 
+func (p *processor) processLambdaRefresh(arn string, region string) {
+	log.Debugf("Triggering Lambda SBOM refresh")
+
+	ch := make(chan sbom.ScanResult, 1)
+	scanRequest := &lambda.ScanRequest{Arn: arn, Region: region}
+
+	if err := p.sbomScanner.Scan(scanRequest, p.hostScanOpts, ch); err != nil {
+		log.Errorf("Failed to trigger SBOM generation for Lambda: %s", err)
+		return
+	}
+
+	go func() {
+		result := <-ch
+
+		if result.Error != nil {
+			// TODO: add a retry mechanism for retryable errors
+			log.Errorf("Failed to generate SBOM for Lambda: %s", result.Error)
+			return
+		}
+
+		log.Debugf("Successfully generated SBOM for Lambda: %v, %v", result.CreatedAt, result.Duration)
+
+		bom, err := result.Report.ToCycloneDX()
+		if err != nil {
+			log.Errorf("Failed to extract SBOM from report: %s", err)
+			return
+		}
+
+		p.queue <- &model.SBOMEntity{
+			Type:        model.SBOMSourceType_HOST_FILE_SYSTEM,
+			Id:          arn, // FIXME shold be function name
+			GeneratedAt: timestamppb.New(result.CreatedAt),
+			/* FIXME: complete when we have function name
+			DdTags:				[]string {
+				"function:" + functionName,
+				"blah:vlah"
+			}
+			*/
+			InUse:              true,
+			GenerationDuration: convertDuration(result.Duration),
+			Sbom: &model.SBOMEntity_Cyclonedx{
+				Cyclonedx: convertBOM(bom),
+			},
+		}
+	}()
+}
+
 func (p *processor) processHostRefresh() {
 	if !p.hostSBOM {
 		return
