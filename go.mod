@@ -661,3 +661,5 @@ replace github.com/moby/buildkit v0.11.0 => github.com/moby/buildkit v0.11.4
 
 // Fixes a panic in trivy, see gitlab.com/cznic/libc/-/issues/25
 replace modernc.org/sqlite v1.17.3 => modernc.org/sqlite v1.19.3
+
+replace github.com/masahiro331/go-ebs-file => github.com/DataDog/go-ebs-file v0.0.0-20230803160127-69bd8d9220f0
