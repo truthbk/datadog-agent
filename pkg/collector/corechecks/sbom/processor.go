@@ -176,7 +176,7 @@ func (p *processor) processContainerImagesRefresh(allImages []*workloadmeta.Cont
 	}
 }
 
-func (p *processor) processEBS(target, region string) {
+func (p *processor) processEBS(target, region, id string) {
 	log.Debugf("Triggering volume SBOM")
 
 	ch := make(chan sbom.ScanResult, 1)
@@ -205,8 +205,8 @@ func (p *processor) processEBS(target, region string) {
 		}
 
 		p.queue <- &model.SBOMEntity{
-			Type:               model.SBOMSourceType_HOST_FILE_SYSTEM, // TODO(lebauce): chance to VM_VOLUME
-			Id:                 p.hostname,
+			Type:               model.SBOMSourceType_HOST_FILE_SYSTEM, //  model.SBOMSourceType_EBS
+			Id:                 id,
 			GeneratedAt:        timestamppb.New(result.CreatedAt),
 			InUse:              true,
 			GenerationDuration: convertDuration(result.Duration),

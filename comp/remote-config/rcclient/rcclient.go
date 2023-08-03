@@ -145,7 +145,7 @@ func (rc rcClient) agentTaskUpdateCallback(updates map[string]state.RawConfig) {
 	rc.m.Lock()
 	defer rc.m.Unlock()
 	for configPath, c := range updates {
-		task, err := parseConfigAgentTask(c.Config, c.Metadata)
+		task, err := ParseConfigAgentTask(c.Config, c.Metadata)
 		if err != nil {
 			rc.client.UpdateApplyStatus(configPath, state.ApplyStatus{
 				State: state.ApplyStateError,

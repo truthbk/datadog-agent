@@ -26,8 +26,8 @@ type agentTaskData struct {
 	TaskArgs map[string]string `json:"args"`
 }
 
-// parseConfigAgentTask parses an agent task config
-func parseConfigAgentTask(data []byte, metadata state.Metadata) (AgentTaskConfig, error) {
+// ParseConfigAgentTask parses an agent task config
+func ParseConfigAgentTask(data []byte, metadata state.Metadata) (AgentTaskConfig, error) {
 	var d agentTaskData
 
 	err := json.Unmarshal(data, &d)

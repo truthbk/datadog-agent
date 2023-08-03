@@ -9,15 +9,21 @@ package sbom
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	yaml "gopkg.in/yaml.v2"
 
+	"github.com/DataDog/datadog-agent/comp/remote-config/rcclient"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
 	core "github.com/DataDog/datadog-agent/pkg/collector/corechecks"
 	ddConfig "github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/config/remote"
+	"github.com/DataDog/datadog-agent/pkg/config/remote/data"
+	"github.com/DataDog/datadog-agent/pkg/remoteconfig/state"
+	"github.com/DataDog/datadog-agent/pkg/security/utils"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 )
@@ -102,6 +108,7 @@ type Check struct {
 	processor         *processor
 	sender            sender.Sender
 	stopCh            chan struct{}
+	rcClient          *remote.Client
 }
 
 // CheckFactory registers the sbom check
@@ -140,6 +147,44 @@ func (c *Check) Configure(integrationConfigDigest uint64, config, initConfig int
 	if err != nil {
 		return err
 	}
+
+	agentVersion, err := utils.GetAgentSemverVersion()
+	if err != nil {
+		return fmt.Errorf("failed to parse agent version: %v", err)
+	}
+
+	c.rcClient, err = remote.NewUnverifiedGRPCClient("core-agent", agentVersion.String(), []data.Product{data.ProductAgentTask}, 3*time.Second)
+	if err != nil {
+		return err
+	}
+
+	c.rcClient.Subscribe(state.ProductAgentTask, func(configs map[string]state.RawConfig) {
+		for _, cfg := range configs {
+			task, err := rcclient.ParseConfigAgentTask(cfg.Config, cfg.Metadata)
+			if err != nil {
+				log.Warnf("Failed to parse agent task: %w", err)
+			}
+
+			if task.Config.TaskType == "sbom-ebs-scan" {
+				target, found := task.Config.TaskArgs["id"]
+				if !found {
+					log.Errorf("No target in SBOM scan request")
+				}
+
+				region, found := task.Config.TaskArgs["region"]
+				if !found {
+					log.Errorf("No id of volume in SBOM scan request")
+				}
+
+				hostname, found := task.Config.TaskArgs["hostname"]
+				if !found {
+					log.Errorf("No hostname specified in SBOM scan request")
+				}
+
+				c.processor.processEBS(target, region, hostname)
+			}
+		}
+	})
 
 	return nil
 }
