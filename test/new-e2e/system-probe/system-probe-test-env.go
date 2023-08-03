@@ -40,6 +40,7 @@ const (
 	InsufficientInstanceCapacity = "insufficient_instance_capacity"
 	NetworkTimeoutError          = "network_timeout_error"
 	OtherError                   = "other_error"
+	TestErrorMetric              = "test_error_metric"
 )
 
 const (
@@ -256,6 +257,7 @@ func NewTestEnv(name, x86InstanceType, armInstanceType string, opts *SystemProbe
 
 		}
 
+		emitErrorMetric(TestErrorMetric)
 		return nil
 	}); retryErr != nil {
 		return nil, fmt.Errorf("failed to create stack: %w", retryErr)
