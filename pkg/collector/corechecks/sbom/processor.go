@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/epforwarder"
 	"github.com/DataDog/datadog-agent/pkg/sbom"
 	"github.com/DataDog/datadog-agent/pkg/sbom/collectors/host"
+	"github.com/DataDog/datadog-agent/pkg/sbom/collectors/lambda"
 	"github.com/DataDog/datadog-agent/pkg/sbom/collectors/vm"
 	sbomscanner "github.com/DataDog/datadog-agent/pkg/sbom/scanner"
 	"github.com/DataDog/datadog-agent/pkg/security/utils"
@@ -217,11 +218,11 @@ func (p *processor) processEBS(target, region, id string) {
 	}()
 }
 
-func (p *processor) processLambda(arn string, region string) {
+func (p *processor) processLambda(functionName string, region string) {
 	log.Debugf("Triggering Lambda SBOM")
 
 	ch := make(chan sbom.ScanResult, 1)
-	scanRequest := &lambda.ScanRequest{Arn: arn, Region: region}
+	scanRequest := &lambda.ScanRequest{FunctionName: functionName, Region: region}
 
 	if err := p.sbomScanner.Scan(scanRequest, p.hostScanOpts, ch); err != nil {
 		log.Errorf("Failed to trigger SBOM generation for Lambda: %s", err)
@@ -247,7 +248,7 @@ func (p *processor) processLambda(arn string, region string) {
 
 		p.queue <- &model.SBOMEntity{
 			Type:        model.SBOMSourceType_HOST_FILE_SYSTEM,
-			Id:          arn, // FIXME shold be function name
+			Id:          functionName,
 			GeneratedAt: timestamppb.New(result.CreatedAt),
 			/* FIXME: complete when we have function name
 			DdTags:				[]string {

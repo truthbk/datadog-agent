@@ -289,12 +289,12 @@ func (c *Collector) scanFilesystem(ctx context.Context, path string, imgMeta *wo
 	return bom, nil
 }
 
-func getLambdaCodeURL(cfg aws.Config, arn string, region string) (url string, err error) {
+func getLambdaCodeURL(cfg aws.Config, functionName string, region string) (url string, err error) {
 
 	cfg.Region = region
 	l := lambda.NewFromConfig(cfg)
 	ctx := context.TODO()
-	params := &lambda.GetFunctionInput{FunctionName: &arn}
+	params := &lambda.GetFunctionInput{FunctionName: &functionName}
 	output, err := l.GetFunction(ctx, params)
 	if err != nil {
 		return "", err
@@ -333,12 +333,12 @@ func downloadFile(url string, filepath string) (err error) {
 	return nil
 }
 
-func downloadLambdaCode(arn string, region string, destination string) (err error) {
+func downloadLambdaCode(functionName string, region string, destination string) (err error) {
 	cfg, err := awsconfig.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		return err
 	}
-	url, err := getLambdaCodeURL(cfg, arn, region)
+	url, err := getLambdaCodeURL(cfg, functionName, region)
 	if err != nil {
 		return err
 	}
@@ -384,7 +384,7 @@ func extractZip(zipPath string, destinationPath string) (err error) {
 	return nil
 }
 
-func (c *Collector) ScanLambda(ctx context.Context, lambdaArn string, awsRegion string, scanOptions sbom.ScanOptions) (sbom.Report, error) {
+func (c *Collector) ScanLambda(ctx context.Context, functionName string, awsRegion string, scanOptions sbom.ScanOptions) (sbom.Report, error) {
 
 	zipDir, err := os.MkdirTemp("", "zipPath")
 	if err != nil {
@@ -393,7 +393,7 @@ func (c *Collector) ScanLambda(ctx context.Context, lambdaArn string, awsRegion 
 	defer os.RemoveAll(zipDir)
 	archivePath := filepath.Join(zipDir, "code.zip")
 
-	err = downloadLambdaCode(lambdaArn, awsRegion, archivePath)
+	err = downloadLambdaCode(functionName, awsRegion, archivePath)
 	if err != nil {
 		return nil, err
 	}

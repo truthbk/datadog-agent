@@ -24,8 +24,8 @@ const (
 )
 
 type ScanRequest struct {
-	Arn    string
-	Region string
+	FunctionName string
+	Region       string
 }
 
 func (r *ScanRequest) Collector() string {
@@ -37,7 +37,7 @@ func (r *ScanRequest) Type() string {
 }
 
 func (r *ScanRequest) ID() string {
-	return r.Path
+	return r.Region + r.FunctionName
 }
 
 type LambdaCollector struct {
@@ -64,7 +64,7 @@ func (c *LambdaCollector) Scan(ctx context.Context, request sbom.ScanRequest, op
 	}
 	log.Infof("Lambda scan request [%v]", vmScanRequest.ID())
 
-	report, err := c.trivyCollector.ScanLambda(ctx, vmScanRequest.Arn, vmScanRequest.Region, opts)
+	report, err := c.trivyCollector.ScanLambda(ctx, vmScanRequest.FunctionName, vmScanRequest.Region, opts)
 	return sbom.ScanResult{
 		Error:  err,
 		Report: report,
