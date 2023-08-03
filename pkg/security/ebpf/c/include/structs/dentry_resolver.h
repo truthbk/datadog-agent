@@ -2,6 +2,7 @@
 #define _STRUCTS_DENTRY_RESOLVER_H_
 
 #include "constants/custom.h"
+#include "path_resolver.h"
 
 
 struct dentry_key_t {
@@ -29,11 +30,12 @@ struct dentry_leaf_t {
 struct dr_erpc_state_t {
     char *userspace_buffer;
     struct dentry_key_t key;
+    struct pr_ring_buffer_ref_t path_ref;
     int ret;
     int iteration;
     u32 buffer_size;
     u32 challenge;
-    u16 cursor;
+    u32 cursor;
 };
 
 struct dr_erpc_stats_t {

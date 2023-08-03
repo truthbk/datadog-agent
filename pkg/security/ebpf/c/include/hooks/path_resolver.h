@@ -214,4 +214,41 @@ int tracepoint_path_resolver_loop(void *ctx) {
     return 0;
 }
 
+SEC("kprobe/erpc_resolve_path_segment")
+int kprobe_erpc_resolve_path_segment(void *ctx) {
+    u32 zero = 0, err = 0;
+    struct dr_erpc_state_t *state = bpf_map_lookup_elem(&dr_erpc_state, &zero);
+    if (!state) {
+        return 0;
+    }
+
+    struct pr_ring_buffer *rb = bpf_map_lookup_elem(&pr_ringbufs, &state->path_ref.cpu);
+    if (!rb) {
+        err = DR_ERPC_CACHE_MISS; // TODO: use a specific error type for malformed request
+        goto exit;
+    }
+
+    u32 total_len = sizeof(state->challenge) + sizeof(state->path_ref.watermark) * 2 + state->path_ref.len;
+
+#pragma unroll
+    for (int i = 0; i < 32; i++) {
+        if (state->cursor == total_len) {
+            return 0;
+        }
+        int ret = bpf_probe_write_user((void *)state->userspace_buffer + state->cursor, &rb->buffer[state->path_ref.read_cursor++ % PR_RING_BUFFER_SIZE], 1);
+        if (ret < 0) {
+            err = ret == -14 ? DR_ERPC_WRITE_PAGE_FAULT : DR_ERPC_UNKNOWN_ERROR;
+            goto exit;
+        }
+        state->cursor++;
+    }
+
+    bpf_tail_call_compat(ctx, &erpc_progs, ERPC_RESOLVE_PATHSEGMENT_KEY);
+    err = DR_ERPC_TAIL_CALL_ERROR;
+
+exit:
+    monitor_resolution_err(err);
+    return 0;
+}
+
 #endif

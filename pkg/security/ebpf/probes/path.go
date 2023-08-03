@@ -11,7 +11,7 @@ package probes
 import manager "github.com/DataDog/ebpf-manager"
 
 // getDentryResolverTailCallRoutes is the list of routes used during the dentry resolution process
-func getPathResolverTailCallRoutes() []manager.TailCallRoute {
+func getPathResolverTailCallRoutes(ERPCDentryResolutionEnabled bool) []manager.TailCallRoute {
 	routes := []manager.TailCallRoute{
 		// path resolver entrypoint
 		//  - kprobe
@@ -231,6 +231,18 @@ func getPathResolverTailCallRoutes() []manager.TailCallRoute {
 				EBPFFuncName: "kprobe_trace_kernel_file_cb",
 			},
 		},
+	}
+
+	if ERPCDentryResolutionEnabled {
+		routes = append(routes, []manager.TailCallRoute{
+			{
+				ProgArrayName: "erpc_progs",
+				Key:           ERPCResolvePathSegmentKey,
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					EBPFFuncName: "kprobe_erpc_resolve_path_segment",
+				},
+			},
+		}...)
 	}
 
 	return routes

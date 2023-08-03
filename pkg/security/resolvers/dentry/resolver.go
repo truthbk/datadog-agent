@@ -303,7 +303,7 @@ func (dr *Resolver) ResolveParentFromERPC(pathKey model.DentryKey) (model.Dentry
 	}
 
 	// create eRPC request
-	challenge, err := dr.requestResolve(erpc.ResolveParentOp, pathKey)
+	challenge, err := dr.requestResolve(erpc.ResolveParentDentryOp, pathKey)
 	if err != nil {
 		dr.missCounters[entry].Inc()
 		return model.DentryKey{}, fmt.Errorf("unable to resolve the parent of mountID `%d` and inode `%d` with eRPC: %w", pathKey.MountID, pathKey.Inode, err)

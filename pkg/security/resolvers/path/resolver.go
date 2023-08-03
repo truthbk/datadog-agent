@@ -11,17 +11,19 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"hash"
-	"hash/fnv"
 	"math"
+	"math/rand"
+	"os"
 	"path"
 	"strings"
 	"syscall"
+	"unsafe"
 
 	"github.com/DataDog/datadog-go/v5/statsd"
 	"go.uber.org/atomic"
 
 	"github.com/DataDog/datadog-agent/pkg/security/metrics"
+	"github.com/DataDog/datadog-agent/pkg/security/probe/erpc"
 	"github.com/DataDog/datadog-agent/pkg/security/probe/managerhelper"
 	"github.com/DataDog/datadog-agent/pkg/security/resolvers/dentry"
 	"github.com/DataDog/datadog-agent/pkg/security/resolvers/mount"
@@ -132,26 +134,40 @@ const (
 	WatermarkSize       = uint32(8)
 )
 
+// ResolverOpts defines mount resolver options
+type ResolverOpts struct {
+	UseCache       bool
+	UseRingBuffers bool
+	UseERPC        bool
+}
+
 // Resolver describes a resolvers for path and file names
 type PathRingsResolver struct {
+	opts            ResolverOpts
 	mountResolver   *mount.Resolver
 	statsdClient    statsd.ClientInterface
-	fnv1a           hash.Hash64
-	numCPU          uint32
-	pathRings       []byte
 	failureCounters [maxFailureCause]*atomic.Int64
 	successCounter  *atomic.Int64
+	// RingBuffers
+	pathRings       []byte
+	numCPU          uint32
 	watermarkBuffer *bytes.Buffer
+	// eRPC
+	erpc          *erpc.ERPC
+	erpcBuffer    []byte
+	erpcChallenge uint32
+	erpcRequest   erpc.ERPCRequest
 }
 
 // NewResolver returns a new path resolver
-func NewPathRingsResolver(mountResolver *mount.Resolver, statsdClient statsd.ClientInterface) *PathRingsResolver {
+func NewPathRingsResolver(opts ResolverOpts, mountResolver *mount.Resolver, eRPC *erpc.ERPC, statsdClient statsd.ClientInterface) *PathRingsResolver {
 	pr := &PathRingsResolver{
+		opts:            opts,
 		mountResolver:   mountResolver,
 		statsdClient:    statsdClient,
-		fnv1a:           fnv.New64a(),
 		successCounter:  atomic.NewInt64(0),
 		watermarkBuffer: bytes.NewBuffer(make([]byte, 0, WatermarkSize)),
+		erpc:            eRPC,
 	}
 
 	for i := 0; i < int(maxFailureCause); i++ {
@@ -161,7 +177,36 @@ func NewPathRingsResolver(mountResolver *mount.Resolver, statsdClient statsd.Cli
 	return pr
 }
 
-func (pr *PathRingsResolver) resolvePath(ref *model.PathRingBufferRef) (string, error) {
+func reversePathParts(pathStr string) string {
+	if pathStr == "/" {
+		return pathStr
+	}
+
+	pathStr = strings.TrimSuffix(pathStr, "/")
+	parts := strings.Split(pathStr, "/")
+
+	if len(parts) == 0 {
+		return "/"
+	}
+
+	var builder strings.Builder
+
+	// pre-allocation
+	for _, part := range parts {
+		builder.Grow(len(part) + 1)
+	}
+
+	// reverse iteration
+	for i := 0; i < len(parts); i++ {
+		j := len(parts) - 1 - i
+		builder.WriteRune('/')
+		builder.WriteString(parts[j])
+	}
+
+	return builder.String()
+}
+
+func (pr *PathRingsResolver) resolvePathFromRingBuffers(ref *model.PathRingBufferRef) (string, error) {
 	if ref.Length == math.MaxUint32 {
 		pr.failureCounters[truncated].Inc()
 		return "", errTruncatedPath
@@ -255,15 +300,86 @@ func (pr *PathRingsResolver) resolvePath(ref *model.PathRingBufferRef) (string, 
 		return "", fmt.Errorf("back waterwark has invalid value")
 	}
 
-	if pathStr != "/" {
-		pathStr = strings.TrimSuffix(pathStr, "/")
-		pathParts := strings.Split(pathStr, "/")
-		pathStr = dentry.ComputeFilenameFromParts(pathParts)
-	}
-
 	pr.successCounter.Inc()
 
-	return pathStr, nil
+	return reversePathParts(pathStr), nil
+}
+
+// preventSegmentMajorPageFault prepares the userspace memory area where the dentry resolver response is written. Used in kernel versions where BPF_F_MMAPABLE array maps are not yet available.
+func (pr *PathRingsResolver) preventBufferMajorPageFault() {
+	// if we don't access the buffer, the eBPF program can't write to it ... (major page fault)
+	for i := 0; i < len(pr.erpcBuffer); i += os.Getpagesize() {
+		pr.erpcBuffer[i] = 0
+	}
+}
+
+// ResolvePathFromERPC resolves the path of the provided path_ref
+func (pr *PathRingsResolver) resolvePathFromERPC(ref *model.PathRingBufferRef) (string, error) {
+	if 4+2*WatermarkSize+ref.Length > uint32(len(pr.erpcBuffer)) {
+		return "", fmt.Errorf("path ref is too big: %d bytes", ref.Length)
+	}
+
+	challenge := pr.erpcChallenge
+	pr.erpcChallenge++
+
+	// create eRPC request
+	pr.erpcRequest.OP = erpc.ResolvePathSegmentOp
+	// 0-8 and 8-12 already populated at start
+	model.ByteOrder.PutUint32(pr.erpcRequest.Data[12:16], ref.CPU)
+	model.ByteOrder.PutUint32(pr.erpcRequest.Data[16:20], ref.ReadCursor)
+	model.ByteOrder.PutUint32(pr.erpcRequest.Data[20:24], ref.Length)
+	model.ByteOrder.PutUint32(pr.erpcRequest.Data[24:28], challenge)
+
+	pr.preventBufferMajorPageFault()
+
+	err := pr.erpc.Request(&pr.erpcRequest)
+	if err != nil {
+		return "", fmt.Errorf("unable to get path from ref %+v with eRPC: %w", ref, err)
+	}
+
+	if challenge != model.ByteOrder.Uint32(pr.erpcBuffer[0:4]) {
+		return "", fmt.Errorf("invalid challenge")
+	}
+
+	frontWatermark := model.ByteOrder.Uint64(pr.erpcBuffer[4:12])
+	if frontWatermark != ref.Watermark {
+		return "", fmt.Errorf("invalid front watermark (expected %d, got %d, challenge %d, ref %+v)", ref.Watermark, frontWatermark, challenge, ref)
+	}
+
+	backWatermark := model.ByteOrder.Uint64(pr.erpcBuffer[12+ref.Length : 12+ref.Length+8])
+	if backWatermark != ref.Watermark {
+		return "", fmt.Errorf("invalid back watermark (expected %d, got %d, challenge %d, ref %+v)", ref.Watermark, backWatermark, challenge, ref)
+	}
+
+	path := model.NullTerminatedString(pr.erpcBuffer[12 : 12+ref.Length])
+	if len(path) == 0 || len(path) > 0 && path[0] == 0 {
+		return "", fmt.Errorf("couldn't resolve path (len: %d)", len(path))
+	}
+
+	return reversePathParts(path), nil
+}
+
+func (pr *PathRingsResolver) resolvePath(ref *model.PathRingBufferRef) (string, error) {
+	var path string
+	var err error
+
+	if pr.opts.UseRingBuffers {
+		path, err = pr.resolvePathFromRingBuffers(ref)
+		if err == nil {
+			// put in cache here
+			return path, nil
+		}
+	}
+
+	// resolveFromCache
+	if pr.opts.UseERPC {
+		path, err = pr.resolvePathFromERPC(ref)
+		if err == nil {
+			// put in cache here
+			return path, nil
+		}
+	}
+	return path, err
 }
 
 func (pr *PathRingsResolver) ResolveBasename(e *model.FileFields) string {
@@ -372,6 +488,13 @@ func (pr *PathRingsResolver) Start(m *manager.Manager) error {
 		return fmt.Errorf("failed to mmap pr_ringbufs map: %w", err)
 	}
 	pr.pathRings = pathRings
+
+	if pr.opts.UseERPC {
+		pr.erpcBuffer = make([]byte, 7*os.Getpagesize())
+		pr.erpcChallenge = rand.Uint32()
+		model.ByteOrder.PutUint64(pr.erpcRequest.Data[0:8], uint64(uintptr(unsafe.Pointer(&pr.erpcBuffer[0]))))
+		model.ByteOrder.PutUint32(pr.erpcRequest.Data[8:12], uint32(len(pr.erpcBuffer)))
+	}
 
 	return nil
 }

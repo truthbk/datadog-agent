@@ -85,12 +85,12 @@ BPF_PERCPU_ARRAY_MAP(selinux_write_buffer, u32, struct selinux_write_buffer_t, 1
 BPF_PERCPU_ARRAY_MAP(pr_ringbuf_ctx, u32, struct pr_ring_buffer_ctx, 1)
 
 BPF_PROG_ARRAY(args_envs_progs, 3)
-BPF_PROG_ARRAY(dentry_resolver_kprobe_callbacks, EVENT_MAX)
-BPF_PROG_ARRAY(dentry_resolver_tracepoint_callbacks, EVENT_MAX)
-BPF_PROG_ARRAY(dentry_resolver_kprobe_progs, 5)
-BPF_PROG_ARRAY(dentry_resolver_tracepoint_progs, 2)
-BPF_PROG_ARRAY(classifier_router, 100)
 BPF_PROG_ARRAY(sys_exit_progs, 64)
+// BPF_PROG_ARRAY(dentry_resolver_kprobe_callbacks, EVENT_MAX)
+// BPF_PROG_ARRAY(dentry_resolver_tracepoint_callbacks, EVENT_MAX)
+// BPF_PROG_ARRAY(dentry_resolver_tracepoint_progs, 2)
+BPF_PROG_ARRAY(classifier_router, 100)
+BPF_PROG_ARRAY(erpc_progs, 2)
 BPF_PROG_ARRAY(path_resolver_kprobe_progs, 18)
 BPF_PROG_ARRAY(path_resolver_tracepoint_progs, 7)
 
