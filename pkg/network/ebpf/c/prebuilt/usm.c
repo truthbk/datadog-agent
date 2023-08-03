@@ -49,6 +49,17 @@ int tracepoint__net__netif_receive_skb(struct pt_regs* ctx) {
     return 0;
 }
 
+SEC("tracepoint/net/net_dev_queue")
+int tracepoint__net__net_dev_queue(struct pt_regs* ctx) {
+    log_debug("tracepoint/net/net_dev_queue\n");
+    // flush batch to userspace
+    // because perf events can't be sent from socket filter programs
+    http_batch_flush(ctx);
+    http2_batch_flush(ctx);
+    kafka_batch_flush(ctx);
+    return 0;
+}
+
 
 SEC("uprobe/SSL_do_handshake")
 int uprobe__SSL_do_handshake(struct pt_regs* ctx) {
