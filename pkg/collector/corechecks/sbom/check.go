@@ -189,12 +189,12 @@ func (c *Check) Configure(integrationConfigDigest uint64, config, initConfig int
 					log.Errorf("No region of Lambda in SBOM scan request")
 				}
 
-				arn, found := task.Config.TaskArgs["arn"]
+				functionName, found := task.Config.TaskArgs["function_name"]
 				if !found {
-					log.Errorf("No arn specified in SBOM scan request")
+					log.Errorf("No function name specified in SBOM scan request")
 				}
 
-				c.processor.processLambda(arn, region)
+				c.processor.processLambda(functionName, region)
 			}
 		}
 	})
