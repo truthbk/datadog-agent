@@ -457,6 +457,8 @@ func (pbm *EventStreamMonitor) sendLostEventsReadStats(client statsd.ClientInter
 }
 
 func (pbm *EventStreamMonitor) getRingbufUsage(statsMap *statMap) (uint64, error) {
+	req := erpc.NewERPCRequest(0)
+	req.OP = erpc.GetRingbufUsage
 	if err := pbm.eRPC.Request(&erpc.ERPCRequest{OP: erpc.GetRingbufUsage}); err != nil {
 		return 0, err
 	}
