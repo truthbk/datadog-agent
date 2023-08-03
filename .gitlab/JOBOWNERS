@@ -20,6 +20,7 @@ golang_deps_generate                 @DataDog/agent-shared-components
 build_system-probe*                  @DataDog/ebpf-platform
 cluster_agent_cloudfoundry-build*    @Datadog/platform-integrations
 cluster_agent-build*                 @DataDog/container-integrations
+cws_injector-build*                  @DataDog/agent-security
 build_serverless*                    @DataDog/serverless
 check_serverless_*                   @DataDog/serverless
 
