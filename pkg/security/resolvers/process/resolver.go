@@ -470,7 +470,7 @@ func (p *Resolver) retrieveExecFileFields(procExecPath string) (*model.FileField
 	model.ByteOrder.PutUint64(inodeb, inode)
 
 	data, err := p.execFileCacheMap.LookupBytes(inodeb)
-	if err != nil {
+	if err != nil || len(data) == 0 {
 		return nil, fmt.Errorf("unable to get filename for inode `%d`: %v", inode, err)
 	}
 

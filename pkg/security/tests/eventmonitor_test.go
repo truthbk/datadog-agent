@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/avast/retry-go/v4"
 	"github.com/stretchr/testify/assert"
@@ -22,9 +23,10 @@ import (
 
 type FakeEventConsumer struct {
 	sync.RWMutex
-	exec int
-	fork int
-	exit int
+	exec      int
+	fork      int
+	exit      int
+	testsuite bool
 }
 
 func NewFakeEventConsumer(em *eventmonitor.EventMonitor) *FakeEventConsumer {
@@ -73,6 +75,9 @@ func (fc *FakeEventConsumer) HandleEvent(event *model.Event) {
 	switch event.GetEventType() {
 	case model.ExecEventType:
 		fc.exec++
+		if event.Exec.Comm == "testsuite" {
+			fc.testsuite = true
+		}
 	case model.ForkEventType:
 		fc.fork++
 	case model.ExitEventType:
@@ -128,7 +133,31 @@ func TestEventMonitor(t *testing.T) {
 			}
 
 			return errors.New("event not received")
-		}, retry.Delay(200), retry.Attempts(10))
+		}, retry.Delay(10*time.Millisecond), retry.Attempts(10))
 		assert.Nil(t, err)
 	})
+}
+
+func TestEventMonitorSnapshot(t *testing.T) {
+	var fc *FakeEventConsumer
+	test, err := newTestModule(t, nil, nil, testOpts{
+		disableRuntimeSecurity: true,
+		forceReload:            true,
+		preStartCallback: func(test *testModule) {
+			fc = NewFakeEventConsumer(test.eventMonitor)
+			test.eventMonitor.RegisterEventConsumer(fc)
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer test.Close()
+
+	err = retry.Do(func() error {
+		if !fc.testsuite {
+			return errors.New("entry not found")
+		}
+		return nil
+	}, retry.Delay(10*time.Millisecond), retry.Attempts(10))
+	assert.True(t, fc.testsuite)
 }

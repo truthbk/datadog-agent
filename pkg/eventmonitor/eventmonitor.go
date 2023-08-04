@@ -133,21 +133,15 @@ func (m *EventMonitor) Start() error {
 		return fmt.Errorf("failed to setup probe: %w", err)
 	}
 
-	// fetch the current state of the system (example: mount points, running processes, ...) so that our user space
-	// context is ready when we start the probes
-	if err := m.Probe.Snapshot(); err != nil {
-		return err
-	}
-
-	if err := m.Probe.Start(); err != nil {
-		return err
-	}
-
 	// start event consumers
 	for _, em := range m.eventConsumers {
 		if err := em.Start(); err != nil {
 			log.Errorf("unable to start %s event consumer: %v", em.ID(), err)
 		}
+	}
+
+	if err := m.Probe.Start(); err != nil {
+		return err
 	}
 
 	m.wg.Add(1)

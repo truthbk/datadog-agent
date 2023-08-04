@@ -290,11 +290,21 @@ func (p *Probe) Setup() error {
 
 	p.profileManagers.Start(p.ctx, &p.wg)
 
+	if err := p.snapshot(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // Start processing events
 func (p *Probe) Start() error {
+	p.playSnapshot()
+
+	if err := p.Manager.StartReaders(); err != nil {
+		return err
+	}
+
 	if err := p.eventStream.Start(&p.wg); err != nil {
 		return err
 	}
@@ -302,15 +312,11 @@ func (p *Probe) Start() error {
 	return p.updateProbes(nil)
 }
 
-func (p *Probe) PlaySnapshot() {
-	// Get the snapshotted data
-	var events []*model.Event
-
-	entryToEvent := func(entry *model.ProcessCacheEntry) {
+func (p *Probe) playSnapshot() {
+	p.resolvers.ProcessResolver.Walk(func(entry *model.ProcessCacheEntry) {
 		if entry.Source != model.ProcessCacheEntryFromSnapshot {
 			return
 		}
-		entry.Retain()
 		event := NewEvent(p.fieldHandlers)
 		event.Type = uint32(model.ExecEventType)
 		event.TimestampRaw = uint64(time.Now().UnixNano())
@@ -323,13 +329,8 @@ func (p *Probe) PlaySnapshot() {
 			event.Error = &ErrProcessBrokenLineage{PIDContext: entry.PIDContext}
 		}
 
-		events = append(events, event)
-	}
-	p.GetResolvers().ProcessResolver.Walk(entryToEvent)
-	for _, event := range events {
 		p.DispatchEvent(event)
-		event.ProcessCacheEntry.Release()
-	}
+	})
 }
 
 func (p *Probe) sendAnomalyDetection(event *model.Event) {
@@ -1196,9 +1197,9 @@ func (p *Probe) FlushDiscarders() error {
 	return bumpDiscardersRevision(p.Erpc)
 }
 
-// Snapshot runs the different snapshot functions of the resolvers that
+// snapshot runs the different snapshot functions of the resolvers that
 // require to sync with the current state of the system
-func (p *Probe) Snapshot() error {
+func (p *Probe) snapshot() error {
 	return p.resolvers.Snapshot()
 }
 
@@ -1613,6 +1614,9 @@ func NewProbe(config *config.Config, opts Opts) (*Probe, error) {
 		// prevent all TC classifiers from loading
 		p.managerOptions.ExcludedFunctions = append(p.managerOptions.ExcludedFunctions, probes.GetAllTCProgramFunctions()...)
 	}
+
+	// start readers asynchronously
+	p.managerOptions.DontStartReaders = true
 
 	p.scrubber = procutil.NewDefaultDataScrubber()
 	p.scrubber.AddCustomSensitiveWords(config.Probe.CustomSensitiveWords)

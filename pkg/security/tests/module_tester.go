@@ -253,6 +253,7 @@ type testOpts struct {
 	enableSBOM                          bool
 	preStartCallback                    func(test *testModule)
 	tagsResolver                        tags.Resolver
+	forceReload                         bool
 }
 
 func (s *stringSlice) String() string {
@@ -882,13 +883,19 @@ func newTestModule(t testing.TB, macroDefs []*rules.MacroDefinition, ruleDefs []
 		}
 	}
 
-	if testMod != nil && opts.Equal(testMod.opts) {
+	if testMod != nil && opts.Equal(testMod.opts) && !opts.forceReload {
 		testMod.st = st
 		testMod.cmdWrapper = cmdWrapper
 		testMod.t = t
 
-		if err = testMod.reloadConfiguration(); err != nil {
-			return testMod, err
+		if opts.preStartCallback != nil {
+			opts.preStartCallback(testMod)
+		}
+
+		if !opts.disableRuntimeSecurity {
+			if err = testMod.reloadPolicies(); err != nil {
+				return testMod, err
+			}
 		}
 
 		if ruleDefs != nil && logStatusMetrics {
@@ -1023,8 +1030,8 @@ func (tm *testModule) Run(t *testing.T, name string, fnc func(t *testing.T, kind
 	tm.cmdWrapper.Run(t, name, fnc)
 }
 
-func (tm *testModule) reloadConfiguration() error {
-	log.Debugf("reload configuration with testDir: %s", tm.Root())
+func (tm *testModule) reloadPolicies() error {
+	log.Debugf("reload policies with testDir: %s", tm.Root())
 	policiesDir := tm.Root()
 
 	provider, err := rules.NewPoliciesDirProvider(policiesDir, false)
