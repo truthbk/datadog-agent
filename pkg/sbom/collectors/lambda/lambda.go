@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	collectorName = "vm"
+	collectorName = "lambda"
 )
 
 type ScanRequest struct {

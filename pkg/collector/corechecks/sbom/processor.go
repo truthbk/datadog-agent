@@ -8,7 +8,9 @@
 package sbom
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -224,7 +226,10 @@ func (p *processor) processLambda(functionName string, region string) {
 	ch := make(chan sbom.ScanResult, 1)
 	scanRequest := &lambda.ScanRequest{FunctionName: functionName, Region: region}
 
-	if err := p.sbomScanner.Scan(scanRequest, p.hostScanOpts, ch); err != nil {
+	opts := p.hostScanOpts
+	opts.Analyzers = []string{"os", "languages", "secret", "config", "license"}
+
+	if err := p.sbomScanner.Scan(scanRequest, opts, ch); err != nil {
 		log.Errorf("Failed to trigger SBOM generation for Lambda: %s", err)
 		return
 	}
@@ -246,9 +251,16 @@ func (p *processor) processLambda(functionName string, region string) {
 			return
 		}
 
+		s, err := json.Marshal(bom)
+		if err != nil {
+			fmt.Printf("can't JSON marshal json")
+		} else {
+			fmt.Printf("lambda sbom:\n%s", s)
+		}
+
 		p.queue <- &model.SBOMEntity{
 			Type:        model.SBOMSourceType_HOST_FILE_SYSTEM,
-			Id:          functionName,
+			Id:          "ebs",
 			GeneratedAt: timestamppb.New(result.CreatedAt),
 			/* FIXME: complete when we have function name
 			DdTags:				[]string {
