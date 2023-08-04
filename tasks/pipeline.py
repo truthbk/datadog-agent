@@ -161,10 +161,34 @@ instead.""",
 
 
 @task
+def auto_cancel_previous_pipelines(ctx):
+    """
+    Automatically cancel previous pipelines running on the same ref
+    """
+
+    project_name = "DataDog/datadog-agent"
+    gitlab = Gitlab(project_name=project_name, api_token=get_gitlab_token())
+    gitlab.test_project_found()
+
+    git_ref = os.getenv("CI_COMMIT_REF_NAME")
+    git_sha = os.getenv("CI_COMMIT_SHA")
+
+    pipelines = get_running_pipelines_on_same_ref(gitlab, git_ref)
+
+    pipelines_without_current = [p for p in pipelines if p["sha"] != git_sha]
+
+    for pipeline in pipelines_without_current:
+        # We cancel pipeline only if it correspond to a commit that is an ancestor of the current commit
+        if ctx.run(f'git merge-base --is-ancestor ${pipeline["sha"]} ${git_sha}'):
+            print(f'Canceling pipeline ${pipeline["id"]} (${pipeline["web_url"]})')
+            gitlab.cancel_pipeline(pipeline["id"])
+
+
+@task
 def cancel_same_ref_pipelines(
-    ctx,
+    _,
     gitlab,
-    git_ref
+    git_ref,
 ):
     """
     Cancel the pipelines on the CI that runs on the same ref as the one you're on
@@ -180,7 +204,6 @@ def cancel_same_ref_pipelines(
             sep='\n',
         )
         cancel_pipelines_with_confirmation(gitlab, pipelines)
-
 
 
 @task

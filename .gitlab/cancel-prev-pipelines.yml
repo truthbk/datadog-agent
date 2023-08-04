@@ -1,0 +1,25 @@
+cancel-prev-pipelines:
+  stage: .pre
+  tags: ["arch:amd64"]
+  rules: # this should only run on dev branches
+  - if: $CI_PIPELINE_SOURCE =~ /^schedule.*$/
+    when: never
+  - if: $CI_COMMIT_TAG
+    when: never
+  - if: $SKIP_CHECKS
+    when: never
+  - if: $DYNAMIC_BUILD_RENDER_TARGET
+    when: never
+  - if: $CI_COMMIT_REF_NAME == "prod"
+    when: never
+  - if: $CI_COMMIT_REF_NAME =~ /^prod-hotfix-incident-[0-9]+$/
+    when: never
+  - if: $CI_COMMIT_REF_NAME =~ /^staging-[0-9]+[a-z]?$/
+    when: never
+  - if: $CI_COMMIT_MESSAGE =~ /.*\[skip cancel\].*/
+    when: never
+  - if: $CI_COMMIT_REF_NAME =~ /.*-skip-cancel$/
+    when: never
+  - when: on_success
+  script:
+    - inv 
