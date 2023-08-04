@@ -292,7 +292,9 @@ func (d *Daemon) flushLogs(ctx context.Context, wg *sync.WaitGroup) {
 	d.logsFlushMutex.Lock()
 	flushStartTime := time.Now().Unix()
 	log.Debugf("Beginning logs flush at time %d", flushStartTime)
-	d.LogsAgent.Flush(ctx)
+	if d.LogsAgent != nil {
+		d.LogsAgent.Flush(ctx)
+	}
 	log.Debugf("Finished logs flush that was started at time %d", flushStartTime)
 	wg.Done()
 	d.logsFlushMutex.Unlock()
@@ -346,7 +348,9 @@ func (d *Daemon) Stop() {
 		d.OTLPAgent.Stop()
 	}
 
-	d.LogsAgent.Stop()
+	if d.LogsAgent != nil {
+		d.LogsAgent.Stop()
+	}
 	log.Debug("Serverless agent shutdown complete")
 }
 
