@@ -4,4 +4,4 @@ memInfo := memory.CollectInfo()
 totalMem, err := memInfo.TotalBytes.Value()
 
 // If we want to print non−errored values
-json, err := memInfo.AsJSON()
+json, warnings, err := memInfo.AsJSON()
