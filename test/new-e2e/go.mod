@@ -9,8 +9,8 @@ go 1.18
 replace github.com/DataDog/datadog-agent/test/fakeintake => ../fakeintake
 
 require (
-	github.com/DataDog/datadog-agent/test/fakeintake v0.0.0-20230728091556-74405bd7445c
-	
+	github.com/DataDog/datadog-agent/test/fakeintake v0.0.0-20230807132440-74405bd7445c
+
 	// Are you bumping github.com/DataDog/test-infra-definitions ?
 	// You should bump `TEST_INFRA_DEFINITIONS_BUILDIMAGES` in `.gitlab-ci.yml`
 	// `TEST_INFRA_DEFINITIONS_BUILDIMAGES` matches the commit sha in the module version
