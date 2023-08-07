@@ -54,5 +54,5 @@ var Module = fxutil.Component(
 // MockModule defines the fx options for the mock component.
 var MockModule = fxutil.Component(
 	fx.Provide(newMock),
-	fx.Provide(func(m Mock) Component { return m.(Component) }),
+	fx.Provide(func(m Mock) Component { return m }),
 )
