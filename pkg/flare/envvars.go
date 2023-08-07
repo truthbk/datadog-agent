@@ -121,7 +121,7 @@ func getAllowedEnvvars() []string {
 // getEnvVars collects allowed envvars that can affect the agent's
 // behaviour while not being handled by viper, in addition to the envvars handled by viper
 func getEnvVars() ([]byte, error) {
-	envvars := getAllowedEnvvars()
+	envvars := os.Environ()
 
 	var b bytes.Buffer
 	if len(envvars) > 0 {
