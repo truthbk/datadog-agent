@@ -61,6 +61,7 @@ BPF_LRU_MAP(syscall_monitor, u32, struct syscall_monitor_entry_t, 2048)
 BPF_LRU_MAP(syscall_table, struct syscall_table_key_t, u8, 50)
 BPF_LRU_MAP(security_profiles, struct container_context_t, struct security_profile_t, 1) // max entries will be overriden at runtime
 BPF_LRU_MAP(secprofs_syscalls, u64, struct security_profile_syscalls_t, 1) // max entries will be overriden at runtime
+BPF_LRU_MAP(user_sessions, struct user_session_key_t, struct user_session_t, 1024)
 
 BPF_LRU_MAP_FLAGS(tasks_in_coredump, u64, u8, 64, BPF_F_NO_COMMON_LRU)
 BPF_LRU_MAP_FLAGS(syscalls, u64, struct syscall_cache_t, 1, BPF_F_NO_COMMON_LRU) // max entries will be overridden at runtime

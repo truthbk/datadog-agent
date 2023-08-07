@@ -1167,7 +1167,7 @@ func (p *Resolver) syncCache(proc *process.Process, filledProc *utils.FilledProc
 			seclog.Errorf("couldn't push proc_cache entry to kernel space: %s", err)
 		}
 	}
-	pidCacheEntryB := make([]byte, 64)
+	pidCacheEntryB := make([]byte, 72)
 	_, err = entry.Process.MarshalPidCache(pidCacheEntryB)
 	if err != nil {
 		seclog.Errorf("couldn't marshal prid_cache entry: %s", err)

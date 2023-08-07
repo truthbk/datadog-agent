@@ -190,6 +190,9 @@ type RuntimeSecurityConfig struct {
 	HashResolverEventTypes []model.EventType
 	// HashResolverCacheSize defines the number of hashes to keep in cache
 	HashResolverCacheSize int
+
+	// UserSessionsCacheSize defines the size of the User Sessions cache size
+	UserSessionsCacheSize int
 }
 
 // Config defines a security config
@@ -310,6 +313,9 @@ func NewRuntimeSecurityConfig() (*RuntimeSecurityConfig, error) {
 		AnomalyDetectionRateLimiterNumKeys:           coreconfig.SystemProbe.GetInt("runtime_security_config.security_profile.anomaly_detection.rate_limiter.num_keys"),
 		AnomalyDetectionRateLimiterNumEventsAllowed:  coreconfig.SystemProbe.GetInt("runtime_security_config.security_profile.anomaly_detection.rate_limiter.num_events_allowed"),
 		AnomalyDetectionTagRulesEnabled:              coreconfig.SystemProbe.GetBool("runtime_security_config.security_profile.anomaly_detection.tag_rules.enabled"),
+
+		// User Sessions
+		UserSessionsCacheSize: coreconfig.SystemProbe.GetInt("runtime_security_config.user_sessions.cache_size"),
 	}
 
 	if err := rsConfig.sanitize(); err != nil {

@@ -9,7 +9,6 @@ package mutate
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 
@@ -22,6 +21,7 @@ import (
 	"k8s.io/client-go/dynamic"
 
 	"github.com/DataDog/datadog-agent/pkg/config"
+	"github.com/DataDog/datadog-agent/pkg/security/resolvers/user_sessions"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
@@ -89,7 +89,7 @@ func injectCWSCommandInstrumentation(exec *corev1.PodExecOptions, name string, n
 	}
 
 	// prepare the user session context
-	userSessionCtx, err := prepareUserSessionContext(userInfo)
+	userSessionCtx, err := user_sessions.PrepareK8SUserSessionContext(userInfo, cwsUserSessionDataMaxSize)
 	if err != nil {
 		log.Debugf("ignoring instrumentation of %s: %v", podString(pod), err)
 		return nil
@@ -109,40 +109,6 @@ func injectCWSCommandInstrumentation(exec *corev1.PodExecOptions, name string, n
 	log.Debugf("Pod exec request to %s is now instrumented for CWS", podString(pod))
 
 	return nil
-}
-
-func prepareUserSessionContext(userInfo *authenticationv1.UserInfo) ([]byte, error) {
-	userSessionCtx, err := json.Marshal(userInfo)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshall authenticationv1.UserInfo structure: %w", err)
-	}
-	if len(userSessionCtx) <= cwsUserSessionDataMaxSize {
-		return userSessionCtx, nil
-	}
-
-	// try to remove the extra field
-	info := *userInfo
-	info.Extra = nil
-
-	userSessionCtx, err = json.Marshal(info)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshall authenticationv1.UserInfo structure: %w", err)
-	}
-	if len(userSessionCtx) <= cwsUserSessionDataMaxSize {
-		return userSessionCtx, nil
-	}
-
-	// try to remove the groups field
-	info.Groups = nil
-	userSessionCtx, err = json.Marshal(info)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshall authenticationv1.UserInfo structure: %w", err)
-	}
-
-	if len(userSessionCtx) <= cwsUserSessionDataMaxSize {
-		return userSessionCtx, nil
-	}
-	return nil, fmt.Errorf("authenticationv1.UserInfo structure too big (%d), ignoring instrumentation", len(userSessionCtx))
 }
 
 // InjectCWSPodInstrumentation injects CWS pod instrumentation

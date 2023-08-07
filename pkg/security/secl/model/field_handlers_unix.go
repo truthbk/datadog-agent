@@ -200,6 +200,18 @@ func (ev *Event) resolveFields(forADs bool) {
 	if ev.BaseEvent.ProcessContext.HasParent() && ev.BaseEvent.ProcessContext.Parent.HasInterpreter() {
 		_ = ev.FieldHandlers.ResolveFileFieldsUser(ev, &ev.BaseEvent.ProcessContext.Parent.LinuxBinprm.FileEvent.FileFields)
 	}
+	if ev.BaseEvent.ProcessContext.HasParent() {
+		_ = ev.FieldHandlers.ResolveK8SGroups(ev, &ev.BaseEvent.ProcessContext.Parent.UserSession)
+	}
+	if ev.BaseEvent.ProcessContext.HasParent() {
+		_ = ev.FieldHandlers.ResolveK8SUID(ev, &ev.BaseEvent.ProcessContext.Parent.UserSession)
+	}
+	if ev.BaseEvent.ProcessContext.HasParent() {
+		_ = ev.FieldHandlers.ResolveK8SUsername(ev, &ev.BaseEvent.ProcessContext.Parent.UserSession)
+	}
+	_ = ev.FieldHandlers.ResolveK8SGroups(ev, &ev.BaseEvent.ProcessContext.Process.UserSession)
+	_ = ev.FieldHandlers.ResolveK8SUID(ev, &ev.BaseEvent.ProcessContext.Process.UserSession)
+	_ = ev.FieldHandlers.ResolveK8SUsername(ev, &ev.BaseEvent.ProcessContext.Process.UserSession)
 	// resolve event specific fields
 	switch ev.GetEventType().String() {
 	case "bind":
@@ -308,6 +320,9 @@ func (ev *Event) resolveFields(forADs bool) {
 			}
 		}
 		_ = ev.FieldHandlers.ResolveProcessCreatedAt(ev, ev.Exec.Process)
+		_ = ev.FieldHandlers.ResolveK8SUsername(ev, &ev.Exec.Process.UserSession)
+		_ = ev.FieldHandlers.ResolveK8SUID(ev, &ev.Exec.Process.UserSession)
+		_ = ev.FieldHandlers.ResolveK8SGroups(ev, &ev.Exec.Process.UserSession)
 		_ = ev.FieldHandlers.ResolveProcessArgv0(ev, ev.Exec.Process)
 		_ = ev.FieldHandlers.ResolveProcessArgs(ev, ev.Exec.Process)
 		_ = ev.FieldHandlers.ResolveProcessArgv(ev, ev.Exec.Process)
@@ -387,6 +402,9 @@ func (ev *Event) resolveFields(forADs bool) {
 			}
 		}
 		_ = ev.FieldHandlers.ResolveProcessCreatedAt(ev, ev.Exit.Process)
+		_ = ev.FieldHandlers.ResolveK8SUsername(ev, &ev.Exit.Process.UserSession)
+		_ = ev.FieldHandlers.ResolveK8SUID(ev, &ev.Exit.Process.UserSession)
+		_ = ev.FieldHandlers.ResolveK8SGroups(ev, &ev.Exit.Process.UserSession)
 		_ = ev.FieldHandlers.ResolveProcessArgv0(ev, ev.Exit.Process)
 		_ = ev.FieldHandlers.ResolveProcessArgs(ev, ev.Exit.Process)
 		_ = ev.FieldHandlers.ResolveProcessArgv(ev, ev.Exit.Process)
@@ -555,6 +573,9 @@ func (ev *Event) resolveFields(forADs bool) {
 			}
 		}
 		_ = ev.FieldHandlers.ResolveProcessCreatedAt(ev, &ev.PTrace.Tracee.Process)
+		_ = ev.FieldHandlers.ResolveK8SUsername(ev, &ev.PTrace.Tracee.Process.UserSession)
+		_ = ev.FieldHandlers.ResolveK8SUID(ev, &ev.PTrace.Tracee.Process.UserSession)
+		_ = ev.FieldHandlers.ResolveK8SGroups(ev, &ev.PTrace.Tracee.Process.UserSession)
 		_ = ev.FieldHandlers.ResolveProcessArgv0(ev, &ev.PTrace.Tracee.Process)
 		_ = ev.FieldHandlers.ResolveProcessArgs(ev, &ev.PTrace.Tracee.Process)
 		_ = ev.FieldHandlers.ResolveProcessArgv(ev, &ev.PTrace.Tracee.Process)
@@ -634,6 +655,15 @@ func (ev *Event) resolveFields(forADs bool) {
 		}
 		if ev.PTrace.Tracee.HasParent() {
 			_ = ev.FieldHandlers.ResolveProcessCreatedAt(ev, ev.PTrace.Tracee.Parent)
+		}
+		if ev.PTrace.Tracee.HasParent() {
+			_ = ev.FieldHandlers.ResolveK8SUsername(ev, &ev.PTrace.Tracee.Parent.UserSession)
+		}
+		if ev.PTrace.Tracee.HasParent() {
+			_ = ev.FieldHandlers.ResolveK8SUID(ev, &ev.PTrace.Tracee.Parent.UserSession)
+		}
+		if ev.PTrace.Tracee.HasParent() {
+			_ = ev.FieldHandlers.ResolveK8SGroups(ev, &ev.PTrace.Tracee.Parent.UserSession)
 		}
 		if ev.PTrace.Tracee.HasParent() {
 			_ = ev.FieldHandlers.ResolveProcessArgv0(ev, ev.PTrace.Tracee.Parent)
@@ -811,6 +841,9 @@ func (ev *Event) resolveFields(forADs bool) {
 			}
 		}
 		_ = ev.FieldHandlers.ResolveProcessCreatedAt(ev, &ev.Signal.Target.Process)
+		_ = ev.FieldHandlers.ResolveK8SUsername(ev, &ev.Signal.Target.Process.UserSession)
+		_ = ev.FieldHandlers.ResolveK8SUID(ev, &ev.Signal.Target.Process.UserSession)
+		_ = ev.FieldHandlers.ResolveK8SGroups(ev, &ev.Signal.Target.Process.UserSession)
 		_ = ev.FieldHandlers.ResolveProcessArgv0(ev, &ev.Signal.Target.Process)
 		_ = ev.FieldHandlers.ResolveProcessArgs(ev, &ev.Signal.Target.Process)
 		_ = ev.FieldHandlers.ResolveProcessArgv(ev, &ev.Signal.Target.Process)
@@ -890,6 +923,15 @@ func (ev *Event) resolveFields(forADs bool) {
 		}
 		if ev.Signal.Target.HasParent() {
 			_ = ev.FieldHandlers.ResolveProcessCreatedAt(ev, ev.Signal.Target.Parent)
+		}
+		if ev.Signal.Target.HasParent() {
+			_ = ev.FieldHandlers.ResolveK8SUsername(ev, &ev.Signal.Target.Parent.UserSession)
+		}
+		if ev.Signal.Target.HasParent() {
+			_ = ev.FieldHandlers.ResolveK8SUID(ev, &ev.Signal.Target.Parent.UserSession)
+		}
+		if ev.Signal.Target.HasParent() {
+			_ = ev.FieldHandlers.ResolveK8SGroups(ev, &ev.Signal.Target.Parent.UserSession)
 		}
 		if ev.Signal.Target.HasParent() {
 			_ = ev.FieldHandlers.ResolveProcessArgv0(ev, ev.Signal.Target.Parent)
@@ -973,6 +1015,9 @@ type FieldHandlers interface {
 	ResolveFileFilesystem(ev *Event, e *FileEvent) string
 	ResolveFilePath(ev *Event, e *FileEvent) string
 	ResolveHashesFromEvent(ev *Event, e *FileEvent) []string
+	ResolveK8SGroups(ev *Event, e *UserSessionContext) []string
+	ResolveK8SUID(ev *Event, e *UserSessionContext) string
+	ResolveK8SUsername(ev *Event, e *UserSessionContext) string
 	ResolveModuleArgs(ev *Event, e *LoadModuleEvent) string
 	ResolveModuleArgv(ev *Event, e *LoadModuleEvent) []string
 	ResolveMountPointPath(ev *Event, e *MountEvent) string
@@ -1041,6 +1086,15 @@ func (dfh *DefaultFieldHandlers) ResolveFilePath(ev *Event, e *FileEvent) string
 }
 func (dfh *DefaultFieldHandlers) ResolveHashesFromEvent(ev *Event, e *FileEvent) []string {
 	return e.Hashes
+}
+func (dfh *DefaultFieldHandlers) ResolveK8SGroups(ev *Event, e *UserSessionContext) []string {
+	return e.K8SGroups
+}
+func (dfh *DefaultFieldHandlers) ResolveK8SUID(ev *Event, e *UserSessionContext) string {
+	return e.K8SUID
+}
+func (dfh *DefaultFieldHandlers) ResolveK8SUsername(ev *Event, e *UserSessionContext) string {
+	return e.K8SUsername
 }
 func (dfh *DefaultFieldHandlers) ResolveModuleArgs(ev *Event, e *LoadModuleEvent) string {
 	return e.Args

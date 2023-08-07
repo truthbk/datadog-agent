@@ -9,15 +9,15 @@ package subcommands
 
 import (
 	"github.com/DataDog/datadog-agent/cmd/cws-injector/command"
-	"github.com/DataDog/datadog-agent/cmd/cws-injector/subcommands/inject"
-	"github.com/DataDog/datadog-agent/cmd/cws-injector/subcommands/setup"
+	"github.com/DataDog/datadog-agent/cmd/cws-injector/subcommands/inject_cmd"
+	"github.com/DataDog/datadog-agent/cmd/cws-injector/subcommands/setup_cmd"
 )
 
 // CWSInjectorSubcommands returns SubcommandFactories for the subcommands supported
 // with the current build flags.
 func CWSInjectorSubcommands() []command.SubcommandFactory {
 	return []command.SubcommandFactory{
-		setup.Command,
-		inject.Command,
+		setup_cmd.Command,
+		inject_cmd.Command,
 	}
 }

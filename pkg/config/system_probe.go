@@ -390,6 +390,8 @@ func InitSystemProbeConfig(cfg Config) {
 	cfg.BindEnvAndSetDefault("runtime_security_config.hash_resolver.hash_algorithms", []string{"sha1", "sha256"})
 	cfg.BindEnvAndSetDefault("runtime_security_config.hash_resolver.cache_size", 500)
 
+	// CWS - UserSessions
+	cfg.BindEnvAndSetDefault("runtime_security_config.user_sessions.cache_size", 1024)
 }
 
 func join(pieces ...string) string {

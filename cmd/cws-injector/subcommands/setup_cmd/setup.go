@@ -5,7 +5,7 @@
 
 //go:build !windows
 
-package setup
+package setup_cmd
 
 import (
 	"fmt"

@@ -34,6 +34,7 @@ struct pid_cache_t {
     u32 ppid;
     u64 fork_timestamp;
     u64 exit_timestamp;
+    u64 user_session_id;
     struct credentials_t credentials;
 };
 

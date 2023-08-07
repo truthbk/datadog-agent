@@ -16,6 +16,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
+	"github.com/DataDog/datadog-agent/pkg/security/secl/model/user_session"
 )
 
 // Model describes the data model for the runtime security agent events
@@ -343,6 +344,27 @@ func (ev *Event) GetProcessService() string {
 	return ev.FieldHandlers.GetProcessService(ev)
 }
 
+// UserSessionContext describes the user session context
+type UserSessionContext struct {
+	ID          uint64                       `field:"-" json:"-"`
+	SessionType user_session.UserSessionType `field:"-" json:"-"`
+	Resolved    bool                         `field:"-" json:"-"`
+	RawData     string                       `field:"-" json:"-"`
+
+	// Kubernetes User Session context
+	K8SUsername string              `field:"k8s_username,handler:ResolveK8SUsername" json:"username,omitempty"` // SECLDoc[k8s_username] Definition:`Kubernetes username of the user that executed the process`
+	K8SUID      string              `field:"k8s_uid,handler:ResolveK8SUID" json:"uid,omitempty"`                // SECLDoc[k8s_uid] Definition:`Kubernetes UID of the user that executed the process`
+	K8SGroups   []string            `field:"k8s_groups,handler:ResolveK8SGroups" json:"groups,omitempty"`       // SECLDoc[k8s_groups] Definition:`Kubernetes groups of the user that executed the process`
+	K8SExtra    map[string][]string `field:"-" json:"extra,omitempty"`
+}
+
+// UserSessionKey describes the key to a user session
+type UserSessionKey struct {
+	ID      uint64
+	Cursor  byte
+	Padding [7]byte
+}
+
 // MatchedRules contains the identification of one rule that has match
 type MatchedRule struct {
 	RuleID        string
@@ -547,6 +569,7 @@ type ExtraFieldHandlers interface {
 	ResolveEventTime(ev *Event) time.Time
 	GetProcessService(ev *Event) string
 	ResolveHashes(eventType EventType, process *Process, file *FileEvent) []string
+	ResolveK8SExtra(ev *Event, ctx *UserSessionContext) map[string][]string
 }
 
 // ResolveProcessCacheEntry stub implementation
@@ -571,5 +594,10 @@ func (dfh *DefaultFieldHandlers) GetProcessService(ev *Event) string {
 
 // ResolveHashes resolves the hash of the provided file
 func (dfh *DefaultFieldHandlers) ResolveHashes(eventType EventType, process *Process, file *FileEvent) []string {
+	return nil
+}
+
+// ResolveK8SExtra resolves the K8S user session extra field
+func (dfh *DefaultFieldHandlers) ResolveK8SExtra(ev *Event, ctx *UserSessionContext) map[string][]string {
 	return nil
 }

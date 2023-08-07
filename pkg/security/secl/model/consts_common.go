@@ -15,6 +15,7 @@ import (
 	"syscall"
 
 	"github.com/DataDog/datadog-agent/pkg/security/secl/compiler/eval"
+	"github.com/DataDog/datadog-agent/pkg/security/secl/model/user_session"
 
 	lru "github.com/hashicorp/golang-lru/v2"
 )
@@ -932,6 +933,7 @@ func initConstants() {
 	initAddressFamilyConstants()
 	initExitCauseConstants()
 	initBPFMapNamesConstants()
+	user_session.InitUserSessionTypes()
 }
 
 func bitmaskToStringArray(bitmask int, intToStrMap map[int]string) []string {
