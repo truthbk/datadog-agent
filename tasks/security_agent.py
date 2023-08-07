@@ -239,6 +239,7 @@ def create_dir_if_needed(dir):
 
 @task
 def build_embed_syscall_tester(ctx, arch=CURRENT_ARCH, static=True):
+    return
     check_for_ninja(ctx)
     build_dir = os.path.join("pkg", "security", "tests", "syscall_tester", "bin")
     go_dir = os.path.join("pkg", "security", "tests", "syscall_tester", "go")

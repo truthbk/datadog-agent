@@ -25,6 +25,9 @@ const (
 
 	minProcEntries = 16394
 	maxProcEntries = 131072
+
+	// MaxSyscallsEntries maximum number of syscall in parallel
+	MaxSyscallsEntries = 64000
 )
 
 var (
@@ -158,7 +161,7 @@ type MapSpecEditorOpts struct {
 func AllMapSpecEditors(numCPU int, opts MapSpecEditorOpts) map[string]manager.MapSpecEditor {
 	editors := map[string]manager.MapSpecEditor{
 		"syscalls": {
-			MaxEntries: 8192,
+			MaxEntries: MaxSyscallsEntries,
 			EditorFlag: manager.EditMaxEntries,
 		},
 		"proc_cache": {

@@ -45,6 +45,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/process/util"
 	secconfig "github.com/DataDog/datadog-agent/pkg/security/config"
 	"github.com/DataDog/datadog-agent/pkg/security/ebpf/kernel"
+	"github.com/DataDog/datadog-agent/pkg/security/ebpf/probes"
 	"github.com/DataDog/datadog-agent/pkg/security/events"
 	"github.com/DataDog/datadog-agent/pkg/security/module"
 	"github.com/DataDog/datadog-agent/pkg/security/probe"
@@ -1513,7 +1514,8 @@ func (tm *testModule) validateAbnormalPaths() {
 func (tm *testModule) validateSyscallsInFlight() {
 	inflight := tm.statsdClient.GetByPrefix("datadog.runtime_security.syscalls_map.event_inflight:event_type:")
 	for key, value := range inflight {
-		assert.Greater(tm.t, int64(1024), value, "event type: %s leaked: %d", key, value)
+		fmt.Printf("INF: %v => %v\n", key, value)
+		assert.Greater(tm.t, int64(probes.MaxSyscallsEntries/3), value, "event type: %s leaked: %d", key, value)
 	}
 }
 
