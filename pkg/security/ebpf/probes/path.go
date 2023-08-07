@@ -10,8 +10,8 @@ package probes
 
 import manager "github.com/DataDog/ebpf-manager"
 
-// getDentryResolverTailCallRoutes is the list of routes used during the dentry resolution process
-func getPathResolverTailCallRoutes(ERPCDentryResolutionEnabled bool) []manager.TailCallRoute {
+// getPathResolverTailCallRoutes is the list of routes used during the dentry resolution process
+func getPathResolverTailCallRoutes(ERPCDentryResolutionEnabled, supportMmapableMaps bool) []manager.TailCallRoute {
 	routes := []manager.TailCallRoute{
 		// path resolver entrypoint
 		//  - kprobe
@@ -233,13 +233,20 @@ func getPathResolverTailCallRoutes(ERPCDentryResolutionEnabled bool) []manager.T
 		},
 	}
 
-	if ERPCDentryResolutionEnabled {
+	if ERPCDentryResolutionEnabled && !supportMmapableMaps {
 		routes = append(routes, []manager.TailCallRoute{
 			{
 				ProgArrayName: "erpc_progs",
-				Key:           ERPCResolvePathSegmentKey,
+				Key:           ERPCResolvePathWatermarkReaderKey,
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: "kprobe_erpc_resolve_path_segment",
+					EBPFFuncName: "kprobe_erpc_resolve_path_watermark_reader",
+				},
+			},
+			{
+				ProgArrayName: "erpc_progs",
+				Key:           ERPCResolvePathSegmentkReaderKey,
+				ProbeIdentificationPair: manager.ProbeIdentificationPair{
+					EBPFFuncName: "kprobe_erpc_resolve_path_segment_reader",
 				},
 			},
 		}...)

@@ -27,15 +27,23 @@ struct dentry_leaf_t {
 //   u16 len;
 // };
 
+enum pr_ring_buffer_reader_state_t {
+    READ_FRONTWATERMARK,
+    READ_PATHSEGMENT,
+    READ_BACKWATERMARK,
+};
+
 struct dr_erpc_state_t {
     char *userspace_buffer;
     struct dentry_key_t key;
     struct pr_ring_buffer_ref_t path_ref;
+    u32 path_end_cursor;
     int ret;
     int iteration;
     u32 buffer_size;
     u32 challenge;
     u32 cursor;
+    enum pr_ring_buffer_reader_state_t path_reader_state;
 };
 
 struct dr_erpc_stats_t {

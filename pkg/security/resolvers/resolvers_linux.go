@@ -16,6 +16,7 @@ import (
 
 	"github.com/DataDog/datadog-go/v5/statsd"
 	manager "github.com/DataDog/ebpf-manager"
+	"github.com/hashicorp/go-multierror"
 
 	"github.com/DataDog/datadog-agent/pkg/process/procutil"
 	"github.com/DataDog/datadog-agent/pkg/security/config"
@@ -121,11 +122,9 @@ func NewResolvers(config *config.Config, manager *manager.Manager, statsdClient 
 	var pathResolver path.ResolverInterface
 	if opts.PathResolutionEnabled {
 		pathResolverOpts := path.ResolverOpts{
-			UseCache: false,
-			// UseRingBuffers: opts.UseMMapablePathRingsResolution,
-			// UseERPC:        !opts.UseMMapablePathRingsResolution,
-			UseRingBuffers: false,
-			UseERPC:        true,
+			UseCache:       false,
+			UseRingBuffers: opts.UseMMapablePathRingsResolution,
+			UseERPC:        !opts.UseMMapablePathRingsResolution,
 		}
 		pathResolver = path.NewPathRingsResolver(pathResolverOpts, mountResolver, eRPC, statsdClient)
 	} else {
@@ -275,6 +274,14 @@ func (r *Resolvers) snapshot() error {
 
 // Close cleans up any underlying resolver that requires a cleanup
 func (r *Resolvers) Close() error {
-	// clean up the dentry resolver eRPC segment
-	return r.DentryResolver.Close()
+	var errs *multierror.Error
+	if err := r.DentryResolver.Close(); err != nil {
+		// clean up the dentry resolver eRPC segment
+		errs = multierror.Append(err, errs)
+	}
+	if err := r.PathResolver.Close(); err != nil {
+		// clean up the path resolver eRPC segment
+		errs = multierror.Append(err, errs)
+	}
+	return errs
 }

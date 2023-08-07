@@ -15,8 +15,10 @@ const (
 const (
 	// ERPCResolveParentDentryKey is the key to the eRPC dentry parent resolver tail call program
 	ERPCResolveParentDentryKey uint32 = iota
-	// ERPCResolvePathSegmentKey is the key to the eRPC path segment resolver tail call program
-	ERPCResolvePathSegmentKey
+	// ERPCResolvePathWatermarkReaderKey is the key to the eRPC path watermark reader tail call program
+	ERPCResolvePathWatermarkReaderKey
+	// ERPCResolvePathSegmentkReaderKey is the key to the eRPC path segment reader tail call program
+	ERPCResolvePathSegmentkReaderKey
 )
 
 // const (

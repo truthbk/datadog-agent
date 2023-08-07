@@ -260,7 +260,7 @@ func AllTailRoutes(ERPCDentryResolutionEnabled, networkEnabled, supportMmapableM
 
 	routes = append(routes, getExecTailCallRoutes()...)
 	routes = append(routes, getDentryResolverTailCallRoutes(ERPCDentryResolutionEnabled, supportMmapableMaps)...)
-	routes = append(routes, getPathResolverTailCallRoutes(ERPCDentryResolutionEnabled)...)
+	routes = append(routes, getPathResolverTailCallRoutes(ERPCDentryResolutionEnabled, supportMmapableMaps)...)
 	routes = append(routes, getSysExitTailCallRoutes()...)
 	if networkEnabled {
 		routes = append(routes, getTCTailCallRoutes()...)
@@ -275,6 +275,8 @@ func AllBPFProbeWriteUserProgramFunctions() []string {
 		// "kprobe_dentry_resolver_erpc_write_user",
 		"kprobe_dentry_resolver_parent_erpc_write_user",
 		// "kprobe_dentry_resolver_segment_erpc_write_user",
+		"kprobe_erpc_resolve_path_watermark_reader",
+		"kprobe_erpc_resolve_path_segment_reader",
 	}
 }
 

@@ -155,7 +155,6 @@ int __attribute__((always_inline)) handle_resolve_pathsegment(void *ctx, void *d
         goto exit;
     }
 
-
     u32 total_len = sizeof(state->challenge) + sizeof(state->path_ref.watermark) * 2 + state->path_ref.len;
     if (total_len > state->buffer_size) {
         err = DR_ERPC_BUFFER_SIZE;
@@ -167,17 +166,13 @@ int __attribute__((always_inline)) handle_resolve_pathsegment(void *ctx, void *d
         goto exit;
     }
 
-    ret = bpf_probe_write_user((void *)state->userspace_buffer, &state->challenge, sizeof(state->challenge));
-    if (ret < 0) {
-        err = ret == -14 ? DR_ERPC_WRITE_PAGE_FAULT : DR_ERPC_UNKNOWN_ERROR;
-        goto exit;
-    }
-
     state->iteration = 0;
     state->ret = 0;
-    state->cursor = sizeof(state->challenge);
+    state->cursor = 0;
+    state->path_reader_state = READ_FRONTWATERMARK;
+    state->path_end_cursor = state->path_ref.read_cursor + state->path_ref.len - sizeof(state->path_ref.watermark);
 
-    bpf_tail_call_compat(ctx, &erpc_progs, ERPC_RESOLVE_PATHSEGMENT_KEY);
+    bpf_tail_call_compat(ctx, &erpc_progs, ERPC_RESOLVE_PATH_WATERMARK_READER_KEY);
     err = DR_ERPC_TAIL_CALL_ERROR;
 
 exit:

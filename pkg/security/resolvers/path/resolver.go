@@ -107,7 +107,7 @@ type pathResolutionFailureCause uint8
 const (
 	unknown pathResolutionFailureCause = iota
 	truncated
-	zeroLength
+	invalidLength
 	tooBig
 	outOfBounds
 	invalidCPU
@@ -118,7 +118,7 @@ const (
 var pathResolutionFailureCauses = [...]string{
 	"unknown",
 	"truncated",
-	"zero_length",
+	"invalid_length",
 	"too_big",
 	"out_of_bounds",
 	"invalid_cpu",
@@ -212,9 +212,9 @@ func (pr *PathRingsResolver) resolvePathFromRingBuffers(ref *model.PathRingBuffe
 		return "", errTruncatedPath
 	}
 
-	if ref.Length == 0 {
-		pr.failureCounters[zeroLength].Inc()
-		return "", fmt.Errorf("path ref length is 0")
+	if ref.Length == 0 || ref.Length <= 2*WatermarkSize {
+		pr.failureCounters[invalidLength].Inc()
+		return "", fmt.Errorf("invalid path ref length: %d", ref.Length)
 	}
 
 	if ref.Length > PathRingBuffersSize {
@@ -232,21 +232,21 @@ func (pr *PathRingsResolver) resolvePathFromRingBuffers(ref *model.PathRingBuffe
 		return "", fmt.Errorf("path ref CPU number is invalid: %d", ref.CPU)
 	}
 
-	bufferOffset := ref.CPU * PathRingBuffersSize
+	cpuOffset := ref.CPU * PathRingBuffersSize
 	readOffset := ref.ReadCursor
 
 	pr.watermarkBuffer.Reset()
 	if readOffset+WatermarkSize > PathRingBuffersSize {
-		if _, err := pr.watermarkBuffer.Write(pr.pathRings[bufferOffset+readOffset : bufferOffset+PathRingBuffersSize]); err != nil {
+		if _, err := pr.watermarkBuffer.Write(pr.pathRings[cpuOffset+readOffset : cpuOffset+PathRingBuffersSize]); err != nil {
 			return "", err
 		}
 		remaining := WatermarkSize - (PathRingBuffersSize - readOffset)
-		if _, err := pr.watermarkBuffer.Write(pr.pathRings[bufferOffset : bufferOffset+remaining]); err != nil {
+		if _, err := pr.watermarkBuffer.Write(pr.pathRings[cpuOffset : cpuOffset+remaining]); err != nil {
 			return "", err
 		}
 		readOffset = remaining
 	} else {
-		if _, err := pr.watermarkBuffer.Write(pr.pathRings[bufferOffset+readOffset : bufferOffset+readOffset+WatermarkSize]); err != nil {
+		if _, err := pr.watermarkBuffer.Write(pr.pathRings[cpuOffset+readOffset : cpuOffset+readOffset+WatermarkSize]); err != nil {
 			return "", err
 		}
 		readOffset += WatermarkSize
@@ -262,30 +262,31 @@ func (pr *PathRingsResolver) resolvePathFromRingBuffers(ref *model.PathRingBuffe
 	}
 
 	var pathStr string
+	segmentLen := ref.Length - (2 * WatermarkSize)
 
-	if readOffset+ref.Length > PathRingBuffersSize {
-		firstPart := model.NullTerminatedString(pr.pathRings[bufferOffset+readOffset : bufferOffset+PathRingBuffersSize])
-		remaining := ref.Length - (PathRingBuffersSize - readOffset)
-		secondPart := model.NullTerminatedString(pr.pathRings[bufferOffset : bufferOffset+remaining])
+	if readOffset+segmentLen > PathRingBuffersSize {
+		firstPart := model.NullTerminatedString(pr.pathRings[cpuOffset+readOffset : cpuOffset+PathRingBuffersSize])
+		remaining := segmentLen - (PathRingBuffersSize - readOffset)
+		secondPart := model.NullTerminatedString(pr.pathRings[cpuOffset : cpuOffset+remaining])
 		pathStr = firstPart + secondPart
 		readOffset = remaining
 	} else {
-		pathStr = model.NullTerminatedString(pr.pathRings[bufferOffset+readOffset : bufferOffset+readOffset+ref.Length])
-		readOffset += ref.Length
+		pathStr = model.NullTerminatedString(pr.pathRings[cpuOffset+readOffset : cpuOffset+readOffset+segmentLen])
+		readOffset += segmentLen
 	}
 
 	pr.watermarkBuffer.Reset()
 	if readOffset+WatermarkSize > PathRingBuffersSize {
-		if _, err := pr.watermarkBuffer.Write(pr.pathRings[bufferOffset+readOffset : bufferOffset+PathRingBuffersSize]); err != nil {
+		if _, err := pr.watermarkBuffer.Write(pr.pathRings[cpuOffset+readOffset : cpuOffset+PathRingBuffersSize]); err != nil {
 			return "", err
 		}
 		remaining := WatermarkSize - (PathRingBuffersSize - readOffset)
-		if _, err := pr.watermarkBuffer.Write(pr.pathRings[bufferOffset : bufferOffset+remaining]); err != nil {
+		if _, err := pr.watermarkBuffer.Write(pr.pathRings[cpuOffset : cpuOffset+remaining]); err != nil {
 			return "", err
 		}
 		readOffset = remaining
 	} else {
-		if _, err := pr.watermarkBuffer.Write(pr.pathRings[bufferOffset+readOffset : bufferOffset+readOffset+WatermarkSize]); err != nil {
+		if _, err := pr.watermarkBuffer.Write(pr.pathRings[cpuOffset+readOffset : cpuOffset+readOffset+WatermarkSize]); err != nil {
 			return "", err
 		}
 		readOffset += WatermarkSize
@@ -337,8 +338,11 @@ func (pr *PathRingsResolver) resolvePathFromERPC(ref *model.PathRingBufferRef) (
 		return "", fmt.Errorf("unable to get path from ref %+v with eRPC: %w", ref, err)
 	}
 
-	if challenge != model.ByteOrder.Uint32(pr.erpcBuffer[0:4]) {
-		return "", fmt.Errorf("invalid challenge")
+	segmentLen := ref.Length - (2 * WatermarkSize)
+
+	ackChallenge := model.ByteOrder.Uint32(pr.erpcBuffer[0:4])
+	if challenge != ackChallenge {
+		return "", fmt.Errorf("invalid challenge (expected %d, got %d, ref %+v)", challenge, ackChallenge, ref)
 	}
 
 	frontWatermark := model.ByteOrder.Uint64(pr.erpcBuffer[4:12])
@@ -346,12 +350,12 @@ func (pr *PathRingsResolver) resolvePathFromERPC(ref *model.PathRingBufferRef) (
 		return "", fmt.Errorf("invalid front watermark (expected %d, got %d, challenge %d, ref %+v)", ref.Watermark, frontWatermark, challenge, ref)
 	}
 
-	backWatermark := model.ByteOrder.Uint64(pr.erpcBuffer[12+ref.Length : 12+ref.Length+8])
+	backWatermark := model.ByteOrder.Uint64(pr.erpcBuffer[12+segmentLen : 12+segmentLen+8])
 	if backWatermark != ref.Watermark {
 		return "", fmt.Errorf("invalid back watermark (expected %d, got %d, challenge %d, ref %+v)", ref.Watermark, backWatermark, challenge, ref)
 	}
 
-	path := model.NullTerminatedString(pr.erpcBuffer[12 : 12+ref.Length])
+	path := model.NullTerminatedString(pr.erpcBuffer[12 : 12+segmentLen])
 	if len(path) == 0 || len(path) > 0 && path[0] == 0 {
 		return "", fmt.Errorf("couldn't resolve path (len: %d)", len(path))
 	}
@@ -371,7 +375,8 @@ func (pr *PathRingsResolver) resolvePath(ref *model.PathRingBufferRef) (string, 
 		}
 	}
 
-	// resolveFromCache
+	// TODO: resolveFromCache
+
 	if pr.opts.UseERPC {
 		path, err = pr.resolvePathFromERPC(ref)
 		if err == nil {
@@ -478,16 +483,18 @@ func (pr *PathRingsResolver) Start(m *manager.Manager) error {
 	}
 	pr.numCPU = uint32(numCPU)
 
-	pathRingsMap, err := managerhelper.Map(m, "pr_ringbufs")
-	if err != nil {
-		return err
-	}
+	if pr.opts.UseRingBuffers {
+		pathRingsMap, err := managerhelper.Map(m, "pr_ringbufs")
+		if err != nil {
+			return err
+		}
 
-	pathRings, err := syscall.Mmap(pathRingsMap.FD(), 0, int(pr.numCPU*PathRingBuffersSize), unix.PROT_READ, unix.MAP_SHARED)
-	if err != nil || pathRings == nil {
-		return fmt.Errorf("failed to mmap pr_ringbufs map: %w", err)
+		pathRings, err := syscall.Mmap(pathRingsMap.FD(), 0, int(pr.numCPU*PathRingBuffersSize), unix.PROT_READ, unix.MAP_SHARED)
+		if err != nil || pathRings == nil {
+			return fmt.Errorf("failed to mmap pr_ringbufs map: %w", err)
+		}
+		pr.pathRings = pathRings
 	}
-	pr.pathRings = pathRings
 
 	if pr.opts.UseERPC {
 		pr.erpcBuffer = make([]byte, 7*os.Getpagesize())
@@ -500,7 +507,10 @@ func (pr *PathRingsResolver) Start(m *manager.Manager) error {
 }
 
 func (pr *PathRingsResolver) Close() error {
-	return unix.Munmap(pr.pathRings)
+	if pr.opts.UseRingBuffers {
+		return unix.Munmap(pr.pathRings)
+	}
+	return nil
 }
 
 func (pr *PathRingsResolver) SendStats() error {

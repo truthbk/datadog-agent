@@ -35,8 +35,9 @@ void __attribute__((always_inline)) rb_push_str(struct pr_ring_buffer *rb, struc
     if (ringbuf_ctx->write_cursor + const_len <= PR_RING_BUFFER_SIZE) {
         long len = bpf_probe_read_str(&rb->buffer[ringbuf_ctx->write_cursor], const_len, str);
         if (len > 0) {
-            // bpf_probe_read_str will set the last byte to NULL, so remove 1 from the total len so that it gets overriden on the next push
+            // bpf_probe_read_str will set the last byte to NULL, so remove 1 from the total len so that it gets overwritten on the next push
             ringbuf_ctx->write_cursor = (ringbuf_ctx->write_cursor + len - 1) % PR_RING_BUFFER_SIZE;
+            ringbuf_ctx->len += (len - 1);
         }
     }
 }
@@ -47,11 +48,13 @@ void __attribute__((always_inline)) rb_push_watermark(struct pr_ring_buffer *rb,
         rb->buffer[ringbuf_ctx->write_cursor++ % PR_RING_BUFFER_SIZE] = *(((char *)&ringbuf_ctx->watermark) + i);
     }
     ringbuf_ctx->write_cursor %= PR_RING_BUFFER_SIZE;
+    ringbuf_ctx->len += sizeof(ringbuf_ctx->watermark);
 }
 
 void __attribute__((always_inline)) rb_push_char(struct pr_ring_buffer *rb, struct pr_ring_buffer_ctx *ringbuf_ctx, char c) {
     rb->buffer[ringbuf_ctx->write_cursor++ % PR_RING_BUFFER_SIZE] = c;
     ringbuf_ctx->write_cursor %= PR_RING_BUFFER_SIZE;
+    ringbuf_ctx->len += 1;
 }
 
 int __attribute__((always_inline)) rb_prepare_ctx() {

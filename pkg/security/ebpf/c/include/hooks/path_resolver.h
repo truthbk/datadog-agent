@@ -83,8 +83,8 @@ int __attribute__((always_inline)) resolve_path_tail_call(void *ctx, struct dent
         if (len == 2 && name[0] == '/') {
             if (ringbuf_ctx->len == 0) { // we want to push '/' only if we are resolving a root path
                 rb_push_char(rb, ringbuf_ctx, '/');
-                ringbuf_ctx->len += 1;
             }
+            rb_push_char(rb, ringbuf_ctx, '\0');
             // mark the path resolution as complete which will stop the tail calls
             input->key.ino = 0;
             map_value.parent.ino = 0;
@@ -95,17 +95,13 @@ int __attribute__((always_inline)) resolve_path_tail_call(void *ctx, struct dent
 
         u32 rb_tail_len = rb_get_tail_length(ringbuf_ctx);
         if (rb_tail_len < sizeof(name)) {
-            char swamped_char = name[rb_tail_len];
-            name[rb_tail_len] = '\0';
-            rb_push_str(rb, ringbuf_ctx, &name[0], sizeof(name));
-            name[rb_tail_len] = swamped_char;
-            rb_push_str(rb, ringbuf_ctx, &name[rb_tail_len], sizeof(name));
-        } else {
-            rb_push_str(rb, ringbuf_ctx, &name[0], sizeof(name));
+            rb->buffer[ringbuf_ctx->write_cursor % PR_RING_BUFFER_SIZE] = '\0';
+            ringbuf_ctx->len += rb_tail_len;
+            ringbuf_ctx->write_cursor = 0;
         }
-        ringbuf_ctx->len += (len - 1); // do not count trailing NULL byte
+
+        rb_push_str(rb, ringbuf_ctx, &name[0], sizeof(name));
         rb_push_char(rb, ringbuf_ctx, '/');
-        ringbuf_ctx->len += 1;
 
         map_value.parent = next_key;
         bpf_map_update_elem(&dentries, &key, &map_value, BPF_ANY);
@@ -141,8 +137,7 @@ int __attribute__((always_inline)) resolve_path_tail_call(void *ctx, struct dent
     u32 cpu = bpf_get_smp_processor_id();                                                                              \
     struct pr_ring_buffer *rb = bpf_map_lookup_elem(&pr_ringbufs, &cpu);                                               \
     if (!rb) {                                                                                                         \
-        cleanup_ringbuf_ctx(ringbuf_ctx);                                                                              \
-        return DENTRY_ERROR;                                                                                           \
+        return 0;                                                                                                      \
     }                                                                                                                  \
                                                                                                                        \
     syscall->resolver.iteration++;                                                                                     \
@@ -214,8 +209,8 @@ int tracepoint_path_resolver_loop(void *ctx) {
     return 0;
 }
 
-SEC("kprobe/erpc_resolve_path_segment")
-int kprobe_erpc_resolve_path_segment(void *ctx) {
+SEC("kprobe/erpc_resolve_path_watermark_reader")
+int kprobe_erpc_resolve_path_watermark_reader(void *ctx) {
     u32 zero = 0, err = 0;
     struct dr_erpc_state_t *state = bpf_map_lookup_elem(&dr_erpc_state, &zero);
     if (!state) {
@@ -228,22 +223,90 @@ int kprobe_erpc_resolve_path_segment(void *ctx) {
         goto exit;
     }
 
-    u32 total_len = sizeof(state->challenge) + sizeof(state->path_ref.watermark) * 2 + state->path_ref.len;
-
-#pragma unroll
-    for (int i = 0; i < 32; i++) {
-        if (state->cursor == total_len) {
-            return 0;
-        }
-        int ret = bpf_probe_write_user((void *)state->userspace_buffer + state->cursor, &rb->buffer[state->path_ref.read_cursor++ % PR_RING_BUFFER_SIZE], 1);
+    if (state->path_reader_state == READ_FRONTWATERMARK) {
+        int ret = bpf_probe_write_user((void *)state->userspace_buffer, &state->challenge, sizeof(state->challenge));
         if (ret < 0) {
             err = ret == -14 ? DR_ERPC_WRITE_PAGE_FAULT : DR_ERPC_UNKNOWN_ERROR;
             goto exit;
         }
-        state->cursor++;
+        state->cursor += sizeof(state->challenge);
     }
 
-    bpf_tail_call_compat(ctx, &erpc_progs, ERPC_RESOLVE_PATHSEGMENT_KEY);
+    if (state->path_ref.read_cursor + sizeof(state->path_ref.watermark) <= PR_RING_BUFFER_SIZE) {
+        int ret = bpf_probe_write_user((void *)state->userspace_buffer + state->cursor, &rb->buffer[state->path_ref.read_cursor], sizeof(state->path_ref.watermark));
+        if (ret < 0) {
+            err = ret == -14 ? DR_ERPC_WRITE_PAGE_FAULT : DR_ERPC_UNKNOWN_ERROR;
+            goto exit;
+        }
+        state->path_ref.read_cursor += sizeof(state->path_ref.watermark);
+        state->cursor += sizeof(state->path_ref.watermark);
+    } else {
+#pragma unroll
+        for (int i = 0; i < sizeof(state->path_ref.watermark); i++) {
+            int ret = bpf_probe_write_user((void *)state->userspace_buffer + state->cursor, &rb->buffer[state->path_ref.read_cursor % PR_RING_BUFFER_SIZE], 1);
+            if (ret < 0) {
+                err = ret == -14 ? DR_ERPC_WRITE_PAGE_FAULT : DR_ERPC_UNKNOWN_ERROR;
+                goto exit;
+            }
+            state->path_ref.read_cursor++;
+            state->cursor++;
+        }
+    }
+
+    if (state->path_reader_state == READ_FRONTWATERMARK) {
+        state->path_reader_state = READ_PATHSEGMENT;
+        bpf_tail_call_compat(ctx, &erpc_progs, ERPC_RESOLVE_PATH_SEGMENT_READER_KEY);
+        err = DR_ERPC_TAIL_CALL_ERROR;
+    }
+
+exit:
+    monitor_resolution_err(err);
+    return 0;
+}
+
+
+SEC("kprobe/erpc_resolve_path_segment_reader")
+int kprobe_erpc_resolve_path_segment_reader(void *ctx) {
+    u32 zero = 0, err = 0;
+    char path_chunk[32] = {0};
+    struct dr_erpc_state_t *state = bpf_map_lookup_elem(&dr_erpc_state, &zero);
+    if (!state) {
+        return 0;
+    }
+
+    struct pr_ring_buffer *rb = bpf_map_lookup_elem(&pr_ringbufs, &state->path_ref.cpu);
+    if (!rb) {
+        err = DR_ERPC_CACHE_MISS; // TODO: use a specific error type for malformed request
+        goto exit;
+    }
+
+#pragma unroll
+    for (int i = 0; i < 32; i++) {
+        if (state->path_ref.read_cursor == state->path_end_cursor) {
+            state->path_reader_state = READ_BACKWATERMARK;
+            bpf_tail_call_compat(ctx, &erpc_progs, ERPC_RESOLVE_PATH_WATERMARK_READER_KEY);
+            err = DR_ERPC_TAIL_CALL_ERROR;
+            goto exit;
+        }
+        long len = bpf_probe_read_str(path_chunk, sizeof(path_chunk), &rb->buffer[state->path_ref.read_cursor % PR_RING_BUFFER_SIZE]);
+        if (len <= 0) {
+            err = DR_ERPC_CACHE_MISS; // TODO: use a specific error type for this
+            goto exit;
+        }
+        int ret = bpf_probe_write_user((void *)state->userspace_buffer + state->cursor, path_chunk, sizeof(path_chunk));
+        if (ret < 0) {
+            err = ret == -14 ? DR_ERPC_WRITE_PAGE_FAULT : DR_ERPC_UNKNOWN_ERROR;
+            goto exit;
+        }
+        if (len == sizeof(path_chunk) && rb->buffer[(state->path_ref.read_cursor + sizeof(path_chunk) - 1) % PR_RING_BUFFER_SIZE] != '\0') {
+            state->path_ref.read_cursor -= 1;
+            state->cursor -= 1;
+        }
+        state->path_ref.read_cursor += len;
+        state->cursor += len;
+    }
+
+    bpf_tail_call_compat(ctx, &erpc_progs, ERPC_RESOLVE_PATH_SEGMENT_READER_KEY);
     err = DR_ERPC_TAIL_CALL_ERROR;
 
 exit:
