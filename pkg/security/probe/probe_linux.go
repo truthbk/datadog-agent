@@ -1311,9 +1311,11 @@ func (p *Probe) handleNewMount(ev *model.Event, m *model.Mount) error {
 		return err
 	}
 	// Resolve root
-	if err := p.resolvers.PathResolver.SetMountRoot(ev, m); err != nil {
-		seclog.Debugf("failed to set mount root: %v", err)
-		return err
+	if ev.Type != uint32(model.UnshareMountNsEventType) {
+		if err := p.resolvers.PathResolver.SetMountRoot(ev, m); err != nil {
+			seclog.Debugf("failed to set mount root: %v", err)
+			return err
+		}
 	}
 
 	// Insert new mount point in cache, passing it a copy of the mount that we got from the event
