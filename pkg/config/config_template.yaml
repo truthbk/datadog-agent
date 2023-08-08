@@ -2244,9 +2244,9 @@ api_key:
 ## @env DD_JMX_MAX_RAM_PERCENTAGE - float - optional - default: 25.0
 ## When running in a container with jmx_use_container_support enabled, the JVM can
 ## automatically declare the maximum heap size based off of a percentage of
-## total container allocated memory. This option is overwritten if 
+## total container allocated memory. This option is overwritten if
 ## you use -Xmx to manually define the size of the heap. This option applies
-## to containers with a total memory limit greater than ~250mb. If 
+## to containers with a total memory limit greater than ~250mb. If
 ## jmx_use_container_support is disabled this option has no effect.
 #
 # jmx_max_ram_percentage: 25.0
@@ -2310,6 +2310,12 @@ api_key:
 ## Specifies whether the JMXFetch statsd client telemetry is enabled.
 #
 # jmx_statsd_telemetry_enabled: false
+
+## @param jmx_instance_telemetry_enabled - boolean - optional - default: false
+## @env DD_JMX_INSTANCE_TELEMETRY_ENABLED - boolean - optional - default: false
+## Specifies whether the JMXFetch instance telemetry is enabled.
+#
+# jmx_instance_telemetry_enabled: false
 
 {{ end -}}
 {{- if .Logging }}
@@ -3825,7 +3831,7 @@ api_key:
         ## - `drop` always drops the initial value.
         ## - `keep` always reports the initial value.
         #
-        # initial_cumulative_monotonic_value: auto   
+        # initial_cumulative_monotonic_value: auto
 
     ## @param summaries - custom object - optional
     ## Configuration for OTLP Summaries.
