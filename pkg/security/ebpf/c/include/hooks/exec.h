@@ -628,7 +628,7 @@ int __attribute__((always_inline)) send_exec_event(ctx_t *ctx) {
         .container = {},
     };
 
-    fill_file_metadata(syscall->exec.dentry, &pc.entry.executable.metadata);
+    fill_file(syscall->exec.dentry, &pc.entry.executable);
     bpf_get_current_comm(&pc.entry.comm, sizeof(pc.entry.comm));
 
     u64 parent_inode = 0;
