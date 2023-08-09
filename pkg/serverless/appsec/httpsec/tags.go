@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/DataDog/appsec-internal-go/httpsec"
+	"github.com/DataDog/datadog-agent/pkg/serverless/appsec"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
@@ -78,6 +79,9 @@ type span interface {
 // be in service entry span when AppSec is enabled.
 func setAppSecEnabledTags(span span) {
 	span.SetMetricsTag("_dd.appsec.enabled", 1)
+	if appsec.IsStandalone() {
+		span.SetMetricsTag("_dd.apm.enabled", 0)
+	}
 }
 
 // setEventSpanTags sets the security event span tags into the service entry span.
@@ -90,6 +94,7 @@ func setEventSpanTags(span span, events json.RawMessage) error {
 	span.SetMetaTag("_dd.appsec.json", string(val))
 	// Set the appsec.event tag needed by the appsec backend
 	span.SetMetaTag("appsec.event", "true")
+
 	return nil
 }
 

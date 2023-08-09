@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 
 	pb "github.com/DataDog/datadog-agent/pkg/proto/pbgo/trace"
+	"github.com/DataDog/datadog-agent/pkg/serverless/appsec"
 	"github.com/DataDog/datadog-agent/pkg/serverless/invocationlifecycle"
 	"github.com/DataDog/datadog-agent/pkg/serverless/trigger"
 	"github.com/DataDog/datadog-agent/pkg/trace/sampler"
@@ -194,6 +195,15 @@ func (lp *ProxyLifecycleProcessor) spanModifier(lastReqId string, chunk *pb.Trac
 	if events := lp.appsec.Monitor(ctx.toAddresses()); len(events) > 0 {
 		setSecurityEventsTags(span, events, reqHeaders, nil)
 		chunk.Priority = int32(sampler.PriorityUserKeep)
+
+		// Make sure to mark the service entry span with the appsec.event: true tag
+		if appsec.IsStandalone() {
+			for _, sp := range chunk.Spans {
+				if sp.ParentID == 0 {
+					sp.Meta["appsec.event"] = "true"
+				}
+			}
+		}
 	}
 }
 
