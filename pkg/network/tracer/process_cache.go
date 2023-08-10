@@ -49,7 +49,7 @@ var processCacheTelemetry = struct {
 
 type process struct {
 	Pid         uint32
-	Envs        map[string]string
+	Envs        map[string]string // 3 entries, change to struct { service, env, ... }
 	ContainerID string
 	StartTime   int64
 	Expiry      int64

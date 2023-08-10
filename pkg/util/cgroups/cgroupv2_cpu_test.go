@@ -39,6 +39,27 @@ func createCgroupV2FakeCPUFiles(cfs *cgroupMemoryFS, cg *cgroupV2) {
 	cfs.setCgroupV2File(cg, "cpuset.cpus.effective", sampleCgroupV2CpuSetEffective)
 }
 
+// TODO: add benchmark for TestCgroupV2CPUStats
+
+var sink any
+
+func BenchmarkCgrounpV2CPUStats(b *testing.B) {
+	cfs := newCgroupMemoryFS("/test/fs/cgroup")
+
+	var err error
+	stats := &CPUStats{}
+
+	cgFoo1 := cfs.createCgroupV2("foo1", containerCgroupKubePod(true))
+
+	createCgroupV2FakeCPUFiles(cfs, cgFoo1)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		err = cgFoo1.GetCPUStats(stats)
+		assert.NoError(t, err)
+	}
+
+}
+
 func TestCgroupV2CPUStats(t *testing.T) {
 	cfs := newCgroupMemoryFS("/test/fs/cgroup")
 
