@@ -7,6 +7,7 @@ package workloadmeta
 
 import (
 	"context"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 	"sort"
 	"testing"
 	"time"
@@ -51,7 +52,7 @@ func TestStartStop(t *testing.T) {
 	cfg := config.Mock(t)
 	fxutil.Test[telemetry.Mock](t, telemetry.MockModule).Reset()
 
-	extractor := NewWorkloadMetaExtractor(cfg)
+	extractor := NewWorkloadMetaExtractor()
 
 	port := testutil.FreeTCPPort(t)
 	cfg.Set("process_config.language_detection.grpc_port", port)
@@ -84,7 +85,7 @@ func TestStreamServer(t *testing.T) {
 
 	cfg := config.Mock(t)
 	fxutil.Test[telemetry.Mock](t, telemetry.MockModule).Reset()
-	extractor := NewWorkloadMetaExtractor(cfg)
+	extractor := NewWorkloadMetaExtractor()
 
 	port := testutil.FreeTCPPort(t)
 	cfg.Set("process_config.language_detection.grpc_port", port)
@@ -164,7 +165,7 @@ func TestStreamServerDropRedundantCacheDiff(t *testing.T) {
 
 	cfg := config.Mock(t)
 	fxutil.Test[telemetry.Mock](t, telemetry.MockModule).Reset()
-	extractor := NewWorkloadMetaExtractor(cfg)
+	extractor := NewWorkloadMetaExtractor()
 
 	port := testutil.FreeTCPPort(t)
 	cfg.Set("process_config.language_detection.grpc_port", port)
@@ -249,15 +250,15 @@ func TestStreamVersioning(t *testing.T) {
 func TestProcessEntityToEventSet(t *testing.T) {
 	for _, tc := range []struct {
 		desc    string
-		process *ProcessEntity
+		process workloadmeta.Process
 		event   *pbgo.ProcessEventSet
 	}{
 		{
 			desc: "process with detected language",
-			process: &ProcessEntity{
+			process: workloadmeta.Process{
 				Pid:          40,
 				NsPid:        1,
-				CreationTime: 5311456,
+				CreationTime: time.UnixMilli(5311456),
 				Language: &languagemodels.Language{
 					Name: languagemodels.Python,
 				},
@@ -271,10 +272,10 @@ func TestProcessEntityToEventSet(t *testing.T) {
 		},
 		{
 			desc: "process without detected language",
-			process: &ProcessEntity{
+			process: workloadmeta.Process{
 				Pid:          40,
 				NsPid:        1,
-				CreationTime: 5311456,
+				CreationTime: time.UnixMilli(5311456),
 			},
 			event: &pbgo.ProcessEventSet{
 				Pid:          40,
@@ -370,7 +371,7 @@ func setupGRPCTest(t *testing.T) (*WorkloadMetaExtractor, *GRPCServer, *grpc.Cli
 	require.NoError(t, err)
 	cfg.Set("process_config.language_detection.grpc_port", port)
 	fxutil.Test[telemetry.Mock](t, telemetry.MockModule).Reset()
-	extractor := NewWorkloadMetaExtractor(cfg)
+	extractor := NewWorkloadMetaExtractor()
 
 	grpcServer := NewGRPCServer(cfg, extractor)
 	err = grpcServer.Start()

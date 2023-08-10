@@ -886,6 +886,7 @@ type Process struct {
 	ContainerId  string
 	CreationTime time.Time
 	Language     *languagemodels.Language
+	Pid          int32 // Should be the same as the EntityID, however this is used to prevent unnecessary string conversions.
 }
 
 var _ Entity = &Process{}

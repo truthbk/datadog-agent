@@ -73,7 +73,7 @@ func setUpCollectorTest(t *testing.T) *collectorTest {
 	cfg.Set("process_config.language_detection.grpc_port", port)
 	cfg.Set("workloadmeta.remote_process_collector.enabled", true)
 
-	wlmExtractor := workloadmetaExtractor.NewWorkloadMetaExtractor(cfg)
+	wlmExtractor := workloadmetaExtractor.NewWorkloadMetaExtractor()
 	grpcServer := workloadmetaExtractor.NewGRPCServer(cfg, wlmExtractor)
 
 	mockProcessData, probe := checks.NewProcessDataWithMockProbe(t)

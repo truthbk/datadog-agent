@@ -20,7 +20,7 @@ import (
 const collectorId = "local-process"
 
 func NewProcessCollector(ddConfig config.ConfigReader) *Collector {
-	wlmExtractor := workloadmetaExtractor.NewWorkloadMetaExtractor(ddConfig)
+	wlmExtractor := workloadmetaExtractor.NewWorkloadMetaExtractor()
 
 	processData := checks.NewProcessData(ddConfig)
 	processData.Register(wlmExtractor)

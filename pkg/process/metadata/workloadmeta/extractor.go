@@ -6,15 +6,16 @@
 package workloadmeta
 
 import (
-	"strconv"
-	"sync"
-
 	"github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/languagedetection"
 	"github.com/DataDog/datadog-agent/pkg/languagedetection/languagemodels"
 	"github.com/DataDog/datadog-agent/pkg/process/procutil"
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
+	"strconv"
+	"sync"
+	"time"
 )
 
 const subsystem = "WorkloadMetaExtractor"
@@ -34,7 +35,7 @@ type ProcessEntity struct {
 type WorkloadMetaExtractor struct {
 	// Cache is a map from process hash to the workloadmeta entity
 	// The cache key takes the form of `pid:<pid>|createTime:<createTime>`. See hashProcess
-	cache        map[string]*ProcessEntity
+	cache        map[string]workloadmeta.Process
 	cacheVersion int32
 	cacheMutex   sync.RWMutex
 
@@ -47,8 +48,8 @@ type WorkloadMetaExtractor struct {
 // Extract call from the WorkloadMetaExtractor cache
 type ProcessCacheDiff struct {
 	cacheVersion int32
-	creation     []*ProcessEntity
-	deletion     []*ProcessEntity
+	creation     []workloadmeta.Process
+	deletion     []workloadmeta.Process
 }
 
 var (
@@ -58,11 +59,11 @@ var (
 )
 
 // NewWorkloadMetaExtractor constructs the WorkloadMetaExtractor.
-func NewWorkloadMetaExtractor(config config.ConfigReader) *WorkloadMetaExtractor {
+func NewWorkloadMetaExtractor() *WorkloadMetaExtractor {
 	log.Info("Instantiating a new WorkloadMetaExtractor")
 
 	return &WorkloadMetaExtractor{
-		cache:        make(map[string]*ProcessEntity),
+		cache:        make(map[string]workloadmeta.Process),
 		cacheVersion: 0,
 		// Keep only the latest diff in memory in case there's no consumer for it
 		diffChan: make(chan *ProcessCacheDiff, 1),
@@ -81,9 +82,9 @@ func (w *WorkloadMetaExtractor) SetLastPidToCid(pidToCid map[int]string) {
 func (w *WorkloadMetaExtractor) Extract(procs map[int32]*procutil.Process) {
 	defer w.reportTelemetry()
 
-	newEntities := make([]*ProcessEntity, 0, len(procs))
+	newEntities := make([]workloadmeta.Process, 0, len(procs))
 	newProcs := make([]*procutil.Process, 0, len(procs))
-	newCache := make(map[string]*ProcessEntity, len(procs))
+	newCache := make(map[string]workloadmeta.Process, len(procs))
 	for pid, proc := range procs {
 		hash := hashProcess(pid, proc.Stats.CreateTime)
 		if entity, ok := w.cache[hash]; ok {
@@ -118,12 +119,15 @@ func (w *WorkloadMetaExtractor) Extract(procs map[int32]*procutil.Process) {
 			creationTime = proc.Stats.CreateTime
 		}
 
-		entity := &ProcessEntity{
+		entity := workloadmeta.Process{
+			EntityID: workloadmeta.EntityID{
+				ID: strconv.Itoa(int(pid)),
+			},
 			Pid:          pid,
 			NsPid:        proc.NsPid,
-			CreationTime: creationTime,
-			Language:     lang,
 			ContainerId:  w.pidToCid[int(pid)],
+			CreationTime: time.UnixMilli(creationTime),
+			Language:     lang,
 		}
 		newEntities = append(newEntities, entity)
 		newCache[hashProcess(pid, proc.Stats.CreateTime)] = entity
@@ -162,8 +166,8 @@ func (w *WorkloadMetaExtractor) Extract(procs map[int32]*procutil.Process) {
 	}
 }
 
-func getDifference(oldCache, newCache map[string]*ProcessEntity) []*ProcessEntity {
-	oldProcs := make([]*ProcessEntity, 0, len(oldCache))
+func getDifference(oldCache, newCache map[string]workloadmeta.Process) []workloadmeta.Process {
+	oldProcs := make([]workloadmeta.Process, 0, len(oldCache))
 	for key, entity := range oldCache {
 		if _, ok := newCache[key]; ok {
 			continue
@@ -184,12 +188,12 @@ func hashProcess(pid int32, createTime int64) string {
 
 // GetAllProcessEntities returns all processes Entities stored in the WorkloadMetaExtractor cache and the version
 // of the cache at the moment of the read
-func (w *WorkloadMetaExtractor) GetAllProcessEntities() (map[string]*ProcessEntity, int32) {
+func (w *WorkloadMetaExtractor) GetAllProcessEntities() (map[string]workloadmeta.Process, int32) {
 	w.cacheMutex.RLock()
 	defer w.cacheMutex.RUnlock()
 
 	// Store pointers in map to avoid duplicating ProcessEntity data
-	snapshot := make(map[string]*ProcessEntity)
+	snapshot := make(map[string]workloadmeta.Process)
 	for id, proc := range w.cache {
 		snapshot[id] = proc
 	}

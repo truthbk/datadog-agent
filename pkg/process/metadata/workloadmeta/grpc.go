@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 	"net"
 	"strconv"
 	"sync"
@@ -195,7 +196,7 @@ func getGRPCStreamPort(cfg config.ConfigReader) int {
 	return grpcPort
 }
 
-func processEntityToEventSet(proc *ProcessEntity) *pbgo.ProcessEventSet {
+func processEntityToEventSet(proc workloadmeta.Process) *pbgo.ProcessEventSet {
 	var language *pbgo.Language
 	if proc.Language != nil {
 		language = &pbgo.Language{Name: string(proc.Language.Name)}
@@ -205,7 +206,7 @@ func processEntityToEventSet(proc *ProcessEntity) *pbgo.ProcessEventSet {
 		Pid:          proc.Pid,
 		ContainerId:  proc.ContainerId,
 		Nspid:        proc.NsPid,
-		CreationTime: proc.CreationTime,
+		CreationTime: proc.CreationTime.UnixMilli(),
 		Language:     language,
 	}
 }
