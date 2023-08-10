@@ -10,6 +10,7 @@ package usm
 import (
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/cilium/ebpf"
 	"golang.org/x/sys/unix"
@@ -59,6 +60,9 @@ type ebpfProgram struct {
 	disabledProtocols []*protocols.ProtocolSpec
 
 	buildMode buildMode
+
+	// Used for connection_protocol data expiration
+	mapCleaner *ddebpf.MapCleaner
 }
 
 type probeResolver interface {
@@ -269,6 +273,7 @@ func (e *ebpfProgram) Start() error {
 		return err
 	}
 
+	e.mapCleaner = e.setupMapCleaner()
 	for _, s := range e.subprograms {
 		if s.IsBuildModeSupported(e.buildMode) {
 			s.Start()
@@ -285,6 +290,7 @@ func (e *ebpfProgram) Close() error {
 	for _, s := range e.subprograms {
 		s.Stop()
 	}
+	e.mapCleaner.Stop()
 	return e.Stop(manager.CleanAll)
 }
 
@@ -435,6 +441,30 @@ func (e *ebpfProgram) init(buf bytecode.AssetReader, options manager.Options) er
 	}
 
 	return e.InitWithOptions(buf, options)
+}
+
+const connProtoTTL = 3 * time.Minute
+const connProtoCleaningInterval = 5 * time.Minute
+
+func (e *ebpfProgram) setupMapCleaner() *ddebpf.MapCleaner {
+	mapCleaner, err := ddebpf.NewMapCleaner(e.connectionProtocolMap, new(netebpf.ConnTuple), new(netebpf.ProtocolStackWrapper))
+	if err != nil {
+		log.Errorf("error creating map cleaner: %s", err)
+		return nil
+	}
+
+	ttl := connProtoTTL.Nanoseconds()
+	mapCleaner.Clean(connProtoCleaningInterval, func(now int64, key, val interface{}) bool {
+		protoStack, ok := val.(*netebpf.ProtocolStackWrapper)
+		if !ok {
+			return false
+		}
+
+		updated := int64(protoStack.Updated)
+		return (now - updated) > ttl
+	})
+
+	return mapCleaner
 }
 
 func getAssetName(module string, debug bool) string {
