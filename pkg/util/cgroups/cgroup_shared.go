@@ -21,8 +21,10 @@ const (
 // of processor IDs, with hyphenated ranges representing closed sets.
 // So "0,1,5-8" represents processors 0, 1, 5, 6, 7, 8.
 // The function returns the count of CPUs, in this case 6.
-func ParseCPUSetFormat(line string) uint64 {
+func ParseCPUSetFormat(lineRaw []byte) uint64 {
 	var numCPUs uint64
+
+	line := string(lineRaw) // TODO: improve this
 
 	lineSlice := strings.Split(line, ",")
 	for _, l := range lineSlice {

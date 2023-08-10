@@ -8,6 +8,7 @@
 package cgroups
 
 import (
+	"bufio"
 	"strconv"
 
 	"github.com/DataDog/datadog-agent/pkg/util/pointer"
@@ -50,19 +51,31 @@ func (c *cgroupV1) GetIOStats(stats *IOStats) error {
 }
 
 func (c *cgroupV1) parseV1blkio(path string, perDevice map[string]DeviceIOStats, Writer func(*DeviceIOStats, string, uint64) bool) error {
-	return parseColumnStats(c.fr, path, func(fields []string) error {
-		if len(fields) < 3 {
+	return parseColumnStats(c.fr, path, func(fields *bufio.Scanner) error {
+
+		field0 := fields.Bytes()
+		if err := fields.Err(); err != nil {
 			return nil
 		}
 
-		value, err := strconv.ParseUint(fields[2], 10, 64)
+		field1 := fields.Bytes()
+		if err := fields.Err(); err != nil {
+			return nil
+		}
+
+		field2 := fields.Bytes()
+		if err := fields.Err(); err != nil {
+			return nil
+		}
+
+		value, err := strconv.ParseUint(string(field2), 10, 64) // TODO: be more efficient
 		if err != nil {
 			return err
 		}
 
-		device := perDevice[fields[0]]
-		if Writer(&device, fields[1], value) {
-			perDevice[fields[0]] = device
+		device := perDevice[string(field0)]
+		if Writer(&device, string(field1), value) {
+			perDevice[string(field0)] = device
 		}
 
 		return nil

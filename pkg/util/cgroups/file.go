@@ -9,6 +9,7 @@ package cgroups
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -47,7 +48,10 @@ func (e *stopParsingError) Error() string {
 
 // returning an error will stop parsing and return the error
 // with the exception of stopParsingError that will return without error
-type parser func(string) error
+//
+// the input to parser is a byte representing a line without whitespace. The contents of the given
+// slice might be overwritten after parser() runs.
+type parser func([]byte) error
 
 func parseFile(fr fileReader, path string, p parser) error {
 	f, err := fr.open(path)
@@ -58,7 +62,7 @@ func parseFile(fr fileReader, path string, p parser) error {
 
 	s := bufio.NewScanner(f)
 	for s.Scan() {
-		line := s.Text()
+		line := s.Bytes()
 		err := p(line)
 		if err != nil {
 			if errors.Is(err, &stopParsingError{}) {
@@ -67,18 +71,27 @@ func parseFile(fr fileReader, path string, p parser) error {
 
 			return err
 		}
+
+	}
+	if s.Err() != io.EOF {
+		return s.Err()
 	}
 
 	return nil
 }
 
+var (
+	bytesMax = []byte("max")
+)
+
 func parseSingleSignedStat(fr fileReader, path string, val **int64) error {
-	return parseFile(fr, path, func(line string) error {
+	return parseFile(fr, path, func(lineRaw []byte) error {
 		// handle cgroupv2 max value, we usually consider max == no value (limit)
-		if line == "max" {
+		if bytes.Equal(lineRaw, bytesMax) {
 			return &stopParsingError{}
 		}
 
+		line := string(lineRaw)
 		value, err := strconv.ParseInt(line, 10, 64)
 		if err != nil {
 			return newValueError(line, err)
@@ -89,12 +102,16 @@ func parseSingleSignedStat(fr fileReader, path string, val **int64) error {
 }
 
 func parseSingleUnsignedStat(fr fileReader, path string, val **uint64) error {
-	return parseFile(fr, path, func(line string) error {
+	fmt.Printf("parsed single unsighted %s\n", path)
+	return parseFile(fr, path, func(lineRaw []byte) error {
+
+		fmt.Printf("%s", string(lineRaw))
 		// handle cgroupv2 max value, we usually consider max == no value (limit)
-		if line == "max" {
+		if bytes.Equal(lineRaw, bytesMax) {
 			return &stopParsingError{}
 		}
 
+		line := string(lineRaw)
 		value, err := strconv.ParseUint(line, 10, 64)
 		if err != nil {
 			return newValueError(line, err)
@@ -104,10 +121,13 @@ func parseSingleUnsignedStat(fr fileReader, path string, val **uint64) error {
 	})
 }
 
-func parseColumnStats(fr fileReader, path string, valueParser func([]string) error) error {
-	err := parseFile(fr, path, func(line string) error {
-		splits := strings.Fields(line)
-		return valueParser(splits)
+func parseColumnStats(fr fileReader, path string, valueParser func(*bufio.Scanner) error) error {
+
+	err := parseFile(fr, path, func(line []byte) error {
+		scan := bufio.NewScanner(bytes.NewBuffer(line))
+		scan.Split(bufio.ScanWords)
+
+		return valueParser(scan)
 	})
 
 	return err
@@ -115,18 +135,42 @@ func parseColumnStats(fr fileReader, path string, valueParser func([]string) err
 
 // columns are 0-indexed, we skip malformed lines
 func parse2ColumnStats(fr fileReader, path string, keyColumn, valueColumn int, valueParser func(string, string) error) error {
+	fmt.Printf("parse two column stats %s path, %d %d\n", path, keyColumn, valueColumn)
 	lastIdx := valueColumn
 	if keyColumn > lastIdx {
 		lastIdx = keyColumn
 	}
 
-	err := parseFile(fr, path, func(line string) error {
-		splits := strings.SplitN(line, spaceSeparator, lastIdx+1)
-		if len(splits) <= lastIdx {
-			return nil
+	err := parseFile(fr, path, func(line []byte) error {
+		fmt.Printf("parsefile line: %s\n", line)
+		scan := bufio.NewScanner(bytes.NewBuffer(line)) // TODO: use bufio.ScanWords?
+		scan.Split(bufio.ScanWords)
+
+		var keyValue []byte
+		var valueValue []byte
+		for i := 0; i < keyColumn+1 || i < valueColumn+1; i++ {
+			if !scan.Scan() {
+				panic("error here") // TODO
+			}
+
+			if i == keyColumn {
+				keyValue = scan.Bytes()
+			}
+
+			if i == valueColumn {
+				valueValue = scan.Bytes()
+			}
 		}
 
-		return valueParser(splits[keyColumn], splits[valueColumn])
+		if len(keyValue) == 0 && len(valueValue) == 0 {
+			fmt.Printf("no match! <%s , %s> \n", keyValue, valueValue)
+			// TODO - panic?
+		}
+
+		fmt.Printf("got %s %s\n", keyValue, valueValue)
+
+		// TODO: convert to strings
+		return valueParser(string(keyValue), string(valueValue))
 	})
 
 	return err
@@ -134,7 +178,19 @@ func parse2ColumnStats(fr fileReader, path string, keyColumn, valueColumn int, v
 
 // format is "some avg10=0.00 avg60=0.00 avg300=0.00 total=0"
 func parsePSI(fr fileReader, path string, somePsi, fullPsi *PSIStats) error {
-	return parseColumnStats(fr, path, func(fields []string) error {
+	return parseColumnStats(fr, path, func(fieldScan *bufio.Scanner) error {
+
+		var fields [5][]byte
+		for i := 0; i < 5; i++ {
+			fields[i] = fieldScan.Bytes()
+			fieldScan.Scan()
+			if fieldScan.Err() != nil && fieldScan.Err() != io.EOF {
+				reportError(newValueError("", fmt.Errorf("unexpected format for psi file at: %s, path", path)))
+			}
+		}
+
+		// TODO: error check
+
 		if len(fields) != 5 {
 			reportError(newValueError("", fmt.Errorf("unexpected format for psi file at: %s, line content: %v", path, fields)))
 			return nil
@@ -142,7 +198,7 @@ func parsePSI(fr fileReader, path string, somePsi, fullPsi *PSIStats) error {
 
 		var psiStats *PSIStats
 
-		switch fields[0] {
+		switch string(fields[0]) { // TODO
 		case "some":
 			psiStats = somePsi
 		case "full":
@@ -157,7 +213,7 @@ func parsePSI(fr fileReader, path string, somePsi, fullPsi *PSIStats) error {
 		}
 
 		for i := 1; i < 5; i++ {
-			parts := strings.Split(fields[i], "=")
+			parts := strings.Split(string(fields[i]), "=") // TODO
 			if len(parts) != 2 {
 				reportError(newValueError("", fmt.Errorf("unexpected format for psi file at: %s, part: %d, content: %v", path, i, fields[i])))
 				continue

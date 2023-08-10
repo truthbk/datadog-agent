@@ -55,7 +55,10 @@ func BenchmarkCgrounpV2CPUStats(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		err = cgFoo1.GetCPUStats(stats)
-		assert.NoError(t, err)
+		if err != nil {
+			b.Errorf("err: %v", err)
+			b.FailNow()
+		}
 	}
 
 }

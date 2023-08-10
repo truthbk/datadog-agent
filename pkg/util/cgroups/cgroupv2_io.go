@@ -8,7 +8,9 @@
 package cgroups
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -56,17 +58,27 @@ func (c *cgroupV2) GetIOStats(stats *IOStats) error {
 
 // format for io.stat "259:0 rbytes=278528 wbytes=9700089856 rios=6 wios=2289428 dbytes=0 dios=0"
 // format for io.max "8:16 rbps=2097152 wbps=max riops=max wiops=120"
-func parseV2IOFn(stats *IOStats) func([]string) error {
-	return func(fields []string) error {
+func parseV2IOFn(stats *IOStats) func(scanner *bufio.Scanner) error {
+	return func(fieldScanner *bufio.Scanner) error {
+
+		var fields [2][]byte
+		for i := 0; i < len(fields); i++ {
+			fields[i] = fieldScanner.Bytes()
+			if ok := fieldScanner.Scan(); !ok && fieldScanner.Err() != io.EOF {
+				// TODO: report error
+				return nil
+			}
+		}
+
 		if len(fields) < 2 {
 			reportError(newValueError("", fmt.Errorf("malformed line fields: '%v'", fields)))
 		}
 
 		written := false
-		device := stats.Devices[fields[0]]
+		device := stats.Devices[string(fields[0])]
 
 		for i := 1; i < len(fields); i++ {
-			parts := strings.Split(fields[i], "=")
+			parts := strings.Split(string(fields[i]), "=") // TODO
 			if len(parts) != 2 {
 				reportError(newValueError("", fmt.Errorf("malformed line fields: '%v'", fields)))
 				continue
@@ -116,7 +128,7 @@ func parseV2IOFn(stats *IOStats) func([]string) error {
 		}
 
 		if written {
-			stats.Devices[fields[0]] = device
+			stats.Devices[string(fields[0])] = device
 		}
 
 		return nil
