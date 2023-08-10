@@ -17,6 +17,7 @@ var validProducts = map[string]struct{}{
 	ProductASMDD:       {},
 	ProductASMData:     {},
 	ProductAPMTracing:  {},
+	"DEBUG":            {},
 }
 
 const (
