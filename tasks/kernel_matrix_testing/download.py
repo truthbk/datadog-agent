@@ -22,6 +22,8 @@ rootfs_amd64 = {
     "amzn2-kvm-2.0-amd64-5.4.qcow2",
     "amzn2-kvm-2.0-amd64-5.10.qcow2",
     "amzn2-kvm-2.0-amd64-5.15.qcow2",
+    "debian-10-generic-amd64.qcow2",
+    "debian-11-generic-amd64.qcow2",
 }
 
 rootfs_arm64 = {
@@ -33,6 +35,8 @@ rootfs_arm64 = {
     "amzn2-kvm-2.0-arm64-5.4.qcow2",
     "amzn2-kvm-2.0-arm64-5.10.qcow2",
     "amzn2-kvm-2.0-arm64-5.15.qcow2",
+    "debian-10-generic-arm64.qcow2",
+    "debian-11-generic-arm64.qcow2",
 }
 
 archs_mapping = {

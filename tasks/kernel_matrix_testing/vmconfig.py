@@ -110,7 +110,7 @@ images_path_s3 = {
     "fedora_37": "{url_base}Fedora-Cloud-Base-37.{arch}.qcow2",
     "fedora_38": "{url_base}Fedora-Cloud-Base-38.{arch}.qcow2",
     "debian_10": "{url_base}debian-10-generic-{arch}.qcow2",
-    "debian_1q": "{url_base}debian-11-generic-{arch}.qcow2",
+    "debian_11": "{url_base}debian-11-generic-{arch}.qcow2",
 }
 
 images_name = {
