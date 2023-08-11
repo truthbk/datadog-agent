@@ -17,7 +17,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-const subsystem = "WorkloadMetaExtractor"
+const subsystem = "workloadmetaextractor"
 
 // ProcessEntity represents a process exposed by the WorkloadMeta extractor
 type ProcessEntity struct {
