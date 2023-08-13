@@ -917,3 +917,370 @@ func TestUSMPayloadTelemetry(t *testing.T) {
 	assert.Equal(t, int64(10), payloadTelemetry["usm.http.total_hits"])
 	assert.NotContains(t, payloadTelemetry, "foobar")
 }
+
+func createConnections() *network.Connections {
+	cs := &network.Connections{
+		BufferedData: network.BufferedData{
+			Conns: []network.ConnectionStats{
+				{
+					Source: util.AddressFromString("10.1.1.1"),
+					Dest:   util.AddressFromString("10.2.2.2"),
+					Monotonic: network.StatCounters{
+						SentBytes:   1,
+						RecvBytes:   100,
+						Retransmits: 201,
+					},
+					Last: network.StatCounters{
+						SentBytes:   2,
+						RecvBytes:   101,
+						Retransmits: 201,
+					},
+					LastUpdateEpoch: 50,
+					Pid:             6000,
+					NetNS:           7,
+					SPort:           1000,
+					DPort:           9000,
+					IPTranslation: &network.IPTranslation{
+						ReplSrcIP:   util.AddressFromString("20.1.1.1"),
+						ReplDstIP:   util.AddressFromString("20.1.1.1"),
+						ReplSrcPort: 40,
+						ReplDstPort: 70,
+					},
+
+					Type:      network.UDP,
+					Family:    network.AFINET6,
+					Direction: network.LOCAL,
+				},
+				{
+					Source: util.AddressFromString("10.1.1.1"),
+					Dest:   util.AddressFromString("10.2.2.2"),
+					Monotonic: network.StatCounters{
+						SentBytes:   1,
+						RecvBytes:   100,
+						Retransmits: 201,
+					},
+					Last: network.StatCounters{
+						SentBytes:   2,
+						RecvBytes:   101,
+						Retransmits: 201,
+					},
+					LastUpdateEpoch: 50,
+					Pid:             6000,
+					NetNS:           7,
+					SPort:           1000,
+					DPort:           9000,
+					IPTranslation: &network.IPTranslation{
+						ReplSrcIP:   util.AddressFromString("20.1.1.1"),
+						ReplDstIP:   util.AddressFromString("20.1.1.1"),
+						ReplSrcPort: 40,
+						ReplDstPort: 70,
+					},
+
+					Type:      network.UDP,
+					Family:    network.AFINET6,
+					Direction: network.LOCAL,
+				},
+				{
+					Source: util.AddressFromString("10.1.1.1"),
+					Dest:   util.AddressFromString("10.2.2.2"),
+					Monotonic: network.StatCounters{
+						SentBytes:   1,
+						RecvBytes:   100,
+						Retransmits: 201,
+					},
+					Last: network.StatCounters{
+						SentBytes:   2,
+						RecvBytes:   101,
+						Retransmits: 201,
+					},
+					LastUpdateEpoch: 50,
+					Pid:             6000,
+					NetNS:           7,
+					SPort:           1000,
+					DPort:           9000,
+					IPTranslation: &network.IPTranslation{
+						ReplSrcIP:   util.AddressFromString("20.1.1.1"),
+						ReplDstIP:   util.AddressFromString("20.1.1.1"),
+						ReplSrcPort: 40,
+						ReplDstPort: 70,
+					},
+
+					Type:      network.UDP,
+					Family:    network.AFINET6,
+					Direction: network.LOCAL,
+				}, {
+					Source: util.AddressFromString("10.1.1.1"),
+					Dest:   util.AddressFromString("10.2.2.2"),
+					Monotonic: network.StatCounters{
+						SentBytes:   1,
+						RecvBytes:   100,
+						Retransmits: 201,
+					},
+					Last: network.StatCounters{
+						SentBytes:   2,
+						RecvBytes:   101,
+						Retransmits: 201,
+					},
+					LastUpdateEpoch: 50,
+					Pid:             6000,
+					NetNS:           7,
+					SPort:           1000,
+					DPort:           9000,
+					IPTranslation: &network.IPTranslation{
+						ReplSrcIP:   util.AddressFromString("20.1.1.1"),
+						ReplDstIP:   util.AddressFromString("20.1.1.1"),
+						ReplSrcPort: 40,
+						ReplDstPort: 70,
+					},
+
+					Type:      network.UDP,
+					Family:    network.AFINET6,
+					Direction: network.LOCAL,
+				}, {
+					Source: util.AddressFromString("10.1.1.1"),
+					Dest:   util.AddressFromString("10.2.2.2"),
+					Monotonic: network.StatCounters{
+						SentBytes:   1,
+						RecvBytes:   100,
+						Retransmits: 201,
+					},
+					Last: network.StatCounters{
+						SentBytes:   2,
+						RecvBytes:   101,
+						Retransmits: 201,
+					},
+					LastUpdateEpoch: 50,
+					Pid:             6000,
+					NetNS:           7,
+					SPort:           1000,
+					DPort:           9000,
+					IPTranslation: &network.IPTranslation{
+						ReplSrcIP:   util.AddressFromString("20.1.1.1"),
+						ReplDstIP:   util.AddressFromString("20.1.1.1"),
+						ReplSrcPort: 40,
+						ReplDstPort: 70,
+					},
+
+					Type:      network.UDP,
+					Family:    network.AFINET6,
+					Direction: network.LOCAL,
+				}, {
+					Source: util.AddressFromString("10.1.1.1"),
+					Dest:   util.AddressFromString("10.2.2.2"),
+					Monotonic: network.StatCounters{
+						SentBytes:   1,
+						RecvBytes:   100,
+						Retransmits: 201,
+					},
+					Last: network.StatCounters{
+						SentBytes:   2,
+						RecvBytes:   101,
+						Retransmits: 201,
+					},
+					LastUpdateEpoch: 50,
+					Pid:             6000,
+					NetNS:           7,
+					SPort:           1000,
+					DPort:           9000,
+					IPTranslation: &network.IPTranslation{
+						ReplSrcIP:   util.AddressFromString("20.1.1.1"),
+						ReplDstIP:   util.AddressFromString("20.1.1.1"),
+						ReplSrcPort: 40,
+						ReplDstPort: 70,
+					},
+
+					Type:      network.UDP,
+					Family:    network.AFINET6,
+					Direction: network.LOCAL,
+				}, {
+					Source: util.AddressFromString("10.1.1.1"),
+					Dest:   util.AddressFromString("10.2.2.2"),
+					Monotonic: network.StatCounters{
+						SentBytes:   1,
+						RecvBytes:   100,
+						Retransmits: 201,
+					},
+					Last: network.StatCounters{
+						SentBytes:   2,
+						RecvBytes:   101,
+						Retransmits: 201,
+					},
+					LastUpdateEpoch: 50,
+					Pid:             6000,
+					NetNS:           7,
+					SPort:           1000,
+					DPort:           9000,
+					IPTranslation: &network.IPTranslation{
+						ReplSrcIP:   util.AddressFromString("20.1.1.1"),
+						ReplDstIP:   util.AddressFromString("20.1.1.1"),
+						ReplSrcPort: 40,
+						ReplDstPort: 70,
+					},
+
+					Type:      network.UDP,
+					Family:    network.AFINET6,
+					Direction: network.LOCAL,
+				}, {
+					Source: util.AddressFromString("10.1.1.1"),
+					Dest:   util.AddressFromString("10.2.2.2"),
+					Monotonic: network.StatCounters{
+						SentBytes:   1,
+						RecvBytes:   100,
+						Retransmits: 201,
+					},
+					Last: network.StatCounters{
+						SentBytes:   2,
+						RecvBytes:   101,
+						Retransmits: 201,
+					},
+					LastUpdateEpoch: 50,
+					Pid:             6000,
+					NetNS:           7,
+					SPort:           1000,
+					DPort:           9000,
+					IPTranslation: &network.IPTranslation{
+						ReplSrcIP:   util.AddressFromString("20.1.1.1"),
+						ReplDstIP:   util.AddressFromString("20.1.1.1"),
+						ReplSrcPort: 40,
+						ReplDstPort: 70,
+					},
+
+					Type:      network.UDP,
+					Family:    network.AFINET6,
+					Direction: network.LOCAL,
+				}, {
+					Source: util.AddressFromString("10.1.1.1"),
+					Dest:   util.AddressFromString("10.2.2.2"),
+					Monotonic: network.StatCounters{
+						SentBytes:   1,
+						RecvBytes:   100,
+						Retransmits: 201,
+					},
+					Last: network.StatCounters{
+						SentBytes:   2,
+						RecvBytes:   101,
+						Retransmits: 201,
+					},
+					LastUpdateEpoch: 50,
+					Pid:             6000,
+					NetNS:           7,
+					SPort:           1000,
+					DPort:           9000,
+					IPTranslation: &network.IPTranslation{
+						ReplSrcIP:   util.AddressFromString("20.1.1.1"),
+						ReplDstIP:   util.AddressFromString("20.1.1.1"),
+						ReplSrcPort: 40,
+						ReplDstPort: 70,
+					},
+
+					Type:      network.UDP,
+					Family:    network.AFINET6,
+					Direction: network.LOCAL,
+				},
+				{
+					Source: util.AddressFromString("10.1.1.1"),
+					Dest:   util.AddressFromString("10.2.2.2"),
+					Monotonic: network.StatCounters{
+						SentBytes:   1,
+						RecvBytes:   100,
+						Retransmits: 201,
+					},
+					Last: network.StatCounters{
+						SentBytes:   2,
+						RecvBytes:   101,
+						Retransmits: 201,
+					},
+					LastUpdateEpoch: 50,
+					Pid:             6000,
+					NetNS:           7,
+					SPort:           1000,
+					DPort:           9000,
+					IPTranslation: &network.IPTranslation{
+						ReplSrcIP:   util.AddressFromString("20.1.1.1"),
+						ReplDstIP:   util.AddressFromString("20.1.1.1"),
+						ReplSrcPort: 40,
+						ReplDstPort: 70,
+					},
+
+					Type:      network.UDP,
+					Family:    network.AFINET6,
+					Direction: network.LOCAL,
+				},
+			},
+		},
+	}
+	return cs
+
+}
+
+func BenchmarkModelingBase(b *testing.B) {
+	// Pretest, allocations, setup
+	// 1. creating conns *network.Connections with 10000 connections, 1000 http, 1000, http2, etc.
+	// 2. call InitConnectionModeler - modeler
+	//
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		conns := GenerateBenchMarkPayload(100, 100)
+
+		_ = InitConnectionsModeler(&conns)
+	}
+}
+
+func BenchmarkModeling(b *testing.B) {
+	// Pretest, allocations, setup
+	// 1. creating conns *network.Connections with 10000 connections, 1000 http, 1000, http2, etc.
+	// 2. call InitConnectionModeler - modeler
+	//
+	//marshaler := GetMarshaler(encoding.ContentTypeProtobuf)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		conns := GenerateBenchMarkPayload(100, 100)
+
+		connectionsModeler := InitConnectionsModeler(&conns)
+		_ = connectionsModeler.ModelConnections(&conns)
+		//_, err := marshaler.Marshal(payload)
+		//require.NoError(b, err)
+	}
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func BenchmarkModelingBatching(b *testing.B) {
+	// Pretest, allocations, setup
+	// 1. creating conns *network.Connections with 10000 connections, 1000 http, 1000, http2, etc.
+	// 2. call InitConnectionModeler - modeler
+	//
+	//marshaler := GetMarshaler(encoding.ContentTypeProtobuf)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		conns := GenerateBenchMarkPayload(100, 100)
+
+		connectionsModeler := InitConnectionsModeler(&conns)
+		for len(conns.Conns) > 0 {
+			finalBatchSize := min(1000, len(conns.Conns))
+			rest := conns.Conns[finalBatchSize:]
+			conns.Conns = conns.Conns[:finalBatchSize]
+			payload := connectionsModeler.ModelConnections2(&conns)
+
+			//_, err := marshaler.Marshal(payload)
+			modelConnectionPool.Put(payload)
+			//require.NoError(b, err)
+
+			conns.Conns = rest
+		}
+	}
+
+}

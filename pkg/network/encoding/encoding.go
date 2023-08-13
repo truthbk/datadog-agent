@@ -8,6 +8,7 @@ package encoding
 import (
 	"github.com/gogo/protobuf/jsonpb"
 	"strings"
+	"sync"
 
 	model "github.com/DataDog/agent-payload/v5/process"
 
@@ -54,6 +55,8 @@ func GetUnmarshaler(ctype string) Unmarshaler {
 }
 
 type ConnectionsModeler struct {
+	batchIdx int
+
 	httpEncoder                 *httpEncoder
 	http2Encoder                *http2Encoder
 	kafkaEncoder                *kafkaEncoder
@@ -116,6 +119,73 @@ func (c *ConnectionsModeler) ModelConnections(conns *network.Connections) *model
 	payload.KernelHeaderFetchResult = c.kernelHeaderFetchResult
 	payload.CORETelemetryByAsset = c.coreTelemetryByAsset
 	payload.PrebuiltEBPFAssets = c.prebuiltEBPFAssets
+
+	return payload
+}
+
+var (
+	modelConnectionPool = sync.Pool{
+		New: func() any {
+			return new(model.Connections)
+		},
+	}
+
+	agentConnsPool = sync.Pool{
+		New: func() any {
+			b := make([]*model.Connection, 1000)
+			return &b
+		},
+	}
+)
+
+func (c *ConnectionsModeler) ModelConnections2(conns *network.Connections) *model.Connections {
+	// TODO: Use pool with max batch size
+	agentConnsPtr := agentConnsPool.Get().(*[]*model.Connection)
+	defer func() {
+		agentConnsPool.Put(agentConnsPtr)
+	}()
+	agentConns := *agentConnsPtr
+	agentConns = agentConns[:len(conns.Conns)]
+
+	routeIndex := make(map[string]RouteIdx)
+
+	ipc := make(ipCache, len(conns.Conns)/2)
+	dnsFormatter := newDNSFormatter(conns, ipc)
+	tagsSet := network.NewTagsSet()
+
+	for i, conn := range conns.Conns {
+		agentConns[i] = FormatConnection(conn, routeIndex, c.httpEncoder, c.http2Encoder, c.kafkaEncoder, dnsFormatter, ipc, tagsSet)
+	}
+
+	routes := make([]*model.Route, len(routeIndex))
+	for _, v := range routeIndex {
+		routes[v.Idx] = &v.Route
+	}
+
+	// TODO: Use pool
+	payload := modelConnectionPool.Get().(*model.Connections)
+	payload.AgentConfiguration = c.agentCfg
+	payload.Conns = agentConns
+	payload.Domains = dnsFormatter.Domains()
+	payload.Dns = dnsFormatter.DNS()
+	payload.Routes = routes
+	payload.Tags = tagsSet.GetStrings()
+
+	if c.batchIdx == 0 {
+		payload.ConnTelemetryMap = c.connTelemetryMap
+		payload.CompilationTelemetryByAsset = c.compilationTelemetryByAsset
+		payload.KernelHeaderFetchResult = c.kernelHeaderFetchResult
+		payload.CORETelemetryByAsset = c.coreTelemetryByAsset
+		payload.PrebuiltEBPFAssets = c.prebuiltEBPFAssets
+	} else {
+		payload.ConnTelemetryMap = nil
+		payload.CompilationTelemetryByAsset = nil
+		payload.KernelHeaderFetchResult = 0
+		payload.CORETelemetryByAsset = nil
+		payload.PrebuiltEBPFAssets = nil
+	}
+
+	c.batchIdx++
 
 	return payload
 }
