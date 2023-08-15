@@ -1392,7 +1392,8 @@ def generate_minimized_btfs(
     ctx,
     source_dir,
     output_dir,
-    input_bpf_programs,
+    input_bpf_programs=None,
+    input_bpf_dir=None,
 ):
     """
     Given an input directory containing compressed full-sized BTFs, generates an identically-structured
@@ -1400,9 +1401,14 @@ def generate_minimized_btfs(
     bpf program(s).
     """
 
+    if input_bpf_dir is not None:
+        input_bpf_programs = glob.glob(f"{input_bpf_dir}/*.o", recursive=False)
+    if input_bpf_programs is None:
+        input_bpf_programs = []
+
     # If there are no input programs, we don't need to actually do anything; however, in order to
     # prevent CI jobs from failing, we'll create a dummy output directory
-    if input_bpf_programs == "":
+    if len(input_bpf_programs) == 0:
         ctx.run(f"mkdir -p {output_dir}/dummy_data")
         return
 
