@@ -463,6 +463,12 @@ end
 
 shared_examples_for "an installed Agent" do
   wait_until_service_started get_service_name("datadog-agent")
+  res =  `powershell -command \"get-acl C:\\ProgramData\\Datadog\"`
+  puts res
+  res =  `powershell -command \"get-acl C:\\ProgramData\\Datadog\\auth_token;\"`
+  puts res
+  res =  `powershell -command \"Get-WinEvent -LogName Application -MaxEvents 100 | fl\"`
+  puts res
 
   it 'has an example config file' do
     if os != :windows
