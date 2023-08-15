@@ -16,6 +16,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
 	// 3p
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
@@ -31,9 +35,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/version"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -511,6 +512,7 @@ func TestTags(t *testing.T) {
 		tlmContainerTagsEnabled bool
 		agentTags               func(collectors.TagCardinality) ([]string, error)
 		globalTags              func(collectors.TagCardinality) ([]string, error)
+		kubeClusterName         string
 		withVersion             bool
 		want                    []string
 	}{
@@ -569,6 +571,16 @@ func TestTags(t *testing.T) {
 			want:                    []string{"container_name:agent", "version:" + version.AgentVersion, "kube_cluster_name:foo"},
 		},
 		{
+			name:                    "tags enabled, with version, without global tags, with cluster name (no hostname)",
+			hostname:                "",
+			tlmContainerTagsEnabled: true,
+			agentTags:               func(collectors.TagCardinality) ([]string, error) { return []string{"container_name:agent"}, nil },
+			globalTags:              func(collectors.TagCardinality) ([]string, error) { return []string{}, nil },
+			kubeClusterName:         "foo",
+			withVersion:             true,
+			want:                    []string{"container_name:agent", "version:" + version.AgentVersion, "kube_cluster_name:foo"},
+		},
+		{
 			name:                    "tags enabled, with version, with global tags (hostname present)",
 			hostname:                "hostname",
 			tlmContainerTagsEnabled: true,
@@ -585,6 +597,7 @@ func TestTags(t *testing.T) {
 			agg := NewBufferedAggregator(nil, nil, tt.hostname, time.Second)
 			agg.agentTags = tt.agentTags
 			agg.globalTags = tt.globalTags
+			agg.clusterName = tt.kubeClusterName
 			assert.ElementsMatch(t, tt.want, agg.tags(tt.withVersion))
 		})
 	}

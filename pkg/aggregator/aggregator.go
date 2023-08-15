@@ -6,6 +6,7 @@
 package aggregator
 
 import (
+	"context"
 	"errors"
 	"expvar"
 	"fmt"
@@ -25,6 +26,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util"
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
+	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/clustername"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/version"
 
@@ -231,6 +233,7 @@ type BufferedAggregator struct {
 	tlmContainerTagsEnabled bool                                              // Whether we should call the tagger to tag agent telemetry metrics
 	agentTags               func(collectors.TagCardinality) ([]string, error) // This function gets the agent tags from the tagger (defined as a struct field to ease testing)
 	globalTags              func(collectors.TagCardinality) ([]string, error) // This function gets global tags from the tagger when host tags are not available
+	clusterName             string                                            // holds the cluster name so it can be appended to tags in the event that no global tags were found
 
 	flushAndSerializeInParallel FlushAndSerializeInParallel
 }
@@ -267,6 +270,8 @@ func NewBufferedAggregator(s serializer.MetricSerializer, eventPlatformForwarder
 
 	tagsStore := tags.NewStore(config.Datadog.GetBool("aggregator_use_tags_store"), "aggregator")
 
+	clusterName := clustername.GetClusterNameTagValue(context.TODO(), hostname)
+
 	aggregator := &BufferedAggregator{
 		bufferedServiceCheckIn: make(chan []*servicecheck.ServiceCheck, bufferSize),
 		bufferedEventIn:        make(chan []*event.Event, bufferSize),
@@ -295,6 +300,7 @@ func NewBufferedAggregator(s serializer.MetricSerializer, eventPlatformForwarder
 		tlmContainerTagsEnabled:     config.Datadog.GetBool("basic_telemetry_add_container_tags"),
 		agentTags:                   tagger.AgentTags,
 		globalTags:                  tagger.GlobalTags,
+		clusterName:                 clusterName,
 		flushAndSerializeInParallel: NewFlushAndSerializeInParallel(config.Datadog),
 	}
 
@@ -794,6 +800,12 @@ func (agg *BufferedAggregator) tags(withVersion bool) []string {
 		tags, err = agg.globalTags(tagger.ChecksCardinality)
 		if err != nil {
 			log.Debugf("Couldn't get Global tags: %v", err)
+		} else if len(tags) == 0 {
+			// No hostname and no found metrics could mean that we are running on Fargate but the agent is not configured correctly.
+			// We should at the very least try to get the cluster name if it is explicitly set on the agent, as it is an expected tag.
+			if agg.clusterName != "" {
+				tags = append(tags, "kube_cluster_name:"+agg.clusterName)
+			}
 		}
 	}
 	if agg.tlmContainerTagsEnabled {
