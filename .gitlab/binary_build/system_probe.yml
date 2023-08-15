@@ -8,10 +8,10 @@
     # fail if references to glibc >= 2.18
     - objdump -p $CI_PROJECT_DIR/$SYSTEM_PROBE_BINARIES_DIR/system-probe | egrep 'GLIBC_2\.(1[8-9]|[2-9][0-9])' && exit 1
     # copy binary and eBPF objects to S3
-    - $S3_CP_CMD $CI_PROJECT_DIR/$SYSTEM_PROBE_BINARIES_DIR/system-probe $S3_ARTIFACTS_URI/system-probe/$ARCH/bin/system-probe
-    - $S3_VERBOSE_CP_CMD $DATADOG_AGENT_EMBEDDED_PATH/share/system-probe/ebpf $S3_ARTIFACTS_URI/system-probe/$ARCH/ebpf/ --exclude "*" --include "*.o"
-    - $S3_VERBOSE_CP_CMD $DATADOG_AGENT_EMBEDDED_PATH/share/system-probe/ebpf/co-re $S3_ARTIFACTS_URI/system-probe/$ARCH/ebpf/co-re/ --exclude "*" --include "*.o"
-    - $S3_VERBOSE_CP_CMD $DATADOG_AGENT_EMBEDDED_PATH/share/system-probe/ebpf/runtime $S3_ARTIFACTS_URI/system-probe/$ARCH/ebpf/runtime/ --exclude "*" --include "*.c"
+    - $S3_VERBOSE_CP_CMD $CI_PROJECT_DIR/$SYSTEM_PROBE_BINARIES_DIR/system-probe $S3_ARTIFACTS_URI/system-probe/$ARCH/bin/system-probe
+    - $S3_VERBOSE_CP_CMD $CI_PROJECT_DIR/pkg/ebpf/bytecode/build/ $S3_ARTIFACTS_URI/system-probe/$ARCH/ebpf/ --exclude "*" --include "*.o"
+    - $S3_VERBOSE_CP_CMD $CI_PROJECT_DIR/pkg/ebpf/bytecode/build/co-re/ $S3_ARTIFACTS_URI/system-probe/$ARCH/ebpf/co-re/ --exclude "*" --include "*.o"
+    - $S3_VERBOSE_CP_CMD $CI_PROJECT_DIR/pkg/ebpf/bytecode/build/runtime/ $S3_ARTIFACTS_URI/system-probe/$ARCH/ebpf/runtime/ --exclude "*" --include "*.c"
   variables:
     KUBERNETES_MEMORY_REQUEST: "6Gi"
     KUBERNETES_MEMORY_LIMIT: "12Gi"
