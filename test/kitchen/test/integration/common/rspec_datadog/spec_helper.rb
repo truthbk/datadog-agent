@@ -463,9 +463,9 @@ end
 
 shared_examples_for "an installed Agent" do
   wait_until_service_started get_service_name("datadog-agent")
-  res =  `powershell -command \"get-acl C:\\ProgramData\\Datadog\"`
+  res =  `powershell -command \"get-acl C:\\ProgramData\\Datadog\ | fl"`
   puts res
-  res =  `powershell -command \"get-acl C:\\ProgramData\\Datadog\\auth_token;\"`
+  res =  `powershell -command \"get-acl C:\\ProgramData\\Datadog\\auth_token | fl\"`
   puts res
   res =  `powershell -command \"Get-WinEvent -LogName Application -MaxEvents 100 | fl\"`
   puts res
