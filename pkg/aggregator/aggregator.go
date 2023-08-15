@@ -800,7 +800,9 @@ func (agg *BufferedAggregator) tags(withVersion bool) []string {
 		tags, err = agg.globalTags(tagger.ChecksCardinality)
 		if err != nil {
 			log.Debugf("Couldn't get Global tags: %v", err)
-		} else if len(tags) == 0 {
+		}
+
+		if len(tags) == 0 {
 			// No hostname and no found metrics could mean that we are running on Fargate but the agent is not configured correctly.
 			// We should at the very least try to get the cluster name if it is explicitly set on the agent, as it is an expected tag.
 			if agg.clusterName != "" {
