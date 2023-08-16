@@ -349,7 +349,7 @@ def hacky_dev_image_build(
     ctx, base_image=None, target_image="agent", process_agent=False, trace_agent=False, push=False, signed_pull=False
 ):
     os.environ["DELVE"] = "1"
-    build(ctx, embedded_path="/opt/datadog-agent/embedded")
+    build(ctx)
     if process_agent:
         process_agent_build(ctx)
     if trace_agent:
