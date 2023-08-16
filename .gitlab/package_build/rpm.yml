@@ -19,9 +19,9 @@
     # copy system-probe binary
     - $S3_CP_CMD $S3_ARTIFACTS_URI/system-probe/${PACKAGE_ARCH}/bin/system-probe /tmp/system-probe/bin/system-probe
     # copy eBPF object files
-    - $S3_VERBOSE_CP_CMD $S3_ARTIFACTS_URI/system-probe/${PACKAGE_ARCH}/ebpf/ /tmp/system-probe/ebpf/ --exclude "*" --include "*.o"
-    - $S3_VERBOSE_CP_CMD $S3_ARTIFACTS_URI/system-probe/${PACKAGE_ARCH}/ebpf/co-re/ /tmp/system-probe/ebpf/co-re/ --exclude "*" --include "*.o"
-    - $S3_VERBOSE_CP_CMD $S3_ARTIFACTS_URI/system-probe/${PACKAGE_ARCH}/ebpf/runtime/ /tmp/system-probe/ebpf/runtime/ --exclude "*" --include "*.c"
+    - $S3_VERBOSE_CP_CMD $S3_ARTIFACTS_URI/system-probe/${PACKAGE_ARCH}/ebpf/ /tmp/system-probe/ebpf/ --exclude "\\*" --include "\\*.o"
+    - $S3_VERBOSE_CP_CMD $S3_ARTIFACTS_URI/system-probe/${PACKAGE_ARCH}/ebpf/co-re/ /tmp/system-probe/ebpf/co-re/ --exclude "\\*" --include "\\*.o"
+    - $S3_VERBOSE_CP_CMD $S3_ARTIFACTS_URI/system-probe/${PACKAGE_ARCH}/ebpf/runtime/ /tmp/system-probe/ebpf/runtime/ --exclude "\\*" --include "\\*.c"
     # copy clang and llc
     - $S3_CP_CMD $S3_PERMANENT_ARTIFACTS_URI/clang-$CLANG_LLVM_VER.${PACKAGE_ARCH} /tmp/system-probe/bin/clang-bpf
     - $S3_CP_CMD $S3_PERMANENT_ARTIFACTS_URI/llc-$CLANG_LLVM_VER.${PACKAGE_ARCH} /tmp/system-probe/bin/llc-bpf
