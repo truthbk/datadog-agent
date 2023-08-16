@@ -802,12 +802,10 @@ func (agg *BufferedAggregator) tags(withVersion bool) []string {
 			log.Debugf("Couldn't get Global tags: %v", err)
 		}
 
-		if len(tags) == 0 {
-			// No hostname and no found metrics could mean that we are running on Fargate but the agent is not configured correctly.
-			// We should at the very least try to get the cluster name if it is explicitly set on the agent, as it is an expected tag.
-			if agg.clusterName != "" {
-				tags = append(tags, "kube_cluster_name:"+agg.clusterName)
-			}
+		// It is possible that the cluster name tag is not properly populated if hostname is empty and the fargate feature is not enabled.
+		// We should at the very least try to get the cluster name if it is explicitly set on the agent, as it is an expected tag.
+		if agg.clusterName != "" {
+			tags = append(tags, "kube_cluster_name:"+agg.clusterName)
 		}
 	}
 	if agg.tlmContainerTagsEnabled {

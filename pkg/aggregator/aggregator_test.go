@@ -578,7 +578,7 @@ func TestTags(t *testing.T) {
 			globalTags:              func(collectors.TagCardinality) ([]string, error) { return []string{"kube_cluster_name:foo"}, nil },
 			kubeClusterName:         "bar",
 			withVersion:             true,
-			want:                    []string{"container_name:agent", "version:" + version.AgentVersion, "kube_cluster_name:foo"},
+			want:                    []string{"container_name:agent", "version:" + version.AgentVersion, "kube_cluster_name:foo", "kube_cluster_name:bar"},
 		},
 		{
 			name:                    "tags enabled, with version, without global tags, with cluster name (no hostname)",
