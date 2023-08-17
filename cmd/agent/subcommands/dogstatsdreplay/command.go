@@ -47,6 +47,7 @@ type cliParams struct {
 	dsdVerboseReplay    bool
 	dsdMmapReplay       bool
 	dsdReplayIterations int
+	dsdPrintOnly        bool
 }
 
 // Commands returns a slice of subcommands for the 'agent' command.
@@ -68,6 +69,7 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 		},
 	}
 	dogstatsdReplayCmd.Flags().StringVarP(&cliParams.dsdReplayFilePath, "file", "f", "", "Input file with traffic captured with dogstatsd-capture.")
+	dogstatsdReplayCmd.Flags().BoolVarP(&cliParams.dsdPrintOnly, "printonly", "p", false, "Print the best text representation of the dogstatsd messages within the capture file.")
 	dogstatsdReplayCmd.Flags().BoolVarP(&cliParams.dsdVerboseReplay, "verbose", "v", false, "Verbose replay.")
 	dogstatsdReplayCmd.Flags().BoolVarP(&cliParams.dsdMmapReplay, "mmap", "m", true, "Mmap file for replay. Set to false to load the entire file into memory instead")
 	dogstatsdReplayCmd.Flags().IntVarP(&cliParams.dsdReplayIterations, "loops", "l", defaultIterations, "Number of iterations to replay.")
@@ -89,6 +91,37 @@ func dogstatsdReplay(log log.Component, config config.Component, cliParams *cliP
 	}()
 
 	fmt.Printf("Replaying dogstatsd traffic...\n\n")
+
+	if cliParams.dsdPrintOnly {
+		depth := 10
+		reader, err := replay.NewTrafficCaptureReader(cliParams.dsdReplayFilePath, depth, cliParams.dsdMmapReplay)
+		if reader != nil {
+			defer reader.Close()
+		}
+
+		if err != nil {
+			fmt.Printf("could not open: %s\n", cliParams.dsdReplayFilePath)
+			return err
+		}
+
+		// enable reading at natural rate
+		ready := make(chan struct{})
+		go reader.Read(ready)
+
+		// wait for go routine to start processing...
+		<-ready
+
+		for {
+			select {
+			case msg := <-reader.Traffic:
+				// The cadence is enforced by the reader. The reader will only write to
+				// the traffic channel when it estimates the payload should be submitted.
+				fmt.Printf("%s", msg.Payload[:msg.PayloadSize])
+			case <-reader.Done:
+				os.Exit(0)
+			}
+		}
+	}
 
 	// TODO: refactor all the instantiation of the SecureAgentClient to a helper
 	token, err := security.FetchAuthToken()
