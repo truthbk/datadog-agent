@@ -61,3 +61,7 @@ func (o *ebpfModule) GetStats() map[string]interface{} {
 		"last_check": o.lastCheck.Load(),
 	}
 }
+
+func (o *ebpfModule) IsAlive() bool {
+
+}
