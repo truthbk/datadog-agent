@@ -9,7 +9,6 @@ package cgroups
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -49,7 +48,7 @@ func (e *stopParsingError) Error() string {
 // with the exception of stopParsingError that will return without error
 //
 // the input slice will get overwritten, and should be copied if it needs to escape the scope of the parser.
-type parser func([]byte) error
+type parser func(string) error
 
 var readerPool = sync.Pool{New: func() any { return bufio.NewReader(nil) }}
 
@@ -85,7 +84,7 @@ func readFile(file io.Reader, p parser) error {
 			line = accum
 		}
 
-		err = p(line)
+		err = p(string(line))
 		if err != nil {
 			if errors.Is(err, &stopParsingError{}) {
 				return nil
@@ -97,9 +96,9 @@ func readFile(file io.Reader, p parser) error {
 }
 
 func parseSingleSignedStat(fr fileReader, path string, val **int64) error {
-	return parseFile(fr, path, func(line []byte) error {
+	return parseFile(fr, path, func(line string) error {
 		// handle cgroupv2 max value, we usually consider max == no value (limit)
-		if bytes.Equal(line, []byte("max")) {
+		if line == "max" {
 			return &stopParsingError{}
 		}
 
@@ -113,9 +112,9 @@ func parseSingleSignedStat(fr fileReader, path string, val **int64) error {
 }
 
 func parseSingleUnsignedStat(fr fileReader, path string, val **uint64) error {
-	return parseFile(fr, path, func(line []byte) error {
+	return parseFile(fr, path, func(line string) error {
 		// handle cgroupv2 max value, we usually consider max == no value (limit)
-		if bytes.Equal(line, []byte("max")) {
+		if line == "max" {
 			return &stopParsingError{}
 		}
 
@@ -129,7 +128,7 @@ func parseSingleUnsignedStat(fr fileReader, path string, val **uint64) error {
 }
 
 func parseColumnStats(fr fileReader, path string, valueParser func([]string) error) error {
-	err := parseFile(fr, path, func(line []byte) error {
+	err := parseFile(fr, path, func(line string) error {
 		splits := strings.Fields(string(line))
 		return valueParser(splits)
 	})
@@ -139,7 +138,9 @@ func parseColumnStats(fr fileReader, path string, valueParser func([]string) err
 
 // columns are 0-indexed, we skip malformed lines
 func parse2ColumnStats(fr fileReader, path string, keyColumn, valueColumn int, valueParser func([]byte, []byte) error) error {
-	err := parseFile(fr, path, func(line []byte) error {
+	err := parseFile(fr, path, func(lineS string) error {
+
+		line := []byte(lineS)
 
 		var (
 			i     int

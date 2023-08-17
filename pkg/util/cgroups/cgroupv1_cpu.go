@@ -95,8 +95,8 @@ func (c *cgroupV1) parseCPUAcctController(stats *CPUStats) {
 func (c *cgroupV1) parseCPUSetController(stats *CPUStats) {
 	// Normally there's only one line, but as the parser works line by line anyway, we do support multiple lines
 	var cpuCount uint64
-	err := parseFile(c.fr, c.pathFor("cpuset", "cpuset.cpus"), func(line []byte) error {
-		cpuCount += ParseCPUSetFormat(string(line))
+	err := parseFile(c.fr, c.pathFor("cpuset", "cpuset.cpus"), func(line string) error {
+		cpuCount += ParseCPUSetFormat(line)
 		return nil
 	})
 

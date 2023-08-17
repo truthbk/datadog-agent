@@ -48,8 +48,8 @@ func TestParseFile(t *testing.T) {
 	expected := bigString.String()
 
 	actualString := &strings.Builder{}
-	readFile(strings.NewReader(expected), func(bytes []byte) error {
-		actualString.Write(bytes)
+	readFile(strings.NewReader(expected), func(bytes string) error {
+		actualString.WriteString(bytes)
 		actualString.WriteRune('\n')
 		return nil
 	})
