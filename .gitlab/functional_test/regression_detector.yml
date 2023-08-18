@@ -1,7 +1,7 @@
 single-machine-performance-regression_detector:
   stage: functional_test
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/docker_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
-  tags: ["runner:docker"]
+  tags: ["arch:amd64"]
   needs:
     - job: single_machine_performance-amd64-a7
       artifacts: false
