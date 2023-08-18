@@ -37,6 +37,7 @@ static __always_inline bool is_encoded_grpc_content_type(const char *content_typ
     return !bpf_memcmp(content_type_buf, GRPC_ENCODED_CONTENT_TYPE, GRPC_CONTENT_TYPE_LEN);
 }
 
+// TODO: Need to move the marker
 static __always_inline grpc_status_t is_content_type_grpc(const struct __sk_buff *skb, skb_info_t *skb_info, __u32 frame_end, __u8 idx) {
     // We only care about indexed names
     if (idx != HTTP2_CONTENT_TYPE_IDX) {

@@ -43,6 +43,7 @@ struct http2_frame {
 /* Header parsing helper macros */
 #define is_indexed(x) ((x) & (1 << 7))
 #define is_literal(x) ((x) & (1 << 6))
+#define is_literal_without_indexing(x) ((x) & (1 << 4))
 
 /* Header parsing helper structs */
 
@@ -58,6 +59,13 @@ typedef union {
         __u8 index : 6;
         __u8 reserved : 2;
     } __attribute__((packed)) literal;
+    // The following option covers both Literal Header Field without Indexing (Section 6.2.2) and Literal Header Field
+    // Never Indexed (Section 6.2.3). The reason for the merge is the similarity between the formats, and the fact
+    // we don't handle those scenarios.
+    struct {
+        __u8 index : 4;
+        __u8 reserved : 4;
+    } __attribute__((packed)) literal_without_indexing;
     __u8 raw;
 } __attribute__((packed)) field_index;
 
