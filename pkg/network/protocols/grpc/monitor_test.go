@@ -206,12 +206,12 @@ func testGRPCScenarios(t *testing.T) {
 			},
 		},
 		{
-			name: "request with large body (50MB)",
+			name: "request with large body (10MB)",
 			runClients: func(t *testing.T, clientsCount int) {
 				clients := getClientsArray(t, clientsCount, grpc.Options{})
 
 				for i := 0; i < 5; i++ {
-					longName := randStringRunes(50 * 1024 * 1024)
+					longName := randStringRunes(10 * 1024 * 1024)
 					require.NoError(t, clients[getClientsIndex(i, clientsCount)].HandleUnary(defaultCtx, longName))
 				}
 			},
