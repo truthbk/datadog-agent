@@ -52,7 +52,7 @@ static __always_inline bool has_sequence_seen_before(conn_tuple_t *tup, skb_info
     // check if we've seen this TCP segment before. this can happen in the
     // context of localhost traffic where the same TCP segment can be seen
     // multiple times coming in and out from different interfaces
-    if (tcp_seq != NULL && *tcp_seq == skb_info->tcp_seq) {
+    if (tcp_seq != NULL && skb_info->tcp_seq <= *tcp_seq) {
         return true;
     }
 
@@ -96,24 +96,37 @@ static __always_inline void protocol_dispatcher_entrypoint(struct __sk_buff *skb
         return;
     }
 
+    if (skb_tup.dport != 80 && skb_tup.sport != 80) {
+        return;
+    }
+
     bool tcp_termination = is_tcp_termination(&skb_info);
     // We don't process non tcp packets, nor empty tcp packets which are not tcp termination packets.
     if (!is_tcp(&skb_tup) || (is_payload_empty(skb, &skb_info) && !tcp_termination)) {
+        log_debug("guy abort %d; %d; %d",!is_tcp(&skb_tup) , is_tcp_ack(&skb_info) , (is_payload_empty(skb, &skb_info) && !tcp_termination) );
         return;
     }
+
+    log_debug("guy passed %d; %d; %d", is_tcp_ack(&skb_info) , is_payload_empty(skb, &skb_info), tcp_termination );
+//    log_debug("guy passed2 %lu; %lu; %x", skb_info.tcp_seq, skb_info.data_off, skb->data);
 
     // Making sure we've not processed the same tcp segment, which can happen when a single packet travels different
     // interfaces.
     if (has_sequence_seen_before(&skb_tup, &skb_info)) {
+        log_debug("guy seen before %d", skb_info.tcp_seq);
         return;
     }
 
+    log_debug("guy not seen before %d", skb_info.tcp_seq);
+
     if (tcp_termination) {
+        log_debug("guy termination");
         bpf_map_delete_elem(&connection_states, &skb_tup);
     }
 
     protocol_stack_t *stack = get_protocol_stack(&skb_tup);
     if (!stack) {
+        log_debug("guy no stack");
         // should never happen, but it is required by the eBPF verifier
         return;
     }
@@ -127,11 +140,12 @@ static __always_inline void protocol_dispatcher_entrypoint(struct __sk_buff *skb
 
     protocol_t cur_fragment_protocol = get_protocol_from_stack(stack, LAYER_APPLICATION);
     if (tcp_termination) {
+        log_debug("guy termination 2");
         dispatcher_delete_protocol_stack(&skb_tup, stack);
     }
 
     if (cur_fragment_protocol == PROTOCOL_UNKNOWN) {
-        log_debug("[protocol_dispatcher_entrypoint]: %p was not classified\n", skb);
+        log_debug("[protocol_dispatcher_entrypoint]: guy %p was not classified\n", skb);
         char request_fragment[CLASSIFICATION_MAX_BUFFER];
         bpf_memset(request_fragment, 0, sizeof(request_fragment));
         read_into_buffer_for_classification((char *)request_fragment, skb, skb_info.data_off);
@@ -141,7 +155,7 @@ static __always_inline void protocol_dispatcher_entrypoint(struct __sk_buff *skb
         if (is_kafka_monitoring_enabled() && cur_fragment_protocol == PROTOCOL_UNKNOWN) {
             bpf_tail_call_compat(skb, &dispatcher_classification_progs, DISPATCHER_KAFKA_PROG);
         }
-        log_debug("[protocol_dispatcher_entrypoint]: %p Classifying protocol as: %d\n", skb, cur_fragment_protocol);
+        log_debug("[protocol_dispatcher_entrypoint]: guy %p Classifying protocol as: %d\n", skb, cur_fragment_protocol);
         // If there has been a change in the classification, save the new protocol.
         if (cur_fragment_protocol != PROTOCOL_UNKNOWN) {
             set_protocol(stack, cur_fragment_protocol);
@@ -160,7 +174,7 @@ static __always_inline void protocol_dispatcher_entrypoint(struct __sk_buff *skb
         bpf_memcpy(&args->tup, &skb_tup, sizeof(conn_tuple_t));
         bpf_memcpy(&args->skb_info, &skb_info, sizeof(skb_info_t));
 
-        log_debug("dispatching to protocol number: %d\n", cur_fragment_protocol);
+        log_debug("guy dispatching to protocol number: %d\n", cur_fragment_protocol);
         bpf_tail_call_compat(skb, &protocols_progs, protocol_to_program(cur_fragment_protocol));
     }
 }

@@ -131,11 +131,18 @@ __maybe_unused static __always_inline __u64 read_conn_tuple_skb(struct __sk_buff
     info->data_off = ETH_HLEN;
 
     __u16 l3_proto = __load_half(skb, offsetof(struct ethhdr, h_proto));
+    __u8 ipv4_hdr_len = 0;
+#ifdef DEBUG
+    __u16 total_length = 0;
+#endif
     __u8 l4_proto = 0;
     switch (l3_proto) {
     case ETH_P_IP:
     {
-        __u8 ipv4_hdr_len = (__load_byte(skb, info->data_off) & 0x0f) << 2;
+        ipv4_hdr_len = (__load_byte(skb, info->data_off) & 0x0f) << 2;
+#ifdef DEBUG
+        total_length = __load_half(skb, info->data_off + offsetof(struct iphdr, tot_len));
+#endif
         if (ipv4_hdr_len < sizeof(struct iphdr)) {
             return 0;
         }
@@ -172,7 +179,21 @@ __maybe_unused static __always_inline __u64 read_conn_tuple_skb(struct __sk_buff
         info->tcp_seq = __load_word(skb, info->data_off + offsetof(struct __tcphdr, seq));
         info->tcp_flags = __load_byte(skb, info->data_off + TCP_FLAGS_OFFSET);
         // TODO: Improve readability and explain the bit twiddling below
+#ifdef DEBUG
+        __u32 final = 0;
+        if (tup->sport == 80 || tup->dport == 80) {
+            __u32 data_off = ((__load_byte(skb, info->data_off + offsetof(struct __tcphdr, ack_seq) + 4) & 0xF0) >> 4);
+            final = total_length - (__u32)ipv4_hdr_len - data_off*4;
+            log_debug("guy before %d", info->data_off);
+        }
+#endif
         info->data_off += ((__load_byte(skb, info->data_off + offsetof(struct __tcphdr, ack_seq) + 4) & 0xF0) >> 4) * 4;
+#ifdef DEBUG
+        if ((tup->sport == 80 || tup->dport == 80)) {
+            log_debug("guy after %d", info->data_off);
+            log_debug("guy final %d %d", skb->len- info->data_off, final);
+        }
+#endif
         break;
     default:
         return 0;
