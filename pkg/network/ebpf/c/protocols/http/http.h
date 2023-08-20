@@ -6,6 +6,7 @@
 
 #include "sockfd.h"
 
+#include "protocols/classification/common.h"
 #include "protocols/http/types.h"
 #include "protocols/http/maps.h"
 #include "protocols/http/usm-events.h"
@@ -162,8 +163,7 @@ static __always_inline bool http_allow_packet(http_transaction_t *http, struct _
     }
 
     protocol_stack_t *stack = get_protocol_stack(&http->tup);
-    bool empty_payload = skb_info->data_off == skb->len;
-    if (empty_payload || is_protocol_layer_known(stack, LAYER_ENCRYPTION)) {
+    if (is_payload_empty(skb_info) || is_protocol_layer_known(stack, LAYER_ENCRYPTION)) {
         // if the payload data is empty or encrypted packet, we only
         // process it if the packet represents a TCP termination
         return skb_info->tcp_flags&(TCPHDR_FIN|TCPHDR_RST);
@@ -188,7 +188,7 @@ int socket__http_filter(struct __sk_buff* skb) {
     }
     normalize_tuple(&http.tup);
 
-    read_into_buffer_skb((char *)http.request_fragment, skb, skb_info.data_off);
+    read_into_buffer_skb((char *)http.request_fragment, skb, skb_info.data_off, skb_info.data_end);
     http_process(&http, &skb_info, NO_TAGS);
     return 0;
 }

@@ -22,7 +22,7 @@
 #define GRPC_CONTENT_TYPE_LEN (sizeof(GRPC_ENCODED_CONTENT_TYPE) - 1)
 
 static __always_inline void check_and_skip_magic(const struct __sk_buff *skb, skb_info_t *info) {
-    if (info->data_off + HTTP2_MARKER_SIZE >= skb->len) {
+    if (info->data_off + HTTP2_MARKER_SIZE >= info->data_end) {
         return;
     }
 
@@ -73,7 +73,7 @@ static __always_inline grpc_status_t scan_headers(const struct __sk_buff *skb, s
 
     __u32 frame_end = skb_info->data_off + frame_length;
     // Check that frame_end does not go beyond the skb
-    frame_end = frame_end < skb->len + 1 ? frame_end : skb->len + 1;
+    frame_end = frame_end < skb_info->data_end + 1 ? frame_end : skb_info->data_end + 1;
 
 #pragma unroll(GRPC_MAX_HEADERS_TO_PROCESS)
     for (__u8 i = 0; i < GRPC_MAX_HEADERS_TO_PROCESS; ++i) {
@@ -137,7 +137,7 @@ static __always_inline grpc_status_t is_grpc(const struct __sk_buff *skb, const 
     // Loop through the HTTP2 frames in the packet
 #pragma unroll(GRPC_MAX_FRAMES_TO_FILTER)
     for (__u8 i = 0; i < GRPC_MAX_FRAMES_TO_FILTER && frames_count < GRPC_MAX_FRAMES_TO_PROCESS; ++i) {
-        if (info.data_off + HTTP2_FRAME_HEADER_SIZE > skb->len) {
+        if (info.data_off + HTTP2_FRAME_HEADER_SIZE > info.data_end) {
             break;
         }
 

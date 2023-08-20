@@ -52,7 +52,7 @@ static __always_inline bool has_sequence_seen_before(conn_tuple_t *tup, skb_info
     // check if we've seen this TCP segment before. this can happen in the
     // context of localhost traffic where the same TCP segment can be seen
     // multiple times coming in and out from different interfaces
-    if (tcp_seq != NULL && skb_info->tcp_seq <= *tcp_seq) {
+    if (tcp_seq != NULL && skb_info->tcp_seq == *tcp_seq) {
         return true;
     }
 
@@ -102,12 +102,12 @@ static __always_inline void protocol_dispatcher_entrypoint(struct __sk_buff *skb
 
     bool tcp_termination = is_tcp_termination(&skb_info);
     // We don't process non tcp packets, nor empty tcp packets which are not tcp termination packets.
-    if (!is_tcp(&skb_tup) || (is_payload_empty(skb, &skb_info) && !tcp_termination)) {
-        log_debug("guy abort %d; %d; %d",!is_tcp(&skb_tup) , is_tcp_ack(&skb_info) , (is_payload_empty(skb, &skb_info) && !tcp_termination) );
+    if (!is_tcp(&skb_tup) || (is_payload_empty(&skb_info) && !tcp_termination)) {
+        log_debug("guy abort %d; %d; %d",!is_tcp(&skb_tup) , is_tcp_ack(&skb_info) , (is_payload_empty(&skb_info) && !tcp_termination) );
         return;
     }
 
-    log_debug("guy passed %d; %d; %d", is_tcp_ack(&skb_info) , is_payload_empty(skb, &skb_info), tcp_termination );
+    log_debug("guy passed %d; %d; %d", is_tcp_ack(&skb_info) , is_payload_empty(&skb_info), tcp_termination );
 //    log_debug("guy passed2 %lu; %lu; %x", skb_info.tcp_seq, skb_info.data_off, skb->data);
 
     // Making sure we've not processed the same tcp segment, which can happen when a single packet travels different
@@ -148,8 +148,8 @@ static __always_inline void protocol_dispatcher_entrypoint(struct __sk_buff *skb
         log_debug("[protocol_dispatcher_entrypoint]: guy %p was not classified\n", skb);
         char request_fragment[CLASSIFICATION_MAX_BUFFER];
         bpf_memset(request_fragment, 0, sizeof(request_fragment));
-        read_into_buffer_for_classification((char *)request_fragment, skb, skb_info.data_off);
-        const size_t payload_length = skb->len - skb_info.data_off;
+        read_into_buffer_for_classification((char *)request_fragment, skb, skb_info.data_off, skb_info.data_end);
+        const size_t payload_length = skb_info.data_end - skb_info.data_off;
         const size_t final_fragment_size = payload_length < CLASSIFICATION_MAX_BUFFER ? payload_length : CLASSIFICATION_MAX_BUFFER;
         classify_protocol_for_dispatcher(&cur_fragment_protocol, &skb_tup, request_fragment, final_fragment_size);
         if (is_kafka_monitoring_enabled() && cur_fragment_protocol == PROTOCOL_UNKNOWN) {
@@ -189,8 +189,8 @@ static __always_inline void dispatch_kafka(struct __sk_buff *skb) {
 
     char request_fragment[CLASSIFICATION_MAX_BUFFER];
     bpf_memset(request_fragment, 0, sizeof(request_fragment));
-    read_into_buffer_for_classification((char *)request_fragment, skb, skb_info.data_off);
-    const size_t payload_length = skb->len - skb_info.data_off;
+    read_into_buffer_for_classification((char *)request_fragment, skb, skb_info.data_off, skb_info.data_end);
+    const size_t payload_length = skb_info.data_end - skb_info.data_off;
     const size_t final_fragment_size = payload_length < CLASSIFICATION_MAX_BUFFER ? payload_length : CLASSIFICATION_MAX_BUFFER;
     protocol_t cur_fragment_protocol = PROTOCOL_UNKNOWN;
     if (is_kafka(skb, &skb_info, request_fragment, final_fragment_size)) {

@@ -120,6 +120,7 @@ static __always_inline void read_ipv4_skb(struct __sk_buff *skb, __u64 off, __u6
 // that manipulates a `__sk_buff` object.
 typedef struct {
     __u32 data_off;
+    __u32 data_end;
     __u32 tcp_seq;
     __u8 tcp_flags;
 } skb_info_t;
@@ -131,18 +132,13 @@ __maybe_unused static __always_inline __u64 read_conn_tuple_skb(struct __sk_buff
     info->data_off = ETH_HLEN;
 
     __u16 l3_proto = __load_half(skb, offsetof(struct ethhdr, h_proto));
-    __u8 ipv4_hdr_len = 0;
-#ifdef DEBUG
-    __u16 total_length = 0;
-#endif
+    info->data_end = ETH_HLEN;
     __u8 l4_proto = 0;
     switch (l3_proto) {
     case ETH_P_IP:
     {
-        ipv4_hdr_len = (__load_byte(skb, info->data_off) & 0x0f) << 2;
-#ifdef DEBUG
-        total_length = __load_half(skb, info->data_off + offsetof(struct iphdr, tot_len));
-#endif
+        __u8 ipv4_hdr_len = (__load_byte(skb, info->data_off) & 0x0f) << 2;
+        info->data_end += __load_half(skb, info->data_off + offsetof(struct iphdr, tot_len));
         if (ipv4_hdr_len < sizeof(struct iphdr)) {
             return 0;
         }
@@ -154,6 +150,7 @@ __maybe_unused static __always_inline __u64 read_conn_tuple_skb(struct __sk_buff
         break;
     }
     case ETH_P_IPV6:
+        info->data_end += sizeof(struct ipv6hdr) + __load_half(skb, info->data_off + offsetof(struct ipv6hdr, payload_len));
         l4_proto = __load_byte(skb, info->data_off + offsetof(struct ipv6hdr, nexthdr));
         tup->metadata |= CONN_V6;
         read_ipv6_skb(skb, info->data_off + offsetof(struct ipv6hdr, saddr), &tup->saddr_l, &tup->saddr_h);
@@ -179,27 +176,13 @@ __maybe_unused static __always_inline __u64 read_conn_tuple_skb(struct __sk_buff
         info->tcp_seq = __load_word(skb, info->data_off + offsetof(struct __tcphdr, seq));
         info->tcp_flags = __load_byte(skb, info->data_off + TCP_FLAGS_OFFSET);
         // TODO: Improve readability and explain the bit twiddling below
-#ifdef DEBUG
-        __u32 final = 0;
-        if (tup->sport == 80 || tup->dport == 80) {
-            __u32 data_off = ((__load_byte(skb, info->data_off + offsetof(struct __tcphdr, ack_seq) + 4) & 0xF0) >> 4);
-            final = total_length - (__u32)ipv4_hdr_len - data_off*4;
-            log_debug("guy before %d", info->data_off);
-        }
-#endif
         info->data_off += ((__load_byte(skb, info->data_off + offsetof(struct __tcphdr, ack_seq) + 4) & 0xF0) >> 4) * 4;
-#ifdef DEBUG
-        if ((tup->sport == 80 || tup->dport == 80)) {
-            log_debug("guy after %d", info->data_off);
-            log_debug("guy final %d %d", skb->len- info->data_off, final);
-        }
-#endif
         break;
     default:
         return 0;
     }
 
-    if ((skb->len - info->data_off) < 0) {
+    if ((info->data_end - info->data_off) < 0) {
         return 0;
     }
 
