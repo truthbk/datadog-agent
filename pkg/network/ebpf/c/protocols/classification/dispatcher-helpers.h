@@ -96,10 +96,6 @@ static __always_inline void protocol_dispatcher_entrypoint(struct __sk_buff *skb
         return;
     }
 
-    if (skb_tup.dport != 80 && skb_tup.sport != 80) {
-        return;
-    }
-
     bool tcp_termination = is_tcp_termination(&skb_info);
     // We don't process non tcp packets, nor empty tcp packets which are not tcp termination packets.
     if (!is_tcp(&skb_tup) || (is_payload_empty(&skb_info) && !tcp_termination)) {
