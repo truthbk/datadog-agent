@@ -140,7 +140,7 @@ static __always_inline void http_process(http_transaction_t *http_stack, skb_inf
 
     http->tags |= tags;
 
-    if (http_responding(http)) {
+    if (http_responding(http) && buffer[0] != 0) {
         http->response_last_seen = bpf_ktime_get_ns();
     }
 
