@@ -120,12 +120,8 @@ int __attribute__((always_inline)) handle_erpc_request(ctx_t *ctx) {
     }
 
     switch (op) {
-        case RESOLVE_SEGMENT_OP:
-            return handle_dr_request(ctx, data, DR_ERPC_SEGMENT_KEY); // func (dr *DentryResolver) ResolveFromERPC in the userspace code side triggers handle_dr_request
         case RESOLVE_PATH_OP:
             return handle_dr_request(ctx, data, DR_ERPC_KEY);
-        case RESOLVE_PARENT_OP:
-            return handle_dr_request(ctx, data, DR_ERPC_PARENT_KEY);
         case REGISTER_SPAN_TLS_OP:
             return handle_register_span_memory(data);
         case EXPIRE_INODE_DISCARDER_OP:
