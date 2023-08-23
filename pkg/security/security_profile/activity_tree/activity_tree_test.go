@@ -3692,4 +3692,467 @@ var activityTreeInsertExecEventTestCases = []struct {
 			},
 		},
 	},
+
+	// exec/23
+	// ---------------
+	//
+	//      /bin/bash          +          systemd                             ==>>              /bin/bash
+	//          |                            |- /bin/bash -> /bin/ls                               |
+	//      /bin/webserver                                                                   /bin/webserver
+	//          | (exe)                                                                            | (exec)
+	//       /bin/ls                                                                             /bin/ls
+	{
+		name: "exec/23",
+		tree: &ActivityTree{
+			validator: activityTreeInsertTestValidator{},
+			Stats:     NewActivityTreeNodeStats(),
+			ProcessNodes: []*ProcessNode{
+				{
+					Process: model.Process{
+						FileEvent: model.FileEvent{
+							PathnameStr: "/bin/bash",
+						},
+					},
+					Children: []*ProcessNode{
+						{
+							Process: model.Process{
+								IsExecChild: true,
+								FileEvent: model.FileEvent{
+									PathnameStr: "/bin/webserver",
+								},
+							},
+							Children: []*ProcessNode{
+								{
+									Process: model.Process{
+										IsExecChild: true,
+										FileEvent: model.FileEvent{
+											PathnameStr: "/bin/ls",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		inputEvent: newExecTestEventWithAncestors([]model.Process{
+			{
+				ContainerID: "123",
+				FileEvent: model.FileEvent{
+					PathnameStr: "/bin/bash",
+					FileFields: model.FileFields{
+						PathKey: model.PathKey{
+							Inode: 1,
+						},
+					},
+				},
+			},
+			{
+				IsExecChild: true,
+				ContainerID: "123",
+				FileEvent: model.FileEvent{
+					PathnameStr: "/bin/ls",
+					FileFields: model.FileFields{
+						PathKey: model.PathKey{
+							Inode: 2,
+						},
+					},
+				},
+			},
+		}),
+		wantNode: &ProcessNode{
+			Process: model.Process{
+				FileEvent: model.FileEvent{
+					PathnameStr: "/bin/ls",
+				},
+			},
+		},
+		wantNewEntry: false,
+		wantTree: &ActivityTree{
+			ProcessNodes: []*ProcessNode{
+				{
+					Process: model.Process{
+						FileEvent: model.FileEvent{
+							PathnameStr: "/bin/bash",
+						},
+					},
+					Children: []*ProcessNode{
+						{
+							Process: model.Process{
+								IsExecChild: true,
+								FileEvent: model.FileEvent{
+									PathnameStr: "/bin/webserver",
+								},
+							},
+							Children: []*ProcessNode{
+								{
+									Process: model.Process{
+										IsExecChild: true,
+										FileEvent: model.FileEvent{
+											PathnameStr: "/bin/ls",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+
+	// exec/24
+	// ---------------
+	//
+	//      /bin/bash          +          systemd                             ==>>              /bin/bash
+	//          | (exec)                    |- /bin/bash                                           |
+	//       /bin/ls                        |- /bin/webserver -> /bin/ls                      /bin/webserver
+	//                                                                                             | (exec)
+	//                                                                                         /bin/ls
+	{
+		name: "exec/24",
+		tree: &ActivityTree{
+			validator: activityTreeInsertTestValidator{},
+			Stats:     NewActivityTreeNodeStats(),
+			ProcessNodes: []*ProcessNode{
+				{
+					Process: model.Process{
+						FileEvent: model.FileEvent{
+							PathnameStr: "/bin/bash",
+						},
+					},
+					Children: []*ProcessNode{
+						{
+							Process: model.Process{
+								IsExecChild: true,
+								FileEvent: model.FileEvent{
+									PathnameStr: "/bin/ls",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		inputEvent: newExecTestEventWithAncestors([]model.Process{
+			{
+				ContainerID: "123",
+				FileEvent: model.FileEvent{
+					PathnameStr: "/bin/bash",
+					FileFields: model.FileFields{
+						PathKey: model.PathKey{
+							Inode: 1,
+						},
+					},
+				},
+			},
+			{
+				ContainerID: "123",
+				IsExecChild: true,
+				FileEvent: model.FileEvent{
+					PathnameStr: "/bin/webserver",
+					FileFields: model.FileFields{
+						PathKey: model.PathKey{
+							Inode: 2,
+						},
+					},
+				},
+			},
+			{
+				IsExecChild: true,
+				ContainerID: "123",
+				FileEvent: model.FileEvent{
+					PathnameStr: "/bin/ls",
+					FileFields: model.FileFields{
+						PathKey: model.PathKey{
+							Inode: 3,
+						},
+					},
+				},
+			},
+		}),
+		wantNode: &ProcessNode{
+			Process: model.Process{
+				FileEvent: model.FileEvent{
+					PathnameStr: "/bin/ls",
+				},
+			},
+		},
+		wantNewEntry: true,
+		wantTree: &ActivityTree{
+			ProcessNodes: []*ProcessNode{
+				{
+					Process: model.Process{
+						FileEvent: model.FileEvent{
+							PathnameStr: "/bin/bash",
+						},
+					},
+					Children: []*ProcessNode{
+						{
+							Process: model.Process{
+								IsExecChild: true,
+								FileEvent: model.FileEvent{
+									PathnameStr: "/bin/webserver",
+								},
+							},
+							Children: []*ProcessNode{
+								{
+									Process: model.Process{
+										IsExecChild: true,
+										FileEvent: model.FileEvent{
+											PathnameStr: "/bin/ls",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+
+	// exec/25
+	// ---------------
+	//
+	//      /bin/bash -------------              +          systemd                                   ==>>              /bin/bash
+	//          |                 | (exec)                     |- /bin/bash                                                |
+	//      /bin/webserver     /bin/ls                         |- /bin/webserver -> /bin/ls                           /bin/webserver
+	//                                                                                                                     | (exec)
+	//                                                                                                                  /bin/ls
+	{
+		name: "exec/25",
+		tree: &ActivityTree{
+			validator: activityTreeInsertTestValidator{},
+			Stats:     NewActivityTreeNodeStats(),
+			ProcessNodes: []*ProcessNode{
+				{
+					Process: model.Process{
+						FileEvent: model.FileEvent{
+							PathnameStr: "/bin/bash",
+						},
+					},
+					Children: []*ProcessNode{
+						{
+							Process: model.Process{
+								IsExecChild: true,
+								FileEvent: model.FileEvent{
+									PathnameStr: "/bin/webserver",
+								},
+							},
+						},
+						{
+							Process: model.Process{
+								IsExecChild: true,
+								FileEvent: model.FileEvent{
+									PathnameStr: "/bin/ls",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		inputEvent: newExecTestEventWithAncestors([]model.Process{
+			{
+				ContainerID: "123",
+				FileEvent: model.FileEvent{
+					PathnameStr: "/bin/bash",
+					FileFields: model.FileFields{
+						PathKey: model.PathKey{
+							Inode: 1,
+						},
+					},
+				},
+			},
+			{
+				ContainerID: "123",
+				IsExecChild: true,
+				FileEvent: model.FileEvent{
+					PathnameStr: "/bin/webserver",
+					FileFields: model.FileFields{
+						PathKey: model.PathKey{
+							Inode: 2,
+						},
+					},
+				},
+			},
+			{
+				IsExecChild: true,
+				ContainerID: "123",
+				FileEvent: model.FileEvent{
+					PathnameStr: "/bin/ls",
+					FileFields: model.FileFields{
+						PathKey: model.PathKey{
+							Inode: 3,
+						},
+					},
+				},
+			},
+		}),
+		wantNode: &ProcessNode{
+			Process: model.Process{
+				FileEvent: model.FileEvent{
+					PathnameStr: "/bin/ls",
+				},
+			},
+		},
+		wantNewEntry: false,
+		wantTree: &ActivityTree{
+			ProcessNodes: []*ProcessNode{
+				{
+					Process: model.Process{
+						FileEvent: model.FileEvent{
+							PathnameStr: "/bin/bash",
+						},
+					},
+					Children: []*ProcessNode{
+						{
+							Process: model.Process{
+								IsExecChild: true,
+								FileEvent: model.FileEvent{
+									PathnameStr: "/bin/webserver",
+								},
+							},
+							Children: []*ProcessNode{
+								{
+									Process: model.Process{
+										IsExecChild: true,
+										FileEvent: model.FileEvent{
+											PathnameStr: "/bin/ls",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+
+
+	// -> exec1 -> exec2 -> coucou
+	//
+	//      exec 3
+	//        | (exec)
+	//      exec 4
+	//        | (exec)
+	//      coucou
+
+	// output profile:     exec 1 -> exec 2 -> exec 3 -> exec 4 -> coucou
+
+	//  -> exec1 -> exec 3 -> exec 4 -> exec 2 -> coucou
+
+	// exec/24
+	// ---------------
+	//
+	//      /bin/bash          +          systemd                             ==>>              /bin/bash
+	//          | (exec)                    |- /bin/bash                                           |
+	//       /bin/ls                        |- /bin/webserver -> /bin/ls                      /bin/webserver
+	//                                                                                             | (exec)
+	//                                                                                         /bin/ls
+	{
+		name: "exec/24",
+		tree: &ActivityTree{
+			validator: activityTreeInsertTestValidator{},
+			Stats:     NewActivityTreeNodeStats(),
+			ProcessNodes: []*ProcessNode{
+				{
+					Process: model.Process{
+						FileEvent: model.FileEvent{
+							PathnameStr: "/bin/bash",
+						},
+					},
+					Children: []*ProcessNode{
+						{
+							Process: model.Process{
+								IsExecChild: true,
+								FileEvent: model.FileEvent{
+									PathnameStr: "/bin/ls",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		inputEvent: newExecTestEventWithAncestors([]model.Process{
+			{
+				ContainerID: "123",
+				FileEvent: model.FileEvent{
+					PathnameStr: "/bin/bash",
+					FileFields: model.FileFields{
+						PathKey: model.PathKey{
+							Inode: 1,
+						},
+					},
+				},
+			},
+			{
+				ContainerID: "123",
+				IsExecChild: true,
+				FileEvent: model.FileEvent{
+					PathnameStr: "/bin/webserver",
+					FileFields: model.FileFields{
+						PathKey: model.PathKey{
+							Inode: 2,
+						},
+					},
+				},
+			},
+			{
+				IsExecChild: true,
+				ContainerID: "123",
+				FileEvent: model.FileEvent{
+					PathnameStr: "/bin/ls",
+					FileFields: model.FileFields{
+						PathKey: model.PathKey{
+							Inode: 3,
+						},
+					},
+				},
+			},
+		}),
+		wantNode: &ProcessNode{
+			Process: model.Process{
+				FileEvent: model.FileEvent{
+					PathnameStr: "/bin/ls",
+				},
+			},
+		},
+		wantNewEntry: true,
+		wantTree: &ActivityTree{
+			ProcessNodes: []*ProcessNode{
+				{
+					Process: model.Process{
+						FileEvent: model.FileEvent{
+							PathnameStr: "/bin/bash",
+						},
+					},
+					Children: []*ProcessNode{
+						{
+							Process: model.Process{
+								IsExecChild: true,
+								FileEvent: model.FileEvent{
+									PathnameStr: "/bin/webserver",
+								},
+							},
+							Children: []*ProcessNode{
+								{
+									Process: model.Process{
+										IsExecChild: true,
+										FileEvent: model.FileEvent{
+											PathnameStr: "/bin/ls",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	},
 }
