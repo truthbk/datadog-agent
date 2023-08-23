@@ -481,13 +481,14 @@ func (at *ActivityTree) CreateProcessNode(entry *model.ProcessCacheEntry, branch
 func (at *ActivityTree) findBranch(children *[]*ProcessNode, siblings *[]*ProcessNode, branch []*model.ProcessCacheEntry, dryRun bool, generationType NodeGenerationType, resolvers *resolvers.Resolvers) (*ProcessNode, bool) {
 	for i := len(branch) - 1; i >= 0; i-- {
 		branchCursor := branch[i]
+		isFirstNode := i == len(branch)-1
 
 		// look for branchCursor in the children
 		matchingNode, treeNodeToRebaseIndex := at.findProcessCacheEntryInTree(*children, branchCursor)
 
 		if matchingNode != nil {
 			// if this is the first iteration, we've just identified a direct match without looking for execs, return now
-			if i == len(branch)-1 {
+			if isFirstNode {
 				return matchingNode, false
 			}
 
@@ -512,7 +513,9 @@ func (at *ActivityTree) findBranch(children *[]*ProcessNode, siblings *[]*Proces
 				if treeNodeToRebaseIndex >= 0 {
 
 					// we're about to rebase part of the tree, exit early if this is a dry run
-					if i < len(branch)-1 && dryRun {
+					// If isFirstNode, we'll rebase a sibling without adding a new node, which is why we don't need to
+					// exit early: we'll simply move a few things around.
+					if !isFirstNode && dryRun {
 						return nil, true
 					}
 
@@ -520,7 +523,7 @@ func (at *ActivityTree) findBranch(children *[]*ProcessNode, siblings *[]*Proces
 					newNodesRoot := at.rebaseTree(siblings, treeNodeToRebaseIndex, children, branch[i+1:], generationType, resolvers)
 
 					// we need to return the node that matched branch[0]
-					if i == len(branch)-1 {
+					if isFirstNode {
 						return matchingNode, false
 					}
 
