@@ -11,6 +11,7 @@ int hook_mnt_want_write(ctx_t *ctx) {
     bpf_printk("mnt_want_write");
     struct syscall_cache_t *syscall = peek_syscall_with(mnt_want_write_predicate);
     if (!syscall) {
+		bpf_printk("mnt_want_write: no syscall");
         return 0;
     }
 
@@ -73,6 +74,7 @@ int hook_mnt_want_write(ctx_t *ctx) {
 int __attribute__((always_inline)) trace__mnt_want_write_file(ctx_t *ctx) {
     struct syscall_cache_t *syscall = peek_syscall_with(mnt_want_write_file_predicate);
     if (!syscall) {
+		bpf_printk("mnt_want_write_file: no syscall");
         return 0;
     }
 
@@ -157,6 +159,7 @@ int hook_attach_mnt(ctx_t *ctx) {
     bpf_printk("attach_mnt");
     struct syscall_cache_t *syscall = peek_syscall(EVENT_UNSHARE_MNTNS);
     if (!syscall) {
+		bpf_printk("attach_mnt: no syscall");
         return 0;
     }
 
@@ -174,6 +177,7 @@ int hook___attach_mnt(ctx_t *ctx) {
     bpf_printk("__attach_mnt");
     struct syscall_cache_t *syscall = peek_syscall(EVENT_UNSHARE_MNTNS);
     if (!syscall) {
+		bpf_printk("__attach_mnt: no syscall");
         return 0;
     }
 
@@ -197,6 +201,7 @@ int hook_mnt_set_mountpoint(ctx_t *ctx) {
     bpf_printk("mnt_set_mountpoint");
     struct syscall_cache_t *syscall = peek_syscall(EVENT_UNSHARE_MNTNS);
     if (!syscall) {
+		bpf_printk("mnt_set_mountpoint: no syscall");
         return 0;
     }
 
@@ -339,6 +344,7 @@ int hook_clone_mnt(ctx_t *ctx) {
     bpf_printk("clone_mnt");
     struct syscall_cache_t *syscall = peek_syscall(EVENT_MOUNT);
     if (!syscall) {
+		bpf_printk("clone_mnt: no syscall");
         return 0;
     }
 
@@ -373,6 +379,7 @@ int hook_attach_recursive_mnt(ctx_t *ctx) {
     bpf_printk("attach_recursive_mnt");
     struct syscall_cache_t *syscall = peek_syscall(EVENT_MOUNT);
     if (!syscall) {
+		bpf_printk("attach_recursive_mnt: no syscall");
         return 0;
     }
 
@@ -410,6 +417,7 @@ int hook_propagate_mnt(ctx_t *ctx) {
     bpf_printk("propagate_mnt");
     struct syscall_cache_t *syscall = peek_syscall(EVENT_MOUNT);
     if (!syscall) {
+		bpf_printk("propagate_mnt: no syscall");
         return 0;
     }
 
@@ -450,6 +458,7 @@ int __attribute__((always_inline)) sys_mount_ret(void *ctx, int retval, int dr_t
 
     struct syscall_cache_t *syscall = peek_syscall(EVENT_MOUNT);
     if (!syscall) {
+		bpf_printk("sys_mount_ret: no syscall");
         return 0;
     }
 
@@ -492,6 +501,7 @@ int tracepoint_handle_sys_mount_exit(struct tracepoint_raw_syscalls_sys_exit_t *
 int __attribute__((always_inline)) dr_mount_callback(void *ctx) {
     struct syscall_cache_t *syscall = pop_syscall(EVENT_MOUNT);
     if (!syscall) {
+		bpf_printk("dr_mount_callback: no syscall");
         return 0;
     }
 
