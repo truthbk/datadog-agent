@@ -499,6 +499,7 @@ int tracepoint_handle_sys_mount_exit(struct tracepoint_raw_syscalls_sys_exit_t *
 }
 
 int __attribute__((always_inline)) dr_mount_callback(void *ctx) {
+	bpf_printk("dr_mount_callback");
     struct syscall_cache_t *syscall = pop_syscall(EVENT_MOUNT);
     if (!syscall) {
 		bpf_printk("dr_mount_callback: no syscall");
