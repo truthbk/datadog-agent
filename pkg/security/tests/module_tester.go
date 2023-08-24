@@ -888,9 +888,9 @@ func newTestModule(t testing.TB, macroDefs []*rules.MacroDefinition, ruleDefs []
 		testMod.st = st
 		testMod.cmdWrapper = cmdWrapper
 		testMod.t = t
-		if testMod.tracePipe, err = testMod.startTracing(); err != nil {
+		/*if testMod.tracePipe, err = testMod.startTracing(); err != nil {
 			return testMod, err
-		}
+		}*/
 
 		if opts.preStartCallback != nil {
 			opts.preStartCallback(testMod)
@@ -991,9 +991,11 @@ func newTestModule(t testing.TB, macroDefs []*rules.MacroDefinition, ruleDefs []
 		opts.preStartCallback(testMod)
 	}
 
-	if testMod.tracePipe, err = testMod.startTracing(); err != nil {
-		return nil, err
-	}
+	/*
+		if testMod.tracePipe, err = testMod.startTracing(); err != nil {
+			return nil, err
+		}
+	*/
 
 	if err := testMod.eventMonitor.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start module: %w", err)
