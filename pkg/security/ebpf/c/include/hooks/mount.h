@@ -8,6 +8,7 @@
 
 HOOK_ENTRY("mnt_want_write")
 int hook_mnt_want_write(ctx_t *ctx) {
+    bpf_printk("mnt_want_write");
     struct syscall_cache_t *syscall = peek_syscall_with(mnt_want_write_predicate);
     if (!syscall) {
         return 0;
@@ -104,16 +105,19 @@ int __attribute__((always_inline)) trace__mnt_want_write_file(ctx_t *ctx) {
 
 HOOK_ENTRY("mnt_want_write_file")
 int hook_mnt_want_write_file(ctx_t *ctx) {
+    bpf_printk("mnt_want_write_file");
     return trace__mnt_want_write_file(ctx);
 }
 
 // mnt_want_write_file_path was used on old kernels (RHEL 7)
 HOOK_ENTRY("mnt_want_write_file_path")
 int hook_mnt_want_write_file_path(ctx_t *ctx) {
+    bpf_printk("mnt_want_write_file_path");
     return trace__mnt_want_write_file(ctx);
 }
 
 HOOK_SYSCALL_COMPAT_ENTRY3(mount, const char*, source, const char*, target, const char*, fstype) {
+    bpf_printk("mount syscall");
     struct syscall_cache_t syscall = {
         .type = EVENT_MOUNT,
     };
@@ -124,6 +128,7 @@ HOOK_SYSCALL_COMPAT_ENTRY3(mount, const char*, source, const char*, target, cons
 }
 
 HOOK_SYSCALL_ENTRY1(unshare, unsigned long, flags) {
+    bpf_printk("unshare syscall");
     struct syscall_cache_t syscall = {
         .type = EVENT_UNSHARE_MNTNS,
         .unshare_mntns = {
@@ -142,12 +147,14 @@ HOOK_SYSCALL_ENTRY1(unshare, unsigned long, flags) {
 }
 
 HOOK_SYSCALL_EXIT(unshare) {
+    bpf_printk("unshare syscall exit");
     pop_syscall(EVENT_UNSHARE_MNTNS);
     return 0;
 }
 
 HOOK_ENTRY("attach_mnt")
 int hook_attach_mnt(ctx_t *ctx) {
+    bpf_printk("attach_mnt");
     struct syscall_cache_t *syscall = peek_syscall(EVENT_UNSHARE_MNTNS);
     if (!syscall) {
         return 0;
@@ -164,6 +171,7 @@ int hook_attach_mnt(ctx_t *ctx) {
 
 HOOK_ENTRY("__attach_mnt")
 int hook___attach_mnt(ctx_t *ctx) {
+    bpf_printk("__attach_mnt");
     struct syscall_cache_t *syscall = peek_syscall(EVENT_UNSHARE_MNTNS);
     if (!syscall) {
         return 0;
@@ -186,6 +194,7 @@ int hook___attach_mnt(ctx_t *ctx) {
 
 HOOK_ENTRY("mnt_set_mountpoint")
 int hook_mnt_set_mountpoint(ctx_t *ctx) {
+    bpf_printk("mnt_set_mountpoint");
     struct syscall_cache_t *syscall = peek_syscall(EVENT_UNSHARE_MNTNS);
     if (!syscall) {
         return 0;
@@ -327,6 +336,7 @@ int fentry_dr_unshare_mntns_stage_two_callback(ctx_t *ctx) {
 
 HOOK_ENTRY("clone_mnt")
 int hook_clone_mnt(ctx_t *ctx) {
+    bpf_printk("clone_mnt");
     struct syscall_cache_t *syscall = peek_syscall(EVENT_MOUNT);
     if (!syscall) {
         return 0;
@@ -360,6 +370,7 @@ int hook_clone_mnt(ctx_t *ctx) {
 
 HOOK_ENTRY("attach_recursive_mnt")
 int hook_attach_recursive_mnt(ctx_t *ctx) {
+    bpf_printk("attach_recursive_mnt");
     struct syscall_cache_t *syscall = peek_syscall(EVENT_MOUNT);
     if (!syscall) {
         return 0;
@@ -396,6 +407,7 @@ int hook_attach_recursive_mnt(ctx_t *ctx) {
 
 HOOK_ENTRY("propagate_mnt")
 int hook_propagate_mnt(ctx_t *ctx) {
+    bpf_printk("propagate_mnt");
     struct syscall_cache_t *syscall = peek_syscall(EVENT_MOUNT);
     if (!syscall) {
         return 0;
@@ -467,6 +479,7 @@ int __attribute__((always_inline)) sys_mount_ret(void *ctx, int retval, int dr_t
 }
 
 HOOK_SYSCALL_COMPAT_EXIT(mount) {
+    bpf_printk("mount syscall exit");
     int retval = SYSCALL_PARMRET(ctx);
     return sys_mount_ret(ctx, retval, DR_KPROBE_OR_FENTRY);
 }
