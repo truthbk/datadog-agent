@@ -484,14 +484,14 @@ func (pr *PathRingsResolver) Start(m *manager.Manager) error {
 	pr.numCPU = uint32(numCPU)
 
 	if pr.opts.UseRingBuffers {
-		pathRingsMap, err := managerhelper.Map(m, "pr_ringbufs")
+		pathRingsMap, err := managerhelper.Map(m, "dr_ringbufs")
 		if err != nil {
 			return err
 		}
 
 		pathRings, err := syscall.Mmap(pathRingsMap.FD(), 0, int(pr.numCPU*PathRingBuffersSize), unix.PROT_READ, unix.MAP_SHARED)
 		if err != nil || pathRings == nil {
-			return fmt.Errorf("failed to mmap pr_ringbufs map: %w", err)
+			return fmt.Errorf("failed to mmap dr_ringbufs map: %w", err)
 		}
 		pr.pathRings = pathRings
 	}

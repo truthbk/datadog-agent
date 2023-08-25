@@ -5,7 +5,6 @@
 #include "helpers/filesystem.h"
 #include "helpers/selinux.h"
 #include "helpers/syscalls.h"
-#include "helpers/path_resolver.h"
 
 int __attribute__((always_inline)) handle_selinux_event(void *ctx, struct file *file, const char *buf, size_t count, enum selinux_source_event_t source_event) {
     struct syscall_cache_t syscall = {
@@ -57,14 +56,14 @@ int __attribute__((always_inline)) handle_selinux_event(void *ctx, struct file *
     syscall.resolver.key = syscall.selinux.file.dentry_key;
     syscall.resolver.dentry = syscall.selinux.dentry;
     syscall.resolver.discarder_type = syscall.policy.mode != NO_FILTER ? EVENT_SELINUX : 0;
-    syscall.resolver.callback = PR_PROGKEY_CB_SELINUX;
+    syscall.resolver.callback = DR_CALLBACK_SELINUX;
     syscall.resolver.iteration = 0;
     syscall.resolver.ret = 0;
 
     cache_syscall(&syscall);
 
     // tail call
-    resolve_path(ctx, DR_KPROBE_OR_FENTRY);
+    resolve_dentry(ctx, DR_KPROBE_OR_FENTRY);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_syscall(EVENT_SELINUX);
@@ -90,7 +89,7 @@ int __attribute__((always_inline)) dr_selinux_callback(void *ctx, int retval) {
     struct selinux_event_t event = {};
     event.event_kind = syscall->selinux.event_kind;
     event.file = syscall->selinux.file;
-    fill_path_ring_buffer_ref(&event.file.path_ref);
+    fill_dr_ringbuf_ref_from_ctx(&event.file.path_ref);
     event.payload = syscall->selinux.payload;
 
     struct proc_cache_t *entry = fill_process_context(&event.process);

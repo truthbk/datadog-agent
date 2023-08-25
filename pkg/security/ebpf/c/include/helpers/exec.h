@@ -25,11 +25,11 @@ int __attribute__((always_inline)) handle_exec_event(ctx_t *ctx, struct syscall_
     syscall->resolver.key = syscall->exec.file.dentry_key;
     syscall->resolver.dentry = syscall->exec.dentry;
     syscall->resolver.discarder_type = 0;
-    syscall->resolver.callback = PR_PROGKEY_CB_EXECUTABLE_KPROBE;
+    syscall->resolver.callback = DR_CALLBACK_EXECUTABLE;
     syscall->resolver.iteration = 0;
     syscall->resolver.ret = 0;
 
-    resolve_path(ctx, DR_KPROBE_OR_FENTRY);
+    resolve_dentry(ctx, DR_KPROBE_OR_FENTRY);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_syscall(EVENT_EXEC);

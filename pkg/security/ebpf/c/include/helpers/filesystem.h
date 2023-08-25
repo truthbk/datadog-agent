@@ -7,7 +7,6 @@
 #include "events_definition.h"
 #include "maps.h"
 #include "perf_ring.h"
-#include "path_resolver.h"
 
 #include "dentry_resolver.h"
 #include "discarders.h"
@@ -112,11 +111,11 @@ void __attribute__((always_inline)) resolve_unshared_mnt(void *ctx, struct sysca
     syscall->resolver.key = syscall->unshare_mntns.mp_dentry_key;
     syscall->resolver.dentry = syscall->unshare_mntns.mp_dentry;
     syscall->resolver.discarder_type = 0;
-    syscall->resolver.callback = PR_PROGKEY_CB_UNSHARE_MNTNS_KPROBE;
+    syscall->resolver.callback = DR_CALLBACK_UNSHARE_MNTNS;
     syscall->resolver.iteration = 0;
     syscall->resolver.ret = 0;
 
-    resolve_path(ctx, dr_type);
+    resolve_dentry(ctx, dr_type);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_syscall(syscall->type);

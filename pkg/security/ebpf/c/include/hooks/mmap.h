@@ -6,7 +6,6 @@
 #include "helpers/discarders.h"
 #include "helpers/filesystem.h"
 #include "helpers/syscalls.h"
-#include "helpers/path_resolver.h"
 
 SEC("tracepoint/syscalls/sys_enter_mmap")
 int tracepoint_syscalls_sys_enter_mmap(struct tracepoint_syscalls_sys_enter_mmap_t *args) {
@@ -60,7 +59,7 @@ int __attribute__((always_inline)) sys_mmap_ret(void *ctx, int retval, u64 addr)
 
     if (syscall->mmap.dentry != NULL) {
         fill_file_metadata(syscall->mmap.dentry, &event.file.metadata);
-        fill_path_ring_buffer_ref(&event.file.path_ref);
+        fill_dr_ringbuf_ref_from_ctx(&event.file.path_ref);
     }
     struct proc_cache_t *entry = fill_process_context(&event.process);
     fill_container_context(entry, &event.container);
@@ -93,7 +92,7 @@ int rethook_fget(ctx_t *ctx) {
     syscall->resolver.iteration = 0;
     syscall->resolver.ret = 0;
 
-    resolve_path(ctx, DR_KPROBE_OR_FENTRY);
+    resolve_dentry(ctx, DR_KPROBE_OR_FENTRY);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_syscall(EVENT_MMAP);

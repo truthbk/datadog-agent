@@ -4,7 +4,6 @@
 #include "constants/syscall_macro.h"
 #include "helpers/filesystem.h"
 #include "helpers/syscalls.h"
-#include "helpers/path_resolver.h"
 
 int __attribute__((always_inline)) trace_init_module(u32 loaded_from_memory) {
     struct policy_t policy = fetch_policy(EVENT_INIT_MODULE);
@@ -44,12 +43,11 @@ int __attribute__((always_inline)) trace_kernel_file(ctx_t *ctx, struct file *f,
     syscall->resolver.key = syscall->init_module.file.dentry_key;
     syscall->resolver.dentry = syscall->init_module.dentry;
     syscall->resolver.discarder_type = syscall->policy.mode != NO_FILTER ? EVENT_INIT_MODULE : 0;
-    syscall->resolver.callback = PR_PROGKEY_CB_INITMODULE;
     syscall->resolver.iteration = 0;
-    syscall->resolver.callback = DR_NO_CALLBACK;
+    syscall->resolver.callback = DR_CALLBACK_INITMODULE;
     syscall->resolver.ret = 0;
 
-    resolve_path(ctx, dr_type);
+    resolve_dentry(ctx, dr_type);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_syscall(EVENT_INIT_MODULE);
@@ -64,7 +62,7 @@ int kprobe_trace_kernel_file_cb(struct pt_regs *ctx) {
         return 0;
     }
 
-    fill_path_ring_buffer_ref(&syscall->init_module.file.path_ref);
+    fill_dr_ringbuf_ref_from_ctx(&syscall->init_module.file.path_ref);
 
     return 0;
 }

@@ -7,7 +7,6 @@
 #include "helpers/discarders.h"
 #include "helpers/filesystem.h"
 #include "helpers/syscalls.h"
-#include "helpers/path_resolver.h"
 
 int __attribute__((always_inline)) trace__sys_unlink(u8 async, int flags) {
     struct syscall_cache_t syscall = {
@@ -77,11 +76,11 @@ int hook_vfs_unlink(ctx_t *ctx) {
     syscall->resolver.dentry = dentry;
     syscall->resolver.key = syscall->unlink.file.dentry_key;
     syscall->resolver.discarder_type = syscall->policy.mode != NO_FILTER ? EVENT_UNLINK : 0;
-    syscall->resolver.callback = PR_PROGKEY_CB_UNLINK;
+    syscall->resolver.callback = DR_CALLBACK_UNLINK;
     syscall->resolver.iteration = 0;
     syscall->resolver.ret = 0;
 
-    resolve_path(ctx, DR_KPROBE_OR_FENTRY);
+    resolve_dentry(ctx, DR_KPROBE_OR_FENTRY);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_syscall(EVENT_UNLINK);
@@ -100,7 +99,7 @@ int kprobe_dr_unlink_callback(struct pt_regs *ctx) {
         return mark_as_discarded(syscall);
     }
 
-    fill_path_ring_buffer_ref(&syscall->unlink.file.path_ref);
+    fill_dr_ringbuf_ref_from_ctx(&syscall->unlink.file.path_ref);
 
     return 0;
 }

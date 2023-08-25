@@ -23,7 +23,7 @@ BPF_ARRAY_MAP(pipefs_mountid, u32, 1)
 BPF_ARRAY_MAP(selinux_enforce_status, u16, 2)
 BPF_ARRAY_MAP(splice_entry_flags_approvers, u32, 1)
 BPF_ARRAY_MAP(splice_exit_flags_approvers, u32, 1)
-BPF_ARRAY_MAP(pr_ringbufs, struct pr_ring_buffer, 1) // max entries is overriden at runtime with the number of cores
+BPF_ARRAY_MAP(dr_ringbufs, struct ring_buffer_t, 1) // max entries is overriden at runtime with the number of cores
 
 BPF_HASH_MAP(activity_dumps_config, u32, struct activity_dump_config, 1) // max entries will be overridden at runtime
 BPF_HASH_MAP(activity_dump_config_defaults, u32, struct activity_dump_config, 1)
@@ -83,15 +83,15 @@ BPF_PERCPU_ARRAY_MAP(dns_event, u32, struct dns_event_t, 1)
 BPF_PERCPU_ARRAY_MAP(packets, u32, struct packet_t, 1)
 BPF_PERCPU_ARRAY_MAP(selinux_write_buffer, u32, struct selinux_write_buffer_t, 1)
 BPF_PERCPU_ARRAY_MAP(is_new_kthread, u32, u32, 1)
-BPF_PERCPU_ARRAY_MAP(pr_ringbuf_ctx, u32, struct pr_ring_buffer_ctx, 1)
+BPF_PERCPU_ARRAY_MAP(dr_ringbufs_ctx, u32, struct ring_buffer_ctx, 1)
 
 BPF_PROG_ARRAY(args_envs_progs, 3)
 BPF_PROG_ARRAY(sys_exit_progs, 64)
 BPF_PROG_ARRAY(classifier_router, 100)
-BPF_PROG_ARRAY(erpc_kprobe_progs, 3)
-BPF_PROG_ARRAY(erpc_fentry_progs, 3)
-BPF_PROG_ARRAY(path_resolver_kprobe_progs, 18)
-BPF_PROG_ARRAY(path_resolver_fentry_progs, 18)
-BPF_PROG_ARRAY(path_resolver_tracepoint_progs, 7)
+BPF_PROG_ARRAY(erpc_kprobe_progs, ERPC_MAX_PROGS)
+BPF_PROG_ARRAY(erpc_fentry_progs, ERPC_MAX_PROGS)
+BPF_PROG_ARRAY(dr_kprobe_progs, DR_MAX_KPROBE_AND_FENTRY_PROGS)
+BPF_PROG_ARRAY(dr_fentry_progs, DR_MAX_KPROBE_AND_FENTRY_PROGS)
+BPF_PROG_ARRAY(dr_tracepoint_progs, DR_MAX_TRACEPOINT_PROGS)
 
 #endif

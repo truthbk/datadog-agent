@@ -6,7 +6,6 @@
 #include "helpers/discarders.h"
 #include "helpers/filesystem.h"
 #include "helpers/syscalls.h"
-#include "helpers/path_resolver.h"
 
 int __attribute__((always_inline)) trace__sys_link(u8 async) {
     struct policy_t policy = fetch_policy(EVENT_LINK);
@@ -88,11 +87,11 @@ int hook_vfs_link(ctx_t *ctx) {
     syscall->resolver.dentry = src_dentry;
     syscall->resolver.key = syscall->link.src_file.dentry_key;
     syscall->resolver.discarder_type = syscall->policy.mode != NO_FILTER ? EVENT_LINK : 0;
-    syscall->resolver.callback = PR_PROGKEY_CB_LINK_SRC_KPROBE;
+    syscall->resolver.callback = DR_CALLBACK_LINK_SRC;
     syscall->resolver.iteration = 0;
     syscall->resolver.ret = 0;
 
-    resolve_path(ctx, DR_KPROBE_OR_FENTRY);
+    resolve_dentry(ctx, DR_KPROBE_OR_FENTRY);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_syscall(EVENT_LINK);
@@ -107,7 +106,7 @@ int kprobe_dr_link_src_callback(struct pt_regs *ctx) {
         return 0;
     }
 
-    fill_path_ring_buffer_ref(&syscall->link.src_file.path_ref);
+    fill_dr_ringbuf_ref_from_ctx(&syscall->link.src_file.path_ref);
 
     if (syscall->resolver.ret == DENTRY_DISCARDED) {
         monitor_discarded(EVENT_LINK);
@@ -159,12 +158,12 @@ int __attribute__((always_inline)) sys_link_ret(void *ctx, int retval, int dr_ty
         syscall->resolver.dentry = syscall->link.target_dentry;
         syscall->resolver.key = syscall->link.target_file.dentry_key;
         syscall->resolver.discarder_type = 0;
-        syscall->resolver.callback = PR_PROGKEY_CB_LINK_DST;
+        syscall->resolver.callback = DR_CALLBACK_LINK_DST;
         syscall->resolver.iteration = 0;
         syscall->resolver.ret = 0;
         syscall->resolver.sysretval = retval;
 
-        resolve_path(ctx, dr_type);
+        resolve_dentry(ctx, dr_type);
     }
 
     // if the tail call fails, we need to pop the syscall cache entry
@@ -217,7 +216,7 @@ int __attribute__((always_inline)) dr_link_dst_callback(void *ctx) {
     struct proc_cache_t *entry = fill_process_context(&event.process);
     fill_container_context(entry, &event.container);
     fill_span_context(&event.span);
-    fill_path_ring_buffer_ref(&event.target.path_ref);
+    fill_dr_ringbuf_ref_from_ctx(&event.target.path_ref);
 
     send_event(ctx, EVENT_LINK, event);
 

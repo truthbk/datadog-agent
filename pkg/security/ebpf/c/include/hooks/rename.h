@@ -5,7 +5,6 @@
 #include "helpers/approvers.h"
 #include "helpers/filesystem.h"
 #include "helpers/syscalls.h"
-#include "helpers/path_resolver.h"
 
 int __attribute__((always_inline)) trace__sys_rename(u8 async) {
     struct syscall_cache_t syscall = {
@@ -101,11 +100,11 @@ int hook_vfs_rename(ctx_t *ctx) {
     syscall->resolver.dentry = syscall->rename.src_dentry;
     syscall->resolver.key = syscall->rename.src_file.dentry_key;
     syscall->resolver.discarder_type = 0;
-    syscall->resolver.callback = PR_PROGKEY_CB_RENAME_SRC;
+    syscall->resolver.callback = DR_CALLBACK_RENAME_SRC;
     syscall->resolver.iteration = 0;
     syscall->resolver.ret = 0;
 
-    resolve_path(ctx, DR_KPROBE_OR_FENTRY);
+    resolve_dentry(ctx, DR_KPROBE_OR_FENTRY);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_syscall(EVENT_RENAME);
@@ -120,7 +119,7 @@ int kprobe_dr_rename_src_callback(struct pt_regs *ctx) {
         return 0;
     }
 
-    fill_path_ring_buffer_ref(&syscall->rename.src_file.path_ref);
+    fill_dr_ringbuf_ref_from_ctx(&syscall->rename.src_file.path_ref);
     return 0;
 }
 
@@ -160,12 +159,12 @@ int __attribute__((always_inline)) sys_rename_ret(void *ctx, int retval, int dr_
         syscall->resolver.key = syscall->rename.target_file.dentry_key;
         syscall->resolver.dentry = syscall->rename.src_dentry;
         syscall->resolver.discarder_type = 0;
-        syscall->resolver.callback = PR_PROGKEY_CB_RENAME_DST;
+        syscall->resolver.callback = DR_CALLBACK_RENAME_DST;
         syscall->resolver.iteration = 0;
         syscall->resolver.ret = 0;
         syscall->resolver.sysretval = retval;
 
-        resolve_path(ctx, dr_type);
+        resolve_dentry(ctx, dr_type);
     }
 
     // if the tail call failed we need to pop the syscall cache entry
@@ -221,7 +220,7 @@ int __attribute__((always_inline)) dr_rename_callback(void *ctx) {
     struct proc_cache_t *entry = fill_process_context(&event.process);
     fill_container_context(entry, &event.container);
     fill_span_context(&event.span);
-    fill_path_ring_buffer_ref(&event.new.path_ref);
+    fill_dr_ringbuf_ref_from_ctx(&event.new.path_ref);
 
     send_event(ctx, EVENT_RENAME, event);
 

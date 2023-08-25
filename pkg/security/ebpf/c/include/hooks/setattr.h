@@ -81,11 +81,11 @@ int hook_security_inode_setattr(ctx_t *ctx) {
     syscall->resolver.dentry = syscall->setattr.dentry;
     syscall->resolver.key = syscall->setattr.file.dentry_key;
     syscall->resolver.discarder_type = syscall->policy.mode != NO_FILTER ? event_type : 0;
-    syscall->resolver.callback = PR_PROGKEY_CB_SETATTR;
+    syscall->resolver.callback = DR_CALLBACK_SETATTR;
     syscall->resolver.iteration = 0;
     syscall->resolver.ret = 0;
 
-    resolve_path(ctx, DR_KPROBE_OR_FENTRY);
+    resolve_dentry(ctx, DR_KPROBE_OR_FENTRY);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_syscall_with(security_inode_predicate);
@@ -105,7 +105,7 @@ int kprobe_dr_setattr_callback(struct pt_regs *ctx) {
         return discard_syscall(syscall);
     }
 
-    fill_path_ring_buffer_ref(&syscall->setattr.file.path_ref);
+    fill_dr_ringbuf_ref_from_ctx(&syscall->setattr.file.path_ref);
 
     return 0;
 }

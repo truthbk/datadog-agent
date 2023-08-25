@@ -5,17 +5,72 @@
 #include "maps.h"
 
 #include "buffer_selector.h"
+#include "ring_buffer.h"
 
-int __attribute__((always_inline)) tail_call_erpc_progs(void *ctx, int dr_type, int key) {
+int __attribute__((always_inline)) init_dr_ringbuf_ctx() {
+    u32 zero = 0;
+    struct ring_buffer_ctx *rb_ctx = bpf_map_lookup_elem(&dr_ringbufs_ctx, &zero);
+    if (!rb_ctx) {
+        return 1;
+    }
+
+    u32 cpu = bpf_get_smp_processor_id();
+    struct ring_buffer_t *rb = bpf_map_lookup_elem(&dr_ringbufs, &cpu);
+    if (!rb) {
+        return 1;
+    }
+
+    rb_ctx->read_cursor = rb_ctx->write_cursor;
+    rb_ctx->watermark = bpf_ktime_get_ns();
+    rb_ctx->len = 0;
+    rb_ctx->cpu = cpu;
+
+    rb_push_watermark(rb, rb_ctx);
+
+    return 0;
+}
+
+void __attribute__((always_inline)) fill_dr_ringbuf_ref_from_ctx(struct ring_buffer_ref_t *ref) {
+    u32 zero = 0;
+    struct ring_buffer_ctx *rb_ctx = bpf_map_lookup_elem(&dr_ringbufs_ctx, &zero);
+    if (!rb_ctx) {
+        return;
+    }
+    ref->read_cursor = rb_ctx->read_cursor;
+    ref->watermark = rb_ctx->watermark;
+    ref->len = rb_ctx->len;
+    ref->cpu = rb_ctx->cpu;
+}
+
+int __attribute__((always_inline)) tail_call_dr_progs(void *ctx, int dr_type, enum dr_progs_key prog_key) {
     switch (dr_type) {
     case DR_KPROBE:
-        bpf_tail_call_compat(ctx, &erpc_kprobe_progs, key);
+        bpf_tail_call_compat(ctx, &dr_kprobe_progs, prog_key);
         break;
     case DR_FENTRY:
-        bpf_tail_call_compat(ctx, &erpc_fentry_progs, key);
+        bpf_tail_call_compat(ctx, &dr_fentry_progs, prog_key);
+        break;
+    case DR_TRACEPOINT:
+        bpf_tail_call_compat(ctx, &dr_tracepoint_progs, prog_key);
         break;
     }
     return 0;
+}
+
+int __attribute__((always_inline)) tail_call_erpc_progs(void *ctx, int dr_type, enum erpc_progs_key prog_key) {
+    switch (dr_type) {
+    case DR_KPROBE:
+        bpf_tail_call_compat(ctx, &erpc_kprobe_progs, prog_key);
+        break;
+    case DR_FENTRY:
+        bpf_tail_call_compat(ctx, &erpc_fentry_progs, prog_key);
+        break;
+    }
+    return 0;
+}
+
+int __attribute__((always_inline)) resolve_dentry(void *ctx, int dr_type) {
+    return tail_call_dr_progs(ctx, dr_type, DR_ENTRYPOINT);
 }
 
 int __attribute__((always_inline)) monitor_resolution_err(u32 resolution_err) {
@@ -67,7 +122,7 @@ int __attribute__((always_inline)) handle_resolve_parent_dentry(void *ctx, void 
     state->ret = 0;
     state->cursor = 0;
 
-    tail_call_erpc_progs(ctx, DR_KPROBE_OR_FENTRY, ERPC_RESOLVE_PARENT_DENTRY_KEY);
+    tail_call_erpc_progs(ctx, DR_KPROBE_OR_FENTRY, ERPC_DR_RESOLVE_PARENT_DENTRY_KEY);
     err = DR_ERPC_TAIL_CALL_ERROR;
 
 exit:
@@ -120,7 +175,7 @@ int __attribute__((always_inline)) handle_resolve_pathsegment(void *ctx, void *d
         goto exit;
     }
 
-    if (state->path_ref.read_cursor >= PR_RING_BUFFER_SIZE || total_len  > PR_RING_BUFFER_SIZE) {
+    if (state->path_ref.read_cursor >= RING_BUFFER_SIZE || total_len  > RING_BUFFER_SIZE) {
         err = DR_ERPC_CACHE_MISS; // TODO: use a specific error type for malformed request
         goto exit;
     }
@@ -131,7 +186,7 @@ int __attribute__((always_inline)) handle_resolve_pathsegment(void *ctx, void *d
     state->path_reader_state = READ_FRONTWATERMARK;
     state->path_end_cursor = state->path_ref.read_cursor + state->path_ref.len - sizeof(state->path_ref.watermark);
 
-    tail_call_erpc_progs(ctx, DR_KPROBE_OR_FENTRY, ERPC_RESOLVE_PATH_WATERMARK_READER_KEY);
+    tail_call_erpc_progs(ctx, DR_KPROBE_OR_FENTRY, ERPC_DR_RESOLVE_PATH_WATERMARK_READER_KEY);
     err = DR_ERPC_TAIL_CALL_ERROR;
 
 exit:

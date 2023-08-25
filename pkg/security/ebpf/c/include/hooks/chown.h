@@ -5,7 +5,6 @@
 #include "helpers/discarders.h"
 #include "helpers/filesystem.h"
 #include "helpers/syscalls.h"
-#include "helpers/path_resolver.h"
 
 int __attribute__((always_inline)) trace__sys_chown(uid_t user, gid_t group) {
     struct policy_t policy = fetch_policy(EVENT_CHOWN);

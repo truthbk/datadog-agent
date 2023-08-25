@@ -226,7 +226,7 @@ func AllMapSpecEditors(numCPU int, opts MapSpecEditorOpts) map[string]manager.Ma
 		pathRingBufsSpecs.Flags = unix.BPF_F_MMAPABLE
 		pathRingBufsSpecs.EditorFlag |= manager.EditFlags
 	}
-	editors["pr_ringbufs"] = pathRingBufsSpecs
+	editors["dr_ringbufs"] = pathRingBufsSpecs
 
 	return editors
 }
@@ -255,7 +255,6 @@ func AllTailRoutes(ERPCDentryResolutionEnabled, networkEnabled, supportMmapableM
 
 	routes = append(routes, getExecTailCallRoutes()...)
 	routes = append(routes, getDentryResolverTailCallRoutes(ERPCDentryResolutionEnabled, supportMmapableMaps, fentry)...)
-	routes = append(routes, getPathResolverTailCallRoutes(ERPCDentryResolutionEnabled, supportMmapableMaps)...)
 	routes = append(routes, getSysExitTailCallRoutes()...)
 	if networkEnabled {
 		routes = append(routes, getTCTailCallRoutes()...)

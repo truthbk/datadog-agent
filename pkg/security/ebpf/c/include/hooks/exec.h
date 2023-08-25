@@ -63,11 +63,11 @@ int __attribute__((always_inline)) handle_interpreted_exec_event(void *ctx, stru
     syscall->resolver.key = syscall->exec.linux_binprm.interpreter;
     syscall->resolver.dentry = get_file_dentry(file);
     syscall->resolver.discarder_type = 0;
-    syscall->resolver.callback = PR_PROGKEY_CB_INTERPRETER_KPROBE;
+    syscall->resolver.callback = DR_CALLBACK_INTERPRETER;
     syscall->resolver.iteration = 0;
     syscall->resolver.ret = 0;
 
-    resolve_path(ctx, DR_KPROBE_OR_FENTRY);
+    resolve_dentry(ctx, DR_KPROBE_OR_FENTRY);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_current_or_impersonated_exec_syscall();
@@ -82,16 +82,7 @@ int kprobe_handle_executable_path_cb(struct pt_regs *ctx) {
         return 0;
     }
 
-    u32 zero = 0;
-    struct pr_ring_buffer_ctx *ringbuf_ctx = bpf_map_lookup_elem(&pr_ringbuf_ctx, &zero);
-    if (!ringbuf_ctx) {
-        return 0;
-    }
-
-    syscall->exec.file.path_ref.read_cursor = ringbuf_ctx->read_cursor;
-    syscall->exec.file.path_ref.watermark = ringbuf_ctx->watermark;
-    syscall->exec.file.path_ref.len = ringbuf_ctx->len;
-    syscall->exec.file.path_ref.cpu = ringbuf_ctx->cpu;
+    fill_dr_ringbuf_ref_from_ctx(&syscall->exec.file.path_ref);
 
     return 0;
 }
@@ -103,7 +94,7 @@ int kprobe_handle_interpreter_path_cb(struct pt_regs *ctx) {
         return 0;
     }
 
-    fill_path_ring_buffer_ref(&syscall->exec.linux_binprm.path_ref);
+    fill_dr_ringbuf_ref_from_ctx(&syscall->exec.linux_binprm.path_ref);
 
     return 0;
 }

@@ -9,7 +9,6 @@
 #include "helpers/exec.h"
 #include "helpers/iouring.h"
 #include "helpers/syscalls.h"
-#include "helpers/path_resolver.h"
 
 int __attribute__((always_inline)) trace__sys_openat2(u8 async, int flags, umode_t mode, u64 pid_tgid) {
     struct policy_t policy = fetch_policy(EVENT_OPEN);
@@ -195,13 +194,13 @@ int __attribute__((always_inline)) sys_open_ret(void *ctx, int retval, int dr_ty
     syscall->resolver.key = syscall->open.file.dentry_key;
     syscall->resolver.dentry = syscall->open.dentry;
     syscall->resolver.discarder_type = syscall->policy.mode != NO_FILTER ? EVENT_OPEN : 0;
-    syscall->resolver.callback = PR_PROGKEY_CB_OPEN;
+    syscall->resolver.callback = DR_CALLBACK_OPEN;
     syscall->resolver.iteration = 0;
     syscall->resolver.ret = 0;
     syscall->resolver.sysretval = retval;
 
     // tail call
-    resolve_path(ctx, dr_type);
+    resolve_dentry(ctx, dr_type);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_syscall(EVENT_OPEN);
@@ -300,7 +299,7 @@ int __attribute__((always_inline)) dr_open_callback(void *ctx) {
     }
     fill_container_context(entry, &event.container);
     fill_span_context(&event.span);
-    fill_path_ring_buffer_ref(&event.file.path_ref);
+    fill_dr_ringbuf_ref_from_ctx(&event.file.path_ref);
 
     send_event(ctx, EVENT_OPEN, event);
     return 0;

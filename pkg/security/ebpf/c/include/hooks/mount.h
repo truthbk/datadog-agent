@@ -5,7 +5,6 @@
 #include "helpers/events_predicates.h"
 #include "helpers/filesystem.h"
 #include "helpers/syscalls.h"
-#include "helpers/path_resolver.h"
 
 HOOK_ENTRY("mnt_want_write")
 int hook_mnt_want_write(ctx_t *ctx) {
@@ -229,7 +228,7 @@ int kprobe_dr_unshare_mntns_stage_one_callback(struct pt_regs *ctx) {
     }
 
     bpf_probe_read_str(&event.mountfields.fstype, FSTYPE_LEN, (void*)syscall->unshare_mntns.fstype);
-    fill_path_ring_buffer_ref(&event.mountfields.mp_ref);
+    fill_dr_ringbuf_ref_from_ctx(&event.mountfields.mp_ref);
 
     send_event(ctx, EVENT_UNSHARE_MNTNS, event);
 
@@ -257,7 +256,7 @@ int fentry_dr_unshare_mntns_stage_one_callback(ctx_t *ctx) {
     }
 
     bpf_probe_read_str(&event.mountfields.fstype, FSTYPE_LEN, (void*)syscall->unshare_mntns.fstype);
-    fill_path_ring_buffer_ref(&event.mountfields.mp_ref);
+    fill_dr_ringbuf_ref_from_ctx(&event.mountfields.mp_ref);
 
     send_event(ctx, EVENT_UNSHARE_MNTNS, event);
 
@@ -296,7 +295,7 @@ int hook_clone_mnt(ctx_t *ctx) {
     syscall->resolver.iteration = 0;
     syscall->resolver.ret = 0;
 
-    resolve_path(ctx, DR_KPROBE_OR_FENTRY);
+    resolve_dentry(ctx, DR_KPROBE_OR_FENTRY);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_syscall(EVENT_MOUNT);
@@ -336,7 +335,7 @@ int hook_attach_recursive_mnt(ctx_t *ctx) {
     syscall->resolver.iteration = 0;
     syscall->resolver.ret = 0;
 
-    resolve_path(ctx, DR_KPROBE_OR_FENTRY);
+    resolve_dentry(ctx, DR_KPROBE_OR_FENTRY);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_syscall(EVENT_MOUNT);
@@ -376,7 +375,7 @@ int hook_propagate_mnt(ctx_t *ctx) {
     syscall->resolver.iteration = 0;
     syscall->resolver.ret = 0;
 
-    resolve_path(ctx, DR_KPROBE_OR_FENTRY);
+    resolve_dentry(ctx, DR_KPROBE_OR_FENTRY);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_syscall(EVENT_MOUNT);
@@ -398,7 +397,7 @@ int __attribute__((always_inline)) sys_mount_ret(void *ctx, int retval, int dr_t
     }
 
     if (syscall->mount.newmnt) {
-        fill_path_ring_buffer_ref(&syscall->mount.root_ref);
+        fill_dr_ringbuf_ref_from_ctx(&syscall->mount.root_ref);
     }
 
     u32 mount_id = get_mount_mount_id(syscall->mount.parent);
@@ -414,12 +413,12 @@ int __attribute__((always_inline)) sys_mount_ret(void *ctx, int retval, int dr_t
     syscall->resolver.key = mp_key;
     syscall->resolver.dentry = dentry;
     syscall->resolver.discarder_type = 0;
-    syscall->resolver.callback = PR_PROGKEY_CB_MOUNT;
+    syscall->resolver.callback = DR_CALLBACK_MOUNT;
     syscall->resolver.iteration = 0;
     syscall->resolver.ret = 0;
     syscall->resolver.sysretval = retval;
 
-    resolve_path(ctx, dr_type);
+    resolve_dentry(ctx, dr_type);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_syscall(EVENT_MOUNT);
@@ -459,7 +458,7 @@ int __attribute__((always_inline)) dr_mount_callback(void *ctx) {
 
     bpf_probe_read_str(&event.mountfields.fstype, FSTYPE_LEN, (void*)syscall->mount.fstype);
 
-    fill_path_ring_buffer_ref(&event.mountfields.mp_ref);
+    fill_dr_ringbuf_ref_from_ctx(&event.mountfields.mp_ref);
     event.mountfields.root_ref = syscall->mount.root_ref;
 
     struct proc_cache_t *entry = fill_process_context(&event.process);

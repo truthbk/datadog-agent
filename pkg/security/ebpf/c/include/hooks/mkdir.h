@@ -6,7 +6,6 @@
 #include "helpers/discarders.h"
 #include "helpers/filesystem.h"
 #include "helpers/syscalls.h"
-#include "helpers/path_resolver.h"
 
 long __attribute__((always_inline)) trace__sys_mkdir(u8 async, umode_t mode) {
     struct policy_t policy = fetch_policy(EVENT_MKDIR);
@@ -82,12 +81,12 @@ int __attribute__((always_inline)) sys_mkdir_ret(void *ctx, int retval, int dr_t
     syscall->resolver.key = syscall->mkdir.file.dentry_key;
     syscall->resolver.dentry = syscall->mkdir.dentry;
     syscall->resolver.discarder_type = syscall->policy.mode != NO_FILTER ? EVENT_MKDIR : 0;
-    syscall->resolver.callback = PR_PROGKEY_CB_MKDIR;
+    syscall->resolver.callback = DR_CALLBACK_MKDIR;
     syscall->resolver.iteration = 0;
     syscall->resolver.ret = 0;
     syscall->resolver.sysretval = retval;
 
-    resolve_path(ctx, dr_type);
+    resolve_dentry(ctx, dr_type);
 
     // if the tail call fails, we need to pop the syscall cache entry
     pop_syscall(EVENT_MKDIR);
@@ -149,7 +148,7 @@ int __attribute__((always_inline)) dr_mkdir_callback(void *ctx) {
         .mode = syscall->mkdir.mode,
     };
 
-    fill_path_ring_buffer_ref(&event.file.path_ref);
+    fill_dr_ringbuf_ref_from_ctx(&event.file.path_ref);
     fill_file_metadata(syscall->mkdir.dentry, &event.file.metadata);
     struct proc_cache_t *entry = fill_process_context(&event.process);
     fill_container_context(entry, &event.container);

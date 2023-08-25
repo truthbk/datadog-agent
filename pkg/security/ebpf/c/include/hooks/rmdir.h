@@ -6,7 +6,6 @@
 #include "helpers/events_predicates.h"
 #include "helpers/filesystem.h"
 #include "helpers/syscalls.h"
-#include "helpers/path_resolver.h"
 
 int __attribute__((always_inline)) trace__sys_rmdir(u8 async, int flags) {
     struct syscall_cache_t syscall = {
@@ -96,11 +95,11 @@ int hook_security_inode_rmdir(ctx_t *ctx) {
         syscall->resolver.key = key;
         syscall->resolver.dentry = dentry;
         syscall->resolver.discarder_type = syscall->policy.mode != NO_FILTER ? syscall->type : 0;
-        syscall->resolver.callback = PR_PROGKEY_CB_RMDIR;
+        syscall->resolver.callback = DR_CALLBACK_RMDIR;
         syscall->resolver.iteration = 0;
         syscall->resolver.ret = 0;
 
-        resolve_path(ctx, DR_KPROBE_OR_FENTRY);
+        resolve_dentry(ctx, DR_KPROBE_OR_FENTRY);
 
         // if the tail call fails, we need to pop the syscall cache entry
         pop_syscall_with(rmdir_predicate);
@@ -122,10 +121,10 @@ int kprobe_dr_security_inode_rmdir_callback(struct pt_regs *ctx) {
 
     switch (syscall->type) {
         case EVENT_RMDIR:
-            fill_path_ring_buffer_ref(&syscall->rmdir.file.path_ref);
+            fill_dr_ringbuf_ref_from_ctx(&syscall->rmdir.file.path_ref);
             break;
         case EVENT_UNLINK:
-            fill_path_ring_buffer_ref(&syscall->unlink.file.path_ref);
+            fill_dr_ringbuf_ref_from_ctx(&syscall->unlink.file.path_ref);
             break;
         default:
             break;
