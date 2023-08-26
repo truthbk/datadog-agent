@@ -9,6 +9,7 @@ package http
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"unsafe"
 
@@ -36,9 +37,10 @@ type protocol struct {
 }
 
 const (
-	inFlightMap    = "http_in_flight"
-	filterTailCall = "socket__http_filter"
-	eventStream    = "http"
+	inFlightMap     = "http_in_flight"
+	filterTailCall  = "socket__http_filter"
+	eventStream     = "http"
+	mapSizeMinValue = 1024
 )
 
 var Spec = &protocols.ProtocolSpec{
@@ -94,6 +96,16 @@ func (p *protocol) ConfigureOptions(mgr *manager.Manager, opts *manager.Options)
 		MaxEntries: p.cfg.MaxTrackedConnections,
 		EditorFlag: manager.EditMaxEntries,
 	}
+
+	// Taking the max between fourth of p.cfg.MaxTrackedConnections to the default lower limit (1024
+	// introduce a major memory bump if we're using p.cfg.MaxTrackedConnections.
+	mapSize := uint32(math.Max(float64(p.cfg.MaxTrackedConnections)/4, mapSizeMinValue))
+	opts.MapSpecEditors["fd_by_ssl_bio"] = manager.MapSpecEditor{
+		Type:       ebpf.Hash,
+		MaxEntries: mapSize,
+		EditorFlag: manager.EditMaxEntries,
+	}
+
 	utils.EnableOption(opts, "http_monitoring_enabled")
 	// Configure event stream
 	events.Configure(eventStream, mgr, opts)
