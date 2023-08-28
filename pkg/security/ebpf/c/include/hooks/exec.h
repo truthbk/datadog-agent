@@ -5,6 +5,7 @@
 #include "constants/offsets/filesystem.h"
 #include "helpers/filesystem.h"
 #include "helpers/syscalls.h"
+#include "helpers/exec.h"
 #include "constants/fentry_macro.h"
 
 int __attribute__((always_inline)) trace__sys_execveat(ctx_t *ctx, const char **argv, const char **env) {

@@ -6,6 +6,18 @@
 
 #include "process.h"
 
+int __attribute__((always_inline)) fill_exec_context() {
+    struct syscall_cache_t *syscall = peek_current_or_impersonated_exec_syscall();
+    if (!syscall) {
+        return 0;
+    }
+
+    // call it here before the memory get replaced
+    fill_span_context(&syscall->exec.span_context);
+
+    return 0;
+}
+
 int __attribute__((always_inline)) handle_exec_event(ctx_t *ctx, struct syscall_cache_t *syscall, struct file *file, struct path *path, struct inode *inode) {
     if (syscall->exec.is_parsed) {
         return 0;
