@@ -5,6 +5,9 @@
 
 package main
 
+// #include "debuglog.h"
+import "C"
+
 import (
 	_ "expvar"
 	"fmt"
