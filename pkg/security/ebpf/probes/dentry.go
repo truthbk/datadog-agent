@@ -335,7 +335,7 @@ func getDentryResolverTailCallRoutes(ERPCDentryResolutionEnabled, supportMmapabl
 		routes = append(tracepointRoutes, fentryRoutes...)
 	}
 
-	if ERPCDentryResolutionEnabled && !supportMmapableMaps {
+	if ERPCDentryResolutionEnabled {
 		var progType string
 		if !fentry {
 			progType = "kprobe"
@@ -344,29 +344,41 @@ func getDentryResolverTailCallRoutes(ERPCDentryResolutionEnabled, supportMmapabl
 		}
 		progArrayName := fmt.Sprintf("erpc_%s_progs", progType)
 
-		routes = append(routes, []manager.TailCallRoute{
-			{
-				ProgArrayName: progArrayName,
-				Key:           ERPCResolveParentDentryKey,
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: progType + "_dentry_resolver_parent_erpc_write_user",
+		if !supportMmapableMaps {
+			routes = append(routes, []manager.TailCallRoute{
+				{
+					ProgArrayName: progArrayName,
+					Key:           ERPCResolveParentDentryKey,
+					ProbeIdentificationPair: manager.ProbeIdentificationPair{
+						EBPFFuncName: progType + "_dentry_resolver_parent_erpc_write_user",
+					},
 				},
-			},
-			{
-				ProgArrayName: progArrayName,
-				Key:           ERPCResolvePathWatermarkReaderKey,
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: progType + "_erpc_resolve_path_watermark_reader",
+				{
+					ProgArrayName: progArrayName,
+					Key:           ERPCResolvePathWatermarkReaderKey,
+					ProbeIdentificationPair: manager.ProbeIdentificationPair{
+						EBPFFuncName: progType + "_erpc_resolve_path_watermark_reader",
+					},
 				},
-			},
-			{
-				ProgArrayName: progArrayName,
-				Key:           ERPCResolvePathSegmentkReaderKey,
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: progType + "_erpc_resolve_path_segment_reader",
+				{
+					ProgArrayName: progArrayName,
+					Key:           ERPCResolvePathSegmentkReaderKey,
+					ProbeIdentificationPair: manager.ProbeIdentificationPair{
+						EBPFFuncName: progType + "_erpc_resolve_path_segment_reader",
+					},
 				},
-			},
-		}...)
+			}...)
+		} else {
+			routes = append(routes, []manager.TailCallRoute{
+				{
+					ProgArrayName: progArrayName,
+					Key:           ERPCResolveParentDentryKey,
+					ProbeIdentificationPair: manager.ProbeIdentificationPair{
+						EBPFFuncName: progType + "_dentry_resolver_parent_erpc_mmap",
+					},
+				},
+			}...)
+		}
 	}
 
 	return routes

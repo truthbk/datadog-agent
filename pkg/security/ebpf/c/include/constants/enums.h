@@ -135,7 +135,7 @@ enum bpf_cmd_def {
 };
 
 enum dr_progs_key {
-    // prog keys common to tracepoint, kprobe and fentry prog types
+    // prog keys used by tracepoint, kprobe and fentry prog types
     DR_NO_CALLBACK = 0,
     DR_ENTRYPOINT,
     DR_LOOP,
@@ -144,7 +144,7 @@ enum dr_progs_key {
     DR_CALLBACK_MOUNT,
     DR_CALLBACK_LINK_DST,
     DR_CALLBACK_RENAME_DST,
-    // prog keys common to kprobe and fentry prog types
+    // prog keys used by kprobe and fentry prog types
     DR_MAX_TRACEPOINT_PROGS,
     DR_CALLBACK_EXECUTABLE = DR_CALLBACK_RENAME_DST + 1,
     DR_CALLBACK_INTERPRETER,
