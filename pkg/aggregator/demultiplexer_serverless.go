@@ -102,8 +102,14 @@ func (d *ServerlessDemultiplexer) ForceFlushToSerializer(start time.Time, waitFo
 	d.flushLock.Lock()
 	defer d.flushLock.Unlock()
 
+	d.log.Debug("in ServerlessDemultiplexer, ForceFlushToSerializer")
+	d.log.Debugf("Timestamp: %d", time.Now().UnixMilli())
+
 	logPayloads := config.Datadog.GetBool("log_payloads")
 	series, sketches := createIterableMetrics(d.flushAndSerializeInParallel, d.serializer, logPayloads, true)
+
+	d.log.Debug("in ServerlessDemultiplexer, finished creating iterable metrics")
+	d.log.Debugf("Timestamp: %d", time.Now().UnixMilli())
 
 	metrics.Serialize(
 		series,

@@ -113,6 +113,7 @@ func WaitForNextInvocation(stopCh chan struct{}, daemon *daemon.Daemon, id regis
 	}
 	// we received an INVOKE or SHUTDOWN event
 	daemon.StoreInvocationTime(time.Now())
+	log.Debugf("RECEIVED NEXT INVOCATION: %d", time.Now().UnixMilli())
 
 	var body []byte
 	if body, err = io.ReadAll(response.Body); err != nil {
@@ -132,6 +133,7 @@ func WaitForNextInvocation(stopCh chan struct{}, daemon *daemon.Daemon, id regis
 		// Log collection can be safely called multiple times, so ensure we start log collection during a SHUTDOWN event too in case an INVOKE event is never received
 		daemon.StartLogCollection()
 		log.Debug("Received shutdown event. Reason: " + payload.ShutdownReason)
+		log.Debugf("Timestamp: %d", time.Now().UnixMilli())
 		isTimeout := strings.ToLower(payload.ShutdownReason.String()) == Timeout.String()
 		if isTimeout {
 			coldStartTags := daemon.ExecutionContext.GetColdStartTagsForRequestID(daemon.ExecutionContext.LastRequestID())

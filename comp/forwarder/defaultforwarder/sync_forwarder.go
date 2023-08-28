@@ -50,6 +50,9 @@ func (f *SyncForwarder) Stop() {
 }
 
 func (f *SyncForwarder) sendHTTPTransactions(transactions []*transaction.HTTPTransaction) error {
+	f.log.Debug("sending http transactions")
+	f.log.Debugf("num of transactions: %d", len(transactions))
+	f.log.Debugf("Timestamp: %d", time.Now().UnixMilli())
 	for _, t := range transactions {
 		if err := t.Process(context.Background(), f.config, f.log, f.client); err != nil {
 			f.log.Debugf("SyncForwarder.sendHTTPTransactions first attempt: %s", err)
@@ -69,7 +72,9 @@ func (f *SyncForwarder) sendHTTPTransactions(transactions []*transaction.HTTPTra
 // SubmitV1Series will send timeserie to v1 endpoint (this will be remove once
 // the backend handles v2 endpoints).
 func (f *SyncForwarder) SubmitV1Series(payload transaction.BytesPayloads, extra http.Header) error {
+	f.log.Debug("In sync forwarder, submitting v1 series")
 	transactions := f.defaultForwarder.createHTTPTransactions(endpoints.V1SeriesEndpoint, payload, extra)
+	f.log.Debug("In sync forwarder, created http transactions")
 	return f.sendHTTPTransactions(transactions)
 }
 
@@ -98,6 +103,8 @@ func (f *SyncForwarder) SubmitV1CheckRuns(payload transaction.BytesPayloads, ext
 
 // SubmitSketchSeries will send payloads to Datadog backend - PROTOTYPE FOR PERCENTILE
 func (f *SyncForwarder) SubmitSketchSeries(payload transaction.BytesPayloads, extra http.Header) error {
+	f.log.Debug("in SubmitSketchSeries of the SyncForwarder")
+	f.log.Debugf("Timestamp: %d", time.Now().UnixMilli())
 	transactions := f.defaultForwarder.createHTTPTransactions(endpoints.SketchSeriesEndpoint, payload, extra)
 	return f.sendHTTPTransactions(transactions)
 }

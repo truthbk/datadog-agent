@@ -95,7 +95,10 @@ func (c *ServerlessMetricAgent) IsReady() bool {
 
 // Flush triggers a DogStatsD flush
 func (c *ServerlessMetricAgent) Flush() {
+	log.Debug("in serverless metric agent flush")
+	log.Debugf("Timestamp: %d", time.Now().UnixMilli())
 	if c.IsReady() {
+		log.Debug("serverless metric agent is ready, trying to flush")
 		c.dogStatsDServer.ServerlessFlush()
 	}
 }

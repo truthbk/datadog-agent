@@ -353,6 +353,8 @@ func (s *Serializer) AreSketchesEnabled() bool {
 
 // SendSketch serializes a list of SketSeriesList and sends the payload to the forwarder
 func (s *Serializer) SendSketch(sketches metrics.SketchesSource) error {
+	log.Debug("Sending sketches to the forwarder")
+	log.Debugf("Timestamp: %d", time.Now().UnixMilli())
 	if !s.AreSketchesEnabled() {
 		log.Debug("sketches payloads are disabled: dropping it")
 		return nil
