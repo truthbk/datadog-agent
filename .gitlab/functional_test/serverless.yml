@@ -3,6 +3,8 @@ serverless_cold_start_performance-deb_x64:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/docker_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   tags: ["arch:amd64"]
   needs: ["go_deps", "build_serverless-deb_x64"]
+  variables:
+    CI_ENABLE_CONTAINER_IMAGE_BUILDS: "true"
   before_script:
     - !reference [.retrieve_linux_go_deps]
     - mkdir -p /tmp/serverless-ci
