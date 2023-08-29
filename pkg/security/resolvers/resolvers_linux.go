@@ -125,11 +125,14 @@ func NewResolvers(config *config.Config, manager *manager.Manager, statsdClient 
 	var pathResolver path.ResolverInterface
 	if opts.PathResolutionEnabled {
 		pathResolverOpts := path.ResolverOpts{
-			UseCache:       false,
+			PathCacheSize:  10240,
 			UseRingBuffers: opts.UseMMapablePathRingsResolution,
 			UseERPC:        !opts.UseMMapablePathRingsResolution,
 		}
-		pathResolver = path.NewPathRingsResolver(pathResolverOpts, mountResolver, eRPC, statsdClient)
+		pathResolver, err = path.NewPathRingsResolver(pathResolverOpts, mountResolver, eRPC, statsdClient)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		pathResolver = &path.NoResolver{}
 	}

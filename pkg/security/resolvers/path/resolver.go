@@ -19,6 +19,7 @@ import (
 	"unsafe"
 
 	"github.com/DataDog/datadog-go/v5/statsd"
+	"github.com/hashicorp/golang-lru/v2/simplelru"
 	"go.uber.org/atomic"
 
 	"github.com/DataDog/datadog-agent/pkg/security/metrics"
@@ -133,7 +134,7 @@ const (
 
 // ResolverOpts defines mount resolver options
 type ResolverOpts struct {
-	UseCache       bool
+	PathCacheSize  uint
 	UseRingBuffers bool
 	UseERPC        bool
 }
@@ -149,6 +150,9 @@ type PathRingsResolver struct {
 	pathRings       []byte
 	numCPU          uint32
 	watermarkBuffer *bytes.Buffer
+	// Cache
+	pathCache           *simplelru.LRU[model.DentryKey, string]
+	cacheMiss, cacheHit *atomic.Int64
 	// eRPC
 	erpc          *erpc.ERPC
 	erpcBuffer    []byte
@@ -157,7 +161,7 @@ type PathRingsResolver struct {
 }
 
 // NewResolver returns a new path resolver
-func NewPathRingsResolver(opts ResolverOpts, mountResolver *mount.Resolver, eRPC *erpc.ERPC, statsdClient statsd.ClientInterface) *PathRingsResolver {
+func NewPathRingsResolver(opts ResolverOpts, mountResolver *mount.Resolver, eRPC *erpc.ERPC, statsdClient statsd.ClientInterface) (*PathRingsResolver, error) {
 	pr := &PathRingsResolver{
 		opts:            opts,
 		mountResolver:   mountResolver,
@@ -171,7 +175,17 @@ func NewPathRingsResolver(opts ResolverOpts, mountResolver *mount.Resolver, eRPC
 		pr.failureCounters[i] = atomic.NewInt64(0)
 	}
 
-	return pr
+	if opts.PathCacheSize > 0 {
+		pathCache, err := simplelru.NewLRU[model.DentryKey, string](int(opts.PathCacheSize), nil)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't create PathRingsResolver: %w", err)
+		}
+		pr.pathCache = pathCache
+		pr.cacheMiss = atomic.NewInt64(0)
+		pr.cacheHit = atomic.NewInt64(0)
+	}
+
+	return pr, nil
 }
 
 func reversePathParts(pathStr string) string {
@@ -355,24 +369,45 @@ func (pr *PathRingsResolver) resolvePathFromERPC(ref *model.PathRingBufferRef) (
 	return reversePathParts(path), nil
 }
 
-func (pr *PathRingsResolver) resolvePath(ref *model.PathRingBufferRef) (string, error) {
+// resolvePathFromCache tries to resolve a cached path from the provided DentryKey
+func (pr *PathRingsResolver) resolvePathFromCache(key *model.DentryKey) string {
+	path, ok := pr.pathCache.Get(*key)
+	if !ok {
+		pr.cacheMiss.Inc()
+		return ""
+	}
+
+	pr.cacheHit.Inc()
+	return path
+}
+
+func (pr *PathRingsResolver) resolvePath(ref *model.PathRingBufferRef, key *model.DentryKey) (string, error) {
 	var path string
 	var err error
 
 	if pr.opts.UseRingBuffers {
 		path, err = pr.resolvePathFromRingBuffers(ref)
 		if err == nil {
-			// put in cache here
+			if pr.opts.PathCacheSize > 0 {
+				pr.pathCache.Add(*key, path)
+			}
 			return path, nil
 		}
 	}
 
-	// TODO: resolveFromCache
+	if pr.opts.PathCacheSize > 0 {
+		path = pr.resolvePathFromCache(key)
+		if len(path) > 0 {
+			return path, nil
+		}
+	}
 
 	if pr.opts.UseERPC {
 		path, err = pr.resolvePathFromERPC(ref)
 		if err == nil {
-			// put in cache here
+			if pr.opts.PathCacheSize > 0 {
+				pr.pathCache.Add(*key, path)
+			}
 			return path, nil
 		}
 	}
@@ -380,7 +415,7 @@ func (pr *PathRingsResolver) resolvePath(ref *model.PathRingBufferRef) (string, 
 }
 
 func (pr *PathRingsResolver) ResolveBasename(e *model.FileFields) string {
-	resolvedPath, err := pr.resolvePath(&e.PathRef)
+	resolvedPath, err := pr.resolvePath(&e.PathRef, &e.DentryKey)
 	if err != nil {
 		return ""
 	}
@@ -388,7 +423,7 @@ func (pr *PathRingsResolver) ResolveBasename(e *model.FileFields) string {
 }
 
 func (pr *PathRingsResolver) ResolveFileFieldsPath(e *model.FileFields, pidCtx *model.PIDContext, ctrCtx *model.ContainerContext) (string, error) {
-	pathStr, err := pr.resolvePath(&e.PathRef)
+	pathStr, err := pr.resolvePath(&e.PathRef, &e.DentryKey)
 	if err != nil {
 		return pathStr, &ErrPathResolution{Err: err}
 	}
@@ -427,7 +462,7 @@ func (pr *PathRingsResolver) ResolveFileFieldsPath(e *model.FileFields, pidCtx *
 // SetMountRoot set the mount point information
 func (pr *PathRingsResolver) SetMountRoot(ev *model.Event, e *model.Mount) error {
 	var err error
-	e.RootStr, err = pr.resolvePath(&e.RootStrPathRef)
+	e.RootStr, err = pr.resolvePath(&e.RootStrPathRef, &e.RootDentryKey)
 	if err != nil {
 		return &ErrPathResolutionNotCritical{Err: err}
 	}
@@ -447,7 +482,7 @@ func (pr *PathRingsResolver) ResolveMountRoot(ev *model.Event, e *model.Mount) (
 // SetMountPoint set the mount point information
 func (pr *PathRingsResolver) SetMountPoint(ev *model.Event, e *model.Mount) error {
 	var err error
-	e.MountPointStr, err = pr.resolvePath(&e.MountPointPathRef)
+	e.MountPointStr, err = pr.resolvePath(&e.MountPointPathRef, &e.ParentDentryKey)
 	if err != nil {
 		return &ErrPathResolutionNotCritical{Err: err}
 	}
@@ -517,6 +552,18 @@ func (pr *PathRingsResolver) SendStats() error {
 	val := pr.successCounter.Swap(0)
 	if val > 0 {
 		_ = pr.statsdClient.Count(metrics.MetricPathResolutionSuccess, val, []string{}, 1.0)
+	}
+
+	if pr.opts.PathCacheSize > 0 {
+		var val int64
+		val = pr.cacheHit.Swap(0)
+		if val > 0 {
+			_ = pr.statsdClient.Count(metrics.MetricPathResolutionCacheHit, val, []string{}, 1.0)
+		}
+		val = pr.cacheMiss.Swap(0)
+		if val > 0 {
+			_ = pr.statsdClient.Count(metrics.MetricPathResolutionCacheMiss, val, []string{}, 1.0)
+		}
 	}
 
 	return nil

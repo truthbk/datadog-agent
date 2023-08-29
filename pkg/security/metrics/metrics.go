@@ -64,6 +64,10 @@ var (
 	// MetricPathResolutionFailure is the number of unsuccessful path resolutions
 	// Tags: cause
 	MetricPathResolutionFailure = newRuntimeMetric(".path_resolver.failure")
+	// MetricPathResolutionCacheHit is the number of successful cache lookups during path resolution
+	MetricPathResolutionCacheHit = newRuntimeMetric(".path_resolver.hit")
+	// MetricPathResolutionCacheMiss is the number of unsuccessful cache lookups during path resolution
+	MetricPathResolutionCacheMiss = newRuntimeMetric(".path_resolver.miss")
 
 	// filtering metrics
 
