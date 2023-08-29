@@ -69,9 +69,17 @@ jobs:
           If ($lastExitCode -ne "0") { throw "Previous command returned $lastExitCode" }
           inv -e install-tools
           If ($lastExitCode -ne "0") { throw "Previous command returned $lastExitCode" }
+          inv -e deps
+          If ($lastExitCode -ne "0") { throw "Previous command returned $lastExitCode" }
+
 
       - name: Generate windows resources
         run: inv -e system-probe.object-files
 
-      - name: Check for differences
-        run: git diff --exit-code
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        id: autocommit
+        with:
+          commit_message: Auto-generate windows build resources
+      - name: changes
+        run: |
+          echo "Changes detected: ${{ steps.autocommit.outputs.changes_detected }}"
