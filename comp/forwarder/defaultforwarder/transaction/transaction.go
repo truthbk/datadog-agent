@@ -284,8 +284,6 @@ func (t *HTTPTransaction) GetPointCount() int {
 
 // Process sends the Payload of the transaction to the right Endpoint and Domain.
 func (t *HTTPTransaction) Process(ctx context.Context, config config.Component, log log.Component, client *http.Client) error {
-	log.Debug("sending an individual transaction HTTP")
-	log.Debugf("Timestamp: %d", time.Now().UnixMilli())
 	t.AttemptHandler(t)
 
 	statusCode, body, err := t.internalProcess(ctx, config, log, client)
@@ -320,6 +318,7 @@ func (t *HTTPTransaction) internalProcess(ctx context.Context, config config.Com
 		return 0, nil, nil
 	}
 	req.Header = t.Headers
+	log.Debug("sending HTTP request, in internalProcess")
 	resp, err := client.Do(req)
 
 	if err != nil {

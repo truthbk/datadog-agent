@@ -50,9 +50,6 @@ func (f *SyncForwarder) Stop() {
 }
 
 func (f *SyncForwarder) sendHTTPTransactions(transactions []*transaction.HTTPTransaction) error {
-	f.log.Debug("sending http transactions")
-	f.log.Debugf("num of transactions: %d", len(transactions))
-	f.log.Debugf("Timestamp: %d", time.Now().UnixMilli())
 	for _, t := range transactions {
 		if err := t.Process(context.Background(), f.config, f.log, f.client); err != nil {
 			f.log.Debugf("SyncForwarder.sendHTTPTransactions first attempt: %s", err)

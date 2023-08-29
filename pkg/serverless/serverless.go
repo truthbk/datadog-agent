@@ -130,6 +130,7 @@ func WaitForNextInvocation(stopCh chan struct{}, daemon *daemon.Daemon, id regis
 		functionArn := removeQualifierFromArn(payload.InvokedFunctionArn)
 		callInvocationHandler(daemon, functionArn, payload.DeadlineMs, safetyBufferTimeout, payload.RequestID, handleInvocation)
 	} else if payload.EventType == Shutdown {
+		log.Debugf("We have until %d to shutdown.", payload.DeadlineMs)
 		// Log collection can be safely called multiple times, so ensure we start log collection during a SHUTDOWN event too in case an INVOKE event is never received
 		daemon.StartLogCollection()
 		log.Debug("Received shutdown event. Reason: " + payload.ShutdownReason)
