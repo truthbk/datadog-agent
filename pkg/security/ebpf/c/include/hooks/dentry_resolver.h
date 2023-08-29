@@ -19,13 +19,11 @@ int __attribute__((always_inline)) resolve_dentry_chain(void *ctx, struct dentry
     char name[DR_MAX_DENTRY_NAME_LENGTH + 1] = {0};
 
     if (key.ino == 0) {
-        rb_cleanup_ctx(rb_ctx);
         return DENTRY_INVALID;
     }
 
     struct is_discarded_by_inode_t *params = bpf_map_lookup_elem(&is_discarded_by_inode_gen, &zero);
     if (!params) {
-        rb_cleanup_ctx(rb_ctx);
         return DENTRY_ERROR;
     }
     *params = (struct is_discarded_by_inode_t){
@@ -54,7 +52,6 @@ int __attribute__((always_inline)) resolve_dentry_chain(void *ctx, struct dentry
                 if (input->flags & ACTIVITY_DUMP_RUNNING) {
                     input->flags |= SAVED_BY_ACTIVITY_DUMP;
                 } else {
-                    rb_cleanup_ctx(rb_ctx);
                     return DENTRY_DISCARDED;
                 }
             }
@@ -64,7 +61,6 @@ int __attribute__((always_inline)) resolve_dentry_chain(void *ctx, struct dentry
         long len = bpf_probe_read_str(&name, sizeof(name), (void *)qstr.name);
         // len -= 1; // do not count trailing zero
         if (len <= 0 || name[0] == 0) {
-            rb_cleanup_ctx(rb_ctx);
             map_value.parent.ino = 0;
             map_value.parent.mount_id = 0;
             bpf_map_update_elem(&dentries, &key, &map_value, BPF_ANY);
@@ -100,8 +96,6 @@ int __attribute__((always_inline)) resolve_dentry_chain(void *ctx, struct dentry
     }
 
     if (input->iteration == DR_MAX_TAIL_CALL) {
-        rb_cleanup_ctx(rb_ctx);
-        rb_ctx->len = ~0;
         map_value.parent.mount_id = 0;
         map_value.parent.ino = 0;
         bpf_map_update_elem(&dentries, &next_key, &map_value, BPF_ANY);
@@ -114,92 +108,101 @@ int __attribute__((always_inline)) resolve_dentry_chain(void *ctx, struct dentry
     return DR_MAX_ITERATION_DEPTH;
 }
 
-#define dentry_resolver_loop(ctx, pr_progs_map)                                                                        \
-    struct syscall_cache_t *syscall = peek_syscall(EVENT_ANY);                                                         \
-    if (!syscall)                                                                                                      \
-        return 0;                                                                                                      \
-                                                                                                                       \
-    u32 zero = 0;                                                                                                      \
-    struct ring_buffer_ctx *rb_ctx = bpf_map_lookup_elem(&dr_ringbufs_ctx, &zero);                                     \
-    if (!rb_ctx) {                                                                                                     \
-        return 0;                                                                                                      \
-    }                                                                                                                  \
-                                                                                                                       \
-    u32 cpu = bpf_get_smp_processor_id();                                                                              \
-    struct ring_buffer_t *rb = bpf_map_lookup_elem(&dr_ringbufs, &cpu);                                                \
-    if (!rb) {                                                                                                         \
-        return 0;                                                                                                      \
-    }                                                                                                                  \
-                                                                                                                       \
-    syscall->resolver.iteration++;                                                                                     \
-    syscall->resolver.ret = resolve_dentry_chain(ctx, &syscall->resolver, rb, rb_ctx);                                 \
-                                                                                                                       \
-    if (syscall->resolver.ret > 0) {                                                                                   \
-        if (syscall->resolver.iteration < DR_MAX_TAIL_CALL && syscall->resolver.key.ino != 0) {                        \
-            bpf_tail_call_compat(ctx, pr_progs_map, DR_LOOP);                                                          \
-        }                                                                                                              \
-                                                                                                                       \
-        syscall->resolver.ret += DR_MAX_ITERATION_DEPTH * (syscall->resolver.iteration - 1);                           \
-    }                                                                                                                  \
-                                                                                                                       \
-    rb_push_watermark(rb, rb_ctx);                                                                                     \
-                                                                                                                       \
-    if (syscall->resolver.callback >= 0) {                                                                             \
-        bpf_tail_call_compat(ctx, pr_progs_map, syscall->resolver.callback);                                           \
-    }                                                                                                                  \
-
-SEC("kprobe/dentry_resolver_entrypoint")
-int kprobe_dentry_resolver_entrypoint(struct pt_regs *ctx) {
+int __attribute__((always_inline)) dentry_resolver_loop(void *ctx, int dr_type) {
     struct syscall_cache_t *syscall = peek_syscall(EVENT_ANY);
     if (!syscall) {
         return 0;
     }
 
-    if (is_activity_dump_running(ctx, bpf_get_current_pid_tgid() >> 32, bpf_ktime_get_ns(), syscall->type)) {
-        syscall->resolver.flags |= ACTIVITY_DUMP_RUNNING;
-    }
-
-    if (init_dr_ringbuf_ctx()) {
+    u32 zero = 0;
+    struct ring_buffer_ctx *rb_ctx = bpf_map_lookup_elem(&dr_ringbufs_ctx, &zero);
+    if (!rb_ctx) {
         return 0;
     }
 
-
-    syscall->resolver.iteration = 0;
-    bpf_tail_call_compat(ctx, &dr_kprobe_progs, DR_LOOP);
-    return 0;
-}
-
-SEC("tracepoint/dentry_resolver_entrypoint")
-int tracepoint_dentry_resolver_entrypoint(void *ctx) {
-    struct syscall_cache_t *syscall = peek_syscall(EVENT_ANY);
-    if (!syscall) {
+    u32 cpu = bpf_get_smp_processor_id();
+    struct ring_buffer_t *rb = bpf_map_lookup_elem(&dr_ringbufs, &cpu);
+    if (!rb) {
         return 0;
     }
 
-    if (is_activity_dump_running(ctx, bpf_get_current_pid_tgid() >> 32, bpf_ktime_get_ns(), syscall->type)) {
-        syscall->resolver.flags |= ACTIVITY_DUMP_RUNNING;
+    syscall->resolver.iteration++;
+    syscall->resolver.ret = resolve_dentry_chain(ctx, &syscall->resolver, rb, rb_ctx);
+
+    if (syscall->resolver.ret > 0) {
+        if (syscall->resolver.iteration < DR_MAX_TAIL_CALL && syscall->resolver.key.ino != 0) {
+            tail_call_dr_progs(ctx, dr_type, DR_LOOP);
+        }
+
+        syscall->resolver.ret += DR_MAX_ITERATION_DEPTH * (syscall->resolver.iteration - 1);
+        rb_push_watermark(rb, rb_ctx);
+    } else {
+        rb_cleanup_ctx(rb_ctx);
     }
 
-    if (init_dr_ringbuf_ctx()) {
-        return 0;
+    if (syscall->resolver.callback >= 0) {
+        tail_call_dr_progs(ctx, dr_type, syscall->resolver.callback);
     }
 
-    syscall->resolver.iteration = 0;
-    bpf_tail_call_compat(ctx, &dr_tracepoint_progs, DR_LOOP);
     return 0;
 }
 
 SEC("kprobe/dentry_resolver_loop")
 int kprobe_dentry_resolver_loop(struct pt_regs *ctx) {
-    dentry_resolver_loop(ctx, &dr_kprobe_progs);
-    return 0;
+    return dentry_resolver_loop(ctx, DR_KPROBE);
 }
 
 SEC("tracepoint/dentry_resolver_loop")
 int tracepoint_dentry_resolver_loop(void *ctx) {
-    dentry_resolver_loop(ctx, &dr_tracepoint_progs);
+    return dentry_resolver_loop(ctx, DR_TRACEPOINT);
+}
+
+#ifdef USE_FENTRY
+
+TAIL_CALL_TARGET("dentry_resolver_loop")
+int fentry_dentry_resolver_loop(ctx_t *ctx) {
+    return dentry_resolver_loop(ctx, DR_FENTRY);
+}
+
+#endif // USE_FENTRY
+
+int __attribute__((always_inline)) dentry_resolver_entrypoint(void *ctx, int dr_type) {
+    struct syscall_cache_t *syscall = peek_syscall(EVENT_ANY);
+    if (!syscall) {
+        return 0;
+    }
+
+    if (is_activity_dump_running(ctx, bpf_get_current_pid_tgid() >> 32, bpf_ktime_get_ns(), syscall->type)) {
+        syscall->resolver.flags |= ACTIVITY_DUMP_RUNNING;
+    }
+
+    if (init_dr_ringbuf_ctx()) {
+        return 0;
+    }
+
+    syscall->resolver.iteration = 0;
+    tail_call_dr_progs(ctx, dr_type, DR_LOOP);
     return 0;
 }
+
+SEC("kprobe/dentry_resolver_entrypoint")
+int kprobe_dentry_resolver_entrypoint(struct pt_regs *ctx) {
+    return dentry_resolver_entrypoint(ctx, DR_KPROBE);
+}
+
+SEC("tracepoint/dentry_resolver_entrypoint")
+int tracepoint_dentry_resolver_entrypoint(void *ctx) {
+    return dentry_resolver_entrypoint(ctx, DR_TRACEPOINT);
+}
+
+#ifdef USE_FENTRY
+
+TAIL_CALL_TARGET("dentry_resolver_entrypoint")
+int fentry_dentry_resolver_entrypoint(ctx_t *ctx) {
+    return dentry_resolver_entrypoint(ctx, DR_FENTRY);
+}
+
+#endif // USE_FENTRY
 
 // progs called from eRPC resolution
 
@@ -317,9 +320,7 @@ int fentry_dentry_resolver_parent_erpc_mmap(ctx_t *ctx) {
 
 #endif // USE_FENTRY
 
-
-SEC("kprobe/erpc_resolve_path_watermark_reader")
-int kprobe_erpc_resolve_path_watermark_reader(void *ctx) {
+int __attribute__((always_inline)) erpc_resolve_path_watermark_reader(void *ctx) {
     u32 zero = 0, err = 0;
     struct dr_erpc_state_t *state = bpf_map_lookup_elem(&dr_erpc_state, &zero);
     if (!state) {
@@ -373,8 +374,21 @@ exit:
     return 0;
 }
 
-SEC("kprobe/erpc_resolve_path_segment_reader")
-int kprobe_erpc_resolve_path_segment_reader(void *ctx) {
+SEC("kprobe/erpc_resolve_path_watermark_reader")
+int kprobe_erpc_resolve_path_watermark_reader(void *ctx) {
+    return erpc_resolve_path_watermark_reader(ctx);
+}
+
+#ifdef USE_FENTRY
+
+TAIL_CALL_TARGET("erpc_resolve_path_watermark_reader")
+int fentry_erpc_resolve_path_watermark_reader(ctx_t *ctx) {
+    return erpc_resolve_path_watermark_reader(ctx);
+}
+
+#endif // USE_FENTRY
+
+int __attribute__((always_inline)) erpc_resolve_path_segment_reader(void *ctx) {
     u32 zero = 0, err = 0;
     char path_chunk[32] = {0};
     struct dr_erpc_state_t *state = bpf_map_lookup_elem(&dr_erpc_state, &zero);
@@ -421,5 +435,19 @@ exit:
     monitor_resolution_err(err);
     return 0;
 }
+
+SEC("kprobe/erpc_resolve_path_segment_reader")
+int kprobe_erpc_resolve_path_segment_reader(void *ctx) {
+    return erpc_resolve_path_segment_reader(ctx);
+}
+
+#ifdef USE_FENTRY
+
+TAIL_CALL_TARGET("erpc_resolve_path_segment_reader")
+int fentry_erpc_resolve_path_segment_reader(ctx_t *ctx) {
+    return erpc_resolve_path_segment_reader(ctx);
+}
+
+#endif // USE_FENTRY
 
 #endif

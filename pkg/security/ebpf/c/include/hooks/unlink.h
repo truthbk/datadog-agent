@@ -88,8 +88,7 @@ int hook_vfs_unlink(ctx_t *ctx) {
     return 0;
 }
 
-SEC("kprobe/dr_unlink_callback")
-int kprobe_dr_unlink_callback(struct pt_regs *ctx) {
+int __attribute__((always_inline)) dr_unlink_callback() {
     struct syscall_cache_t *syscall = peek_syscall(EVENT_UNLINK);
     if (!syscall) {
         return 0;
@@ -104,20 +103,16 @@ int kprobe_dr_unlink_callback(struct pt_regs *ctx) {
     return 0;
 }
 
+SEC("kprobe/dr_unlink_callback")
+int kprobe_dr_unlink_callback(struct pt_regs *ctx) {
+    return dr_unlink_callback();
+}
+
 #ifdef USE_FENTRY
 
 TAIL_CALL_TARGET("dr_unlink_callback")
 int fentry_dr_unlink_callback(ctx_t *ctx) {
-    struct syscall_cache_t *syscall = peek_syscall(EVENT_UNLINK);
-    if (!syscall) {
-        return 0;
-    }
-
-    if (syscall->resolver.ret < 0) {
-        return mark_as_discarded(syscall);
-    }
-
-    return 0;
+    return dr_unlink_callback();
 }
 
 #endif // USE_FENTRY

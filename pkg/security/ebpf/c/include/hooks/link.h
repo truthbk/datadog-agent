@@ -99,8 +99,7 @@ int hook_vfs_link(ctx_t *ctx) {
     return 0;
 }
 
-SEC("kprobe/dr_link_src_callback")
-int kprobe_dr_link_src_callback(struct pt_regs *ctx) {
+int __attribute__((always_inline)) dr_link_src_callback() {
     struct syscall_cache_t *syscall = peek_syscall(EVENT_LINK);
     if (!syscall) {
         return 0;
@@ -116,21 +115,16 @@ int kprobe_dr_link_src_callback(struct pt_regs *ctx) {
     return 0;
 }
 
+SEC("kprobe/dr_link_src_callback")
+int kprobe_dr_link_src_callback(struct pt_regs *ctx) {
+    return dr_link_src_callback();
+}
+
 #ifdef USE_FENTRY
 
 TAIL_CALL_TARGET("dr_link_src_callback")
 int fentry_dr_link_src_callback(ctx_t *ctx) {
-    struct syscall_cache_t *syscall = peek_syscall(EVENT_LINK);
-    if (!syscall) {
-        return 0;
-    }
-
-    if (syscall->resolver.ret == DENTRY_DISCARDED) {
-        monitor_discarded(EVENT_LINK);
-        return mark_as_discarded(syscall);
-    }
-
-    return 0;
+    return dr_link_src_callback();
 }
 
 #endif // USE_FENTRY

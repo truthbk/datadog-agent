@@ -127,14 +127,14 @@ func getDentryResolverTailCallRoutes(ERPCDentryResolutionEnabled, supportMmapabl
 				ProgArrayName: "dr_kprobe_progs",
 				Key:           8,
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: "kprobe_handle_executable_path_cb",
+					EBPFFuncName: "kprobe_dr_executable_path_cb",
 				},
 			},
 			{
 				ProgArrayName: "dr_kprobe_progs",
 				Key:           9,
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: "kprobe_handle_interpreter_path_cb",
+					EBPFFuncName: "kprobe_dr_interpreter_path_cb",
 				},
 			},
 			{
@@ -190,14 +190,14 @@ func getDentryResolverTailCallRoutes(ERPCDentryResolutionEnabled, supportMmapabl
 				ProgArrayName: "dr_kprobe_progs",
 				Key:           17,
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: "kprobe_dr_unshare_mntns_stage_one_callback",
+					EBPFFuncName: "kprobe_dr_unshare_mntns_callback",
 				},
 			},
 			{
 				ProgArrayName: "dr_kprobe_progs",
 				Key:           18,
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: "kprobe_trace_kernel_file_cb",
+					EBPFFuncName: "kprobe_dr_init_module_callback",
 				},
 			},
 		}
@@ -258,14 +258,14 @@ func getDentryResolverTailCallRoutes(ERPCDentryResolutionEnabled, supportMmapabl
 				ProgArrayName: "dr_fentry_progs",
 				Key:           8,
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: "fentry_handle_executable_path_cb",
+					EBPFFuncName: "fentry_dr_executable_path_cb",
 				},
 			},
 			{
 				ProgArrayName: "dr_fentry_progs",
 				Key:           9,
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: "fentry_handle_interpreter_path_cb",
+					EBPFFuncName: "fentry_dr_interpreter_path_cb",
 				},
 			},
 			{
@@ -321,14 +321,14 @@ func getDentryResolverTailCallRoutes(ERPCDentryResolutionEnabled, supportMmapabl
 				ProgArrayName: "dr_fentry_progs",
 				Key:           17,
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: "fentry_dr_unshare_mntns_stage_one_callback",
+					EBPFFuncName: "fentry_dr_unshare_mntns_callback",
 				},
 			},
 			{
 				ProgArrayName: "dr_fentry_progs",
 				Key:           18,
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: "fentry_trace_kernel_file_cb",
+					EBPFFuncName: "fentry_dr_init_module_callback",
 				},
 			},
 		}

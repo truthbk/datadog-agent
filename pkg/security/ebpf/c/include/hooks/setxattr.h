@@ -105,8 +105,7 @@ int __attribute__((always_inline)) trace__vfs_setxattr(ctx_t *ctx, u64 event_typ
     return 0;
 }
 
-SEC("kprobe/dr_setxattr_callback")
-int kprobe_dr_setxattr_callback(struct pt_regs *ctx) {
+int __attribute__((always_inline)) dr_setxattr_callback() {
     struct syscall_cache_t *syscall = peek_syscall_with(xattr_predicate);
     if (!syscall) {
         return 0;
@@ -122,21 +121,16 @@ int kprobe_dr_setxattr_callback(struct pt_regs *ctx) {
     return 0;
 }
 
+SEC("kprobe/dr_setxattr_callback")
+int kprobe_dr_setxattr_callback(struct pt_regs *ctx) {
+    return dr_setxattr_callback();
+}
+
 #ifdef USE_FENTRY
 
 TAIL_CALL_TARGET("dr_setxattr_callback")
 int fentry_dr_setxattr_callback(ctx_t *ctx) {
-    struct syscall_cache_t *syscall = peek_syscall_with(xattr_predicate);
-    if (!syscall) {
-        return 0;
-    }
-
-    if (syscall->resolver.ret == DENTRY_DISCARDED) {
-        monitor_discarded(EVENT_SETXATTR);
-        return discard_syscall(syscall);
-    }
-
-    return 0;
+    return dr_setxattr_callback();
 }
 
 #endif // USE_FENTRY

@@ -55,8 +55,7 @@ int __attribute__((always_inline)) trace_kernel_file(ctx_t *ctx, struct file *f,
     return 0;
 }
 
-SEC("kprobe/trace_kernel_file_cb")
-int kprobe_trace_kernel_file_cb(struct pt_regs *ctx) {
+int __attribute__((always_inline)) dr_init_module_callback() {
     struct syscall_cache_t *syscall = peek_syscall(EVENT_INIT_MODULE);
     if (!syscall) {
         return 0;
@@ -66,6 +65,20 @@ int kprobe_trace_kernel_file_cb(struct pt_regs *ctx) {
 
     return 0;
 }
+
+SEC("kprobe/dr_init_module_callback")
+int kprobe_dr_init_module_callback(struct pt_regs *ctx) {
+    return dr_init_module_callback();
+}
+
+#ifdef USE_FENTRY
+
+TAIL_CALL_TARGET("dr_init_module_callback")
+int fentry_dr_init_module_callback(ctx_t *ctx) {
+    return dr_init_module_callback();
+}
+
+#endif // USE_FENTRY
 
 SEC("kprobe/parse_args")
 int kprobe_parse_args(struct pt_regs *ctx) {

@@ -76,8 +76,7 @@ int __attribute__((always_inline)) handle_interpreted_exec_event(void *ctx, stru
     return 0;
 }
 
-SEC("kprobe/handle_executable_path_cb")
-int kprobe_handle_executable_path_cb(struct pt_regs *ctx) {
+int __attribute__((always_inline)) dr_executable_path_cb() {
     struct syscall_cache_t *syscall = peek_syscall(EVENT_EXEC);
     if (!syscall) {
         return 0;
@@ -88,8 +87,21 @@ int kprobe_handle_executable_path_cb(struct pt_regs *ctx) {
     return 0;
 }
 
-SEC("kprobe/handle_interpreter_path_cb")
-int kprobe_handle_interpreter_path_cb(struct pt_regs *ctx) {
+SEC("kprobe/dr_executable_path_cb")
+int kprobe_dr_executable_path_cb(struct pt_regs *ctx) {
+    return dr_executable_path_cb();
+}
+
+#ifdef USE_FENTRY
+
+TAIL_CALL_TARGET("dr_executable_path_cb")
+int fentry_dr_executable_path_cb(ctx_t *ctx) {
+    return dr_executable_path_cb();
+}
+
+#endif // USE_FENTRY
+
+int __attribute__((always_inline)) dr_interpreter_path_cb() {
     struct syscall_cache_t *syscall = peek_syscall(EVENT_EXEC);
     if (!syscall) {
         return 0;
@@ -99,6 +111,20 @@ int kprobe_handle_interpreter_path_cb(struct pt_regs *ctx) {
 
     return 0;
 }
+
+SEC("kprobe/dr_interpreter_path_cb")
+int kprobe_dr_interpreter_path_cb(struct pt_regs *ctx) {
+    return dr_interpreter_path_cb();
+}
+
+#ifdef USE_FENTRY
+
+TAIL_CALL_TARGET("dr_interpreter_path_cb")
+int fentry_dr_interpreter_path_cb(ctx_t *ctx) {
+    return dr_interpreter_path_cb();
+}
+
+#endif // USE_FENTRY
 
 #define DO_FORK_STRUCT_INPUT 1
 

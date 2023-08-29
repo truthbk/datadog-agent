@@ -11,7 +11,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"math"
 	"math/rand"
 	"os"
 	"path"
@@ -106,7 +105,6 @@ type pathResolutionFailureCause uint8
 
 const (
 	unknown pathResolutionFailureCause = iota
-	truncated
 	invalidLength
 	tooBig
 	outOfBounds
@@ -117,7 +115,6 @@ const (
 
 var pathResolutionFailureCauses = [...]string{
 	"unknown",
-	"truncated",
 	"invalid_length",
 	"too_big",
 	"out_of_bounds",
@@ -207,11 +204,6 @@ func reversePathParts(pathStr string) string {
 }
 
 func (pr *PathRingsResolver) resolvePathFromRingBuffers(ref *model.PathRingBufferRef) (string, error) {
-	if ref.Length == math.MaxUint32 {
-		pr.failureCounters[truncated].Inc()
-		return "", errTruncatedPath
-	}
-
 	if ref.Length == 0 || ref.Length <= 2*WatermarkSize {
 		pr.failureCounters[invalidLength].Inc()
 		return "", fmt.Errorf("invalid path ref length: %d", ref.Length)

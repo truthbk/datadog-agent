@@ -112,16 +112,31 @@ int hook_vfs_rename(ctx_t *ctx) {
     return 0;
 }
 
-SEC("kprobe/dr_rename_src_callback")
-int kprobe_dr_rename_src_callback(struct pt_regs *ctx) {
+
+int __attribute__((always_inline)) dr_rename_src_callback() {
     struct syscall_cache_t *syscall = peek_syscall(EVENT_RENAME);
     if (!syscall) {
         return 0;
     }
 
     fill_dr_ringbuf_ref_from_ctx(&syscall->rename.src_file.path_ref);
+
     return 0;
 }
+
+SEC("kprobe/dr_rename_src_callback")
+int kprobe_dr_rename_src_callback(struct pt_regs *ctx) {
+    return dr_rename_src_callback();
+}
+
+#ifdef USE_FENTRY
+
+TAIL_CALL_TARGET("dr_rename_src_callback")
+int fentry_dr_rename_src_callback(ctx_t *ctx) {
+    return dr_rename_src_callback();
+}
+
+#endif // USE_FENTRY
 
 int __attribute__((always_inline)) sys_rename_ret(void *ctx, int retval, int dr_type) {
     if (IS_UNHANDLED_ERROR(retval)) {

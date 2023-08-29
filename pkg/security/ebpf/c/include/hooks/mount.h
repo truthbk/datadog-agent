@@ -209,8 +209,7 @@ int hook_mnt_set_mountpoint(ctx_t *ctx) {
     return 0;
 }
 
-SEC("kprobe/dr_unshare_mntns_stage_one_callback")
-int kprobe_dr_unshare_mntns_stage_one_callback(struct pt_regs *ctx) {
+int __attribute__((always_inline)) dr_unshare_mntns_callback(void *ctx) {
     struct syscall_cache_t *syscall = peek_syscall(EVENT_UNSHARE_MNTNS);
     if (!syscall) {
         return 0;
@@ -233,39 +232,18 @@ int kprobe_dr_unshare_mntns_stage_one_callback(struct pt_regs *ctx) {
     send_event(ctx, EVENT_UNSHARE_MNTNS, event);
 
     return 0;
+}
+
+SEC("kprobe/dr_unshare_mntns_callback")
+int kprobe_dr_unshare_mntns_callback(struct pt_regs *ctx) {
+    return dr_unshare_mntns_callback(ctx);
 }
 
 #ifdef USE_FENTRY
 
-TAIL_CALL_TARGET("dr_unshare_mntns_stage_one_callback")
-int fentry_dr_unshare_mntns_stage_one_callback(ctx_t *ctx) {
-    struct syscall_cache_t *syscall = peek_syscall(EVENT_UNSHARE_MNTNS);
-    if (!syscall) {
-        return 0;
-    }
-
-    struct unshare_mntns_event_t event = {
-        .mountfields.mount_id = get_mount_mount_id(syscall->unshare_mntns.newmnt),
-        .mountfields.device = get_mount_dev(syscall->unshare_mntns.newmnt),
-        .mountfields.mp_key = syscall->unshare_mntns.mp_dentry_key,
-        .mountfields.bind_src_mount_id = 0, // do not consider mnt ns copies as bind mounts
-    };
-
-    if (event.mountfields.mount_id == 0 && event.mountfields.device == 0) {
-        return 0;
-    }
-
-    bpf_probe_read_str(&event.mountfields.fstype, FSTYPE_LEN, (void*)syscall->unshare_mntns.fstype);
-    fill_dr_ringbuf_ref_from_ctx(&event.mountfields.mp_ref);
-
-    send_event(ctx, EVENT_UNSHARE_MNTNS, event);
-
-    return 0;
-}
-
-TAIL_CALL_TARGET("dr_unshare_mntns_stage_two_callback")
-int fentry_dr_unshare_mntns_stage_two_callback(ctx_t *ctx) {
-    return 0;
+TAIL_CALL_TARGET("dr_unshare_mntns_callback")
+int fentry_dr_unshare_mntns_callback(ctx_t *ctx) {
+    return dr_unshare_mntns_callback(ctx);
 }
 
 #endif // USE_FENTRY
