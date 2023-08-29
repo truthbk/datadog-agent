@@ -27,7 +27,7 @@ import (
 // ShutdownDelay is the amount of time we wait before shutting down the HTTP server
 // after we receive a Shutdown event. This allows time for the final log messages
 // to arrive from the Logs API.
-var ShutdownDelay time.Duration = 500 * time.Millisecond
+var ShutdownDelay time.Duration = 1 * time.Second
 
 // FlushTimeout is the amount of time to wait for a flush to complete.
 const FlushTimeout time.Duration = 5 * time.Second
@@ -302,6 +302,11 @@ func (d *Daemon) Stop() {
 		return
 	}
 	d.stopped = true
+
+	log.Debugf("timestamp before metrics api ping: %d", time.Now().UnixMilli())
+	// ping the metric intake api to warm it, speed up requests
+	go http.Get("https://6-0-0-app.agent.datadoghq.com/api/v1/series")
+	log.Debugf("timestamp after metrics api ping: %d", time.Now().UnixMilli())
 
 	// Wait for any remaining logs to arrive via the logs API before shutting down the HTTP server
 	log.Debug("Waiting to shut down HTTP server")
