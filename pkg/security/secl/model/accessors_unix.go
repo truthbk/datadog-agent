@@ -5595,7 +5595,7 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 				if !ev.BaseEvent.ProcessContext.Process.IsNotKworker() {
 					return 0
 				}
-				return int(ev.ProcessContext.Process.FileEvent.FileFields.DentryKey.Inode)
+				return int(ev.BaseEvent.ProcessContext.Process.FileEvent.FileFields.DentryKey.Inode)
 			},
 			Field:  field,
 			Weight: eval.FunctionWeight,
@@ -5631,7 +5631,7 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 				if !ev.BaseEvent.ProcessContext.Process.IsNotKworker() {
 					return 0
 				}
-				return int(ev.ProcessContext.Process.FileEvent.FileFields.DentryKey.MountID)
+				return int(ev.BaseEvent.ProcessContext.Process.FileEvent.FileFields.DentryKey.MountID)
 			},
 			Field:  field,
 			Weight: eval.FunctionWeight,
@@ -5887,7 +5887,7 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 				if !ev.BaseEvent.ProcessContext.Process.HasInterpreter() {
 					return 0
 				}
-				return int(ev.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.Inode)
+				return int(ev.BaseEvent.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.Inode)
 			},
 			Field:  field,
 			Weight: eval.FunctionWeight,
@@ -5923,7 +5923,7 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 				if !ev.BaseEvent.ProcessContext.Process.HasInterpreter() {
 					return 0
 				}
-				return int(ev.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.MountID)
+				return int(ev.BaseEvent.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.MountID)
 			},
 			Field:  field,
 			Weight: eval.FunctionWeight,
@@ -6380,7 +6380,7 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 				if !ev.BaseEvent.ProcessContext.Parent.IsNotKworker() {
 					return 0
 				}
-				return int(ev.ProcessContext.Parent.FileEvent.FileFields.DentryKey.Inode)
+				return int(ev.BaseEvent.ProcessContext.Parent.FileEvent.FileFields.DentryKey.Inode)
 			},
 			Field:  field,
 			Weight: eval.FunctionWeight,
@@ -6425,7 +6425,7 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 				if !ev.BaseEvent.ProcessContext.Parent.IsNotKworker() {
 					return 0
 				}
-				return int(ev.ProcessContext.Parent.FileEvent.FileFields.DentryKey.MountID)
+				return int(ev.BaseEvent.ProcessContext.Parent.FileEvent.FileFields.DentryKey.MountID)
 			},
 			Field:  field,
 			Weight: eval.FunctionWeight,
@@ -6744,7 +6744,7 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 				if !ev.BaseEvent.ProcessContext.Parent.HasInterpreter() {
 					return 0
 				}
-				return int(ev.ProcessContext.Parent.LinuxBinprm.FileEvent.FileFields.DentryKey.Inode)
+				return int(ev.BaseEvent.ProcessContext.Parent.LinuxBinprm.FileEvent.FileFields.DentryKey.Inode)
 			},
 			Field:  field,
 			Weight: eval.FunctionWeight,
@@ -6789,7 +6789,7 @@ func (m *Model) GetEvaluator(field eval.Field, regID eval.RegisterID) (eval.Eval
 				if !ev.BaseEvent.ProcessContext.Parent.HasInterpreter() {
 					return 0
 				}
-				return int(ev.ProcessContext.Parent.LinuxBinprm.FileEvent.FileFields.DentryKey.MountID)
+				return int(ev.BaseEvent.ProcessContext.Parent.LinuxBinprm.FileEvent.FileFields.DentryKey.MountID)
 			},
 			Field:  field,
 			Weight: eval.FunctionWeight,
@@ -18573,13 +18573,13 @@ func (ev *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 	case "process.file.in_upper_layer":
 		return ev.FieldHandlers.ResolveFileFieldsInUpperLayer(ev, &ev.BaseEvent.ProcessContext.Process.FileEvent.FileFields), nil
 	case "process.file.inode":
-		return int(ev.ProcessContext.Process.FileEvent.FileFields.DentryKey.Inode), nil
+		return int(ev.BaseEvent.ProcessContext.Process.FileEvent.FileFields.DentryKey.Inode), nil
 	case "process.file.mode":
 		return int(ev.BaseEvent.ProcessContext.Process.FileEvent.FileFields.Mode), nil
 	case "process.file.modification_time":
 		return int(ev.BaseEvent.ProcessContext.Process.FileEvent.FileFields.MTime), nil
 	case "process.file.mount_id":
-		return int(ev.ProcessContext.Process.FileEvent.FileFields.DentryKey.MountID), nil
+		return int(ev.BaseEvent.ProcessContext.Process.FileEvent.FileFields.DentryKey.MountID), nil
 	case "process.file.name":
 		return ev.FieldHandlers.ResolveFileBasename(ev, &ev.BaseEvent.ProcessContext.Process.FileEvent), nil
 	case "process.file.name.length":
@@ -18625,13 +18625,13 @@ func (ev *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 	case "process.interpreter.file.in_upper_layer":
 		return ev.FieldHandlers.ResolveFileFieldsInUpperLayer(ev, &ev.BaseEvent.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields), nil
 	case "process.interpreter.file.inode":
-		return int(ev.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.Inode), nil
+		return int(ev.BaseEvent.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.Inode), nil
 	case "process.interpreter.file.mode":
 		return int(ev.BaseEvent.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.Mode), nil
 	case "process.interpreter.file.modification_time":
 		return int(ev.BaseEvent.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.MTime), nil
 	case "process.interpreter.file.mount_id":
-		return int(ev.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.MountID), nil
+		return int(ev.BaseEvent.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.MountID), nil
 	case "process.interpreter.file.name":
 		return ev.FieldHandlers.ResolveFileBasename(ev, &ev.BaseEvent.ProcessContext.Process.LinuxBinprm.FileEvent), nil
 	case "process.interpreter.file.name.length":
@@ -18705,13 +18705,13 @@ func (ev *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 	case "process.parent.file.in_upper_layer":
 		return ev.FieldHandlers.ResolveFileFieldsInUpperLayer(ev, &ev.BaseEvent.ProcessContext.Parent.FileEvent.FileFields), nil
 	case "process.parent.file.inode":
-		return int(ev.ProcessContext.Parent.FileEvent.FileFields.DentryKey.Inode), nil
+		return int(ev.BaseEvent.ProcessContext.Parent.FileEvent.FileFields.DentryKey.Inode), nil
 	case "process.parent.file.mode":
 		return int(ev.BaseEvent.ProcessContext.Parent.FileEvent.FileFields.Mode), nil
 	case "process.parent.file.modification_time":
 		return int(ev.BaseEvent.ProcessContext.Parent.FileEvent.FileFields.MTime), nil
 	case "process.parent.file.mount_id":
-		return int(ev.ProcessContext.Parent.FileEvent.FileFields.DentryKey.MountID), nil
+		return int(ev.BaseEvent.ProcessContext.Parent.FileEvent.FileFields.DentryKey.MountID), nil
 	case "process.parent.file.name":
 		return ev.FieldHandlers.ResolveFileBasename(ev, &ev.BaseEvent.ProcessContext.Parent.FileEvent), nil
 	case "process.parent.file.name.length":
@@ -18757,13 +18757,13 @@ func (ev *Event) GetFieldValue(field eval.Field) (interface{}, error) {
 	case "process.parent.interpreter.file.in_upper_layer":
 		return ev.FieldHandlers.ResolveFileFieldsInUpperLayer(ev, &ev.BaseEvent.ProcessContext.Parent.LinuxBinprm.FileEvent.FileFields), nil
 	case "process.parent.interpreter.file.inode":
-		return int(ev.ProcessContext.Parent.LinuxBinprm.FileEvent.FileFields.DentryKey.Inode), nil
+		return int(ev.BaseEvent.ProcessContext.Parent.LinuxBinprm.FileEvent.FileFields.DentryKey.Inode), nil
 	case "process.parent.interpreter.file.mode":
 		return int(ev.BaseEvent.ProcessContext.Parent.LinuxBinprm.FileEvent.FileFields.Mode), nil
 	case "process.parent.interpreter.file.modification_time":
 		return int(ev.BaseEvent.ProcessContext.Parent.LinuxBinprm.FileEvent.FileFields.MTime), nil
 	case "process.parent.interpreter.file.mount_id":
-		return int(ev.ProcessContext.Parent.LinuxBinprm.FileEvent.FileFields.DentryKey.MountID), nil
+		return int(ev.BaseEvent.ProcessContext.Parent.LinuxBinprm.FileEvent.FileFields.DentryKey.MountID), nil
 	case "process.parent.interpreter.file.name":
 		return ev.FieldHandlers.ResolveFileBasename(ev, &ev.BaseEvent.ProcessContext.Parent.LinuxBinprm.FileEvent), nil
 	case "process.parent.interpreter.file.name.length":
@@ -29740,9 +29740,9 @@ func (ev *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		rv, ok := value.(int)
 		if !ok {
-			return &eval.ErrValueTypeMismatch{Field: "ProcessContext.Ancestor.ProcessContext.Process.FileEvent.FileFields.DentryKey.Inode"}
+			return &eval.ErrValueTypeMismatch{Field: "BaseEvent.ProcessContext.Ancestor.ProcessContext.Process.FileEvent.FileFields.DentryKey.Inode"}
 		}
-		ev.ProcessContext.Ancestor.ProcessContext.Process.FileEvent.FileFields.DentryKey.Inode = uint64(rv)
+		ev.BaseEvent.ProcessContext.Ancestor.ProcessContext.Process.FileEvent.FileFields.DentryKey.Inode = uint64(rv)
 		return nil
 	case "process.ancestors.file.mode":
 		if ev.BaseEvent.ProcessContext == nil {
@@ -29779,9 +29779,9 @@ func (ev *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		rv, ok := value.(int)
 		if !ok {
-			return &eval.ErrValueTypeMismatch{Field: "ProcessContext.Ancestor.ProcessContext.Process.FileEvent.FileFields.DentryKey.MountID"}
+			return &eval.ErrValueTypeMismatch{Field: "BaseEvent.ProcessContext.Ancestor.ProcessContext.Process.FileEvent.FileFields.DentryKey.MountID"}
 		}
-		ev.ProcessContext.Ancestor.ProcessContext.Process.FileEvent.FileFields.DentryKey.MountID = uint32(rv)
+		ev.BaseEvent.ProcessContext.Ancestor.ProcessContext.Process.FileEvent.FileFields.DentryKey.MountID = uint32(rv)
 		return nil
 	case "process.ancestors.file.name":
 		if ev.BaseEvent.ProcessContext == nil {
@@ -30071,9 +30071,9 @@ func (ev *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		rv, ok := value.(int)
 		if !ok {
-			return &eval.ErrValueTypeMismatch{Field: "ProcessContext.Ancestor.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.Inode"}
+			return &eval.ErrValueTypeMismatch{Field: "BaseEvent.ProcessContext.Ancestor.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.Inode"}
 		}
-		ev.ProcessContext.Ancestor.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.Inode = uint64(rv)
+		ev.BaseEvent.ProcessContext.Ancestor.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.Inode = uint64(rv)
 		return nil
 	case "process.ancestors.interpreter.file.mode":
 		if ev.BaseEvent.ProcessContext == nil {
@@ -30110,9 +30110,9 @@ func (ev *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		rv, ok := value.(int)
 		if !ok {
-			return &eval.ErrValueTypeMismatch{Field: "ProcessContext.Ancestor.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.MountID"}
+			return &eval.ErrValueTypeMismatch{Field: "BaseEvent.ProcessContext.Ancestor.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.MountID"}
 		}
-		ev.ProcessContext.Ancestor.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.MountID = uint32(rv)
+		ev.BaseEvent.ProcessContext.Ancestor.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.MountID = uint32(rv)
 		return nil
 	case "process.ancestors.interpreter.file.name":
 		if ev.BaseEvent.ProcessContext == nil {
@@ -30602,9 +30602,9 @@ func (ev *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		rv, ok := value.(int)
 		if !ok {
-			return &eval.ErrValueTypeMismatch{Field: "ProcessContext.Process.FileEvent.FileFields.DentryKey.Inode"}
+			return &eval.ErrValueTypeMismatch{Field: "BaseEvent.ProcessContext.Process.FileEvent.FileFields.DentryKey.Inode"}
 		}
-		ev.ProcessContext.Process.FileEvent.FileFields.DentryKey.Inode = uint64(rv)
+		ev.BaseEvent.ProcessContext.Process.FileEvent.FileFields.DentryKey.Inode = uint64(rv)
 		return nil
 	case "process.file.mode":
 		if ev.BaseEvent.ProcessContext == nil {
@@ -30632,9 +30632,9 @@ func (ev *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		rv, ok := value.(int)
 		if !ok {
-			return &eval.ErrValueTypeMismatch{Field: "ProcessContext.Process.FileEvent.FileFields.DentryKey.MountID"}
+			return &eval.ErrValueTypeMismatch{Field: "BaseEvent.ProcessContext.Process.FileEvent.FileFields.DentryKey.MountID"}
 		}
-		ev.ProcessContext.Process.FileEvent.FileFields.DentryKey.MountID = uint32(rv)
+		ev.BaseEvent.ProcessContext.Process.FileEvent.FileFields.DentryKey.MountID = uint32(rv)
 		return nil
 	case "process.file.name":
 		if ev.BaseEvent.ProcessContext == nil {
@@ -30855,9 +30855,9 @@ func (ev *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		rv, ok := value.(int)
 		if !ok {
-			return &eval.ErrValueTypeMismatch{Field: "ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.Inode"}
+			return &eval.ErrValueTypeMismatch{Field: "BaseEvent.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.Inode"}
 		}
-		ev.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.Inode = uint64(rv)
+		ev.BaseEvent.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.Inode = uint64(rv)
 		return nil
 	case "process.interpreter.file.mode":
 		if ev.BaseEvent.ProcessContext == nil {
@@ -30885,9 +30885,9 @@ func (ev *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		rv, ok := value.(int)
 		if !ok {
-			return &eval.ErrValueTypeMismatch{Field: "ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.MountID"}
+			return &eval.ErrValueTypeMismatch{Field: "BaseEvent.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.MountID"}
 		}
-		ev.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.MountID = uint32(rv)
+		ev.BaseEvent.ProcessContext.Process.LinuxBinprm.FileEvent.FileFields.DentryKey.MountID = uint32(rv)
 		return nil
 	case "process.interpreter.file.name":
 		if ev.BaseEvent.ProcessContext == nil {
@@ -31338,9 +31338,9 @@ func (ev *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		rv, ok := value.(int)
 		if !ok {
-			return &eval.ErrValueTypeMismatch{Field: "ProcessContext.Parent.FileEvent.FileFields.DentryKey.Inode"}
+			return &eval.ErrValueTypeMismatch{Field: "BaseEvent.ProcessContext.Parent.FileEvent.FileFields.DentryKey.Inode"}
 		}
-		ev.ProcessContext.Parent.FileEvent.FileFields.DentryKey.Inode = uint64(rv)
+		ev.BaseEvent.ProcessContext.Parent.FileEvent.FileFields.DentryKey.Inode = uint64(rv)
 		return nil
 	case "process.parent.file.mode":
 		if ev.BaseEvent.ProcessContext == nil {
@@ -31377,9 +31377,9 @@ func (ev *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		rv, ok := value.(int)
 		if !ok {
-			return &eval.ErrValueTypeMismatch{Field: "ProcessContext.Parent.FileEvent.FileFields.DentryKey.MountID"}
+			return &eval.ErrValueTypeMismatch{Field: "BaseEvent.ProcessContext.Parent.FileEvent.FileFields.DentryKey.MountID"}
 		}
-		ev.ProcessContext.Parent.FileEvent.FileFields.DentryKey.MountID = uint32(rv)
+		ev.BaseEvent.ProcessContext.Parent.FileEvent.FileFields.DentryKey.MountID = uint32(rv)
 		return nil
 	case "process.parent.file.name":
 		if ev.BaseEvent.ProcessContext == nil {
@@ -31669,9 +31669,9 @@ func (ev *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		rv, ok := value.(int)
 		if !ok {
-			return &eval.ErrValueTypeMismatch{Field: "ProcessContext.Parent.LinuxBinprm.FileEvent.FileFields.DentryKey.Inode"}
+			return &eval.ErrValueTypeMismatch{Field: "BaseEvent.ProcessContext.Parent.LinuxBinprm.FileEvent.FileFields.DentryKey.Inode"}
 		}
-		ev.ProcessContext.Parent.LinuxBinprm.FileEvent.FileFields.DentryKey.Inode = uint64(rv)
+		ev.BaseEvent.ProcessContext.Parent.LinuxBinprm.FileEvent.FileFields.DentryKey.Inode = uint64(rv)
 		return nil
 	case "process.parent.interpreter.file.mode":
 		if ev.BaseEvent.ProcessContext == nil {
@@ -31708,9 +31708,9 @@ func (ev *Event) SetFieldValue(field eval.Field, value interface{}) error {
 		}
 		rv, ok := value.(int)
 		if !ok {
-			return &eval.ErrValueTypeMismatch{Field: "ProcessContext.Parent.LinuxBinprm.FileEvent.FileFields.DentryKey.MountID"}
+			return &eval.ErrValueTypeMismatch{Field: "BaseEvent.ProcessContext.Parent.LinuxBinprm.FileEvent.FileFields.DentryKey.MountID"}
 		}
-		ev.ProcessContext.Parent.LinuxBinprm.FileEvent.FileFields.DentryKey.MountID = uint32(rv)
+		ev.BaseEvent.ProcessContext.Parent.LinuxBinprm.FileEvent.FileFields.DentryKey.MountID = uint32(rv)
 		return nil
 	case "process.parent.interpreter.file.name":
 		if ev.BaseEvent.ProcessContext == nil {
