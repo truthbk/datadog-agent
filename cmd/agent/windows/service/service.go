@@ -92,10 +92,16 @@ func RunService(isDebug bool) {
 	if isDebug {
 		elog = debug.New(config.ServiceName)
 	} else {
+		log.Infof("Opening event log")
+		fmt.Printf("%v: Opening event log\n", time.Now().UTC())
 		elog, err = eventlog.Open(config.ServiceName)
 		if err != nil {
+			log.Errorf("Failed to open event log")
+			fmt.Printf("%v: Failed to open event log\n", time.Now().UTC())
 			return
 		}
+		log.Infof("successfully opened event log")
+		fmt.Printf("%v: successfully opened event log\n", time.Now().UTC())
 	}
 	defer elog.Close()
 
