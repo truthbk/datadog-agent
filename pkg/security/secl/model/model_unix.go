@@ -814,6 +814,7 @@ type AnomalyDetectionSyscallEvent struct {
 	SyscallID Syscall
 }
 
+// PathRingBufferRef is used to resolve a path inserted in a ringbuffer
 type PathRingBufferRef struct {
 	Watermark  uint64 `field:"-"`
 	ReadCursor uint32 `field:"-"`
@@ -821,12 +822,14 @@ type PathRingBufferRef struct {
 	CPU        uint32 `field:"-"`
 }
 
+// DentryKey identifies a dentry in the dentry or path cache
 type DentryKey struct {
 	Inode   uint64 `field:"inode"`    // SECLDoc[inode] Definition:`Inode of the file`
 	MountID uint32 `field:"mount_id"` // SECLDoc[mount_id] Definition:`Mount ID of the file`
 	PathID  uint32 `field:"-"`
 }
 
+// DentryLeaf is the go representation of a dentries map entry
 type DentryLeaf struct {
 	Parent DentryKey
 }

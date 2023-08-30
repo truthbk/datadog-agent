@@ -321,17 +321,19 @@ func (e *ArgsEnvsEvent) UnmarshalBinary(data []byte) (int, error) {
 	return MaxArgEnvSize + 8, nil
 }
 
-func (p *DentryKey) UnmarshalBinary(data []byte) (int, error) {
+// UnmarshalBinary unmarshalls a binary representation of itself
+func (d *DentryKey) UnmarshalBinary(data []byte) (int, error) {
 	if len(data) < 16 {
 		return 0, ErrNotEnoughData
 	}
-	p.Inode = ByteOrder.Uint64(data[0:8])
-	p.MountID = ByteOrder.Uint32(data[8:12])
-	p.PathID = ByteOrder.Uint32(data[12:16])
+	d.Inode = ByteOrder.Uint64(data[0:8])
+	d.MountID = ByteOrder.Uint32(data[8:12])
+	d.PathID = ByteOrder.Uint32(data[12:16])
 
 	return 16, nil
 }
 
+// UnmarshalBinary unmarshalls a binary representation of itself
 func (pr *PathRingBufferRef) UnmarshalBinary(data []byte) (int, error) {
 	if len(data) < 24 {
 		return 0, ErrNotEnoughData

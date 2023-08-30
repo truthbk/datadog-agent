@@ -49,8 +49,6 @@ func (err ErrTruncatedPath) Error() string {
 	return "truncated_path"
 }
 
-var errTruncatedPath ErrTruncatedPath
-
 type pathRingsResolutionFailureCause uint32
 
 const (
@@ -97,20 +95,20 @@ func (cause pathRingsResolutionFailureCause) String() string {
 }
 
 var (
-	ErrDrUnknown                   = errors.New("unknown dentry resolution error")
-	ErrDrInvalidInode              = errors.New("dentry with invalid inode")
-	ErrDrDentryDiscarded           = errors.New("dentry discarded")
-	ErrDrDentryResolution          = errors.New("dentry resolution error")
-	ErrDrDentryBadName             = errors.New("dentry bad name")
-	ErrDrDentryMaxTailCall         = errors.New("dentry tailcall limit reached")
-	ErrPathRefLengthTooBig         = errors.New("path ref length exceeds ring buffer size")
-	ErrPathRefLengthZero           = errors.New("path ref length is zero")
-	ErrPathRefLengthTooSmall       = errors.New("path ref length is too small")
-	ErrPathRefReadCursorOOB        = errors.New("path ref read cursor is out-of-bounds")
-	ErrPathRefInvalidCPU           = errors.New("path ref cpu is invalid")
-	ErrPathRingsReadOverflow       = errors.New("read from path rings map overflow")
-	ErrInvalidFrontWatermarkSize   = errors.New("front watermark read from path rings map has invalid size")
-	ErrInvalidBackWatermarkSize    = errors.New("back watermark read from path rings map has invalid size")
-	ErrFrontWatermarkValueMismatch = errors.New("mismatch between path ref watermark and front watermark from path rings")
-	ErrBackWatermarkValueMismatch  = errors.New("mismatch between path ref watermark and back watermark from path rings")
+	errDrUnknown                   = errors.New("unknown dentry resolution error")
+	errDrInvalidInode              = errors.New("dentry with invalid inode")
+	errDrDentryDiscarded           = errors.New("dentry discarded")
+	errDrDentryResolution          = errors.New("dentry resolution error")
+	errDrDentryBadName             = errors.New("dentry bad name")
+	errDrDentryMaxTailCall         = errors.New("dentry tailcall limit reached")
+	errPathRefLengthTooBig         = errors.New("path ref length exceeds ring buffer size")
+	errPathRefLengthZero           = errors.New("path ref length is zero")
+	errPathRefLengthTooSmall       = errors.New("path ref length is too small")
+	errPathRefReadCursorOOB        = errors.New("path ref read cursor is out-of-bounds")
+	errPathRefInvalidCPU           = errors.New("path ref cpu is invalid")
+	errPathRingsReadOverflow       = errors.New("read from path rings map overflow")
+	errInvalidFrontWatermarkSize   = errors.New("front watermark read from path rings map has invalid size")
+	errInvalidBackWatermarkSize    = errors.New("back watermark read from path rings map has invalid size")
+	errFrontWatermarkValueMismatch = errors.New("mismatch between path ref watermark and front watermark from path rings")
+	errBackWatermarkValueMismatch  = errors.New("mismatch between path ref watermark and back watermark from path rings")
 )
