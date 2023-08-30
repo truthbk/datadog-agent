@@ -38,6 +38,8 @@ enum MONITOR_KEYS {
 #define DENTRY_INVALID -1
 #define DENTRY_DISCARDED -2
 #define DENTRY_ERROR -3
+#define DENTRY_BAD_NAME -4
+#define DENTRY_MAX_TAIL_CALL -5
 #define FAKE_INODE_MSW 0xdeadc001UL
 #define DR_MAX_DENTRY_NAME_LENGTH 255
 #define DR_MAX_ITERATION_DEPTH 8 // TODO: try increasing this value

@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"path"
@@ -102,31 +103,6 @@ func NewResolver(dentryResolver *dentry.Resolver, mountResolver *mount.Resolver)
 	return &Resolver{dentryResolver: dentryResolver, mountResolver: mountResolver}
 }
 
-type pathResolutionFailureCause uint8
-
-const (
-	unknown pathResolutionFailureCause = iota
-	invalidLength
-	tooBig
-	outOfBounds
-	invalidCPU
-	hashMismatch
-	maxFailureCause
-)
-
-var pathResolutionFailureCauses = [...]string{
-	"unknown",
-	"invalid_length",
-	"too_big",
-	"out_of_bounds",
-	"invalid_cpu",
-	"hash_mismatch",
-}
-
-func (cause pathResolutionFailureCause) String() string {
-	return pathResolutionFailureCauses[cause]
-}
-
 const (
 	PathRingBuffersSize = uint32(131072)
 	WatermarkSize       = uint32(8)
@@ -141,18 +117,19 @@ type ResolverOpts struct {
 
 // Resolver describes a resolvers for path and file names
 type PathRingsResolver struct {
-	opts            ResolverOpts
-	mountResolver   *mount.Resolver
-	statsdClient    statsd.ClientInterface
-	failureCounters [maxFailureCause]*atomic.Int64
-	successCounter  *atomic.Int64
+	opts          ResolverOpts
+	mountResolver *mount.Resolver
+	statsdClient  statsd.ClientInterface
 	// RingBuffers
 	pathRings       []byte
 	numCPU          uint32
 	watermarkBuffer *bytes.Buffer
+	failureCounters [maxPathResolutionFailureCause]*atomic.Int64
+	successCounter  *atomic.Int64
 	// Cache
-	pathCache           *simplelru.LRU[model.DentryKey, string]
-	cacheMiss, cacheHit *atomic.Int64
+	pathCache        *simplelru.LRU[model.DentryKey, string]
+	cacheMissCounter *atomic.Int64
+	cacheHitCounter  *atomic.Int64
 	// eRPC
 	erpc          *erpc.ERPC
 	erpcBuffer    []byte
@@ -163,16 +140,18 @@ type PathRingsResolver struct {
 // NewResolver returns a new path resolver
 func NewPathRingsResolver(opts ResolverOpts, mountResolver *mount.Resolver, eRPC *erpc.ERPC, statsdClient statsd.ClientInterface) (*PathRingsResolver, error) {
 	pr := &PathRingsResolver{
-		opts:            opts,
-		mountResolver:   mountResolver,
-		statsdClient:    statsdClient,
-		successCounter:  atomic.NewInt64(0),
-		watermarkBuffer: bytes.NewBuffer(make([]byte, 0, WatermarkSize)),
-		erpc:            eRPC,
+		opts:          opts,
+		mountResolver: mountResolver,
+		statsdClient:  statsdClient,
+		erpc:          eRPC,
 	}
 
-	for i := 0; i < int(maxFailureCause); i++ {
-		pr.failureCounters[i] = atomic.NewInt64(0)
+	if pr.opts.UseRingBuffers {
+		for i := 0; i < int(maxPathResolutionFailureCause); i++ {
+			pr.failureCounters[i] = atomic.NewInt64(0)
+		}
+		pr.successCounter = atomic.NewInt64(0)
+		pr.watermarkBuffer = bytes.NewBuffer(make([]byte, 0, WatermarkSize))
 	}
 
 	if opts.PathCacheSize > 0 {
@@ -181,8 +160,8 @@ func NewPathRingsResolver(opts ResolverOpts, mountResolver *mount.Resolver, eRPC
 			return nil, fmt.Errorf("couldn't create PathRingsResolver: %w", err)
 		}
 		pr.pathCache = pathCache
-		pr.cacheMiss = atomic.NewInt64(0)
-		pr.cacheHit = atomic.NewInt64(0)
+		pr.cacheMissCounter = atomic.NewInt64(0)
+		pr.cacheHitCounter = atomic.NewInt64(0)
 	}
 
 	return pr, nil
@@ -218,24 +197,52 @@ func reversePathParts(pathStr string) string {
 }
 
 func (pr *PathRingsResolver) resolvePathFromRingBuffers(ref *model.PathRingBufferRef) (string, error) {
-	if ref.Length == 0 || ref.Length <= 2*WatermarkSize {
-		pr.failureCounters[invalidLength].Inc()
-		return "", fmt.Errorf("invalid path ref length: %d", ref.Length)
-	}
 
 	if ref.Length > PathRingBuffersSize {
-		pr.failureCounters[tooBig].Inc()
-		return "", fmt.Errorf("path ref length exceeds ring buffer size: %d", ref.Length)
+		errCode := math.MaxUint32 - ref.Length
+		switch errCode {
+		case uint32(drUnknown):
+			pr.failureCounters[drUnknown].Inc()
+			return "", ErrDrUnknown
+		case uint32(drInvalidInode):
+			pr.failureCounters[drInvalidInode].Inc()
+			return "", ErrDrInvalidInode
+		case uint32(drDentryDiscarded):
+			pr.failureCounters[drDentryDiscarded].Inc()
+			return "", ErrDrDentryDiscarded
+		case uint32(drDentryResolution):
+			pr.failureCounters[drDentryResolution].Inc()
+			return "", ErrDrDentryResolution
+		case uint32(drDentryBadName):
+			pr.failureCounters[drDentryBadName].Inc()
+			return "", ErrDrDentryBadName
+		case uint32(drDentryMaxTailCall):
+			pr.failureCounters[drDentryMaxTailCall].Inc()
+			return "", ErrDrDentryMaxTailCall
+		default:
+			pr.failureCounters[pathRefLengthTooBig].Inc()
+			return "", ErrPathRefLengthTooBig
+		}
+	}
+
+	if ref.Length == 0 {
+		pr.failureCounters[pathRefLengthZero].Inc()
+		return "", ErrPathRefLengthZero
+	}
+
+	if ref.Length <= 2*WatermarkSize {
+		pr.failureCounters[pathRefLengthTooSmall].Inc()
+		return "", ErrPathRefLengthTooSmall
 	}
 
 	if ref.ReadCursor > PathRingBuffersSize {
-		pr.failureCounters[outOfBounds].Inc()
-		return "", fmt.Errorf("path ref read cursor is out-of-bounds: %d", ref.ReadCursor)
+		pr.failureCounters[pathRefReadCursorOOB].Inc()
+		return "", ErrPathRefReadCursorOOB
 	}
 
 	if ref.CPU >= uint32(pr.numCPU) {
-		pr.failureCounters[invalidCPU].Inc()
-		return "", fmt.Errorf("path ref CPU number is invalid: %d", ref.CPU)
+		pr.failureCounters[pathRefInvalidCPU].Inc()
+		return "", ErrPathRefInvalidCPU
 	}
 
 	cpuOffset := ref.CPU * PathRingBuffersSize
@@ -244,27 +251,32 @@ func (pr *PathRingsResolver) resolvePathFromRingBuffers(ref *model.PathRingBuffe
 	pr.watermarkBuffer.Reset()
 	if readOffset+WatermarkSize > PathRingBuffersSize {
 		if _, err := pr.watermarkBuffer.Write(pr.pathRings[cpuOffset+readOffset : cpuOffset+PathRingBuffersSize]); err != nil {
-			return "", err
+			pr.failureCounters[pathRingsReadOverflow].Inc()
+			return "", ErrPathRingsReadOverflow
 		}
 		remaining := WatermarkSize - (PathRingBuffersSize - readOffset)
 		if _, err := pr.watermarkBuffer.Write(pr.pathRings[cpuOffset : cpuOffset+remaining]); err != nil {
-			return "", err
+			pr.failureCounters[pathRingsReadOverflow].Inc()
+			return "", ErrPathRingsReadOverflow
 		}
 		readOffset = remaining
 	} else {
 		if _, err := pr.watermarkBuffer.Write(pr.pathRings[cpuOffset+readOffset : cpuOffset+readOffset+WatermarkSize]); err != nil {
-			return "", err
+			pr.failureCounters[pathRingsReadOverflow].Inc()
+			return "", ErrPathRingsReadOverflow
 		}
 		readOffset += WatermarkSize
 	}
 
 	if pr.watermarkBuffer.Len() != int(WatermarkSize) {
-		return "", fmt.Errorf("front watermark has invalid size: %d", pr.watermarkBuffer.Len())
+		pr.failureCounters[invalidFrontWatermarkSize].Inc()
+		return "", ErrInvalidFrontWatermarkSize
 	}
 
 	frontWatermark := model.ByteOrder.Uint64(pr.watermarkBuffer.Bytes())
 	if frontWatermark != ref.Watermark {
-		return "", fmt.Errorf("front waterwark has invalid value")
+		pr.failureCounters[frontWatermarkValueMismatch].Inc()
+		return "", ErrFrontWatermarkValueMismatch
 	}
 
 	var pathStr string
@@ -284,27 +296,32 @@ func (pr *PathRingsResolver) resolvePathFromRingBuffers(ref *model.PathRingBuffe
 	pr.watermarkBuffer.Reset()
 	if readOffset+WatermarkSize > PathRingBuffersSize {
 		if _, err := pr.watermarkBuffer.Write(pr.pathRings[cpuOffset+readOffset : cpuOffset+PathRingBuffersSize]); err != nil {
-			return "", err
+			pr.failureCounters[pathRingsReadOverflow].Inc()
+			return "", ErrPathRingsReadOverflow
 		}
 		remaining := WatermarkSize - (PathRingBuffersSize - readOffset)
 		if _, err := pr.watermarkBuffer.Write(pr.pathRings[cpuOffset : cpuOffset+remaining]); err != nil {
-			return "", err
+			pr.failureCounters[pathRingsReadOverflow].Inc()
+			return "", ErrPathRingsReadOverflow
 		}
 		readOffset = remaining
 	} else {
 		if _, err := pr.watermarkBuffer.Write(pr.pathRings[cpuOffset+readOffset : cpuOffset+readOffset+WatermarkSize]); err != nil {
-			return "", err
+			pr.failureCounters[pathRingsReadOverflow].Inc()
+			return "", ErrPathRingsReadOverflow
 		}
 		readOffset += WatermarkSize
 	}
 
 	if pr.watermarkBuffer.Len() != int(WatermarkSize) {
-		return "", fmt.Errorf("back watermark has invalid size: %d", pr.watermarkBuffer.Len())
+		pr.failureCounters[invalidBackWatermarkSize].Inc()
+		return "", ErrInvalidBackWatermarkSize
 	}
 
 	backWatermark := model.ByteOrder.Uint64(pr.watermarkBuffer.Bytes())
 	if backWatermark != ref.Watermark {
-		return "", fmt.Errorf("back waterwark has invalid value")
+		pr.failureCounters[backWatermarkValueMismatch].Inc()
+		return "", ErrBackWatermarkValueMismatch
 	}
 
 	pr.successCounter.Inc()
@@ -373,11 +390,11 @@ func (pr *PathRingsResolver) resolvePathFromERPC(ref *model.PathRingBufferRef) (
 func (pr *PathRingsResolver) resolvePathFromCache(key *model.DentryKey) string {
 	path, ok := pr.pathCache.Get(*key)
 	if !ok {
-		pr.cacheMiss.Inc()
+		pr.cacheMissCounter.Inc()
 		return ""
 	}
 
-	pr.cacheHit.Inc()
+	pr.cacheHitCounter.Inc()
 	return path
 }
 
@@ -411,6 +428,7 @@ func (pr *PathRingsResolver) resolvePath(ref *model.PathRingBufferRef, key *mode
 			return path, nil
 		}
 	}
+
 	return path, err
 }
 
@@ -541,28 +559,30 @@ func (pr *PathRingsResolver) Close() error {
 }
 
 func (pr *PathRingsResolver) SendStats() error {
-	for cause, counter := range pr.failureCounters {
-		val := counter.Swap(0)
-		if val > 0 {
-			tags := []string{fmt.Sprintf("cause:%s", pathResolutionFailureCause(cause).String())}
-			_ = pr.statsdClient.Count(metrics.MetricPathResolutionFailure, val, tags, 1.0)
+	if pr.opts.UseRingBuffers {
+		for cause, counter := range pr.failureCounters {
+			val := counter.Swap(0)
+			if val > 0 {
+				tags := []string{fmt.Sprintf("cause:%s", pathRingsResolutionFailureCause(cause).String())}
+				_ = pr.statsdClient.Count(metrics.MetricPathResolutionFailure, val, tags, 1.0)
+			}
 		}
-	}
 
-	val := pr.successCounter.Swap(0)
-	if val > 0 {
-		_ = pr.statsdClient.Count(metrics.MetricPathResolutionSuccess, val, []string{}, 1.0)
+		val := pr.successCounter.Swap(0)
+		if val > 0 {
+			_ = pr.statsdClient.Count(metrics.MetricPathResolutionSuccess, val, []string{}, 1.0)
+		}
 	}
 
 	if pr.opts.PathCacheSize > 0 {
 		var val int64
-		val = pr.cacheHit.Swap(0)
-		if val > 0 {
-			_ = pr.statsdClient.Count(metrics.MetricPathResolutionCacheHit, val, []string{}, 1.0)
-		}
-		val = pr.cacheMiss.Swap(0)
+		val = pr.cacheMissCounter.Swap(0)
 		if val > 0 {
 			_ = pr.statsdClient.Count(metrics.MetricPathResolutionCacheMiss, val, []string{}, 1.0)
+		}
+		val = pr.cacheHitCounter.Swap(0)
+		if val > 0 {
+			_ = pr.statsdClient.Count(metrics.MetricPathResolutionCacheHit, val, []string{}, 1.0)
 		}
 	}
 

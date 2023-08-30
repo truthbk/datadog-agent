@@ -64,7 +64,7 @@ int __attribute__((always_inline)) resolve_dentry_chain(void *ctx, struct dentry
             map_value.parent.ino = 0;
             map_value.parent.mount_id = 0;
             bpf_map_update_elem(&dentries, &key, &map_value, BPF_ANY);
-            return DENTRY_ERROR;
+            return DENTRY_BAD_NAME;
         }
 
         if (len == 2 && name[0] == '/') {
@@ -99,7 +99,7 @@ int __attribute__((always_inline)) resolve_dentry_chain(void *ctx, struct dentry
         map_value.parent.mount_id = 0;
         map_value.parent.ino = 0;
         bpf_map_update_elem(&dentries, &next_key, &map_value, BPF_ANY);
-        return DENTRY_ERROR;
+        return DENTRY_MAX_TAIL_CALL;
     }
 
     // prepare for the next iteration
@@ -138,6 +138,7 @@ int __attribute__((always_inline)) dentry_resolver_loop(void *ctx, int dr_type) 
         rb_push_watermark(rb, rb_ctx);
     } else {
         rb_cleanup_ctx(rb_ctx);
+        rb_ctx->len = ~0 + syscall->resolver.ret;
     }
 
     if (syscall->resolver.callback >= 0) {
