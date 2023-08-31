@@ -161,6 +161,34 @@ func TestPathPatternBuilder(t *testing.T) {
 			ExpectedResult:  false,
 			ExpectedPattern: "",
 		},
+		{
+			Pattern:         "/var/run/1234/http.pid",
+			Path:            "/var/run/4321/http.pid",
+			Opts:            PathPatternBuilderOpts{WildcardLimit: 1, NodeSizeLimit: 10},
+			ExpectedResult:  false,
+			ExpectedPattern: "",
+		},
+		{
+			Pattern:         "/var/run/1234/mysql.pid",
+			Path:            "/var/run/4321/mysql.pid",
+			Opts:            PathPatternBuilderOpts{WildcardLimit: 1, NodeSizeLimit: 4},
+			ExpectedResult:  true,
+			ExpectedPattern: "/var/run/*/mysql.pid",
+		},
+		{
+			Pattern:         "/var/run/*/nginx.pid",
+			Path:            "/var/run/4321/nginx.pid",
+			Opts:            PathPatternBuilderOpts{WildcardLimit: 1, NodeSizeLimit: 10},
+			ExpectedResult:  false,
+			ExpectedPattern: "",
+		},
+		{
+			Pattern:         "/var/run/*/samba.pid",
+			Path:            "/var/run/4321/samba.pid",
+			Opts:            PathPatternBuilderOpts{WildcardLimit: 1, NodeSizeLimit: 4},
+			ExpectedResult:  true,
+			ExpectedPattern: "/var/run/*/samba.pid",
+		},
 	}
 
 	for _, test := range tests {
