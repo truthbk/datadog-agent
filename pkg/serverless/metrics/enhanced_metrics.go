@@ -210,6 +210,7 @@ func GenerateEnhancedMetricsFromReportLog(args GenerateEnhancedMetricsFromReport
 			Timestamp:  timestamp,
 		})
 	}
+	log.Debug("done aggregating samples from report log")
 }
 
 // SendOutOfMemoryEnhancedMetric sends an enhanced metric representing a function running out of memory at a given time
