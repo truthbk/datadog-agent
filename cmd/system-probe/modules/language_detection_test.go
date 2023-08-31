@@ -9,6 +9,7 @@ package modules
 
 import (
 	"bytes"
+	"github.com/davecgh/go-spew/spew"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -56,14 +57,14 @@ func TestLanguageDetectionEndpoint(t *testing.T) {
 	err = proto.Unmarshal(resBytes, &detectLanguageResponse)
 	require.NoError(t, err)
 
-	assert.True(t, proto.Equal(
-		&languageDetectionProto.DetectLanguageResponse{
-			Languages: []*languageDetectionProto.Language{{
-				Name:    string(mockGoLanguage.Name),
-				Version: mockGoLanguage.Version,
-			}}},
-		&detectLanguageResponse,
-	))
+	expected := &languageDetectionProto.DetectLanguageResponse{
+		Languages: []*languageDetectionProto.Language{{
+			Name:    string(mockGoLanguage.Name),
+			Version: mockGoLanguage.Version,
+		}}}
+	assert.True(t,
+		proto.Equal(expected, &detectLanguageResponse),
+		"expected:\n%v\nactual:\n%v", spew.Sdump(expected), spew.Sdump(&detectLanguageResponse))
 }
 
 type mockDetector struct {
