@@ -71,7 +71,7 @@ var (
 			},
 		},
 		{
-			ProgArrayName: probes.TCPCloseProgsMap,
+			ProgArrayName: probes.CloseProgsMap,
 			Key:           0,
 			ProbeIdentificationPair: manager.ProbeIdentificationPair{
 				EBPFFuncName: probes.ConnCloseBatchFlushProgram,
@@ -237,7 +237,7 @@ func loadTracerFromAsset(buf bytecode.AssetReader, runtimeTracer, coreTracer boo
 
 	kv, err := kernel.HostVersion()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if kv < kernel.VersionCode(4, 11, 0) {
 		tracerTailCalls[0].ProbeIdentificationPair.EBPFFuncName = probes.ConnCloseBatchFlushProgramPre4110

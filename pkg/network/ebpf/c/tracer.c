@@ -1016,7 +1016,7 @@ static __always_inline int handle_udp_destroy_sock(void *ctx, u64 pid_tgid, clos
     }
 
     port_binding_t pb = {};
-    pb.netns = get_netns_from_sock(skp);
+    pb.netns = get_netns_from_sock(sk);
     pb.port = lport;
     remove_port_bind(&pb, &udp_port_bindings);
 
