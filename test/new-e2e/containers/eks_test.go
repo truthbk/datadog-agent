@@ -41,9 +41,9 @@ func TestEKSSuite(t *testing.T) {
 	_, stackOutput, err := infra.GetStackManager().GetStack(ctx, "eks-cluster", stackConfig, eks.Run, false)
 	require.NoError(t, err)
 
-	t.Cleanup(func() {
-		infra.GetStackManager().DeleteStack(ctx, "eks-cluster")
-	})
+	// t.Cleanup(func() {
+	// 	infra.GetStackManager().DeleteStack(ctx, "eks-cluster")
+	// })
 
 	fakeintakeHost := stackOutput.Outputs["fakeintake-host"].Value.(string)
 	kubeconfig, err := json.Marshal(stackOutput.Outputs["kubeconfig"].Value.(map[string]interface{}))
