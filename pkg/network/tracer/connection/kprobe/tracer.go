@@ -59,9 +59,6 @@ var (
 				UID:          probeUID,
 			},
 		},
-	}
-
-	tracerTailCalls = []manager.TailCallRoute{
 		{
 			ProgArrayName: probes.ClassificationProgsMap,
 			Key:           netebpf.ClassificationGRPC,
@@ -70,6 +67,9 @@ var (
 				UID:          probeUID,
 			},
 		},
+	}
+
+	tracerTailCalls = []manager.TailCallRoute{
 		{
 			ProgArrayName: probes.CloseProgsMap,
 			Key:           0,
