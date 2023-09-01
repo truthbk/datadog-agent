@@ -57,7 +57,6 @@ var bpfMapNames = []string{
 	"pid_cache",
 	"pid_discarders",
 	"pid_ignored",
-	"pipefs_mountid",
 	"proc_cache",
 	"process_event_g",
 	"register_netdev",
