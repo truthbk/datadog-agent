@@ -3692,4 +3692,175 @@ var activityTreeInsertExecEventTestCases = []struct {
 			},
 		},
 	},
+	{
+		name: "exec/23",
+		tree: &ActivityTree{
+			validator: activityTreeInsertTestValidator{},
+			Stats:     NewActivityTreeNodeStats(),
+			ProcessNodes: []*ProcessNode{
+				{
+					Process: model.Process{
+						IsExecChild: false,
+						FileEvent: model.FileEvent{
+							PathnameStr: "/bin/dash",
+						},
+					},
+					Children: []*ProcessNode{
+						{
+							Process: model.Process{
+								IsExecChild: false,
+								FileEvent: model.FileEvent{
+									PathnameStr: "/bin/bash",
+								},
+							},
+							Children: []*ProcessNode{
+								{
+									Process: model.Process{
+										IsExecChild: false,
+										FileEvent: model.FileEvent{
+											PathnameStr: "/bin/python",
+										},
+									},
+								},
+							},
+						},
+						{
+							Process: model.Process{
+								IsExecChild: false,
+								FileEvent: model.FileEvent{
+									PathnameStr: "/bin/ddtrace",
+								},
+							},
+							Children: []*ProcessNode{
+								{
+									Process: model.Process{
+										IsExecChild: true,
+										FileEvent: model.FileEvent{
+											PathnameStr: "/bin/uwsgi",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		inputEvent: newExecTestEventWithAncestors([]model.Process{
+			{
+				IsExecChild: false,
+				ContainerID: "123",
+				FileEvent: model.FileEvent{
+					PathnameStr: "/bin/dash",
+					FileFields: model.FileFields{
+						PathKey: model.PathKey{
+							Inode: 4,
+						},
+					},
+				},
+			},
+			{
+				IsExecChild: false,
+				ContainerID: "123",
+				FileEvent: model.FileEvent{
+					PathnameStr: "/bin/bash",
+					FileFields: model.FileFields{
+						PathKey: model.PathKey{
+							Inode: 5,
+						},
+					},
+				},
+			},
+			{
+				IsExecChild: false,
+				ContainerID: "123",
+				FileEvent: model.FileEvent{
+					PathnameStr: "/bin/dtrace",
+					FileFields: model.FileFields{
+						PathKey: model.PathKey{
+							Inode: 6,
+						},
+					},
+				},
+			},
+			{
+				IsExecChild: true,
+				ContainerID: "123",
+				FileEvent: model.FileEvent{
+					PathnameStr: "/bin/uwsgi",
+					FileFields: model.FileFields{
+						PathKey: model.PathKey{
+							Inode: 7,
+						},
+					},
+				},
+			},
+		}),
+		wantNode: &ProcessNode{
+			Process: model.Process{
+				FileEvent: model.FileEvent{
+					PathnameStr: "/bin/uwsgi",
+				},
+			},
+		},
+		wantNewEntry: true,
+		wantTree: &ActivityTree{
+			ProcessNodes: []*ProcessNode{
+				{
+					Process: model.Process{
+						IsExecChild: false,
+						FileEvent: model.FileEvent{
+							PathnameStr: "/bin/0",
+						},
+					},
+					Children: []*ProcessNode{
+						{
+							Process: model.Process{
+								IsExecChild: false,
+								FileEvent: model.FileEvent{
+									PathnameStr: "/bin/1",
+								},
+							},
+							Children: []*ProcessNode{
+								{
+									Process: model.Process{
+										IsExecChild: true,
+										FileEvent: model.FileEvent{
+											PathnameStr: "/bin/2",
+										},
+									},
+								},
+								{
+									Process: model.Process{
+										IsExecChild: true,
+										FileEvent: model.FileEvent{
+											PathnameStr: "/bin/3",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				{
+					Process: model.Process{
+						IsExecChild: false,
+						FileEvent: model.FileEvent{
+							PathnameStr: "/bin/4",
+						},
+					},
+					Children: []*ProcessNode{
+						{
+							Process: model.Process{
+								IsExecChild: true,
+								FileEvent: model.FileEvent{
+									PathnameStr: "/bin/2",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	},
 }
