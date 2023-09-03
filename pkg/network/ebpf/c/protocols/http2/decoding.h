@@ -156,6 +156,14 @@ static __always_inline bool parse_field_literal(struct __sk_buff *skb, skb_info_
     headers_to_process->new_dynamic_value_offset = skb_info->data_off;
     headers_to_process->new_dynamic_value_size = str_len;
     (*interesting_headers_counter)++;
+    if (str_len == 11){
+        char buf[11] = {};
+        bpf_skb_load_bytes(skb, skb_info->data_off, &buf, 11);
+        log_debug("http2 suspicious header %d %d %d", buf[0], buf[1], buf[2]);
+        log_debug("http2 suspicious header %d %d %d", buf[3], buf[4], buf[5]);
+        log_debug("http2 suspicious header %d %d %d", buf[6], buf[7], buf[8]);
+        log_debug("http2 suspicious header %d %d", buf[9], buf[10]);
+    }
 end:
     skb_info->data_off += str_len;
     return true;
