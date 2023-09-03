@@ -8,6 +8,7 @@
 package http2
 
 import (
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"strings"
 
 	"golang.org/x/net/http2/hpack"
@@ -20,17 +21,20 @@ import (
 // Path returns the URL from the request fragment captured in eBPF.
 func (tx *EbpfTx) Path(buffer []byte) ([]byte, bool) {
 	if tx.Path_size == 0 || int(tx.Path_size) > len(tx.Request_path) {
+		log.Debugf("http2 path error: %d %d %d", tx.Path_size, int(tx.Path_size), len(tx.Request_path))
 		return nil, false
 	}
 
 	// trim null byte + after
 	str, err := hpack.HuffmanDecodeToString(tx.Request_path[:tx.Path_size])
 	if err != nil {
+		log.Debugf("http2 path huffman decode error: %+v", tx.Request_path[:tx.Path_size])
 		return nil, false
 	}
 
 	// ensure we found a '/' in the beginning of the path
 	if len(str) == 0 || str[0] != '/' {
+		log.Debugf("http2 path error2: %d; %q", len(str), str)
 		return nil, false
 	}
 
