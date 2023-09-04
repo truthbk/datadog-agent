@@ -5,6 +5,8 @@
 
 #include "protocols/events-types.h"
 
+#define _STR(x) #x
+
 /* USM_EVENTS_INIT defines two functions used for the purposes of buffering and sending
    data to userspace:
    1) <name>_batch_enqueue
@@ -39,7 +41,7 @@
             /* batch is not ready to be flushed */                                                      \
             return;                                                                                     \
         }                                                                                               \
-        _Pragma( STR(unroll(BATCH_PAGES_PER_CPU)) )                                                     \
+        _Pragma( _STR(unroll(BATCH_PAGES_PER_CPU)) )                                                     \
             for (int i = 0; i < BATCH_PAGES_PER_CPU; i++) {                                             \
                 if (batch_state->idx_to_flush == batch_state->idx) return;                              \
                                                                                                         \
@@ -129,7 +131,6 @@ static __always_inline bool __enqueue_event(batch_data_t *batch, void *event, si
     return true;
 }
 
-#define _STR(x) #x
 #define _LOG(protocol, message, args...) \
     log_debug(_STR(protocol) " " message, args);
 
