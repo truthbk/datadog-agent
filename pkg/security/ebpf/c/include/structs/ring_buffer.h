@@ -1,7 +1,7 @@
 #ifndef _STRUCTS_RING_BUFFER_H_
 #define _STRUCTS_RING_BUFFER_H_
 
-#define RING_BUFFER_SIZE 131072
+#define RING_BUFFER_SIZE 524288
 
 struct ring_buffer_t {
     char buffer[RING_BUFFER_SIZE];

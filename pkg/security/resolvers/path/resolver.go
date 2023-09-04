@@ -96,7 +96,7 @@ func (n *NoResolver) Close() error {
 
 const (
 	// PathRingBuffersSize is the size of each core ringbuffer
-	PathRingBuffersSize = uint32(131072)
+	PathRingBuffersSize = uint32(524288)
 	// WatermarkSize is the number of bytes of a watermark value
 	WatermarkSize = uint32(8)
 )
