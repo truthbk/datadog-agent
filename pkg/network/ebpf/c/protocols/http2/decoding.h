@@ -270,6 +270,12 @@ static __always_inline void process_headers(struct __sk_buff *skb, dynamic_table
             }
             current_stream->path_size = dynamic_value->string_len;
             bpf_memcpy(current_stream->request_path, dynamic_value->buffer, HTTP2_MAX_PATH_LEN);
+            if (dynamic_value->string_len == 11){
+                log_debug("http21 suspicious header %d %d %d", dynamic_value->buffer[0], dynamic_value->buffer[1], dynamic_value->buffer[2]);
+                log_debug("http21 suspicious header %d %d %d", dynamic_value->buffer[3], dynamic_value->buffer[4], dynamic_value->buffer[5]);
+                log_debug("http21 suspicious header %d %d %d", dynamic_value->buffer[6], dynamic_value->buffer[7], dynamic_value->buffer[8]);
+                log_debug("http21 suspicious header %d %d", dynamic_value->buffer[9], dynamic_value->buffer[10]);
+            }
         } else {
             dynamic_value.string_len = current_header->new_dynamic_value_size;
 
@@ -278,6 +284,12 @@ static __always_inline void process_headers(struct __sk_buff *skb, dynamic_table
             bpf_map_update_elem(&http2_dynamic_table, dynamic_index, &dynamic_value, BPF_ANY);
             current_stream->path_size = current_header->new_dynamic_value_size;
             bpf_memcpy(current_stream->request_path, dynamic_value.buffer, HTTP2_MAX_PATH_LEN);
+            if (dynamic_value.string_len == 11){
+                log_debug("http22 suspicious header %d %d %d", dynamic_value.buffer[0], dynamic_value.buffer[1], dynamic_value.buffer[2]);
+                log_debug("http22 suspicious header %d %d %d", dynamic_value.buffer[3], dynamic_value.buffer[4], dynamic_value.buffer[5]);
+                log_debug("http22 suspicious header %d %d %d", dynamic_value.buffer[6], dynamic_value.buffer[7], dynamic_value.buffer[8]);
+                log_debug("http22 suspicious header %d %d", dynamic_value.buffer[9], dynamic_value.buffer[10]);
+            }
         }
     }
 }
