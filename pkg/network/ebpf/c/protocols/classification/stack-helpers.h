@@ -82,7 +82,7 @@ static __always_inline void mark_as_fully_classified(protocol_stack_t *stack) {
 
 
 // get_protocol_from_stack returns the `protocol_t` value that belongs to the given `layer`
-// Example: If we had a `protocol_stack_t` with HTTP, calling `get_protocol_from_stack(stack, LAYER_APPLICATION)
+// Example: If we had a `protocol_stack_t` with HTTP, calling `get_protocol_from_stack(stack, LAYER_APPLICATION)`
 // would return PROTOCOL_HTTP;
 __maybe_unused static __always_inline protocol_t get_protocol_from_stack(protocol_stack_t *stack, protocol_layer_t layer) {
     if (!stack) {
