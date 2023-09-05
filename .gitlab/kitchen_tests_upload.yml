@@ -2,6 +2,8 @@ kitchen_tests_upload_common:
   stage: kitchen_tests_upload
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/datadog-ci-uploader$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   tags: ["arch:amd64"]
+  rules:
+    !reference [.on_kitchen_tests]
   allow_failure: true
   when: always
   dependencies:

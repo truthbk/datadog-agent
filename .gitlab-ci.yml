@@ -318,6 +318,13 @@ workflow:
 .manual:
   - <<: *when_manual
 
+.on_packages:
+  - <<: *if_not_version_6
+    when: never
+  - <<: *if_stable
+  - <<: *if_deploy
+  - <<: *omnibus_changes
+
 .on_a6:
   - <<: *if_version_6
 
@@ -702,6 +709,14 @@ workflow:
     when: always
   - <<: *if_stable
     when: always
+
+.on_kitchen_tests:
+  - <<: *if_not_kitchen
+    when: never
+  - <<: *if_stable
+  - <<: *if_deploy
+  - <<: *if_kitchen
+  - <<: *omnibus_changes
 
 .on_kitchen_tests_a6:
   - <<: *if_not_version_6
