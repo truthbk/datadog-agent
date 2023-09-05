@@ -50,7 +50,7 @@ type searchPaths map[string]string
 
 // CompleteFlare packages up the files with an already created builder. This is aimed to be used by the flare
 // component while we migrate to a component architecture.
-func CompleteFlare(fb flarehelpers.FlareBuilder, senderManager sender.SenderManager) error {
+func CompleteFlare(fb flarehelpers.FlareBuilder, senderManager sender.DiagnoseSenderManager) error {
 	/** WARNING
 	 *
 	 * When adding data to flares, carefully analyze what is being added and ensure that it contains no credentials
@@ -299,7 +299,7 @@ func getProcessChecks(fb flarehelpers.FlareBuilder, getAddressPort func() (url s
 	getCheck("process_discovery", "process_config.process_discovery.enabled")
 }
 
-func getDiagnoses(senderManager sender.SenderManager) ([]byte, error) {
+func getDiagnoses(senderManager sender.DiagnoseSenderManager) ([]byte, error) {
 	fct := func(w io.Writer) error {
 		// Run agent diagnose command to be verbose and remote. If Agent is running small performance hit
 		// since this code will get diagnoses using Agent’s local port listener (instead of calling a

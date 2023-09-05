@@ -45,3 +45,21 @@ type SenderManager interface {
 	DestroySender(id checkid.ID)
 	GetDefaultSender() (Sender, error)
 }
+
+// DiagnoseSenderManager is a temporary code to spot where aggregator.InitAndStartAgentDemultiplexer from
+// https://github.com/DataDog/datadog-agent/blob/7.48.x/pkg/diagnose/check.go#L111C1-L111C1
+// is used.
+type DiagnoseSenderManager interface {
+	SenderManager
+	foo()
+}
+
+type DiagnoseSenderManagerWrapper struct {
+	SenderManager
+}
+
+func (DiagnoseSenderManagerWrapper) foo() {}
+
+func CreateDiagnoseSenderManager(senderManager SenderManager) DiagnoseSenderManagerWrapper {
+	return DiagnoseSenderManagerWrapper{SenderManager: senderManager}
+}

@@ -56,7 +56,7 @@ func StartServer(
 	capture replay.Component,
 	serverDebug dogstatsdDebug.Component,
 	logsAgent pkgUtil.Optional[logsAgent.Component],
-	senderManager sender.SenderManager,
+	senderManager sender.DiagnoseSenderManager,
 ) error {
 	initializeTLS()
 

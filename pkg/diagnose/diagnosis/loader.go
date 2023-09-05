@@ -30,7 +30,7 @@ func RegisterMetadataAvail(name string, d MetadataAvailDiagnose) {
 // Diagnose (all subcommand)
 
 // Diagnose interface function
-type Diagnose func(Config, sender.SenderManager) []Diagnosis
+type Diagnose func(Config, sender.DiagnoseSenderManager) []Diagnosis
 
 // Global list of registered Diagnose functions
 var Catalog = make([]Suite, 0)

@@ -25,7 +25,7 @@ import (
 )
 
 // CreateDCAArchive packages up the files
-func CreateDCAArchive(local bool, distPath, logFilePath string, senderManager sender.SenderManager) (string, error) {
+func CreateDCAArchive(local bool, distPath, logFilePath string, senderManager sender.DiagnoseSenderManager) (string, error) {
 	fb, err := flarehelpers.NewFlareBuilder(local)
 	if err != nil {
 		return "", err
@@ -40,7 +40,7 @@ func CreateDCAArchive(local bool, distPath, logFilePath string, senderManager se
 	return fb.Save()
 }
 
-func createDCAArchive(fb flarehelpers.FlareBuilder, confSearchPaths map[string]string, logFilePath string, senderManager sender.SenderManager) {
+func createDCAArchive(fb flarehelpers.FlareBuilder, confSearchPaths map[string]string, logFilePath string, senderManager sender.DiagnoseSenderManager) {
 	// If the request against the API does not go through we don't collect the status log.
 	if fb.IsLocal() {
 		fb.AddFile("local", nil)
@@ -151,7 +151,7 @@ func getClusterAgentConfigCheck(fb flarehelpers.FlareBuilder) error {
 	return fb.AddFile("config-check.log", b.Bytes())
 }
 
-func getClusterAgentDiagnose(fb flarehelpers.FlareBuilder, senderManager sender.SenderManager) error {
+func getClusterAgentDiagnose(fb flarehelpers.FlareBuilder, senderManager sender.DiagnoseSenderManager) error {
 	var b bytes.Buffer
 
 	writer := bufio.NewWriter(&b)
