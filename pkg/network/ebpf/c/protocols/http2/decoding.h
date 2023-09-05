@@ -13,17 +13,20 @@
 #include "protocols/http/types.h"
 #include "protocols/classification/defs.h"
 
+// TODO: Share with TLS
 // returns true if the given index is one of the relevant headers we care for in the static table.
 // The full table can be found in the user mode code `createStaticTable`.
 static __always_inline bool is_interesting_static_entry(const __u64 index) {
     return (1 < index && index < 6) || (7 < index && index < 15);
 }
 
+// TODO: Share with TLS
 // returns true if the given index is below MAX_STATIC_TABLE_INDEX.
 static __always_inline bool is_static_table_entry(const __u64 index) {
     return index <= MAX_STATIC_TABLE_INDEX;
 }
 
+// TODO: Share with TLS
 // http2_fetch_stream returns the current http2 in flight stream.
 static __always_inline http2_stream_t *http2_fetch_stream(const http2_stream_key_t *http2_stream_key) {
     http2_stream_t *http2_stream_ptr = bpf_map_lookup_elem(&http2_in_flight, http2_stream_key);
@@ -81,6 +84,7 @@ static __always_inline bool read_var_int(struct __sk_buff *skb, skb_info_t *skb_
     return read_var_int_with_given_current_char(skb, skb_info, current_char_as_number, max_number_for_bits, out);
 }
 
+// TODO: Share with TLS
 //get_dynamic_counter returns the current dynamic counter by the conn tup.
 static __always_inline __u64* get_dynamic_counter(conn_tuple_t *tup) {
     // global counter is the counter which help us with the calc of the index in our internal hpack dynamic table
@@ -93,6 +97,7 @@ static __always_inline __u64* get_dynamic_counter(conn_tuple_t *tup) {
     return bpf_map_lookup_elem(&http2_dynamic_counter_table, tup);
 }
 
+// TODO: Share with TLS
 // parse_field_indexed is handling the case which the header frame is part of the static table.
 static __always_inline void parse_field_indexed(dynamic_table_index_t *dynamic_index, http2_header_t *headers_to_process, __u8 index, __u64 global_dynamic_counter, __u8 *interesting_headers_counter){
     if (headers_to_process == NULL) {
@@ -274,6 +279,7 @@ static __always_inline void process_headers(struct __sk_buff *skb, dynamic_table
     }
 }
 
+// TODO: Share with TLS
 static __always_inline void handle_end_of_stream(http2_stream_t *current_stream, http2_stream_key_t *http2_stream_key_template) {
     if (!current_stream->request_end_of_stream) {
         current_stream->request_end_of_stream = true;
@@ -326,6 +332,7 @@ static __always_inline void parse_frame(struct __sk_buff *skb, skb_info_t *skb_i
     return;
 }
 
+// TODO: Share with TLS
 // A similar implementation of read_http2_frame_header, but instead of getting both a char array and an out parameter,
 // we get only the out parameter (equals to struct http2_frame * representation of the char array) and we perform the
 // field adjustments we have in read_http2_frame_header.

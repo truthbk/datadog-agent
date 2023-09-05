@@ -73,6 +73,8 @@ static __always_inline void tls_process(conn_tuple_t *t, void *buffer_ptr, size_
         http_process(&http, NULL, tags);
         break;
     case PROTOCOL_HTTP2:
+        // save buffer, and len into my special struct and save in a per-cpu array
+        // then tail call
         log_debug("http2 tls guy");
         break;
     default:

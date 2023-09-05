@@ -23,4 +23,17 @@ typedef struct {
     skb_info_t skb_info;
 } dispatcher_arguments_t;
 
+typedef struct {
+    char *buffer_ptr;
+    __u32 data_off;
+    __u32 data_len;
+} buffer_info_t;
+
+typedef struct {
+    conn_tuple_t tup;
+    char *buffer_ptr;
+    __u32 data_off;
+    __u32 data_len;
+} tls_dispatcher_arguments_t;
+
 #endif

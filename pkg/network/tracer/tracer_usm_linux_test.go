@@ -8,11 +8,16 @@
 package tracer
 
 import (
+	gogrpc "google.golang.org/grpc"
+
 	"bufio"
 	"context"
 	"crypto/tls"
 	"fmt"
+	pb "github.com/moul/pb/grpcbin/go-grpc"
+	"google.golang.org/grpc/credentials"
 	"io"
+	"log"
 	"math/rand"
 	"net"
 	nethttp "net/http"
@@ -1353,4 +1358,32 @@ func testHTTPSClassification(t *testing.T, tr *Tracer, clientHost, targetHost, s
 			testProtocolClassificationInner(t, tt, tr)
 		})
 	}
+}
+
+func TestBla(t *testing.T) {
+	cfg := config.New()
+	cfg.BPFDebug = true
+	cfg.EnableGoTLSSupport = true
+	cfg.EnableHTTP2Monitoring = true
+	tr := setupTracer(t, cfg)
+	_ = tr
+
+	// dial
+	// conn, _ := grpc.Dial("grpcb.in:9000", grpc.WithInsecure())
+	conn, _ := gogrpc.Dial("grpcb.in:9001", gogrpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{ServerName: "", InsecureSkipVerify: true})))
+	defer conn.Close()
+
+	// create client and context
+	client := pb.NewGRPCBinClient(conn)
+	ctx := context.Background()
+
+	// call DummyUnary
+	res, err := client.DummyUnary(ctx, &pb.DummyMessage{
+		FString: "hello",
+		FInt32:  42,
+	})
+	if err != nil {
+		log.Fatalf("failed to call DummyUnary: %v", err)
+	}
+	fmt.Println(res)
 }
