@@ -214,7 +214,7 @@ func (p *Pipeline) Stop() {
 }
 
 // BuildAndStart builds and starts an OTLP pipeline
-func BuildAndStart(ctx context.Context, cfg config.Config, s serializer.MetricSerializer, logsAgentChannel chan *message.Message) (*Pipeline, error) {
+func BuildAndStart(ctx context.Context, cfg config.ConfigReader, s serializer.MetricSerializer, logsAgentChannel chan *message.Message) (*Pipeline, error) {
 	p, err := NewPipelineFromAgentConfig(cfg, s, logsAgentChannel)
 	if err != nil {
 		return nil, err
@@ -229,7 +229,8 @@ func BuildAndStart(ctx context.Context, cfg config.Config, s serializer.MetricSe
 	return p, nil
 }
 
-func NewPipelineFromAgentConfig(cfg config.Config, s serializer.MetricSerializer, logsAgentChannel chan *message.Message) (*Pipeline, error) {
+// NewPipelineFromAgentConfig returns a Pipeline from the configuration given in parameter
+func NewPipelineFromAgentConfig(cfg config.ConfigReader, s serializer.MetricSerializer, logsAgentChannel chan *message.Message) (*Pipeline, error) {
 	pcfg, err := FromAgentConfig(cfg)
 	if err != nil {
 		pipelineError.Store(fmt.Errorf("config error: %w", err))

@@ -49,6 +49,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/logs"
 	logsAgent "github.com/DataDog/datadog-agent/comp/logs/agent"
 	"github.com/DataDog/datadog-agent/comp/metadata"
+	"github.com/DataDog/datadog-agent/comp/metadata/host"
 	"github.com/DataDog/datadog-agent/comp/metadata/runner"
 	"github.com/DataDog/datadog-agent/comp/remote-config/rcclient"
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
@@ -63,7 +64,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
 	adScheduler "github.com/DataDog/datadog-agent/pkg/logs/schedulers/ad"
 	pkgMetadata "github.com/DataDog/datadog-agent/pkg/metadata"
-	"github.com/DataDog/datadog-agent/pkg/metadata/host"
 	"github.com/DataDog/datadog-agent/pkg/metadata/inventories"
 	"github.com/DataDog/datadog-agent/pkg/netflow"
 	"github.com/DataDog/datadog-agent/pkg/otlp"
@@ -181,6 +181,7 @@ func run(log log.Component,
 	sharedSerializer serializer.MetricSerializer,
 	cliParams *cliParams,
 	logsAgent util.Optional[logsAgent.Component],
+	hostMetadata host.Component,
 ) error {
 	defer func() {
 		stopAgent(cliParams, server)
@@ -222,7 +223,7 @@ func run(log log.Component,
 		}
 	}()
 
-	if err := startAgent(cliParams, log, flare, telemetry, sysprobeconfig, server, capture, serverDebug, rcclient, logsAgent, forwarder, sharedSerializer); err != nil {
+	if err := startAgent(cliParams, log, flare, telemetry, sysprobeconfig, server, capture, serverDebug, rcclient, logsAgent, forwarder, sharedSerializer, hostMetadata); err != nil {
 		return err
 	}
 
@@ -256,11 +257,12 @@ func StartAgentWithDefaults(ctxChan <-chan context.Context) (<-chan error, error
 			logsAgent util.Optional[logsAgent.Component],
 			metadataRunner runner.Component,
 			sharedSerializer serializer.MetricSerializer,
+			hostMetadata host.Component,
 		) error {
 
 			defer StopAgentWithDefaults(server)
 
-			err := startAgent(&cliParams{GlobalParams: &command.GlobalParams{}}, log, flare, telemetry, sysprobeconfig, server, capture, serverDebug, rcclient, logsAgent, forwarder, sharedSerializer)
+			err := startAgent(&cliParams{GlobalParams: &command.GlobalParams{}}, log, flare, telemetry, sysprobeconfig, server, capture, serverDebug, rcclient, logsAgent, forwarder, sharedSerializer, hostMetadata)
 			if err != nil {
 				return err
 			}
@@ -383,6 +385,7 @@ func startAgent(
 	logsAgent util.Optional[logsAgent.Component],
 	sharedForwarder defaultforwarder.Component,
 	sharedSerializer serializer.MetricSerializer,
+	hostMetadata host.Component,
 ) error {
 
 	var err error
@@ -479,13 +482,6 @@ func startAgent(
 	}
 	log.Infof("Hostname is: %s", hostnameDetected)
 
-	// HACK: init host metadata module (CPU) early to avoid any
-	//       COM threading model conflict with the python checks
-	err = host.InitHostMetadata()
-	if err != nil {
-		log.Errorf("Unable to initialize host metadata: %v", err)
-	}
-
 	// start remote configuration management
 	var configService *remoteconfig.Service
 	if pkgconfig.IsRemoteConfigEnabled(pkgconfig.Datadog) {
@@ -528,7 +524,7 @@ func startAgent(
 	}
 
 	// start the cmd HTTP server
-	if err = api.StartServer(configService, flare, server, capture, serverDebug, logsAgent, aggregator.GetSenderManager()); err != nil {
+	if err = api.StartServer(configService, flare, server, capture, serverDebug, logsAgent, aggregator.GetSenderManager(), hostMetadata); err != nil {
 		return log.Errorf("Error while starting api server, exiting: %v", err)
 	}
 

@@ -20,7 +20,6 @@ import (
 
 	hostMetadataUtils "github.com/DataDog/datadog-agent/comp/metadata/host/utils"
 	"github.com/DataDog/datadog-agent/pkg/config"
-	"github.com/DataDog/datadog-agent/pkg/metadata/host"
 	"github.com/DataDog/datadog-agent/pkg/process/util/status"
 	ddstatus "github.com/DataDog/datadog-agent/pkg/status"
 	"github.com/DataDog/datadog-agent/pkg/trace/log"
@@ -44,7 +43,7 @@ func TestStatus(t *testing.T) {
 	expectedStatus := status.Status{
 		Date: float64(testTime.UnixNano()),
 		Core: status.CoreStatus{
-			Metadata: host.Payload{
+			Metadata: hostMetadataUtils.Payload{
 				Meta: &hostMetadataUtils.Meta{},
 			},
 		},

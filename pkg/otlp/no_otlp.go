@@ -17,7 +17,7 @@ import (
 )
 
 // IsEnabled checks if OTLP pipeline is enabled in a given config.
-func IsEnabled(cfg config.Config) bool {
+func IsEnabled(cfg config.ConfigReader) bool {
 	return false
 }
 
