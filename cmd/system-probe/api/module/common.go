@@ -27,5 +27,4 @@ type Module interface {
 	GetStats() map[string]interface{}
 	Register(*Router) error
 	Close()
-	IsAlive() bool
 }
