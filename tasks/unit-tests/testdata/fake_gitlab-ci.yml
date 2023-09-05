@@ -329,7 +329,7 @@ workflow:
     when: manual
     allow_failure: true
 
-.on_dev_branch_manual:
+.on_dev_branch_packages_manual:
   - <<: *if_main_branch
     when: never
   - <<: *if_tagged_commit

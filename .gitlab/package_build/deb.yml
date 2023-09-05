@@ -77,7 +77,7 @@
 agent_deb-x64-a6:
   extends: .agent_build_common_deb
   rules:
-    !reference [.on_a6]
+    !reference [.on_a6_packages]
   stage: package_build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   tags: ["arch:amd64"]
@@ -94,7 +94,7 @@ agent_deb-x64-a6:
 agent_deb-x64-a7:
   extends: .agent_build_common_deb
   rules:
-    !reference [.on_a7]
+    !reference [.on_a7_packages]
   stage: package_build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   tags: ["arch:amd64"]
@@ -111,7 +111,7 @@ agent_deb-x64-a7:
 agent_deb-arm64-a6:
   extends: .agent_build_common_deb
   rules:
-    !reference [.on_all_builds_a6]
+    !reference [.on_a6_packages]
   stage: package_build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_arm64$DATADOG_AGENT_ARMBUILDIMAGES_SUFFIX:$DATADOG_AGENT_ARMBUILDIMAGES
   tags: ["arch:arm64"]
@@ -128,7 +128,7 @@ agent_deb-arm64-a6:
 agent_deb-arm64-a7:
   extends: .agent_build_common_deb
   rules:
-    !reference [.on_a7]
+    !reference [.on_a7_packages]
   stage: package_build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_arm64$DATADOG_AGENT_ARMBUILDIMAGES_SUFFIX:$DATADOG_AGENT_ARMBUILDIMAGES
   tags: ["arch:arm64"]
@@ -174,7 +174,7 @@ agent_deb-arm64-a7:
 iot_agent_deb-x64:
   extends: .iot_agent_build_common_deb
   rules:
-    !reference [.on_a7]
+    !reference [.on_a7_packages]
   stage: package_build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   tags: ["arch:amd64"]
@@ -186,7 +186,7 @@ iot_agent_deb-x64:
 iot_agent_deb-arm64:
   extends: .iot_agent_build_common_deb
   rules:
-    !reference [.on_all_builds_a7]
+    !reference [.on_a7_packages]
   stage: package_build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_arm64$DATADOG_AGENT_ARMBUILDIMAGES_SUFFIX:$DATADOG_AGENT_ARMBUILDIMAGES
   tags: ["arch:arm64"]
@@ -198,7 +198,7 @@ iot_agent_deb-arm64:
 iot_agent_deb-armhf:
   extends: .iot_agent_build_common_deb
   rules:
-    !reference [.on_all_builds_a7]
+    !reference [.on_a7_packages]
   stage: package_build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_armhf$DATADOG_AGENT_ARMBUILDIMAGES_SUFFIX:$DATADOG_AGENT_ARMBUILDIMAGES
   # Run with platform:arm64 since no platform:armhf exists and arm64 should be backwards compatible
@@ -210,7 +210,7 @@ iot_agent_deb-armhf:
 
 dogstatsd_deb-x64:
   rules:
-    !reference [.on_a7]
+    !reference [.on_a7_packages]
   stage: package_build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   tags: ["arch:amd64"]
@@ -238,7 +238,7 @@ dogstatsd_deb-x64:
 
 dogstatsd_deb-arm64:
   rules:
-    !reference [.on_all_builds_a7]
+    !reference [.on_a7_packages]
   stage: package_build
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_arm64$DATADOG_AGENT_ARMBUILDIMAGES_SUFFIX:$DATADOG_AGENT_ARMBUILDIMAGES
   tags: ["arch:arm64"]

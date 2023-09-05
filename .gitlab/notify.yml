@@ -20,7 +20,7 @@ notify:
   extends: .slack-notifier-base
   stage: notify
   rules:
-    !reference [.on_main_or_release_branch_or_deploy_always]
+    !reference [.on_stable_branch_or_deploy_always]
   dependencies: []
   script:
     - set +x

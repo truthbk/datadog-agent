@@ -3,7 +3,7 @@
 # Contains the step to build the golang dependency chain and preserve it
 golang_deps_generate:
   rules:
-    !reference [.on_main_or_release_branch]
+    !reference [.on_stable_branch]
   stage: source_test
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
   tags: ["arch:amd64"]
