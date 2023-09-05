@@ -80,7 +80,7 @@ kitchen_ubuntu_install_script_agent-a6_arm64:
 kitchen_ubuntu_install_script_agent-a7_x64:
   # Run install script test on branches, on a reduced number of platforms
   rules:
-    !reference [.on_default_kitchen_tests_a7]
+    !reference [.on_kitchen_tests_a7]
   extends:
     - .kitchen_os_with_cws
     - .kitchen_scenario_ubuntu_a7_x64
@@ -88,7 +88,7 @@ kitchen_ubuntu_install_script_agent-a7_x64:
 
 kitchen_ubuntu_install_script_agent-a7_arm64:
   rules:
-    !reference [.on_all_kitchen_builds_a7]
+    !reference [.on_kitchen_tests_a7]
   extends:
     - .kitchen_os_with_cws
     - .kitchen_scenario_ubuntu_a7_arm64

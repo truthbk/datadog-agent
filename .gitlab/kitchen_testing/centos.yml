@@ -120,7 +120,7 @@ kitchen_centos_fips_install_script_agent-a6:
 kitchen_centos_fips_install_script_agent-a7:
   # Run install script test on branches, on a reduced number of platforms
   rules:
-    !reference [.on_default_kitchen_tests_a7]
+    !reference [.on_kitchen_tests_a7]
   extends:
     - .kitchen_os_with_cws
     - .kitchen_scenario_centos_with_fips_a7
