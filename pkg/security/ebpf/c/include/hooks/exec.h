@@ -627,8 +627,11 @@ int __attribute__((always_inline)) send_exec_event(ctx_t *ctx) {
         },
         .container = {},
     };
+
     fill_file_metadata(syscall->exec.dentry, &pc.entry.executable.metadata);
     bpf_get_current_comm(&pc.entry.comm, sizeof(pc.entry.comm));
+
+    u64 parent_inode = 0;
 
     // select the previous cookie entry in cache of the current process
     // (this entry was created by the fork of the current process)
@@ -638,6 +641,8 @@ int __attribute__((always_inline)) send_exec_event(ctx_t *ctx) {
         u64 parent_cookie = fork_entry->cookie;
         struct proc_cache_t *parent_pc = get_proc_from_cookie(parent_cookie);
         if (parent_pc) {
+            parent_inode = parent_pc->entry.executable.path_key.ino;
+
             // inherit the parent container context
             fill_container_context(parent_pc, &pc.container);
             dec_mount_ref(ctx, parent_pc->entry.executable.path_key.mount_id);
@@ -679,6 +684,9 @@ int __attribute__((always_inline)) send_exec_event(ctx_t *ctx) {
     // add pid / tid context
     struct process_context_t *on_stack_process = &event->process;
     fill_process_context(on_stack_process);
+
+    // override the pid context inode with the parent inode so that we can compare
+    on_stack_process->inode = parent_inode;
 
     copy_span_context(&syscall->exec.span_context, &event->span);
     fill_args_envs(event, syscall);
