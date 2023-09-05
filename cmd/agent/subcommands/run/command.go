@@ -114,9 +114,6 @@ import (
 	_ "github.com/DataDog/datadog-agent/pkg/collector/metadata"
 )
 
-// demux is shared between StartAgent and StopAgent.
-var demux demultiplexer.Component
-
 type cliParams struct {
 	*command.GlobalParams
 
@@ -175,13 +172,13 @@ func run(log log.Component,
 	forwarder defaultforwarder.Component,
 	rcclient rcclient.Component,
 	metadataRunner runner.Component,
-	demux demultiplexer.Component,
+	demultiplexer demultiplexer.Component,
 	sharedSerializer serializer.MetricSerializer,
 	cliParams *cliParams,
 	logsAgent util.Optional[logsAgent.Component],
 ) error {
 	defer func() {
-		stopAgent(cliParams, server)
+		stopAgent(cliParams, server, demultiplexer)
 	}()
 
 	// prepare go runtime
@@ -220,7 +217,7 @@ func run(log log.Component,
 		}
 	}()
 
-	if err := startAgent(cliParams, log, flare, telemetry, sysprobeconfig, server, capture, serverDebug, rcclient, logsAgent, forwarder, sharedSerializer); err != nil {
+	if err := startAgent(cliParams, log, flare, telemetry, sysprobeconfig, server, capture, serverDebug, rcclient, logsAgent, forwarder, sharedSerializer, demultiplexer); err != nil {
 		return err
 	}
 
@@ -254,11 +251,12 @@ func StartAgentWithDefaults(ctxChan <-chan context.Context) (<-chan error, error
 			logsAgent util.Optional[logsAgent.Component],
 			metadataRunner runner.Component,
 			sharedSerializer serializer.MetricSerializer,
+			demultiplexer demultiplexer.Component,
 		) error {
 
-			defer StopAgentWithDefaults(server)
+			defer StopAgentWithDefaults(server, demultiplexer)
 
-			err := startAgent(&cliParams{GlobalParams: &command.GlobalParams{}}, log, flare, telemetry, sysprobeconfig, server, capture, serverDebug, rcclient, logsAgent, forwarder, sharedSerializer)
+			err := startAgent(&cliParams{GlobalParams: &command.GlobalParams{}}, log, flare, telemetry, sysprobeconfig, server, capture, serverDebug, rcclient, logsAgent, forwarder, sharedSerializer, demultiplexer)
 			if err != nil {
 				return err
 			}
@@ -357,7 +355,6 @@ func getSharedFxOption() fx.Option {
 		// injecting the shared Serializer to FX until we migrate it to a prpoper component. This allows other
 		// already migrated components to request it.
 		fx.Provide(func(demuxInstance demultiplexer.Component) serializer.MetricSerializer {
-			demux = demuxInstance
 			return demuxInstance.Serializer()
 		}),
 	)
@@ -377,6 +374,7 @@ func startAgent(
 	logsAgent util.Optional[logsAgent.Component],
 	sharedForwarder defaultforwarder.Component,
 	sharedSerializer serializer.MetricSerializer,
+	demultiplexer demultiplexer.Component,
 ) error {
 
 	var err error
@@ -537,14 +535,14 @@ func startAgent(
 	}
 
 	// Setup stats telemetry handler
-	if sender, err := demux.GetDefaultSender(); err == nil {
+	if sender, err := demultiplexer.GetDefaultSender(); err == nil {
 		// TODO: to be removed when default telemetry is enabled.
 		pkgTelemetry.RegisterStatsSender(sender)
 	}
 
 	// Start SNMP trap server
 	if traps.IsEnabled() {
-		err = traps.StartServer(hostnameDetected, demux)
+		err = traps.StartServer(hostnameDetected, demultiplexer)
 		if err != nil {
 			log.Errorf("Failed to start snmp-traps server: %s", err)
 		}
@@ -560,12 +558,12 @@ func startAgent(
 	common.AC.AddScheduler("check", collector.InitCheckScheduler(common.Coll, aggregator.GetSenderManager()), true)
 	common.Coll.Start()
 
-	demux.AddAgentStartupTelemetry(version.AgentVersion)
+	demultiplexer.AddAgentStartupTelemetry(version.AgentVersion)
 
 	// start dogstatsd
 	if pkgconfig.Datadog.GetBool("use_dogstatsd") {
 		global.DSD = server
-		err := server.Start(demux)
+		err := server.Start(demultiplexer)
 		if err != nil {
 			log.Errorf("Could not start dogstatsd: %s", err)
 		} else {
@@ -595,7 +593,7 @@ func startAgent(
 	// This must happen after LoadComponents is set up (via common.LoadComponents).
 	// netflow.StartServer uses AgentDemultiplexer, that uses ContextResolver, that uses the tagger (initialized by LoadComponents)
 	if netflow.IsEnabled() {
-		if err = netflow.StartServer(demux); err != nil {
+		if err = netflow.StartServer(demultiplexer); err != nil {
 			log.Errorf("Failed to start NetFlow server: %s", err)
 		}
 	}
@@ -607,7 +605,7 @@ func startAgent(
 	misconfig.ToLog(misconfig.CoreAgent)
 
 	// setup the metadata collector
-	common.MetadataScheduler = pkgMetadata.NewScheduler(demux)
+	common.MetadataScheduler = pkgMetadata.NewScheduler(demultiplexer)
 	if err := pkgMetadata.SetupMetadataCollection(common.MetadataScheduler, pkgMetadata.AllDefaultCollectors); err != nil {
 		return err
 	}
@@ -623,12 +621,12 @@ func startAgent(
 }
 
 // StopAgentWithDefaults is a temporary way for other packages to use stopAgent.
-func StopAgentWithDefaults(server dogstatsdServer.Component) {
-	stopAgent(&cliParams{GlobalParams: &command.GlobalParams{}}, server)
+func StopAgentWithDefaults(server dogstatsdServer.Component, demultiplexer demultiplexer.Component) {
+	stopAgent(&cliParams{GlobalParams: &command.GlobalParams{}}, server, demultiplexer)
 }
 
 // stopAgent Tears down the agent process
-func stopAgent(cliParams *cliParams, server dogstatsdServer.Component) {
+func stopAgent(cliParams *cliParams, server dogstatsdServer.Component, demultiplexer demultiplexer.Component) {
 	// retrieve the agent health before stopping the components
 	// GetReadyNonBlocking has a 100ms timeout to avoid blocking
 	health, err := health.GetReadyNonBlocking()
@@ -659,8 +657,8 @@ func stopAgent(cliParams *cliParams, server dogstatsdServer.Component) {
 	clcrunnerapi.StopCLCRunnerServer()
 	jmx.StopJmxfetch()
 
-	if demux != nil {
-		demux.Stop(true)
+	if demultiplexer != nil {
+		demultiplexer.Stop(true)
 	}
 
 	gui.StopGUIServer()
