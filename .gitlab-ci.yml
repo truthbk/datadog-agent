@@ -246,7 +246,7 @@ variables:
   if: $RUN_KITCHEN_TESTS == "true"
 
 .if_not_kitchen: &if_not_kitchen
-  if: $RUN_KITCHEN_TESTS != "false"
+  if: $RUN_KITCHEN_TESTS == "false"
 
 # Rules to trigger default kitchen tests.
 # Some of the kitchen tests are run on all pipelines by default. They can only be disabled
