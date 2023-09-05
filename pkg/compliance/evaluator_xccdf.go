@@ -265,7 +265,7 @@ func EvaluateXCCDFRule(ctx context.Context, hostname string, statsdClient *stats
 
 func evaluateXCCDFRule(ctx context.Context, hostname string, statsdClient *statsd.Client, benchmark *Benchmark, rule *Rule, spec *InputSpecXCCDF) []*CheckEvent {
 	oscapIOsMu.Lock()
-	file := filepath.Join(benchmark.dirname, spec.Name)
+	file := filepath.Join(filepath.Dir(benchmark.filename), spec.Name)
 	p := oscapIOs[file]
 	if p == nil {
 		p = newOSCAPIO(file)

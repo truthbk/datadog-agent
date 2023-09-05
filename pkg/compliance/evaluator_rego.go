@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/DataDog/datadog-agent/pkg/compliance/metrics"
@@ -55,7 +56,7 @@ func ResolveAndEvaluateRegoRule(ctx context.Context, resolver Resolver, benchmar
 // the rule's rego program.
 func EvaluateRegoRule(ctx context.Context, resolvedInputs ResolvedInputs, benchmark *Benchmark, rule *Rule) ([]*CheckEvent, error) {
 	log.Tracef("building rego modules for rule=%s", rule.ID)
-	modules, err := buildRegoModules(benchmark.dirname, rule)
+	modules, err := buildRegoModules(filepath.Dir(benchmark.filename), rule)
 	if err != nil {
 		return nil, fmt.Errorf("could not build rego modules: %w", err)
 	}

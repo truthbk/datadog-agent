@@ -46,6 +46,18 @@ const (
 	CheckSkipped CheckResult = "skipped"
 )
 
+// BenchmarkRequest defines the request data to perform a compliance
+// benchmark. This is used in the system-probe "compliance" module allowing us
+// to perform compliance checks directly from system-probe, driven by
+// security-agent.
+type BenchmarkRequest struct {
+	Hostname      string   `json:"hostname"`
+	HostRoot      string   `json:"host_root"`
+	HostRootPID   int32    `json:"host_root_pid"`
+	BenchmarkFile string   `json:"benchmark_file"`
+	RuleIDs       []string `json:"rule_ids,omitempty"`
+}
+
 // CheckStatus is used to store the last current status of each rule inside
 // our compliance agent.
 type CheckStatus struct {
@@ -102,7 +114,13 @@ func (e *CheckEvent) String() string {
 		s += fmt.Sprintf(" resource=%s:%s", e.ResourceType, e.ResourceID)
 	}
 	if e.Result == CheckError {
-		s += fmt.Sprintf(" error=%s", e.errReason)
+		if e.errReason != nil {
+			s += fmt.Sprintf(" error=%s", e.errReason)
+		} else if e.Data != nil && e.Data["error"] != nil {
+			s += fmt.Sprintf(" error=%s", e.Data["error"])
+		} else {
+			s += " error=unknown"
+		}
 	} else {
 		s += fmt.Sprintf(" data=%v", e.Data)
 	}
@@ -351,15 +369,16 @@ func NewResolvedInputs(resolvingContext ResolvingContext, resolved map[string]in
 // part of the same framework. It holds metadata that are shared between these
 // rules. Rules of a same Benchmark are typically run together.
 type Benchmark struct {
-	dirname string
+	filename string
 
-	Name        string   `yaml:"name,omitempty" json:"name,omitempty"`
-	FrameworkID string   `yaml:"framework,omitempty" json:"framework,omitempty"`
-	Version     string   `yaml:"version,omitempty" json:"version,omitempty"`
-	Tags        []string `yaml:"tags,omitempty" json:"tags,omitempty"`
-	Rules       []*Rule  `yaml:"rules,omitempty" json:"rules,omitempty"`
-	Source      string   `yaml:"-" json:"-"`
-	Schema      struct {
+	Name              string   `yaml:"name,omitempty" json:"name,omitempty"`
+	FrameworkID       string   `yaml:"framework,omitempty" json:"framework,omitempty"`
+	Version           string   `yaml:"version,omitempty" json:"version,omitempty"`
+	Tags              []string `yaml:"tags,omitempty" json:"tags,omitempty"`
+	Rules             []*Rule  `yaml:"rules,omitempty" json:"rules,omitempty"`
+	EligibleProcesses []string `yaml:"eligible_processes,omitempty" json:"eligible_processes,omitempty"`
+	Source            string   `yaml:"-" json:"-"`
+	Schema            struct {
 		Version string `yaml:"version" json:"version"`
 	} `yaml:"schema,omitempty" json:"schema,omitempty"`
 }
@@ -447,7 +466,7 @@ func LoadBenchmarks(rootDir, glob string, ruleFilter RuleFilter) ([]*Benchmark, 
 		if err != nil {
 			return nil, err
 		}
-		benchmark.dirname = rootDir
+		benchmark.filename = filepath.Join(rootDir, filename)
 		if err := benchmark.Valid(); err != nil {
 			return nil, err
 		}

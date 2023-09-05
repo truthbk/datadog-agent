@@ -9,14 +9,18 @@
 package compliance
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"expvar"
 	"fmt"
 	"hash/fnv"
 	"math/rand"
+	"net/http"
 	"sync"
 	"time"
 
+	sysconfig "github.com/DataDog/datadog-agent/cmd/system-probe/config"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/compliance/aptconfig"
 	"github.com/DataDog/datadog-agent/pkg/compliance/k8sconfig"
@@ -27,6 +31,8 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/security/telemetry"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
+	"github.com/shirou/gopsutil/v3/process"
+	"golang.org/x/exp/slices"
 )
 
 const containersCountMetricName = "datadog.security_agent.compliance.containers_running"
@@ -64,6 +70,10 @@ type AgentOptions struct {
 	// EvalThrottling is the time that space out rule evaluation to avoid CPU
 	// spikes.
 	EvalThrottling time.Duration
+
+	// SysProbeClient is the HTTP client to allow the execution of benchmarks
+	// from system-probe. see: cmd/system-probe/modules/compliance.go
+	SysProbeClient *http.Client
 }
 
 // Agent is the compliance agent that is responsible for running compliance
@@ -144,6 +154,7 @@ func NewAgent(senderManager sender.SenderManager, opts AgentOptions) *Agent {
 	} else {
 		opts.RuleFilter = func(r *Rule) bool { return DefaultRuleFilter(r) }
 	}
+
 	return &Agent{
 		senderManager: senderManager,
 		opts:          opts,
@@ -239,32 +250,125 @@ func (a *Agent) runRegoBenchmarks(ctx context.Context) {
 	a.addBenchmarks(benchmarks...)
 
 	runTicker := time.NewTicker(a.opts.CheckInterval)
-	throttler := time.NewTicker(a.opts.EvalThrottling)
 	defer runTicker.Stop()
-	defer throttler.Stop()
 
 	log.Debugf("will be executing %d rego benchmarks every %s", len(benchmarks), a.opts.CheckInterval)
 	for {
 		for i, benchmark := range benchmarks {
+			// sleep randomly before every benchmark execution
 			seed := fmt.Sprintf("%s%s%d", a.opts.Hostname, benchmark.FrameworkID, i)
 			if sleepAborted(ctx, time.After(randomJitter(seed, a.opts.RunJitterMax))) {
 				return
 			}
-			resolver := NewResolver(ctx, a.opts.ResolverOptions)
-			for _, rule := range benchmark.Rules {
-				events := ResolveAndEvaluateRegoRule(ctx, resolver, benchmark, rule)
-				a.reportEvents(ctx, benchmark, events)
-				if sleepAborted(ctx, throttler.C) {
-					resolver.Close()
-					return
-				}
+			if len(benchmark.EligibleProcesses) == 0 {
+				a.evaluateBenchmark(ctx, benchmark)
+			} else {
+				a.evaluateCrossContainerBenchmark(ctx, benchmark)
 			}
-			resolver.Close()
 		}
 		if sleepAborted(ctx, runTicker.C) {
 			return
 		}
 	}
+}
+
+func (a *Agent) evaluateBenchmark(ctx context.Context, benchmark *Benchmark) {
+	throttler := time.NewTicker(a.opts.EvalThrottling)
+	defer throttler.Stop()
+
+	opts := a.opts.ResolverOptions
+	resolver := NewResolver(ctx, opts)
+	defer resolver.Close()
+
+	log.Debugf("running benchmark %s on root FS %q (%d rules)", benchmark.Name, opts.HostRoot, len(benchmark.Rules))
+	for _, rule := range benchmark.Rules {
+		events := ResolveAndEvaluateRegoRule(ctx, resolver, benchmark, rule)
+		a.reportEvents(ctx, benchmark, events)
+		if sleepAborted(ctx, throttler.C) {
+			return
+		}
+	}
+}
+
+func (a *Agent) evaluateCrossContainerBenchmark(ctx context.Context, benchmark *Benchmark) {
+	procs, err := process.ProcessesWithContext(ctx)
+	if err != nil {
+		log.Errorf("could not list processes: %v", err)
+		return
+	}
+
+	containersPIDs := make(map[string]int32)
+	// Traverse in reverse order to Favor the processes with smaller PID since
+	// they've been running for a longer time. We have a better chance for
+	// them to be long running processes.
+	for i := len(procs) - 1; i >= 0; i-- {
+		proc := procs[i]
+		name, _ := proc.Name()
+		if slices.Contains(benchmark.EligibleProcesses, name) {
+			containerID, ok := getProcessContainerID(proc.Pid)
+			if ok {
+				containersPIDs[containerID] = proc.Pid
+			}
+		}
+	}
+	if len(containersPIDs) == 0 {
+		log.Debugf("skipping benchmark %q: no eligible processes were found", benchmark.FrameworkID)
+		return
+	}
+
+	for containerID, pid := range containersPIDs {
+		// if the process does not run in any form of container, containerID
+		// is the empty string "" and it can be run locally
+		if containerID == "" {
+			a.evaluateBenchmark(ctx, benchmark)
+		} else {
+			err := a.runBenchmarkFromSystemProbe(ctx, benchmark, pid)
+			if err != nil {
+				log.Errorf("error evaluating cross-container benchmark from system-probe: %v", err)
+			}
+		}
+	}
+}
+
+func (a *Agent) runBenchmarkFromSystemProbe(ctx context.Context, benchmark *Benchmark, pid int32) error {
+	if a.opts.SysProbeClient == nil {
+		return fmt.Errorf("system-probe socket client was not created")
+	}
+
+	body, err := json.Marshal(&BenchmarkRequest{
+		Hostname:      a.opts.Hostname,
+		HostRoot:      a.opts.HostRoot,
+		HostRootPID:   pid,
+		BenchmarkFile: benchmark.filename,
+	})
+	if err != nil {
+		return err
+	}
+
+	sysProbeComplianceModuleURL := "http://unix/" + string(sysconfig.ComplianceModule) + "/benchmark"
+	req, err := http.NewRequest(http.MethodPost, sysProbeComplianceModuleURL, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := a.opts.SysProbeClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("error running cross-container benchmark: %s", resp.Status)
+	}
+
+	var events []*CheckEvent
+	d := json.NewDecoder(resp.Body)
+	if err := d.Decode(&events); err != nil {
+		return err
+	}
+	a.reportEvents(ctx, benchmark, events)
+	return nil
 }
 
 func (a *Agent) runXCCDFBenchmarks(ctx context.Context) {

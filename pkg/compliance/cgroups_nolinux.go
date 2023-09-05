@@ -8,9 +8,9 @@
 package compliance
 
 func getProcessContainerID(pid int32) (string, bool) {
-	return "", false
+	return "", true
 }
 
 func getProcessRootPath(pid int32) (string, bool) {
-	return "", false
+	return "", true
 }
