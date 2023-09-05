@@ -503,8 +503,7 @@ workflow:
   - <<: *if_deploy
     variables:
       RELEASE_PROD: "true"
-  - when: manual
-    allow_failure: true
+  - <<: [*omnibus_changes, *when_manual]
     variables:
       RELEASE_PROD: "false"
 
