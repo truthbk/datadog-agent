@@ -20,7 +20,6 @@ build do
   copy 'pkg/network/protocols/tls/java/agent-usm.jar', "#{install_dir}/embedded/share/system-probe/java/"
 
   if ENV.has_key?('SYSTEM_PROBE_BIN') and not ENV['SYSTEM_PROBE_BIN'].empty?
-    copy "#{ENV['SYSTEM_PROBE_BIN']}/system-probe", "#{install_dir}/embedded/bin/system-probe"
     copy "#{ENV['SYSTEM_PROBE_BIN']}/usm.o", "#{install_dir}/embedded/share/system-probe/ebpf/"
     copy "#{ENV['SYSTEM_PROBE_BIN']}/usm-debug.o", "#{install_dir}/embedded/share/system-probe/ebpf/"
     copy "#{ENV['SYSTEM_PROBE_BIN']}/shared-libraries.o", "#{install_dir}/embedded/share/system-probe/ebpf/"
