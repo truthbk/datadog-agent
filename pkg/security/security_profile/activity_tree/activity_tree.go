@@ -383,7 +383,7 @@ func (at *ActivityTree) CreateProcessNode(entry *model.ProcessCacheEntry, branch
 		return nil, nil, false, nil
 	}
 
-	if !entry.HasCompleteLineage() {
+	if !entry.HasValideLineage() {
 		return nil, nil, false, ErrBrokenLineage
 	}
 
