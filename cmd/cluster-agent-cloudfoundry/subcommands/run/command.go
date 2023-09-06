@@ -31,6 +31,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/forwarder"
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
+	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/api/healthprobe"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/clusterchecks"
@@ -130,7 +131,7 @@ func run(log log.Component, config config.Component, forwarder defaultforwarder.
 	// start the autoconfig, this will immediately run any configured check
 	common.AC.LoadAndRun(mainCtx)
 
-	if err = api.StartServer(aggregator.GetSenderManager(), 42424242); err != nil {
+	if err = api.StartServer(sender.CreateDiagnoseSenderManager(aggregator.GetSenderManager())); err != nil {
 		return log.Errorf("Error while starting agent API, exiting: %v", err)
 	}
 

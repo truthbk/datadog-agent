@@ -52,7 +52,6 @@ import (
 	"github.com/DataDog/datadog-agent/comp/metadata/runner"
 	"github.com/DataDog/datadog-agent/comp/remote-config/rcclient"
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
-	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/api/healthprobe"
 	"github.com/DataDog/datadog-agent/pkg/cloudfoundry/containertagger"
 	"github.com/DataDog/datadog-agent/pkg/collector"
@@ -513,7 +512,7 @@ func startAgent(
 	}
 
 	// start the cmd HTTP server
-	if err = api.StartServer(configService, flare, server, capture, serverDebug, logsAgent, sender.CreateDiagnoseSenderManager(aggregator.GetSenderManager())); err != nil {
+	if err = api.StartServer(configService, flare, server, capture, serverDebug, logsAgent); err != nil {
 		return log.Errorf("Error while starting api server, exiting: %v", err)
 	}
 
