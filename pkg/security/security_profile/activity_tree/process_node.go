@@ -118,7 +118,7 @@ func (pn *ProcessNode) scrubAndReleaseArgsEnvs(resolver *sprocess.Resolver) {
 // Matches return true if the process fields used to generate the dump are identical with the provided model.Process
 func (pn *ProcessNode) Matches(entry *model.Process, matchArgs bool) bool {
 	// should convert /var/run/1234/runc.pid + /var/run/54321/runc.pic into /var/run/*/runc.pid
-	match, pattern := utils.PathPatternBuilder(pn.Process.FileEvent.PathnameStr, entry.FileEvent.PathnameStr, utils.PathPatternBuilderOpts{WildcardLimit: 1, PrefixNodeRequired: 1, SuffixNodeRequired: 1})
+	match, pattern := utils.PathPatternBuilder(pn.Process.FileEvent.PathnameStr, entry.FileEvent.PathnameStr, utils.PathPatternBuilderOpts{WildcardLimit: 1, PrefixNodeRequired: 2, SuffixNodeRequired: 1, NodeSizeLimit: 8})
 	if !match {
 		return false
 	}
