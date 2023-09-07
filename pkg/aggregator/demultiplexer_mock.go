@@ -185,12 +185,14 @@ func InitTestAgentDemultiplexer(log log.Component) *TestAgentDemultiplexer {
 	return InitTestAgentDemultiplexerWithFlushInterval(log, time.Hour) // long flush interval for unit tests
 }
 
+// AggregatorTestDeps are the dependencies for test
 type AggregatorTestDeps struct {
 	fx.In
 	Log             log.Component
 	SharedForwarder defaultforwarder.Component
 }
 
+// InitAndStartAgentDemultiplexerForTest initialize the demultiplexer for test
 func InitAndStartAgentDemultiplexerForTest(deps AggregatorTestDeps, options AgentDemultiplexerOptions, hostname string) *AgentDemultiplexer {
 	return InitAndStartAgentDemultiplexer(deps.Log, deps.SharedForwarder, options, hostname)
 }
