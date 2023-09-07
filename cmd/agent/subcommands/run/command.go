@@ -33,6 +33,7 @@ import (
 	"github.com/DataDog/datadog-agent/cmd/agent/subcommands/run/internal/clcrunnerapi"
 	"github.com/DataDog/datadog-agent/cmd/manager"
 	"github.com/DataDog/datadog-agent/comp/aggregator/demultiplexer"
+	"github.com/DataDog/datadog-agent/comp/aggregator/diagnosesendermanager"
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/flare"
@@ -311,6 +312,8 @@ func getSharedFxOption() fx.Option {
 			path.DefaultDogstatsDLogFile,
 		)),
 		flare.Module,
+		diagnosesendermanager.Module,
+		defaultforwarder.Module,
 		core.Bundle,
 		fx.Supply(dogstatsdServer.Params{
 			Serverless: false,

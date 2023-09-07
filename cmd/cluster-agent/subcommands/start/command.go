@@ -26,6 +26,7 @@ import (
 	"github.com/DataDog/datadog-agent/cmd/cluster-agent/command"
 	"github.com/DataDog/datadog-agent/cmd/cluster-agent/custommetrics"
 	"github.com/DataDog/datadog-agent/comp/aggregator/demultiplexer"
+	"github.com/DataDog/datadog-agent/comp/aggregator/diagnosesendermanager"
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
@@ -33,7 +34,6 @@ import (
 	"github.com/DataDog/datadog-agent/comp/forwarder"
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
-	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/api/healthprobe"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent"
 	admissionpkg "github.com/DataDog/datadog-agent/pkg/clusteragent/admission"
@@ -95,6 +95,8 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 					opts.UseEventPlatformForwarder = false
 					return demultiplexer.Params{Options: opts}
 				}),
+				diagnosesendermanager.Module,
+				defaultforwarder.Module,
 			)
 		},
 	}
@@ -102,7 +104,7 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 	return []*cobra.Command{startCmd}
 }
 
-func start(log log.Component, config config.Component, telemetry telemetry.Component, cliParams *command.GlobalParams, demultiplexer demultiplexer.Component) error {
+func start(log log.Component, config config.Component, telemetry telemetry.Component, cliParams *command.GlobalParams, demultiplexer demultiplexer.Component, senderManager diagnosesendermanager.Component) error {
 	stopCh := make(chan struct{})
 
 	mainCtx, mainCtxCancel := context.WithCancel(context.Background())
@@ -170,7 +172,7 @@ func start(log log.Component, config config.Component, telemetry telemetry.Compo
 	}
 
 	// Starting server early to ease investigations
-	if err := api.StartServer(sender.CreateDiagnoseSenderManager(aggregator.GetSenderManager())); err != nil {
+	if err := api.StartServer(senderManager); err != nil {
 		return fmt.Errorf("Error while starting agent API, exiting: %v", err)
 	}
 

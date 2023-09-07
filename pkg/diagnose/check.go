@@ -10,16 +10,11 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-agent/cmd/agent/common"
-	"github.com/DataDog/datadog-agent/comp/core/log"
-	forwarder "github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
-	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/collector"
 	"github.com/DataDog/datadog-agent/pkg/collector/check"
-	"github.com/DataDog/datadog-agent/pkg/config"
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/diagnose/diagnosis"
-	"github.com/DataDog/datadog-agent/pkg/util/hostname"
 )
 
 func init() {
@@ -31,7 +26,8 @@ func diagnose(diagCfg diagnosis.Config, senderManager sender.DiagnoseSenderManag
 		return diagnoseChecksInAgentProcess()
 	}
 
-	return diagnoseChecksInCLIProcess(diagCfg, senderManager)
+	senderManagerInstance := senderManager.LazyGetSenderManager()
+	return diagnoseChecksInCLIProcess(diagCfg, senderManagerInstance)
 }
 
 func getInstanceDiagnoses(instance check.Check) []diagnosis.Diagnosis {
@@ -78,7 +74,7 @@ func diagnoseChecksInAgentProcess() []diagnosis.Diagnosis {
 	return diagnoses
 }
 
-func diagnoseChecksInCLIProcess(diagCfg diagnosis.Config, senderManager sender.DiagnoseSenderManager) []diagnosis.Diagnosis {
+func diagnoseChecksInCLIProcess(diagCfg diagnosis.Config, senderManager sender.SenderManager) []diagnosis.Diagnosis {
 	// other choices
 	// 	run() github.com\DataDog\datadog-agent\pkg\cli\subcommands\check\command.go
 	//  runCheck() github.com\DataDog\datadog-agent\cmd\agent\gui\checks.go
@@ -86,30 +82,6 @@ func diagnoseChecksInCLIProcess(diagCfg diagnosis.Config, senderManager sender.D
 	// Always disable SBOM collection in `check` command to avoid BoltDB flock issue
 	// and consuming CPU & Memory for asynchronous scans that would not be shown in `agent check` output.
 	pkgconfig.Datadog.Set("container_image_collection.sbom.enabled", "false")
-
-	hostnameDetected, err := hostname.Get(context.TODO())
-	if err != nil {
-		return []diagnosis.Diagnosis{
-			{
-				Result:      diagnosis.DiagnosisFail,
-				Name:        "Host name detection",
-				Diagnosis:   "Failed to get host name and cannot continue to run checks diagnostics",
-				Remediation: "Please validate host environment",
-				RawError:    err.Error(),
-			},
-		}
-	}
-
-	// Initializing the aggregator with a flush interval of 0 (to disable the flush goroutines)
-	opts := aggregator.DefaultAgentDemultiplexerOptions()
-	opts.FlushInterval = 0
-	opts.DontStartForwarders = true
-	opts.UseNoopEventPlatformForwarder = true
-	opts.UseNoopOrchestratorForwarder = true
-	log := log.NewTemporaryLoggerWithoutInit()
-
-	forwarder := forwarder.NewDefaultForwarder(config.Datadog, log, forwarder.NewOptions(config.Datadog, log, nil))
-	aggregator.InitAndStartAgentDemultiplexer(log, forwarder, opts, hostnameDetected)
 
 	common.LoadComponents(context.Background(), senderManager, pkgconfig.Datadog.GetString("confd_path"))
 	common.AC.LoadAndRun(context.Background())

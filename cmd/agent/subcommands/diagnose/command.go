@@ -14,11 +14,11 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/DataDog/datadog-agent/cmd/agent/command"
+	"github.com/DataDog/datadog-agent/comp/aggregator/diagnosesendermanager"
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
-	"github.com/DataDog/datadog-agent/pkg/aggregator"
-	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
+	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
 	"github.com/DataDog/datadog-agent/pkg/api/util"
 	pkgconfig "github.com/DataDog/datadog-agent/pkg/config"
 	pkgdiagnose "github.com/DataDog/datadog-agent/pkg/diagnose"
@@ -81,6 +81,8 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 					ConfigParams: config.NewAgentParamsWithoutSecrets(globalParams.ConfFilePath),
 					LogParams:    log.LogForOneShot("CORE", "off", true)}),
 				core.Bundle,
+				diagnosesendermanager.Module,
+				defaultforwarder.Module,
 			)
 		},
 	}
@@ -164,7 +166,7 @@ func strToRegexList(patterns []string) ([]*regexp.Regexp, error) {
 	return nil, nil
 }
 
-func cmdDiagnose(log log.Component, config config.Component, cliParams *cliParams) error {
+func cmdDiagnose(log log.Component, config config.Component, cliParams *cliParams, senderManager diagnosesendermanager.Component) error {
 	diagCfg := diagnosis.Config{
 		Verbose:  cliParams.verbose,
 		RunLocal: cliParams.runLocal,
@@ -186,7 +188,7 @@ func cmdDiagnose(log log.Component, config config.Component, cliParams *cliParam
 	}
 
 	// Run command
-	return pkgdiagnose.RunStdOut(color.Output, diagCfg, sender.CreateDiagnoseSenderManager(aggregator.GetSenderManager()))
+	return pkgdiagnose.RunStdOut(color.Output, diagCfg, senderManager)
 }
 
 // NOTE: This and related will be moved to separate "agent telemetry" command in future

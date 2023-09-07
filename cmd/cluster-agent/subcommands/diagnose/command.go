@@ -10,11 +10,11 @@ package diagnose
 
 import (
 	"github.com/DataDog/datadog-agent/cmd/cluster-agent/command"
+	"github.com/DataDog/datadog-agent/comp/aggregator/diagnosesendermanager"
 	"github.com/DataDog/datadog-agent/comp/core"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/log"
-	"github.com/DataDog/datadog-agent/pkg/aggregator"
-	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
+	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
 	"github.com/DataDog/datadog-agent/pkg/diagnose"
 	"github.com/DataDog/datadog-agent/pkg/diagnose/diagnosis"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
@@ -36,6 +36,8 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 					LogParams:    log.LogForOneShot(command.LoggerName, command.DefaultLogLevel, true),
 				}),
 				core.Bundle,
+				diagnosesendermanager.Module,
+				defaultforwarder.Module,
 			)
 		},
 	}
@@ -43,10 +45,10 @@ func Commands(globalParams *command.GlobalParams) []*cobra.Command {
 	return []*cobra.Command{cmd}
 }
 
-func run(log log.Component, config config.Component) error {
+func run(log log.Component, config config.Component, senderManager diagnosesendermanager.Component) error {
 	diagCfg := diagnosis.Config{
 		Verbose:  false,
 		RunLocal: false,
 	}
-	return diagnose.RunStdOut(color.Output, diagCfg, sender.CreateDiagnoseSenderManager(aggregator.GetSenderManager()))
+	return diagnose.RunStdOut(color.Output, diagCfg, senderManager)
 }

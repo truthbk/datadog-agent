@@ -209,6 +209,7 @@ type defaultEventPlatformForwarder struct {
 // SendEventPlatformEvent sends messages to the event platform intake.
 // SendEventPlatformEvent will drop messages and return an error if the input channel is already full.
 func (s *defaultEventPlatformForwarder) SendEventPlatformEvent(e *message.Message, eventType string) error {
+	panic("")
 	p, ok := s.pipelines[eventType]
 	if !ok {
 		return fmt.Errorf("unknown eventType=%s", eventType)
@@ -275,6 +276,7 @@ func diagnose(diagnoseCfg diagnosis.Config, senderManager sender.DiagnoseSenderM
 // SendEventPlatformEventBlocking sends messages to the event platform intake.
 // SendEventPlatformEventBlocking will block if the input channel is already full.
 func (s *defaultEventPlatformForwarder) SendEventPlatformEventBlocking(e *message.Message, eventType string) error {
+	panic("")
 	p, ok := s.pipelines[eventType]
 	if !ok {
 		return fmt.Errorf("unknown eventType=%s", eventType)
@@ -303,6 +305,7 @@ func purgeChan(in chan *message.Message) (result []*message.Message) {
 
 // Purge clears out all pipeline channels, returning a map of eventType to list of messages in that were removed from each channel
 func (s *defaultEventPlatformForwarder) Purge() map[string][]*message.Message {
+	panic("")
 	s.purgeMx.Lock()
 	defer s.purgeMx.Unlock()
 	result := make(map[string][]*message.Message)
@@ -317,6 +320,7 @@ func (s *defaultEventPlatformForwarder) Purge() map[string][]*message.Message {
 }
 
 func (s *defaultEventPlatformForwarder) Start() {
+	panic("")
 	s.destinationsCtx.Start()
 	for _, p := range s.pipelines {
 		p.Start()
@@ -324,6 +328,7 @@ func (s *defaultEventPlatformForwarder) Start() {
 }
 
 func (s *defaultEventPlatformForwarder) Stop() {
+	panic("")
 	log.Debugf("shutting down event platform forwarder")
 	stopper := startstop.NewParallelStopper()
 	for _, p := range s.pipelines {

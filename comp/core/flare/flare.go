@@ -13,13 +13,12 @@ import (
 
 	"go.uber.org/fx"
 
+	"github.com/DataDog/datadog-agent/comp/aggregator/diagnosesendermanager"
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	"github.com/DataDog/datadog-agent/comp/core/flare/helpers"
 	flarehelpers "github.com/DataDog/datadog-agent/comp/core/flare/helpers"
 	"github.com/DataDog/datadog-agent/comp/core/log"
 	"github.com/DataDog/datadog-agent/comp/remote-config/rcclient"
-	"github.com/DataDog/datadog-agent/pkg/aggregator"
-	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/config/utils"
 	pkgFlare "github.com/DataDog/datadog-agent/pkg/flare"
 )
@@ -30,25 +29,28 @@ type ProfileData map[string][]byte
 type dependencies struct {
 	fx.In
 
-	Log       log.Component
-	Config    config.Component
-	Params    Params
-	Providers []helpers.FlareProvider `group:"flare"`
+	Log           log.Component
+	Config        config.Component
+	senderManager diagnosesendermanager.Component
+	Params        Params
+	Providers     []helpers.FlareProvider `group:"flare"`
 }
 
 type flare struct {
-	log       log.Component
-	config    config.Component
-	params    Params
-	providers []helpers.FlareProvider
+	log           log.Component
+	config        config.Component
+	senderManager diagnosesendermanager.Component
+	params        Params
+	providers     []helpers.FlareProvider
 }
 
 func newFlare(deps dependencies) (Component, rcclient.ListenerProvider, error) {
 	f := &flare{
-		log:       deps.Log,
-		config:    deps.Config,
-		params:    deps.Params,
-		providers: deps.Providers,
+		log:           deps.Log,
+		config:        deps.Config,
+		senderManager: deps.senderManager,
+		params:        deps.Params,
+		providers:     deps.Providers,
 	}
 
 	rcListener := rcclient.ListenerProvider{
@@ -114,7 +116,7 @@ func (f *flare) Create(pdata ProfileData, ipcError error) (string, error) {
 	providers := append(
 		f.providers,
 		helpers.FlareProvider{Callback: func(fb flarehelpers.FlareBuilder) error {
-			return pkgFlare.CompleteFlare(fb, sender.CreateDiagnoseSenderManager(aggregator.GetSenderManager()))
+			return pkgFlare.CompleteFlare(fb, f.senderManager)
 		}},
 		helpers.FlareProvider{Callback: f.collectLogsFiles},
 		helpers.FlareProvider{Callback: f.collectConfigFiles},
