@@ -110,8 +110,10 @@ func setupAutoDiscovery(confSearchPaths []string, metaScheduler *scheduler.MetaS
 			configProvider, err := factory(&cp)
 			if err != nil {
 				log.Errorf("Error while adding config provider %v: %v", cp.Name, err)
+				ad.AddConfigProvider(providers.NewUnhealthy(cp.Name), cp.Polling, 5*time.Second)
 				continue
 			}
+			ad.AddConfigProvider(providers.NewUnhealthy(fmt.Sprintf("force-unhealthy-%s", cp.Name)), cp.Polling, 5*time.Second)
 
 			pollInterval := providers.GetPollInterval(cp)
 			ad.AddConfigProvider(configProvider, cp.Polling, pollInterval)

@@ -7,8 +7,11 @@ package health
 
 import (
 	"errors"
+	"runtime/debug"
 	"sync"
 	"time"
+
+	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
 var pingFrequency = 15 * time.Second
@@ -46,6 +49,7 @@ func newCatalog() *catalog {
 // register a component with the default 30 seconds timeout, returns a token
 func (c *catalog) register(name string) *Handle {
 	c.Lock()
+	log.Debugf("register %s -- %s", name, debug.Stack())
 	defer c.Unlock()
 
 	if len(c.components) == 0 {
@@ -94,8 +98,10 @@ func mulDuration(d time.Duration, x int) time.Duration {
 // Returns true if the component list is empty, to make the pooling logic stop.
 func (c *catalog) pingComponents(healthDeadline time.Time) bool {
 	c.Lock()
+	log.Debugf("pingComponentss -- %s", debug.Stack())
 	defer c.Unlock()
 	for _, component := range c.components {
+		log.Debugf("ping %s", component.name)
 		select {
 		case component.healthChan <- healthDeadline:
 			component.healthy = true
