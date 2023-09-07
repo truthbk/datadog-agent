@@ -31,6 +31,7 @@ from . import (
     systray,
     trace_agent,
     vscode,
+    scrapper,
 )
 from .build_tags import audit_tag_impact, print_default_build_tags
 from .components import lint_components
@@ -138,6 +139,7 @@ ns.add_collection(vscode)
 ns.add_collection(new_e2e_tests)
 ns.add_collection(kmt)
 ns.add_collection(diff)
+ns.add_collection(scrapper)
 ns.configure(
     {
         'run': {

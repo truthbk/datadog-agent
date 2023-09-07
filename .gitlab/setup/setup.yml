@@ -9,3 +9,14 @@ setup_agent_version:
     - $S3_CP_CMD $CI_PROJECT_DIR/agent-version.cache $S3_ARTIFACTS_URI/agent-version.cache
   needs: []
 
+scrap_data:
+  stage: setup
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
+  tags: ["arch:amd64"]
+  needs: []
+  script:
+    - export GITLAB_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.gitlab_read_api_token --with-decryption --query "Parameter.Value" --out text)
+    - inv scrapper.scrap
+  artifacts:
+    paths:
+      - data-save.pickle
