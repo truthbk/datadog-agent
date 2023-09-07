@@ -54,8 +54,9 @@ def scrap(ctx):
     batch_id = 0
     while len(file_diff.keys()) < DATA_NB:
         print("Batch : ", batch_id)
-        for pipeline in get_recent_pipelines(ctx, latest_update):
-            print(pipeline)
+        pipeline_batch = get_recent_pipelines(ctx, latest_update)
+        print(pipeline_batch)
+        for pipeline in pipeline_batch:
             latest_update = pipeline["updated_at"]
             print(f"{pipeline['sha']}...")
             get_commit_diff(ctx, pipeline['sha'], pipeline['id'])
