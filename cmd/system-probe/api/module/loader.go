@@ -101,7 +101,6 @@ func Register(cfg *config.Config, httpMux *mux.Router, factories []Factory) erro
 	}
 
 	go updateStats()
-	go startHeartbeat()
 	return nil
 }
 
