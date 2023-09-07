@@ -10,7 +10,6 @@ package python
 import (
 	"testing"
 
-	"github.com/DataDog/datadog-agent/pkg/aggregator"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/mocksender"
 	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	checkid "github.com/DataDog/datadog-agent/pkg/collector/check/id"
@@ -22,7 +21,8 @@ import (
 import "C"
 
 func testSubmitMetric(t *testing.T) {
-	release := scopeInitCheckContext(aggregator.GetSenderManager())
+	senderManager := mocksender.CreateDefaultDemultiplexer()
+	release := scopeInitCheckContext(senderManager)
 	defer release()
 
 	sender := mocksender.NewMockSender(checkid.ID("testID"))
@@ -97,7 +97,8 @@ func testSubmitMetric(t *testing.T) {
 }
 
 func testSubmitMetricEmptyTags(t *testing.T) {
-	release := scopeInitCheckContext(aggregator.GetSenderManager())
+	senderManager := mocksender.CreateDefaultDemultiplexer()
+	release := scopeInitCheckContext(senderManager)
 	defer release()
 
 	sender := mocksender.NewMockSender(checkid.ID("testID"))
@@ -116,7 +117,8 @@ func testSubmitMetricEmptyTags(t *testing.T) {
 }
 
 func testSubmitMetricEmptyHostname(t *testing.T) {
-	release := scopeInitCheckContext(aggregator.GetSenderManager())
+	senderManager := mocksender.CreateDefaultDemultiplexer()
+	release := scopeInitCheckContext(senderManager)
 	defer release()
 
 	sender := mocksender.NewMockSender(checkid.ID("testID"))
@@ -135,7 +137,8 @@ func testSubmitMetricEmptyHostname(t *testing.T) {
 }
 
 func testSubmitServiceCheck(t *testing.T) {
-	release := scopeInitCheckContext(aggregator.GetSenderManager())
+	senderManager := mocksender.CreateDefaultDemultiplexer()
+	release := scopeInitCheckContext(senderManager)
 	defer release()
 
 	sender := mocksender.NewMockSender(checkid.ID("testID"))
@@ -153,7 +156,8 @@ func testSubmitServiceCheck(t *testing.T) {
 }
 
 func testSubmitServiceCheckEmptyTag(t *testing.T) {
-	release := scopeInitCheckContext(aggregator.GetSenderManager())
+	senderManager := mocksender.CreateDefaultDemultiplexer()
+	release := scopeInitCheckContext(senderManager)
 	defer release()
 
 	sender := mocksender.NewMockSender(checkid.ID("testID"))
@@ -171,7 +175,8 @@ func testSubmitServiceCheckEmptyTag(t *testing.T) {
 }
 
 func testSubmitServiceCheckEmptyHostame(t *testing.T) {
-	release := scopeInitCheckContext(aggregator.GetSenderManager())
+	senderManager := mocksender.CreateDefaultDemultiplexer()
+	release := scopeInitCheckContext(senderManager)
 	defer release()
 
 	sender := mocksender.NewMockSender(checkid.ID("testID"))
@@ -189,7 +194,8 @@ func testSubmitServiceCheckEmptyHostame(t *testing.T) {
 }
 
 func testSubmitEvent(t *testing.T) {
-	release := scopeInitCheckContext(aggregator.GetSenderManager())
+	senderManager := mocksender.CreateDefaultDemultiplexer()
+	release := scopeInitCheckContext(senderManager)
 	defer release()
 
 	sender := mocksender.NewMockSender(checkid.ID("testID"))
@@ -225,7 +231,8 @@ func testSubmitEvent(t *testing.T) {
 }
 
 func testSubmitHistogramBucket(t *testing.T) {
-	release := scopeInitCheckContext(aggregator.GetSenderManager())
+	senderManager := mocksender.CreateDefaultDemultiplexer()
+	release := scopeInitCheckContext(senderManager)
 	defer release()
 
 	sender := mocksender.NewMockSender(checkid.ID("testID"))
@@ -248,7 +255,8 @@ func testSubmitHistogramBucket(t *testing.T) {
 }
 
 func testSubmitEventPlatformEvent(t *testing.T) {
-	release := scopeInitCheckContext(aggregator.GetSenderManager())
+	senderManager := mocksender.CreateDefaultDemultiplexer()
+	release := scopeInitCheckContext(senderManager)
 	defer release()
 
 	sender := mocksender.NewMockSender("testID")
