@@ -3,7 +3,7 @@ import pickle
 import json
 import time
 
-DD_ID = 4670
+DD_ID = "DataDog%2Fdatadog-agent"
 DATA_NB = 3000
 faillure_list = {}
 file_diff = {}
@@ -55,7 +55,6 @@ def scrap(ctx):
     while len(file_diff.keys()) < DATA_NB:
         print("Batch : ", batch_id)
         pipeline_batch = get_recent_pipelines(ctx, latest_update)
-        print(pipeline_batch)
         for pipeline in pipeline_batch:
             latest_update = pipeline["updated_at"]
             print(f"{pipeline['sha']}...")
