@@ -49,7 +49,6 @@ def get_commit_diff(ctx, sha, pipelineID):
 
 @task
 def scrap(ctx):
-    ctx.run("curl --header \"PRIVATE-TOKEN: $GITLAB_TOKEN\" https://gitlab.ddbuild.io/api/v4/projects")
     print("Gathering Recent pipelines...")
     latest_update = None
     batch_id = 0
