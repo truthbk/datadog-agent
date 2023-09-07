@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2023-present Datadog, Inc.
 
-// Package diagnose defines the sender manager for the local diagnose check
+// Package diagnosesendermanager defines the sender manager for the local diagnose check
 package diagnosesendermanager
 
 import (
