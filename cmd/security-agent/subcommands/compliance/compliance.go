@@ -54,7 +54,8 @@ func StartCompliance(log log.Component, config config.Component, hostname string
 		resolverOptions.StatsdClient = statsdClient
 	}
 
-	senderManager := aggregator.GetSenderManager()
+	// aggregator is not used
+	senderManager := aggregator.NewNoOpSenderManager()
 	runner := runner.NewRunner(senderManager)
 	stopper.Add(runner)
 	agent := compliance.NewAgent(senderManager, compliance.AgentOptions{

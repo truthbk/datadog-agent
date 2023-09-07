@@ -19,10 +19,8 @@ import (
 
 	log "github.com/cihub/seelog"
 
-	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder"
 	"github.com/DataDog/datadog-agent/comp/forwarder/defaultforwarder/transaction"
 	"github.com/DataDog/datadog-agent/pkg/aggregator"
-	"github.com/DataDog/datadog-agent/pkg/collector/check"
 	checkid "github.com/DataDog/datadog-agent/pkg/collector/check/id"
 	"github.com/DataDog/datadog-agent/pkg/serializer"
 
@@ -209,7 +207,9 @@ func main() {
 	agg = aggregator.NewBufferedAggregator(s, nil, "hostname", time.Duration(*flushIval)*time.Second)
 
 	aggregator.SetDefaultAggregator(agg)
-	sender, err := aggregator.GetSender(checkid.ID("benchmark check"))
+	// aggregator is not used
+	senderManager := aggregator.NewNoOpSenderManager()
+	sender, err := senderManager.GetSender(checkid.ID("benchmark check"))
 	if err != nil {
 		log.Criticalf("could not get sender: %s", err)
 		return

@@ -231,12 +231,14 @@ func runJmxCommandConsole(log log.Component, config config.Component, cliParams 
 		return fmt.Errorf("Unable to set up JMX logger: %v", err)
 	}
 
-	common.LoadComponents(context.Background(), aggregator.GetSenderManager(), config.GetString("confd_path"))
+	// aggregator is not used
+	senderManager := aggregator.NewNoOpSenderManager()
+	common.LoadComponents(context.Background(), senderManager, config.GetString("confd_path"))
 	common.AC.LoadAndRun(context.Background())
 
 	// Create the CheckScheduler, but do not attach it to
 	// AutoDiscovery.  NOTE: we do not start common.Coll, either.
-	collector.InitCheckScheduler(common.Coll, aggregator.GetSenderManager())
+	collector.InitCheckScheduler(common.Coll, senderManager)
 
 	// if cliSelectedChecks is empty, then we want to fetch all check configs;
 	// otherwise, we fetch only the matching cehck configs.
