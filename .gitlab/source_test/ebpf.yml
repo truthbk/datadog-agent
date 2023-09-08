@@ -58,7 +58,7 @@
 .tests_windows_sysprobe:
   stage: source_test
   needs: ["go_deps"]
-  tags: [ "runner:windows-docker", "windowsversion:1809_test" ]
+  tags: [ "runner:windows-docker", "windowsversion:1809_test_nodevice" ]
   script:
     - $ErrorActionPreference = "Stop"
     - '$_instance_id = (iwr  -UseBasicParsing http://169.254.169.254/latest/meta-data/instance-id).content ; Write-Host "Running on instance $($_instance_id)"'
