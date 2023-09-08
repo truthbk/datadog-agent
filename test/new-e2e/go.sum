@@ -5,6 +5,8 @@ github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 h1:UQHMgLO+TxOEl
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/DataDog/agent-payload/v5 v5.0.73 h1:fnCnAR+nWY+q//fBZSab4cDFFng0scPEfmLdl9ngmQY=
 github.com/DataDog/agent-payload/v5 v5.0.73/go.mod h1:oQZi1VZp1e3QvlSUX4iphZCpJaFepUxWq0hNXxihKBM=
+github.com/DataDog/test-infra-definitions v0.0.0-20230623075202-68fdbf0dae09 h1:NM7sMj8Hkr3+Mm31msBTm4H+EXKltSopKA1gkVokHEg=
+github.com/DataDog/test-infra-definitions v0.0.0-20230623075202-68fdbf0dae09/go.mod h1:wKd1BdCB9cb4MOdk6uUI69dDxH6K6ABYOZNaNnEoseg=
 github.com/DataDog/test-infra-definitions v0.0.0-20230829135717-713eba6ee3fe h1:tVSTXfgqgKyGRsD9R6NNoOZH4ZEQAjzRmCCI41UE2nM=
 github.com/DataDog/test-infra-definitions v0.0.0-20230829135717-713eba6ee3fe/go.mod h1:NKrmxU2OsTfLTzVQafVA0JMRSWHN3xUJOXdPQKd7VPw=
 github.com/HdrHistogram/hdrhistogram-go v1.1.2 h1:5IcZpTvzydCQeHzK4Ef/D5rrSqwxob0t8PQPMybUNFM=
@@ -356,7 +358,15 @@ github.com/pulumi/pulumi-aws/sdk/v5 v5.42.0 h1:QdJvPoUklXdNL8faCOuCrv7qmMNp68jie
 github.com/pulumi/pulumi-aws/sdk/v5 v5.42.0/go.mod h1:qFeKTFSNIlMHotu9ntOWFjJBHtCiUhJeaiUB/0nVwXk=
 github.com/pulumi/pulumi-awsx/sdk v1.0.2 h1:SLm2MUICM91b/02r7KTI2/4R1XRJedIeMQdeYxATe9k=
 github.com/pulumi/pulumi-awsx/sdk v1.0.2/go.mod h1:jwPmIPvPTVYkq+n6Nz/QfMhNZ1cHvBSORdRYvljV9Xo=
+github.com/pulumi/pulumi-azure-native-sdk v1.103.0 h1:fFuo8QWZcvnjNOeD/6cXNxoFuMTjRN2FpSvHMqRE29o=
+github.com/pulumi/pulumi-azure-native-sdk v1.103.0/go.mod h1:ZfkbJPR8poiJgy4IlNaa2NBjHLW37nsLY2BIbZp3lHc=
 github.com/pulumi/pulumi-azure-native-sdk v1.104.0 h1:vyD4PvKSOkwL1z9WTis3ZE9XC73UM/7AyMNek4Vm1+E=
+github.com/pulumi/pulumi-azure-native-sdk/compute v1.103.0 h1:tkc4VRRCvUVw/OFHEKhad53eFxOXwi9XnNl4UGAtu0Y=
+github.com/pulumi/pulumi-azure-native-sdk/compute v1.103.0/go.mod h1:jxleMoGYlBR1nIHxEQ9+82s+LYZuHl841u1iY/x0z9M=
+github.com/pulumi/pulumi-azure-native-sdk/containerservice v1.103.0 h1:6S9lblPIjYiWbldvcoMnxqSQfpg36xbcRH4AT/CHbmI=
+github.com/pulumi/pulumi-azure-native-sdk/containerservice v1.103.0/go.mod h1:+wi5wcDgMGRbB0bxZVvp1GTLMkKPX7Nztx7VOoSHimk=
+github.com/pulumi/pulumi-azure-native-sdk/network v1.103.0 h1:KnPDH6GCpu/YLvnWzrfYDKmom3xjr81kLLoZyHAr6dY=
+github.com/pulumi/pulumi-azure-native-sdk/network v1.103.0/go.mod h1:bLrmltIdnOZqsgs8mlEn1xfLLzAI79zIPogAA2WjD5E=
 github.com/pulumi/pulumi-command/sdk v0.7.2 h1:YmnCX2lc70kpO9DxE4TJyApL1Tq19gxAaVpThQuDthY=
 github.com/pulumi/pulumi-command/sdk v0.7.2/go.mod h1:niZxKP6w3PQdwOWnRwjop2LNd1TcdIQR+LuzIEGX4kU=
 github.com/pulumi/pulumi-docker/sdk/v3 v3.6.1 h1:plWLn9O6u80Vr37LoCsckyobBfcrdTU9cERor72QjqA=
