@@ -7,6 +7,7 @@ DD_ID = 'DataDog%2Fdatadog-agent'
 DATA_NB = 3000
 faillure_list = {}
 file_diff = {}
+metadata = {}
 
 
 def get_pipeline_jobs(ctx, pipelineID):
@@ -46,6 +47,10 @@ def get_commit_diff(ctx, sha, pipelineID):
         if diffs["new_path"] not in file_diff[pipelineID]:
             file_diff[pipelineID] = [diffs["new_path"]]
 
+def save_metadata(ctx, sha, pipelineID):
+    if metadata.get(pipelineID, None) is None:
+        metadata[pipelineID] = []
+    metadata[pipelineID].append(sha)
 
 @task
 def scrap(ctx):
@@ -61,9 +66,10 @@ def scrap(ctx):
             get_commit_diff(ctx, pipeline['sha'], pipeline['id'])
             print(f"{pipeline['id']}...")
             get_pipeline_jobs(ctx, pipeline["id"])
+            save_metadata(ctx, pipeline['sha'], pipeline['id'])
         batch_id += 1
         print("Small 2 sec break...")
         time.sleep(2)
 
     with open("data-save.pickle", "wb") as f:
-        pickle.dump([faillure_list, file_diff], f)
+        pickle.dump([faillure_list, file_diff, metadata], f)
