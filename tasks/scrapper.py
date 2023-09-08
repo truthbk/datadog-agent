@@ -42,10 +42,16 @@ def get_commit_diff(ctx, sha, pipelineID):
         hide=True,
     )
     content = json.loads(output.stdout)
-    for diffs in content["diffs"]:
-        file_diff[pipelineID] = [diffs["old_path"]]
-        if diffs["new_path"] not in file_diff[pipelineID]:
-            file_diff[pipelineID] = [diffs["new_path"]]
+    try:
+        for diffs in content["diffs"]:
+            file_diff[pipelineID] = [diffs["old_path"]]
+            if diffs["new_path"] not in file_diff[pipelineID]:
+                file_diff[pipelineID] = [diffs["new_path"]]
+    except Exception as e:
+        print(e)
+        print(content)
+        return False
+    return True
 
 def save_metadata(ctx, sha, pipelineID):
     if metadata.get(pipelineID, None) is None:
@@ -63,7 +69,8 @@ def scrap(ctx):
         for pipeline in pipeline_batch:
             latest_update = pipeline["updated_at"]
             print(f"{pipeline['sha']}...")
-            get_commit_diff(ctx, pipeline['sha'], pipeline['id'])
+            if not get_commit_diff(ctx, pipeline['sha'], pipeline['id']):
+                continue
             print(f"{pipeline['id']}...")
             get_pipeline_jobs(ctx, pipeline["id"])
             save_metadata(ctx, pipeline['sha'], pipeline['id'])
