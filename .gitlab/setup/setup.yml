@@ -30,7 +30,7 @@ setup_test:
   artifacts:
     expire_in: 2 weeks
     paths:
-      - $OMNIBUS_PACKAGE_DIR_SUFFIX
+      - ${OMNIBUS_PACKAGE_DIR_SUFFIX}
       - $OMNIBUS_PACKAGE_DIR_SUSE_SUFFIX
       - omnibus/pkg
       - omnibus/suse/pkg
