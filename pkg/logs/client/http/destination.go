@@ -322,6 +322,7 @@ func (d *Destination) unconditionalSend(payload *message.Payload) (err error) {
 		// internal error. We should retry these requests.
 		return client.NewRetryableError(errServer)
 	} else {
+		log.Debugf("Sent payload with bytes %d", len(payload.Encoded))
 		return nil
 	}
 }
