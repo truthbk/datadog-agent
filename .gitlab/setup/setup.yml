@@ -9,3 +9,28 @@ setup_agent_version:
     - $S3_CP_CMD $CI_PROJECT_DIR/agent-version.cache $S3_ARTIFACTS_URI/agent-version.cache
   needs: []
 
+
+setup_test:
+  stage: setup
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/deb_x64$DATADOG_AGENT_BUILDIMAGES_SUFFIX:$DATADOG_AGENT_BUILDIMAGES
+  tags: ["arch:amd64"]
+  script:
+    - echo "$CI_PROJECT_DIR"
+    - echo "$OMNIBUS_PACKAGE_DIR"
+    - echo "$OMNIBUS_PACKAGE_DIR_SUFFIX"
+    - echo "$OMNIBUS_PACKAGE_DIR_SUSE"
+    - echo "$OMNIBUS_PACKAGE_DIR_SUSE_SUFFIX"
+    - mkdir -p $OMNIBUS_PACKAGE_DIR && touch $CI_PROJECT_DIR/$OMNIBUS_PACKAGE_DIR_SUFFIX/test1
+    - mkdir -p $OMNIBUS_PACKAGE_DIR_SUSE && touch $CI_PROJECT_DIR/$OMNIBUS_PACKAGE_DIR_SUSE_SUFFIX/test2
+    - ls -la $OMNIBUS_PACKAGE_DIR_SUFFIX
+    - ls -la $OMNIBUS_PACKAGE_DIR_SUSE_SUFFIX
+    - ls -la omnibus/pkg
+    - ls -la omnibus/suse/pkg
+  needs: []
+  artifacts:
+    expire_in: 2 weeks
+    paths:
+      - $OMNIBUS_PACKAGE_DIR_SUFFIX
+      - $OMNIBUS_PACKAGE_DIR_SUSE_SUFFIX
+      - omnibus/pkg
+      - omnibus/suse/pkg
