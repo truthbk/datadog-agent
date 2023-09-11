@@ -507,19 +507,18 @@ func (at *ActivityTree) insertBranch(parent ProcessNodeParent, branchToInsert []
 		if dryRun {
 			// exit early in case of a dry run
 			return nil, true, nil
-		} else {
-			// we can safely insert the rest of the branch since they automatically all be new
-			for j := i; j >= 0; j-- {
-				// create the node
-				matchingNode = NewProcessNode(branchToInsert[j], generationType, r)
-				parent.AppendChild(matchingNode)
+		}
+		// we can safely insert the rest of the branch since they automatically all be new
+		for j := i; j >= 0; j-- {
+			// create the node
+			matchingNode = NewProcessNode(branchToInsert[j], generationType, r)
+			parent.AppendChild(matchingNode)
 
-				// insert the new node in the list of children
-				at.Stats.addedCount[model.ExecEventType][generationType].Inc()
-				at.Stats.ProcessNodes++
+			// insert the new node in the list of children
+			at.Stats.addedCount[model.ExecEventType][generationType].Inc()
+			at.Stats.ProcessNodes++
 
-				parent = matchingNode
-			}
+			parent = matchingNode
 		}
 
 		// if we reach this point, we can safely return the last inserted entry and indicate that the tree was modified

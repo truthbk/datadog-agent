@@ -7,6 +7,7 @@
 
 package utils
 
+// PathPatternBuilderOpts PathPatternBuilder options
 type PathPatternBuilderOpts struct {
 	WildcardLimit      int // max number of wildcard in the pattern
 	PrefixNodeRequired int // number of prefix nodes required
@@ -14,6 +15,7 @@ type PathPatternBuilderOpts struct {
 	NodeSizeLimit      int // min size required to substitute with a wildcard
 }
 
+// PathPatternBuilder pattern builder for files
 func PathPatternBuilder(pattern string, path string, opts PathPatternBuilderOpts) (bool, string) {
 	if len(pattern) > len(path) {
 		return false, ""
