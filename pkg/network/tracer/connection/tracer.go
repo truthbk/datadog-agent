@@ -12,19 +12,16 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"math"
 	"sync"
 	"time"
 	"unsafe"
 
+	manager "github.com/DataDog/ebpf-manager"
 	"github.com/cihub/seelog"
 	"github.com/cilium/ebpf"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/twmb/murmur3"
 	"go.uber.org/atomic"
-	"golang.org/x/sys/unix"
-
-	manager "github.com/DataDog/ebpf-manager"
 
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/ebpf/probe/ebpfcheck"
 	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
@@ -154,16 +151,6 @@ type tracer struct {
 // NewTracer creates a new tracer
 func NewTracer(config *config.Config, bpfTelemetry *nettelemetry.EBPFTelemetry) (Tracer, error) {
 	mgrOptions := manager.Options{
-		// Extend RLIMIT_MEMLOCK (8) size
-		// On some systems, the default for RLIMIT_MEMLOCK may be as low as 64 bytes.
-		// This will result in an EPERM (Operation not permitted) error, when trying to create an eBPF map
-		// using bpf(2) with BPF_MAP_CREATE.
-		//
-		// We are setting the limit to infinity until we have a better handle on the true requirements.
-		RLimit: &unix.Rlimit{
-			Cur: math.MaxUint64,
-			Max: math.MaxUint64,
-		},
 		MapSpecEditors: map[string]manager.MapSpecEditor{
 			probes.ConnMap:                           {MaxEntries: config.MaxTrackedConnections, EditorFlag: manager.EditMaxEntries},
 			probes.TCPStatsMap:                       {MaxEntries: config.MaxTrackedConnections, EditorFlag: manager.EditMaxEntries},

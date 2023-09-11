@@ -9,10 +9,7 @@ package offsetguess
 
 import (
 	"fmt"
-	"math"
 	"time"
-
-	"golang.org/x/sys/unix"
 
 	manager "github.com/DataDog/ebpf-manager"
 
@@ -125,12 +122,7 @@ func enableProbe(enabled map[probes.ProbeFuncName]struct{}, name probes.ProbeFun
 func setupOffsetGuesser(guesser OffsetGuesser, config *config.Config, buf bytecode.AssetReader) error {
 	// Enable kernel probes used for offset guessing.
 	offsetMgr := guesser.Manager()
-	offsetOptions := manager.Options{
-		RLimit: &unix.Rlimit{
-			Cur: math.MaxUint64,
-			Max: math.MaxUint64,
-		},
-	}
+	offsetOptions := manager.Options{}
 	enabledProbes, err := guesser.Probes(config)
 	if err != nil {
 		return fmt.Errorf("unable to configure offset guessing probes: %w", err)

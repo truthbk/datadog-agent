@@ -228,6 +228,10 @@ func startSystemProbe(cliParams *cliParams, log log.Component, telemetry telemet
 		return ErrNotEnabled
 	}
 
+	if err := removeMemlock(); err != nil {
+		return err
+	}
+
 	if err := util.SetupCoreDump(sysprobeconfig); err != nil {
 		log.Warnf("cannot setup core dumps: %s, core dumps might not be available after a crash", err)
 	}

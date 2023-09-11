@@ -9,11 +9,9 @@ package sharedlibraries
 
 import (
 	"fmt"
-	"math"
 	"os"
 
 	manager "github.com/DataDog/ebpf-manager"
-	"golang.org/x/sys/unix"
 
 	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode"
@@ -121,11 +119,6 @@ func (e *ebpfProgram) Stop() {
 }
 
 func (e *ebpfProgram) init(buf bytecode.AssetReader, options manager.Options) error {
-	options.RLimit = &unix.Rlimit{
-		Cur: math.MaxUint64,
-		Max: math.MaxUint64,
-	}
-
 	for _, probe := range e.Probes {
 		options.ActivatedProbes = append(options.ActivatedProbes,
 			&manager.ProbeSelector{

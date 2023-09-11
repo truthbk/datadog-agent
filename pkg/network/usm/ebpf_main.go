@@ -9,13 +9,10 @@ package usm
 
 import (
 	"fmt"
-	"math"
 	"time"
 
-	"github.com/cilium/ebpf"
-	"golang.org/x/sys/unix"
-
 	manager "github.com/DataDog/ebpf-manager"
+	"github.com/cilium/ebpf"
 
 	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode"
@@ -274,11 +271,6 @@ func (e *ebpfProgram) init(buf bytecode.AssetReader, options manager.Options) er
 	kprobeAttachMethod := manager.AttachKprobeWithPerfEventOpen
 	if e.cfg.AttachKprobesWithKprobeEventsABI {
 		kprobeAttachMethod = manager.AttachKprobeWithKprobeEvents
-	}
-
-	options.RLimit = &unix.Rlimit{
-		Cur: math.MaxUint64,
-		Max: math.MaxUint64,
 	}
 
 	options.MapSpecEditors = map[string]manager.MapSpecEditor{

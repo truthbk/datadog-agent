@@ -12,10 +12,7 @@ package probe
 
 import (
 	"fmt"
-	"math"
 	"unsafe"
-
-	"golang.org/x/sys/unix"
 
 	manager "github.com/DataDog/ebpf-manager"
 	bpflib "github.com/cilium/ebpf"
@@ -107,11 +104,6 @@ func startOOMKillProbe(buf bytecode.AssetReader, managerOptions manager.Options)
 		Maps: []*manager.Map{
 			{Name: "oom_stats"},
 		},
-	}
-
-	managerOptions.RLimit = &unix.Rlimit{
-		Cur: math.MaxUint64,
-		Max: math.MaxUint64,
 	}
 
 	if err := m.InitWithOptions(buf, managerOptions); err != nil {

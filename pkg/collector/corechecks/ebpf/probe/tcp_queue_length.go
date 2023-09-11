@@ -12,10 +12,7 @@ package probe
 
 import (
 	"fmt"
-	"math"
 	"unsafe"
-
-	"golang.org/x/sys/unix"
 
 	manager "github.com/DataDog/ebpf-manager"
 	bpflib "github.com/cilium/ebpf"
@@ -71,11 +68,6 @@ func startTCPQueueLengthProbe(buf bytecode.AssetReader, managerOptions manager.O
 	m := &manager.Manager{
 		Probes: probes,
 		Maps:   maps,
-	}
-
-	managerOptions.RLimit = &unix.Rlimit{
-		Cur: math.MaxUint64,
-		Max: math.MaxUint64,
 	}
 
 	if err := m.InitWithOptions(buf, managerOptions); err != nil {

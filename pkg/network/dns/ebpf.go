@@ -8,10 +8,7 @@
 package dns
 
 import (
-	"math"
-
 	manager "github.com/DataDog/ebpf-manager"
-	"golang.org/x/sys/unix"
 
 	"github.com/DataDog/datadog-agent/pkg/collector/corechecks/ebpf/probe/ebpfcheck"
 	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode"
@@ -68,10 +65,6 @@ func (e *ebpfProgram) Init() error {
 		kprobeAttachMethod = manager.AttachKprobeWithKprobeEvents
 	}
 	err := e.InitWithOptions(e.bytecode, manager.Options{
-		RLimit: &unix.Rlimit{
-			Cur: math.MaxUint64,
-			Max: math.MaxUint64,
-		},
 		ActivatedProbes: []manager.ProbesSelector{
 			&manager.ProbeSelector{
 				ProbeIdentificationPair: manager.ProbeIdentificationPair{

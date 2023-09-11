@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/DataDog/gopsutil/host"
+	"github.com/cilium/ebpf/rlimit"
 
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 )
@@ -37,6 +38,10 @@ func TestBuildModes(t *testing.T, modes []BuildMode, name string, fn func(t *tes
 }
 
 func TestBuildMode(t *testing.T, mode BuildMode, name string, fn func(t *testing.T)) {
+	if err := rlimit.RemoveMemlock(); err != nil {
+		t.Fatal(err)
+	}
+
 	t.Run(mode.String(), func(t *testing.T) {
 		for k, v := range mode.Env() {
 			t.Setenv(k, v)
