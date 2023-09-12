@@ -14,24 +14,26 @@ typedef struct {
 
 static const __u8 GUESS_SADDR = 0;
 static const __u8 GUESS_DADDR = 1;
-static const __u8 GUESS_FAMILY = 2;
-static const __u8 GUESS_SPORT = 3;
-static const __u8 GUESS_DPORT = 4;
-static const __u8 GUESS_NETNS = 5;
-static const __u8 GUESS_RTT = 6;
-static const __u8 GUESS_DADDR_IPV6 = 7;
-static const __u8 GUESS_SADDR_FL4 = 8;
-static const __u8 GUESS_DADDR_FL4 = 9;
-static const __u8 GUESS_SPORT_FL4 = 10;
-static const __u8 GUESS_DPORT_FL4 = 11;
-static const __u8 GUESS_SADDR_FL6 = 12;
-static const __u8 GUESS_DADDR_FL6 = 13;
-static const __u8 GUESS_SPORT_FL6 = 14;
-static const __u8 GUESS_DPORT_FL6 = 15;
-static const __u8 GUESS_SOCKET_SK = 16;
-static const __u8 GUESS_SK_BUFF_SOCK = 17;
-static const __u8 GUESS_SK_BUFF_TRANSPORT_HEADER = 18;
-static const __u8 GUESS_SK_BUFF_HEAD = 19;
+static const __u8 GUESS_DPORT = 2;
+static const __u8 GUESS_FAMILY = 3;
+static const __u8 GUESS_SPORT = 4;
+static const __u8 GUESS_SADDR_FL4 = 5;
+static const __u8 GUESS_DADDR_FL4 = 6;
+static const __u8 GUESS_SPORT_FL4 = 7;
+static const __u8 GUESS_DPORT_FL4 = 8;
+static const __u8 GUESS_SADDR_FL6 = 9;
+static const __u8 GUESS_DADDR_FL6 = 10;
+static const __u8 GUESS_SPORT_FL6 = 11;
+static const __u8 GUESS_DPORT_FL6 = 12;
+static const __u8 GUESS_NETNS = 13;
+static const __u8 GUESS_RTT = 14;
+static const __u8 GUESS_SOCKET_SK = 15;
+static const __u8 GUESS_SK_BUFF_SOCK = 16;
+static const __u8 GUESS_SK_BUFF_TRANSPORT_HEADER = 17;
+static const __u8 GUESS_SK_BUFF_HEAD = 18;
+static const __u8 GUESS_DADDR_IPV6 = 19;
+
+
 static const __u8 GUESS_CT_TUPLE_ORIGIN = 20;
 static const __u8 GUESS_CT_TUPLE_REPLY = 21;
 static const __u8 GUESS_CT_STATUS = 22;
@@ -97,6 +99,8 @@ typedef struct {
     __u16 dport_via_sk;
     __u16 sport_via_sk_via_sk_buff;
     __u16 dport_via_sk_via_sk_buff;
+    __u16 sport_via_sk_buff;
+    __u16 dport_via_sk_buff;
 
     __u16 transport_header;
     __u16 network_header;

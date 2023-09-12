@@ -1,6 +1,7 @@
 #include "kconfig.h"
 #include "offset-guess.h"
 #include "bpf_tracing.h"
+#include "bpf_endian.h"
 #include "map-defs.h"
 
 #include <net/net_namespace.h>
@@ -132,10 +133,12 @@ static __always_inline int guess_offsets(tracer_status_t* status, char* subject)
     case GUESS_SPORT:
         new_status.offsets.sport = aligned_offset(subject, status->offsets.sport, SIZEOF_SPORT);
         bpf_probe_read_kernel(&new_status.values.sport, sizeof(new_status.values.sport), subject + new_status.offsets.sport);
+        new_status.values.sport = bpf_ntohs(new_status.values.sport);
         break;
     case GUESS_DPORT:
         new_status.offsets.dport = aligned_offset(subject, status->offsets.dport, SIZEOF_DPORT);
         bpf_probe_read_kernel(&new_status.values.dport, sizeof(new_status.values.dport), subject + new_status.offsets.dport);
+        new_status.values.dport = bpf_ntohs(new_status.values.dport);
         break;
     case GUESS_SADDR_FL4:
         new_status.offsets.saddr_fl4 = aligned_offset(subject, status->offsets.saddr_fl4, SIZEOF_SADDR_FL4);
@@ -148,10 +151,12 @@ static __always_inline int guess_offsets(tracer_status_t* status, char* subject)
     case GUESS_SPORT_FL4:
         new_status.offsets.sport_fl4 = aligned_offset(subject, status->offsets.sport_fl4, SIZEOF_SPORT_FL4);
         bpf_probe_read_kernel(&new_status.values.sport_fl4, sizeof(new_status.values.sport_fl4), subject + new_status.offsets.sport_fl4);
+        new_status.values.sport_fl4 = bpf_ntohs(new_status.values.sport_fl4);
         break;
     case GUESS_DPORT_FL4:
         new_status.offsets.dport_fl4 = aligned_offset(subject, status->offsets.dport_fl4, SIZEOF_DPORT_FL4);
         bpf_probe_read_kernel(&new_status.values.dport_fl4, sizeof(new_status.values.dport_fl4), subject + new_status.offsets.dport_fl4);
+        new_status.values.dport_fl4 = bpf_ntohs(new_status.values.dport_fl4);
         break;
     case GUESS_SADDR_FL6:
         new_status.offsets.saddr_fl6 = aligned_offset(subject, status->offsets.saddr_fl6, SIZEOF_SADDR_FL6);
@@ -164,10 +169,12 @@ static __always_inline int guess_offsets(tracer_status_t* status, char* subject)
     case GUESS_SPORT_FL6:
         new_status.offsets.sport_fl6 = aligned_offset(subject, status->offsets.sport_fl6, SIZEOF_SPORT_FL6);
         bpf_probe_read_kernel(&new_status.values.sport_fl6, sizeof(new_status.values.sport_fl6), subject + new_status.offsets.sport_fl6);
+        new_status.values.sport_fl6 = bpf_ntohs(new_status.values.sport_fl6);
         break;
     case GUESS_DPORT_FL6:
         new_status.offsets.dport_fl6 = aligned_offset(subject, status->offsets.dport_fl6, SIZEOF_DPORT_FL6);
         bpf_probe_read_kernel(&new_status.values.dport_fl6, sizeof(new_status.values.dport_fl6), subject + new_status.offsets.dport_fl6);
+        new_status.values.dport_fl6 = bpf_ntohs(new_status.values.dport_fl6);
         break;
     case GUESS_NETNS:
         new_status.offsets.netns = aligned_offset(subject, status->offsets.netns, SIZEOF_NETNS);
@@ -210,6 +217,8 @@ static __always_inline int guess_offsets(tracer_status_t* status, char* subject)
         bpf_probe_read_kernel(&subject, sizeof(subject), subject + new_status.offsets.socket_sk);
         bpf_probe_read_kernel(&new_status.values.sport_via_sk, sizeof(new_status.values.sport_via_sk), subject + new_status.offsets.sport);
         bpf_probe_read_kernel(&new_status.values.dport_via_sk, sizeof(new_status.values.dport_via_sk), subject + new_status.offsets.dport);
+        new_status.values.sport_via_sk = bpf_ntohs(new_status.values.sport_via_sk);
+        new_status.values.dport_via_sk = bpf_ntohs(new_status.values.dport_via_sk);
         break;
     case GUESS_SK_BUFF_SOCK:
         // Note that in this line we're essentially dereferencing a pointer
@@ -219,6 +228,8 @@ static __always_inline int guess_offsets(tracer_status_t* status, char* subject)
         bpf_probe_read_kernel(&subject, sizeof(subject), subject + new_status.offsets.sk_buff_sock);
         bpf_probe_read_kernel(&new_status.values.sport_via_sk_via_sk_buff, sizeof(new_status.values.sport_via_sk_via_sk_buff), subject + new_status.offsets.sport);
         bpf_probe_read_kernel(&new_status.values.dport_via_sk_via_sk_buff, sizeof(new_status.values.dport_via_sk_via_sk_buff), subject + new_status.offsets.dport);
+        new_status.values.sport_via_sk_via_sk_buff = bpf_ntohs(new_status.values.sport_via_sk_via_sk_buff);
+        new_status.values.dport_via_sk_via_sk_buff = bpf_ntohs(new_status.values.dport_via_sk_via_sk_buff);
         break;
     case GUESS_SK_BUFF_TRANSPORT_HEADER:
         new_status.offsets.sk_buff_transport_header = aligned_offset(subject, status->offsets.sk_buff_transport_header, SIZEOF_SK_BUFF_TRANSPORT_HEADER);
@@ -233,8 +244,10 @@ static __always_inline int guess_offsets(tracer_status_t* status, char* subject)
         // Loading source and dest ports.
         // The ports are located in the transport section (subject + status->transport_header), if the traffic is udp or tcp
         // the source port is the first field in the struct (16 bits), and the dest is the second field (16 bits).
-        bpf_probe_read_kernel(&new_status.values.sport_via_sk_via_sk_buff, sizeof(new_status.values.sport_via_sk_via_sk_buff), subject + status->values.transport_header);
-        bpf_probe_read_kernel(&new_status.values.dport_via_sk_via_sk_buff, sizeof(new_status.values.dport_via_sk_via_sk_buff), subject + status->values.transport_header + sizeof(__u16));
+        bpf_probe_read_kernel(&new_status.values.sport_via_sk_buff, sizeof(new_status.values.sport_via_sk_buff), subject + status->values.transport_header);
+        bpf_probe_read_kernel(&new_status.values.dport_via_sk_buff, sizeof(new_status.values.dport_via_sk_buff), subject + status->values.transport_header + sizeof(__u16));
+        new_status.values.sport_via_sk_buff = bpf_ntohs(new_status.values.sport_via_sk_buff);
+        new_status.values.dport_via_sk_buff = bpf_ntohs(new_status.values.dport_via_sk_buff);
         break;
     default:
         // not for us

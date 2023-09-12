@@ -25,12 +25,6 @@ import (
 
 var zero uint64
 
-// These constants should be in sync with the equivalent definitions in the ebpf program.
-const (
-	disabled uint8 = 0
-	enabled  uint8 = 1
-)
-
 const (
 	// The source port is much further away in the inet sock.
 	thresholdInetSock = 2000

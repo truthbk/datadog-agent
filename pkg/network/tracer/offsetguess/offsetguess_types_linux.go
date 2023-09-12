@@ -55,6 +55,8 @@ type TracerValues struct {
 	Dport_via_sk             uint16
 	Sport_via_sk_via_sk_buff uint16
 	Dport_via_sk_via_sk_buff uint16
+	Sport_via_sk_buff        uint16
+	Dport_via_sk_buff        uint16
 	Transport_header         uint16
 	Network_header           uint16
 	Mac_header               uint16
@@ -68,7 +70,6 @@ type TracerStatus struct {
 	Info_kprobe_status uint64
 	Offsets            TracerOffsets
 	Values             TracerValues
-	Pad_cgo_0          [4]byte
 }
 
 type State uint8
@@ -106,29 +107,31 @@ type ConntrackState uint8
 type GuessWhat uint64
 
 const (
-	GuessSAddr     GuessWhat = 0x0
-	GuessDAddr     GuessWhat = 0x1
-	GuessFamily    GuessWhat = 0x2
-	GuessSPort     GuessWhat = 0x3
-	GuessDPort     GuessWhat = 0x4
-	GuessNetNS     GuessWhat = 0x5
-	GuessRTT       GuessWhat = 0x6
-	GuessDAddrIPv6 GuessWhat = 0x7
+	GuessSAddr  GuessWhat = 0x0
+	GuessDAddr  GuessWhat = 0x1
+	GuessDPort  GuessWhat = 0x2
+	GuessFamily GuessWhat = 0x3
+	GuessSPort  GuessWhat = 0x4
 
-	GuessSAddrFl4 GuessWhat = 0x8
-	GuessDAddrFl4 GuessWhat = 0x9
-	GuessSPortFl4 GuessWhat = 0xa
-	GuessDPortFl4 GuessWhat = 0xb
+	GuessSAddrFl4 GuessWhat = 0x5
+	GuessDAddrFl4 GuessWhat = 0x6
+	GuessSPortFl4 GuessWhat = 0x7
+	GuessDPortFl4 GuessWhat = 0x8
 
-	GuessSAddrFl6   GuessWhat = 0xc
-	GuessDAddrFl6   GuessWhat = 0xd
-	GuessSPortFl6   GuessWhat = 0xe
-	GuessDPortFl6   GuessWhat = 0xf
-	GuessSocketSK   GuessWhat = 0x10
-	GuessSKBuffSock GuessWhat = 0x11
+	GuessSAddrFl6 GuessWhat = 0x9
+	GuessDAddrFl6 GuessWhat = 0xa
+	GuessSPortFl6 GuessWhat = 0xb
+	GuessDPortFl6 GuessWhat = 0xc
 
-	GuessSKBuffTransportHeader GuessWhat = 0x12
-	GuessSKBuffHead            GuessWhat = 0x13
+	GuessNetNS GuessWhat = 0xd
+	GuessRTT   GuessWhat = 0xe
+
+	GuessSocketSK              GuessWhat = 0xf
+	GuessSKBuffSock            GuessWhat = 0x10
+	GuessSKBuffTransportHeader GuessWhat = 0x11
+	GuessSKBuffHead            GuessWhat = 0x12
+
+	GuessDAddrIPv6 GuessWhat = 0x13
 
 	GuessCtTupleOrigin GuessWhat = 0x14
 	GuessCtTupleReply  GuessWhat = 0x15
