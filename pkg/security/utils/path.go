@@ -104,7 +104,7 @@ func PathPatternBuilder(pattern string, path string, opts PathPatternBuilderOpts
 		suffixNodes++
 	}
 
-	if i == len(result) && j == len(path) && (opts.PrefixNodeRequired == 0 || opts.PrefixNodeRequired <= prefixNodes) && (opts.SuffixNodeRequired == 0 || opts.SuffixNodeRequired <= suffixNodes) {
+	if i == len(result) && j == len(path) && (wildcardCount == 0 || ((opts.PrefixNodeRequired == 0 || opts.PrefixNodeRequired <= prefixNodes) && (opts.SuffixNodeRequired == 0 || opts.SuffixNodeRequired <= suffixNodes))) {
 		return true, string(result[0:size])
 	}
 

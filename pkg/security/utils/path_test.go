@@ -162,6 +162,20 @@ func TestPathPatternBuilder(t *testing.T) {
 			ExpectedPattern: "",
 		},
 		{
+			Pattern:         "/var",
+			Path:            "/var",
+			Opts:            PathPatternBuilderOpts{WildcardLimit: 1, PrefixNodeRequired: 2},
+			ExpectedResult:  true,
+			ExpectedPattern: "/var",
+		},
+		{
+			Pattern:         "/var",
+			Path:            "/var",
+			Opts:            PathPatternBuilderOpts{WildcardLimit: 1, SuffixNodeRequired: 2},
+			ExpectedResult:  true,
+			ExpectedPattern: "/var",
+		},
+		{
 			Pattern:         "/var/run/1234/http.pid",
 			Path:            "/var/run/4321/http.pid",
 			Opts:            PathPatternBuilderOpts{WildcardLimit: 1, NodeSizeLimit: 10},
