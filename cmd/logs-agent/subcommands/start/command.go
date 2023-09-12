@@ -58,7 +58,6 @@ func getSharedFxOption() fx.Option {
 			})
 		}),
 		logs.Bundle,
-		// metadata.Bundle,
 	)
 }
 
@@ -148,33 +147,3 @@ func handleSignals(stopCh chan struct{}) {
 		}
 	}
 }
-
-// func StopAgent(cancel context.CancelFunc, components *DogstatsdComponents) {
-// 	// retrieve the agent health before stopping the components
-// 	// GetReadyNonBlocking has a 100ms timeout to avoid blocking
-// 	health, err := health.GetReadyNonBlocking()
-// 	if err != nil {
-// 		pkglog.Warnf("Dogstatsd health unknown: %s", err)
-// 	} else if len(health.Unhealthy) > 0 {
-// 		pkglog.Warnf("Some components were unhealthy: %v", health.Unhealthy)
-// 	}
-
-// 	// gracefully shut down any component
-// 	cancel()
-
-// 	// stop metaScheduler and statsd if they are instantiated
-// 	if components.MetaScheduler != nil {
-// 		components.MetaScheduler.Stop()
-// 	}
-
-// 	if components.DogstatsdStats != nil {
-// 		if err := components.DogstatsdStats.Shutdown(context.Background()); err != nil {
-// 			pkglog.Errorf("Error shutting down dogstatsd stats server: %s", err)
-// 		}
-// 	}
-
-// 	components.DogstatsdServer.Stop()
-
-// 	pkglog.Info("See ya!")
-// 	pkglog.Flush()
-// }
