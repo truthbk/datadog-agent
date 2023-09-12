@@ -321,14 +321,12 @@ func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected
 			break
 		}
 		t.status.Offset_saddr++
-		t.status.Saddr = expected.saddr
 	case GuessDAddr:
 		if t.status.Daddr == expected.daddr {
 			t.logAndAdvance(t.status.Offset_daddr, GuessDPort)
 			break
 		}
 		t.status.Offset_daddr++
-		t.status.Daddr = expected.daddr
 	case GuessDPort:
 		if t.status.Dport == htons(expected.dport) {
 			t.logAndAdvance(t.status.Offset_dport, GuessFamily)
