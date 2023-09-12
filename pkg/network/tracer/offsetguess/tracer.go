@@ -55,6 +55,8 @@ type tracerOffsetGuesser struct {
 	status     *TracerStatus
 	guessTCPv6 bool
 	guessUDPv6 bool
+	fl4offsets bool
+	fl6offsets bool
 }
 
 func NewTracerOffsetGuesser() (OffsetGuesser, error) {
@@ -135,7 +137,7 @@ func extractIPv6AddressAndPort(addr net.Addr) (ip [4]uint32, port uint16, err er
 	return
 }
 
-func expectedValues(conn net.Conn) (*fieldValues, error) {
+func expectedValues(conn net.Conn) (*TracerValues, error) {
 	netns, err := kernel.GetCurrentIno()
 	if err != nil {
 		return nil, err
@@ -151,22 +153,22 @@ func expectedValues(conn net.Conn) (*fieldValues, error) {
 		return nil, err
 	}
 
-	return &fieldValues{
-		saddr:  saddr,
-		daddr:  daddr,
-		sport:  sport,
-		dport:  dport,
-		netns:  netns,
-		family: syscall.AF_INET,
-		rtt:    tcpInfo.Rtt,
-		rttVar: tcpInfo.Rttvar,
+	return &TracerValues{
+		Saddr:   saddr,
+		Daddr:   daddr,
+		Sport:   sport,
+		Dport:   dport,
+		Netns:   netns,
+		Family:  syscall.AF_INET,
+		Rtt:     tcpInfo.Rtt,
+		Rtt_var: tcpInfo.Rttvar,
 	}, nil
 }
 
-func waitUntilStable(conn net.Conn, window time.Duration, attempts int) (*fieldValues, error) {
+func waitUntilStable(conn net.Conn, window time.Duration, attempts int) (*TracerValues, error) {
 	var (
-		current *fieldValues
-		prev    *fieldValues
+		current *TracerValues
+		prev    *TracerValues
 		err     error
 	)
 	for i := 0; i <= attempts; i++ {
@@ -298,7 +300,7 @@ func GetIPv6LinkLocalAddress() ([]*net.UDPAddr, error) {
 // checkAndUpdateCurrentOffset checks the value for the current offset stored
 // in the eBPF map against the expected value, incrementing the offset if it
 // doesn't match, or going to the next field to guess if it does
-func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected *fieldValues, maxRetries *int, threshold uint64) error {
+func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected *TracerValues, maxRetries *int, threshold uint64) error {
 	// get the updated map value so we can check if the current offset is
 	// the right one
 	if err := mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(t.status)); err != nil {
@@ -308,7 +310,7 @@ func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected
 	if State(t.status.State) != StateChecked {
 		if *maxRetries == 0 {
 			return fmt.Errorf("invalid guessing state while guessing %v, got %v expected %v. %v",
-				whatString[GuessWhat(t.status.What)], stateString[State(t.status.State)], stateString[StateChecked], tcpKprobeCalledString[t.status.Tcp_info_kprobe_status])
+				whatString[GuessWhat(t.status.What)], stateString[State(t.status.State)], stateString[StateChecked], tcpKprobeCalledString[t.status.Info_kprobe_status])
 		}
 		*maxRetries--
 		time.Sleep(10 * time.Millisecond)
@@ -316,161 +318,161 @@ func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected
 	}
 	switch GuessWhat(t.status.What) {
 	case GuessSAddr:
-		if t.status.Saddr == expected.saddr {
-			t.logAndAdvance(t.status.Offset_saddr, GuessDAddr)
+		if t.status.Values.Saddr == expected.Saddr {
+			t.logAndAdvance(t.status.Offsets.Saddr, GuessDAddr)
 			break
 		}
-		t.status.Offset_saddr++
+		t.status.Offsets.Saddr++
 	case GuessDAddr:
-		if t.status.Daddr == expected.daddr {
-			t.logAndAdvance(t.status.Offset_daddr, GuessDPort)
+		if t.status.Values.Daddr == expected.Daddr {
+			t.logAndAdvance(t.status.Offsets.Daddr, GuessDPort)
 			break
 		}
-		t.status.Offset_daddr++
+		t.status.Offsets.Daddr++
 	case GuessDPort:
-		if t.status.Dport == htons(expected.dport) {
-			t.logAndAdvance(t.status.Offset_dport, GuessFamily)
+		if t.status.Values.Dport == htons(expected.Dport) {
+			t.logAndAdvance(t.status.Offsets.Dport, GuessFamily)
 			// we know the family ((struct __sk_common)->skc_family) is
 			// after the skc_dport field, so we start from there
-			t.status.Offset_family = t.status.Offset_dport
+			t.status.Offsets.Family = t.status.Offsets.Dport
 			break
 		}
-		t.status.Offset_dport++
+		t.status.Offsets.Dport++
 	case GuessFamily:
-		if t.status.Family == expected.family {
-			t.logAndAdvance(t.status.Offset_family, GuessSPort)
+		if t.status.Values.Family == expected.Family {
+			t.logAndAdvance(t.status.Offsets.Family, GuessSPort)
 			// we know the sport ((struct inet_sock)->inet_sport) is
 			// after the family field, so we start from there
-			t.status.Offset_sport = t.status.Offset_family
+			t.status.Offsets.Sport = t.status.Offsets.Family
 			break
 		}
-		t.status.Offset_family++
+		t.status.Offsets.Family++
 	case GuessSPort:
-		if t.status.Sport == htons(expected.sport) {
-			t.logAndAdvance(t.status.Offset_sport, GuessSAddrFl4)
+		if t.status.Values.Sport == htons(expected.Sport) {
+			t.logAndAdvance(t.status.Offsets.Sport, GuessSAddrFl4)
 			break
 		}
-		t.status.Offset_sport++
+		t.status.Offsets.Sport++
 	case GuessSAddrFl4:
-		if t.status.Saddr_fl4 == expected.saddrFl4 {
-			t.logAndAdvance(t.status.Offset_saddr_fl4, GuessDAddrFl4)
+		if t.status.Values.Saddr_fl4 == expected.Saddr_fl4 {
+			t.logAndAdvance(t.status.Offsets.Saddr_fl4, GuessDAddrFl4)
 			break
 		}
-		t.status.Offset_saddr_fl4++
-		if t.status.Offset_saddr_fl4 >= threshold {
+		t.status.Offsets.Saddr_fl4++
+		if t.status.Offsets.Saddr_fl4 >= threshold {
 			// Let's skip all other flowi4 fields
 			t.logAndAdvance(notApplicable, t.flowi6EntryState())
-			t.status.Fl4_offsets = disabled
+			t.fl4offsets = false
 			break
 		}
 	case GuessDAddrFl4:
-		if t.status.Daddr_fl4 == expected.daddrFl4 {
-			t.logAndAdvance(t.status.Offset_daddr_fl4, GuessSPortFl4)
+		if t.status.Values.Daddr_fl4 == expected.Daddr_fl4 {
+			t.logAndAdvance(t.status.Offsets.Daddr_fl4, GuessSPortFl4)
 			break
 		}
-		t.status.Offset_daddr_fl4++
-		if t.status.Offset_daddr_fl4 >= threshold {
+		t.status.Offsets.Daddr_fl4++
+		if t.status.Offsets.Daddr_fl4 >= threshold {
 			t.logAndAdvance(notApplicable, t.flowi6EntryState())
-			t.status.Fl4_offsets = disabled
+			t.fl4offsets = false
 			break
 		}
 	case GuessSPortFl4:
-		if t.status.Sport_fl4 == htons(expected.sportFl4) {
-			t.logAndAdvance(t.status.Offset_sport_fl4, GuessDPortFl4)
+		if t.status.Values.Sport_fl4 == htons(expected.Sport_fl4) {
+			t.logAndAdvance(t.status.Offsets.Sport_fl4, GuessDPortFl4)
 			break
 		}
-		t.status.Offset_sport_fl4++
-		if t.status.Offset_sport_fl4 >= threshold {
+		t.status.Offsets.Sport_fl4++
+		if t.status.Offsets.Sport_fl4 >= threshold {
 			t.logAndAdvance(notApplicable, t.flowi6EntryState())
-			t.status.Fl4_offsets = disabled
+			t.fl4offsets = false
 			break
 		}
 	case GuessDPortFl4:
-		if t.status.Dport_fl4 == htons(expected.dportFl4) {
-			t.logAndAdvance(t.status.Offset_dport_fl4, t.flowi6EntryState())
-			t.status.Fl4_offsets = enabled
+		if t.status.Values.Dport_fl4 == htons(expected.Dport_fl4) {
+			t.logAndAdvance(t.status.Offsets.Dport_fl4, t.flowi6EntryState())
+			t.fl4offsets = true
 			break
 		}
-		t.status.Offset_dport_fl4++
-		if t.status.Offset_dport_fl4 >= threshold {
+		t.status.Offsets.Dport_fl4++
+		if t.status.Offsets.Dport_fl4 >= threshold {
 			t.logAndAdvance(notApplicable, t.flowi6EntryState())
-			t.status.Fl4_offsets = disabled
+			t.fl4offsets = false
 			break
 		}
 	case GuessSAddrFl6:
-		if compareIPv6(t.status.Saddr_fl6, expected.saddrFl6) {
-			t.logAndAdvance(t.status.Offset_saddr_fl6, GuessDAddrFl6)
+		if compareIPv6(t.status.Values.Saddr_fl6, expected.Saddr_fl6) {
+			t.logAndAdvance(t.status.Offsets.Saddr_fl6, GuessDAddrFl6)
 			break
 		}
-		t.status.Offset_saddr_fl6++
-		if t.status.Offset_saddr_fl6 >= threshold {
+		t.status.Offsets.Saddr_fl6++
+		if t.status.Offsets.Saddr_fl6 >= threshold {
 			// Let's skip all other flowi6 fields
 			t.logAndAdvance(notApplicable, GuessNetNS)
-			t.status.Fl6_offsets = disabled
+			t.fl6offsets = false
 			break
 		}
 	case GuessDAddrFl6:
-		if compareIPv6(t.status.Daddr_fl6, expected.daddrFl6) {
-			t.logAndAdvance(t.status.Offset_daddr_fl6, GuessSPortFl6)
+		if compareIPv6(t.status.Values.Daddr_fl6, expected.Daddr_fl6) {
+			t.logAndAdvance(t.status.Offsets.Daddr_fl6, GuessSPortFl6)
 			break
 		}
-		t.status.Offset_daddr_fl6++
-		if t.status.Offset_daddr_fl6 >= threshold {
+		t.status.Offsets.Daddr_fl6++
+		if t.status.Offsets.Daddr_fl6 >= threshold {
 			t.logAndAdvance(notApplicable, GuessNetNS)
-			t.status.Fl6_offsets = disabled
+			t.fl6offsets = false
 			break
 		}
 	case GuessSPortFl6:
-		if t.status.Sport_fl6 == htons(expected.sportFl6) {
-			t.logAndAdvance(t.status.Offset_sport_fl6, GuessDPortFl6)
+		if t.status.Values.Sport_fl6 == htons(expected.Sport_fl6) {
+			t.logAndAdvance(t.status.Offsets.Sport_fl6, GuessDPortFl6)
 			break
 		}
-		t.status.Offset_sport_fl6++
-		if t.status.Offset_sport_fl6 >= threshold {
+		t.status.Offsets.Sport_fl6++
+		if t.status.Offsets.Sport_fl6 >= threshold {
 			t.logAndAdvance(notApplicable, GuessNetNS)
-			t.status.Fl6_offsets = disabled
+			t.fl6offsets = false
 			break
 		}
 	case GuessDPortFl6:
-		if t.status.Dport_fl6 == htons(expected.dportFl6) {
-			t.logAndAdvance(t.status.Offset_dport_fl6, GuessNetNS)
-			t.status.Fl6_offsets = enabled
+		if t.status.Values.Dport_fl6 == htons(expected.Dport_fl6) {
+			t.logAndAdvance(t.status.Offsets.Dport_fl6, GuessNetNS)
+			t.fl6offsets = true
 			break
 		}
-		t.status.Offset_dport_fl6++
-		if t.status.Offset_dport_fl6 >= threshold {
+		t.status.Offsets.Dport_fl6++
+		if t.status.Offsets.Dport_fl6 >= threshold {
 			t.logAndAdvance(notApplicable, GuessNetNS)
-			t.status.Fl6_offsets = disabled
+			t.fl6offsets = false
 			break
 		}
 	case GuessNetNS:
-		if t.status.Netns == expected.netns {
-			t.logAndAdvance(t.status.Offset_netns, GuessRTT)
-			log.Debugf("Successfully guessed %v with offset of %d bytes", "ino", t.status.Offset_ino)
+		if t.status.Values.Netns == expected.Netns {
+			t.logAndAdvance(t.status.Offsets.Netns, GuessRTT)
+			log.Debugf("Successfully guessed %v with offset of %d bytes", "ino", t.status.Offsets.Ino)
 			break
 		}
-		t.status.Offset_ino++
+		t.status.Offsets.Ino++
 		// go to the next offset_netns if we get an error
-		if t.status.Err != 0 || t.status.Offset_ino >= threshold {
-			t.status.Offset_ino = 0
-			t.status.Offset_netns++
+		if t.status.Err != 0 || t.status.Offsets.Ino >= threshold {
+			t.status.Offsets.Ino = 0
+			t.status.Offsets.Netns++
 		}
 	case GuessRTT:
 		// For more information on the bit shift operations see:
 		// https://elixir.bootlin.com/linux/v4.6/source/net/ipv4/tcp.c#L2686
-		if t.status.Rtt>>3 == expected.rtt && t.status.Rtt_var>>2 == expected.rttVar {
-			t.logAndAdvance(t.status.Offset_rtt, GuessSocketSK)
+		if t.status.Values.Rtt>>3 == expected.Rtt && t.status.Values.Rtt_var>>2 == expected.Rtt_var {
+			t.logAndAdvance(t.status.Offsets.Rtt, GuessSocketSK)
 			break
 		}
 		// We know that these two fields are always next to each other, 4 bytes apart:
 		// https://elixir.bootlin.com/linux/v4.6/source/include/linux/tcp.h#L232
 		// rtt -> srtt_us
 		// rtt_var -> mdev_us
-		t.status.Offset_rtt++
-		t.status.Offset_rtt_var = t.status.Offset_rtt + 4
+		t.status.Offsets.Rtt++
+		t.status.Offsets.Rtt_var = t.status.Offsets.Rtt + 4
 
 	case GuessSocketSK:
-		if t.status.Sport_via_sk == htons(expected.sport) && t.status.Dport_via_sk == htons(expected.dport) {
+		if t.status.Values.Sport_via_sk == htons(expected.Sport) && t.status.Values.Dport_via_sk == htons(expected.Dport) {
 			// if we are on kernel version < 4.7, net_dev_queue tracepoint will not be activated, and thus we should skip
 			// the guessing for `struct sk_buff`
 			next := GuessSKBuffSock
@@ -487,47 +489,47 @@ func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected
 
 			// if both IPv6 disabled and kv lower than 4.7.0, skip to the end
 			if !t.guessTCPv6 && !t.guessUDPv6 && kv < kv470 {
-				t.logAndAdvance(t.status.Offset_socket_sk, GuessNotApplicable)
+				t.logAndAdvance(t.status.Offsets.Socket_sk, GuessNotApplicable)
 				return t.setReadyState(mp)
 			}
 
-			t.logAndAdvance(t.status.Offset_socket_sk, next)
+			t.logAndAdvance(t.status.Offsets.Socket_sk, next)
 			break
 		}
-		t.status.Offset_socket_sk++
+		t.status.Offsets.Socket_sk++
 	case GuessSKBuffSock:
-		if t.status.Sport_via_sk_via_sk_buf == htons(expected.sportFl4) && t.status.Dport_via_sk_via_sk_buf == htons(expected.dportFl4) {
-			t.logAndAdvance(t.status.Offset_sk_buff_sock, GuessSKBuffTransportHeader)
+		if t.status.Values.Sport_via_sk_via_sk_buff == htons(expected.Sport_fl4) && t.status.Values.Dport_via_sk_via_sk_buff == htons(expected.Dport_fl4) {
+			t.logAndAdvance(t.status.Offsets.Sk_buff_sock, GuessSKBuffTransportHeader)
 			break
 		}
-		t.status.Offset_sk_buff_sock++
+		t.status.Offsets.Sk_buff_sock++
 	case GuessSKBuffTransportHeader:
-		networkDiffFromMac := t.status.Network_header - t.status.Mac_header
-		transportDiffFromNetwork := t.status.Transport_header - t.status.Network_header
+		networkDiffFromMac := t.status.Values.Network_header - t.status.Values.Mac_header
+		transportDiffFromNetwork := t.status.Values.Transport_header - t.status.Values.Network_header
 		if networkDiffFromMac == 14 && transportDiffFromNetwork == 20 {
-			t.logAndAdvance(t.status.Offset_sk_buff_transport_header, GuessSKBuffHead)
+			t.logAndAdvance(t.status.Offsets.Sk_buff_transport_header, GuessSKBuffHead)
 			break
 		}
-		t.status.Offset_sk_buff_transport_header++
+		t.status.Offsets.Sk_buff_transport_header++
 	case GuessSKBuffHead:
-		if t.status.Sport_via_sk_via_sk_buf == htons(expected.sportFl4) && t.status.Dport_via_sk_via_sk_buf == htons(expected.dportFl4) {
+		if t.status.Values.Sport_via_sk_via_sk_buff == htons(expected.Sport_fl4) && t.status.Values.Dport_via_sk_via_sk_buff == htons(expected.Dport_fl4) {
 			if !t.guessTCPv6 && !t.guessUDPv6 {
-				t.logAndAdvance(t.status.Offset_sk_buff_head, GuessNotApplicable)
+				t.logAndAdvance(t.status.Offsets.Sk_buff_head, GuessNotApplicable)
 				return t.setReadyState(mp)
 			} else {
-				t.logAndAdvance(t.status.Offset_sk_buff_head, GuessDAddrIPv6)
+				t.logAndAdvance(t.status.Offsets.Sk_buff_head, GuessDAddrIPv6)
 				break
 			}
 		}
-		t.status.Offset_sk_buff_head++
+		t.status.Offsets.Sk_buff_head++
 	case GuessDAddrIPv6:
-		if compareIPv6(t.status.Daddr_ipv6, expected.daddrIPv6) {
-			t.logAndAdvance(t.status.Offset_daddr_ipv6, GuessNotApplicable)
+		if compareIPv6(t.status.Values.Daddr_ipv6, expected.Daddr_ipv6) {
+			t.logAndAdvance(t.status.Offsets.Daddr_ipv6, GuessNotApplicable)
 			// at this point, we've guessed all the offsets we need,
 			// set the t.status to "stateReady"
 			return t.setReadyState(mp)
 		}
-		t.status.Offset_daddr_ipv6++
+		t.status.Offsets.Daddr_ipv6++
 	default:
 		return fmt.Errorf("unexpected field to guess: %v", whatString[GuessWhat(t.status.What)])
 	}
@@ -651,12 +653,12 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		// Stop at a reasonable offset so we don't run forever.
 		// Reading too far away in kernel memory is not a big deal:
 		// probe_kernel_read() handles faults gracefully.
-		if t.status.Offset_saddr >= threshold || t.status.Offset_daddr >= threshold ||
-			t.status.Offset_sport >= thresholdInetSock || t.status.Offset_dport >= threshold ||
-			t.status.Offset_netns >= threshold || t.status.Offset_family >= threshold ||
-			t.status.Offset_daddr_ipv6 >= threshold || t.status.Offset_rtt >= thresholdInetSock ||
-			t.status.Offset_socket_sk >= threshold || t.status.Offset_sk_buff_sock >= threshold ||
-			t.status.Offset_sk_buff_transport_header >= threshold || t.status.Offset_sk_buff_head >= threshold {
+		if t.status.Offsets.Saddr >= threshold || t.status.Offsets.Daddr >= threshold ||
+			t.status.Offsets.Sport >= thresholdInetSock || t.status.Offsets.Dport >= threshold ||
+			t.status.Offsets.Netns >= threshold || t.status.Offsets.Family >= threshold ||
+			t.status.Offsets.Daddr_ipv6 >= threshold || t.status.Offsets.Rtt >= thresholdInetSock ||
+			t.status.Offsets.Socket_sk >= threshold || t.status.Offsets.Sk_buff_sock >= threshold ||
+			t.status.Offsets.Sk_buff_transport_header >= threshold || t.status.Offsets.Sk_buff_head >= threshold {
 			return nil, fmt.Errorf("overflow while guessing %v, bailing out", whatString[GuessWhat(t.status.What)])
 		}
 	}
@@ -666,30 +668,30 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 
 func (t *tracerOffsetGuesser) getConstantEditors() []manager.ConstantEditor {
 	return []manager.ConstantEditor{
-		{Name: "offset_saddr", Value: t.status.Offset_saddr},
-		{Name: "offset_daddr", Value: t.status.Offset_daddr},
-		{Name: "offset_sport", Value: t.status.Offset_sport},
-		{Name: "offset_dport", Value: t.status.Offset_dport},
-		{Name: "offset_netns", Value: t.status.Offset_netns},
-		{Name: "offset_ino", Value: t.status.Offset_ino},
-		{Name: "offset_family", Value: t.status.Offset_family},
-		{Name: "offset_rtt", Value: t.status.Offset_rtt},
-		{Name: "offset_rtt_var", Value: t.status.Offset_rtt_var},
-		{Name: "offset_daddr_ipv6", Value: t.status.Offset_daddr_ipv6},
-		{Name: "offset_saddr_fl4", Value: t.status.Offset_saddr_fl4},
-		{Name: "offset_daddr_fl4", Value: t.status.Offset_daddr_fl4},
-		{Name: "offset_sport_fl4", Value: t.status.Offset_sport_fl4},
-		{Name: "offset_dport_fl4", Value: t.status.Offset_dport_fl4},
-		{Name: "fl4_offsets", Value: uint64(t.status.Fl4_offsets)},
-		{Name: "offset_saddr_fl6", Value: t.status.Offset_saddr_fl6},
-		{Name: "offset_daddr_fl6", Value: t.status.Offset_daddr_fl6},
-		{Name: "offset_sport_fl6", Value: t.status.Offset_sport_fl6},
-		{Name: "offset_dport_fl6", Value: t.status.Offset_dport_fl6},
-		{Name: "fl6_offsets", Value: uint64(t.status.Fl6_offsets)},
-		{Name: "offset_socket_sk", Value: t.status.Offset_socket_sk},
-		{Name: "offset_sk_buff_sock", Value: t.status.Offset_sk_buff_sock},
-		{Name: "offset_sk_buff_transport_header", Value: t.status.Offset_sk_buff_transport_header},
-		{Name: "offset_sk_buff_head", Value: t.status.Offset_sk_buff_head},
+		{Name: "offset_saddr", Value: t.status.Offsets.Saddr},
+		{Name: "offset_daddr", Value: t.status.Offsets.Daddr},
+		{Name: "offset_sport", Value: t.status.Offsets.Sport},
+		{Name: "offset_dport", Value: t.status.Offsets.Dport},
+		{Name: "offset_netns", Value: t.status.Offsets.Netns},
+		{Name: "offset_ino", Value: t.status.Offsets.Ino},
+		{Name: "offset_family", Value: t.status.Offsets.Family},
+		{Name: "offset_rtt", Value: t.status.Offsets.Rtt},
+		{Name: "offset_rtt_var", Value: t.status.Offsets.Rtt_var},
+		{Name: "offset_daddr_ipv6", Value: t.status.Offsets.Daddr_ipv6},
+		{Name: "offset_saddr_fl4", Value: t.status.Offsets.Saddr_fl4},
+		{Name: "offset_daddr_fl4", Value: t.status.Offsets.Daddr_fl4},
+		{Name: "offset_sport_fl4", Value: t.status.Offsets.Sport_fl4},
+		{Name: "offset_dport_fl4", Value: t.status.Offsets.Dport_fl4},
+		boolConst("fl4_offsets", t.fl4offsets),
+		{Name: "offset_saddr_fl6", Value: t.status.Offsets.Saddr_fl6},
+		{Name: "offset_daddr_fl6", Value: t.status.Offsets.Daddr_fl6},
+		{Name: "offset_sport_fl6", Value: t.status.Offsets.Sport_fl6},
+		{Name: "offset_dport_fl6", Value: t.status.Offsets.Dport_fl6},
+		boolConst("fl6_offsets", t.fl6offsets),
+		{Name: "offset_socket_sk", Value: t.status.Offsets.Socket_sk},
+		{Name: "offset_sk_buff_sock", Value: t.status.Offsets.Sk_buff_sock},
+		{Name: "offset_sk_buff_transport_header", Value: t.status.Offsets.Sk_buff_transport_header},
+		{Name: "offset_sk_buff_head", Value: t.status.Offsets.Sk_buff_head},
 	}
 }
 
@@ -767,14 +769,14 @@ func getUDP6Conn(flowi6 bool) (*net.UDPConn, error) {
 }
 
 // Generate an event for offset guessing
-func (e *tracerEventGenerator) Generate(status GuessWhat, expected *fieldValues) error {
+func (e *tracerEventGenerator) Generate(status GuessWhat, expected *TracerValues) error {
 	// Are we guessing the IPv6 field?
 	if status == GuessDAddrIPv6 {
 		// For ipv6, we don't need the source port because we already guessed it doing ipv4 connections so
 		// we use a random destination address and try to connect to it.
 		var err error
 		addr := generateRandomIPv6Address()
-		expected.daddrIPv6, err = uint32ArrayFromIPv6(addr)
+		expected.Daddr_ipv6, err = uint32ArrayFromIPv6(addr)
 		if err != nil {
 			return err
 		}
@@ -811,11 +813,11 @@ func (e *tracerEventGenerator) Generate(status GuessWhat, expected *fieldValues)
 			return err
 		}
 
-		expected.daddrFl6, err = uint32ArrayFromIPv6(remoteAddr.IP)
+		expected.Daddr_fl6, err = uint32ArrayFromIPv6(remoteAddr.IP)
 		if err != nil {
 			return err
 		}
-		expected.dportFl6 = uint16(remoteAddr.Port)
+		expected.Dport_fl6 = uint16(remoteAddr.Port)
 
 		return nil
 	}
@@ -825,23 +827,23 @@ func (e *tracerEventGenerator) Generate(status GuessWhat, expected *fieldValues)
 	return err
 }
 
-func (e *tracerEventGenerator) populateUDPExpectedValues(expected *fieldValues) error {
+func (e *tracerEventGenerator) populateUDPExpectedValues(expected *TracerValues) error {
 	saddr, daddr, sport, dport, err := extractIPsAndPorts(e.udpConn)
 	if err != nil {
 		return err
 	}
-	expected.saddrFl4 = saddr
-	expected.sportFl4 = sport
-	expected.daddrFl4 = daddr
-	expected.dportFl4 = dport
+	expected.Saddr_fl4 = saddr
+	expected.Sport_fl4 = sport
+	expected.Daddr_fl4 = daddr
+	expected.Dport_fl4 = dport
 
 	if e.udp6Conn != nil {
 		saddr6, sport6, err := extractIPv6AddressAndPort(e.udp6Conn.LocalAddr())
 		if err != nil {
 			return err
 		}
-		expected.saddrFl6 = saddr6
-		expected.sportFl6 = sport6
+		expected.Saddr_fl6 = saddr6
+		expected.Sport_fl6 = sport6
 	}
 
 	return nil
@@ -953,7 +955,7 @@ func newUDPServer(addr string) (string, func(), error) {
 	return ln.LocalAddr().String(), doneFn, nil
 }
 
-var TracerOffsets tracerOffsets
+var Tracer tracerOffsets
 
 type tracerOffsets struct {
 	offsets []manager.ConstantEditor

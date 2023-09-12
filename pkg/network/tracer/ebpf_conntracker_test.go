@@ -17,7 +17,7 @@ import (
 )
 
 func TestEbpfConntrackerLoadTriggersOffsetGuessing(t *testing.T) {
-	offsetguess.TracerOffsets.Reset()
+	offsetguess.Tracer.Reset()
 
 	cfg := testConfig()
 	cfg.EnableRuntimeCompiler = false
@@ -26,7 +26,7 @@ func TestEbpfConntrackerLoadTriggersOffsetGuessing(t *testing.T) {
 	require.NotNil(t, conntracker)
 	t.Cleanup(conntracker.Close)
 
-	offsets, err := offsetguess.TracerOffsets.Offsets(cfg)
+	offsets, err := offsetguess.Tracer.Offsets(cfg)
 	require.NoError(t, err)
 	require.NotEmpty(t, offsets)
 }

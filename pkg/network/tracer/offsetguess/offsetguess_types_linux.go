@@ -9,61 +9,66 @@ type Proc struct {
 
 const ProcCommMaxLen = 0x10 - 1
 
+type TracerOffsets struct {
+	Saddr                    uint64
+	Daddr                    uint64
+	Sport                    uint64
+	Dport                    uint64
+	Netns                    uint64
+	Ino                      uint64
+	Family                   uint64
+	Rtt                      uint64
+	Rtt_var                  uint64
+	Daddr_ipv6               uint64
+	Saddr_fl4                uint64
+	Daddr_fl4                uint64
+	Sport_fl4                uint64
+	Dport_fl4                uint64
+	Saddr_fl6                uint64
+	Daddr_fl6                uint64
+	Sport_fl6                uint64
+	Dport_fl6                uint64
+	Socket_sk                uint64
+	Sk_buff_sock             uint64
+	Sk_buff_transport_header uint64
+	Sk_buff_head             uint64
+}
+type TracerValues struct {
+	Saddr                    uint32
+	Daddr                    uint32
+	Sport                    uint16
+	Dport                    uint16
+	Netns                    uint32
+	Family                   uint16
+	Rtt                      uint32
+	Rtt_var                  uint32
+	Daddr_ipv6               [4]uint32
+	Saddr_fl4                uint32
+	Daddr_fl4                uint32
+	Sport_fl4                uint16
+	Dport_fl4                uint16
+	Saddr_fl6                [4]uint32
+	Daddr_fl6                [4]uint32
+	Sport_fl6                uint16
+	Dport_fl6                uint16
+	Sport_via_sk             uint16
+	Dport_via_sk             uint16
+	Sport_via_sk_via_sk_buff uint16
+	Dport_via_sk_via_sk_buff uint16
+	Transport_header         uint16
+	Network_header           uint16
+	Mac_header               uint16
+	Pad_cgo_0                [2]byte
+}
 type TracerStatus struct {
-	State                           uint64
-	Tcp_info_kprobe_status          uint64
-	Proc                            Proc
-	What                            uint64
-	Offset_saddr                    uint64
-	Offset_daddr                    uint64
-	Offset_sport                    uint64
-	Offset_dport                    uint64
-	Offset_netns                    uint64
-	Offset_ino                      uint64
-	Offset_family                   uint64
-	Offset_rtt                      uint64
-	Offset_rtt_var                  uint64
-	Offset_daddr_ipv6               uint64
-	Offset_saddr_fl4                uint64
-	Offset_daddr_fl4                uint64
-	Offset_sport_fl4                uint64
-	Offset_dport_fl4                uint64
-	Offset_saddr_fl6                uint64
-	Offset_daddr_fl6                uint64
-	Offset_sport_fl6                uint64
-	Offset_dport_fl6                uint64
-	Offset_socket_sk                uint64
-	Offset_sk_buff_sock             uint64
-	Offset_sk_buff_transport_header uint64
-	Offset_sk_buff_head             uint64
-	Err                             uint64
-	Daddr_ipv6                      [4]uint32
-	Netns                           uint32
-	Rtt                             uint32
-	Rtt_var                         uint32
-	Saddr                           uint32
-	Daddr                           uint32
-	Sport                           uint16
-	Dport                           uint16
-	Sport_via_sk                    uint16
-	Dport_via_sk                    uint16
-	Sport_via_sk_via_sk_buf         uint16
-	Dport_via_sk_via_sk_buf         uint16
-	Family                          uint16
-	Saddr_fl4                       uint32
-	Daddr_fl4                       uint32
-	Sport_fl4                       uint16
-	Dport_fl4                       uint16
-	Saddr_fl6                       [4]uint32
-	Daddr_fl6                       [4]uint32
-	Sport_fl6                       uint16
-	Dport_fl6                       uint16
-	Transport_header                uint16
-	Network_header                  uint16
-	Mac_header                      uint16
-	Fl4_offsets                     uint8
-	Fl6_offsets                     uint8
-	Pad_cgo_0                       [4]byte
+	State              uint64
+	What               uint64
+	Err                uint64
+	Proc               Proc
+	Info_kprobe_status uint64
+	Offsets            TracerOffsets
+	Values             TracerValues
+	Pad_cgo_0          [4]byte
 }
 
 type State uint8
@@ -75,19 +80,26 @@ const (
 	StateReady         State = 0x3
 )
 
+type ConntrackOffsets struct {
+	Origin uint64
+	Reply  uint64
+	Status uint64
+	Netns  uint64
+	Ino    uint64
+}
+type ConntrackValues struct {
+	Saddr  uint32
+	Daddr  uint32
+	Status uint32
+	Netns  uint32
+}
 type ConntrackStatus struct {
-	State         uint64
-	What          uint64
-	Proc          Proc
-	Offset_origin uint64
-	Offset_reply  uint64
-	Offset_status uint64
-	Offset_netns  uint64
-	Offset_ino    uint64
-	Saddr         uint32
-	Status        uint32
-	Netns         uint32
-	Pad_cgo_0     [4]byte
+	State   uint64
+	What    uint64
+	Err     uint64
+	Proc    Proc
+	Offsets ConntrackOffsets
+	Values  ConntrackValues
 }
 type ConntrackState uint8
 

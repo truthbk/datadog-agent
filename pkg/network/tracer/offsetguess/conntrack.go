@@ -39,7 +39,7 @@ type conntrackOffsetGuesser struct {
 }
 
 func NewConntrackOffsetGuesser(cfg *config.Config) (OffsetGuesser, error) {
-	consts, err := TracerOffsets.Offsets(cfg)
+	consts, err := Tracer.Offsets(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func NewConntrackOffsetGuesser(cfg *config.Config) (OffsetGuesser, error) {
 				// so explicitly disabled, and the manager won't load it
 				{ProbeIdentificationPair: idPair(probes.NetDevQueue)}},
 		},
-		status:       &ConntrackStatus{Offset_ino: offsetIno},
+		status:       &ConntrackStatus{Offsets: ConntrackOffsets{Ino: offsetIno}},
 		tcpv6Enabled: tcpv6Enabled,
 		udpv6Enabled: udpv6Enabled,
 	}, nil
@@ -100,11 +100,11 @@ func (c *conntrackOffsetGuesser) Probes(cfg *config.Config) (map[probes.ProbeFun
 
 func (c *conntrackOffsetGuesser) getConstantEditors() []manager.ConstantEditor {
 	return []manager.ConstantEditor{
-		{Name: "offset_ct_origin", Value: c.status.Offset_origin},
-		{Name: "offset_ct_reply", Value: c.status.Offset_reply},
-		{Name: "offset_ct_status", Value: c.status.Offset_status},
-		{Name: "offset_ct_netns", Value: c.status.Offset_netns},
-		{Name: "offset_ct_ino", Value: c.status.Offset_ino},
+		{Name: "offset_ct_origin", Value: c.status.Offsets.Origin},
+		{Name: "offset_ct_reply", Value: c.status.Offsets.Reply},
+		{Name: "offset_ct_status", Value: c.status.Offsets.Status},
+		{Name: "offset_ct_netns", Value: c.status.Offsets.Netns},
+		{Name: "offset_ct_ino", Value: c.status.Offsets.Ino},
 		{Name: "tcpv6_enabled", Value: c.tcpv6Enabled},
 		{Name: "udpv6_enabled", Value: c.udpv6Enabled},
 	}
@@ -113,7 +113,7 @@ func (c *conntrackOffsetGuesser) getConstantEditors() []manager.ConstantEditor {
 // checkAndUpdateCurrentOffset checks the value for the current offset stored
 // in the eBPF map against the expected value, incrementing the offset if it
 // doesn't match, or going to the next field to guess if it does
-func (c *conntrackOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected *fieldValues, maxRetries *int, threshold uint64) error {
+func (c *conntrackOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected *ConntrackValues, maxRetries *int, threshold uint64) error {
 	// get the updated map value so we can check if the current offset is
 	// the right one
 	if err := mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(c.status)); err != nil {
@@ -131,36 +131,32 @@ func (c *conntrackOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expec
 	}
 	switch GuessWhat(c.status.What) {
 	case GuessCtTupleOrigin:
-		if c.status.Saddr == expected.saddr {
+		if c.status.Values.Saddr == expected.Saddr {
 			// the reply tuple comes always after the origin tuple
-			c.status.Offset_reply = c.status.Offset_origin + sizeofNfConntrackTuple
-			c.logAndAdvance(c.status.Offset_origin, GuessCtTupleReply)
+			c.status.Offsets.Reply = c.status.Offsets.Origin + sizeofNfConntrackTuple
+			c.logAndAdvance(c.status.Offsets.Origin, GuessCtTupleReply)
 			break
 		}
-		c.status.Offset_origin++
-		c.status.Saddr = expected.saddr
+		c.status.Offsets.Origin++
 	case GuessCtTupleReply:
-		if c.status.Saddr == expected.daddr {
-			c.logAndAdvance(c.status.Offset_reply, GuessCtStatus)
+		if c.status.Values.Daddr == expected.Daddr {
+			c.logAndAdvance(c.status.Offsets.Reply, GuessCtStatus)
 			break
 		}
-		c.status.Offset_reply++
-		c.status.Saddr = expected.saddr
+		c.status.Offsets.Reply++
 	case GuessCtStatus:
-		if c.status.Status == expected.ctStatus {
-			c.status.Offset_netns = c.status.Offset_status + 1
-			c.logAndAdvance(c.status.Offset_status, GuessCtNet)
+		if c.status.Values.Status == expected.Status {
+			c.status.Offsets.Netns = c.status.Offsets.Status + 1
+			c.logAndAdvance(c.status.Offsets.Status, GuessCtNet)
 			break
 		}
-		c.status.Offset_status++
-		c.status.Status = expected.ctStatus
+		c.status.Offsets.Status++
 	case GuessCtNet:
-		if c.status.Netns == expected.netns {
-			c.logAndAdvance(c.status.Offset_netns, GuessNotApplicable)
+		if c.status.Values.Netns == expected.Netns {
+			c.logAndAdvance(c.status.Offsets.Netns, GuessNotApplicable)
 			return c.setReadyState(mp)
 		}
-		c.status.Offset_netns++
-		c.status.Netns = expected.netns
+		c.status.Offsets.Netns++
 	default:
 		return fmt.Errorf("unexpected field to guess: %v", whatString[GuessWhat(c.status.What)])
 	}
@@ -282,7 +278,7 @@ func (c *conntrackOffsetGuesser) runOffsetGuessing(cfg *config.Config, ns netns.
 	maxRetries := 100
 
 	log.Debugf("Checking for offsets with threshold of %d", threshold)
-	expected := &fieldValues{}
+	expected := &ConntrackValues{}
 	for State(c.status.State) != StateReady {
 		if err := eventGenerator.Generate(GuessWhat(c.status.What), expected); err != nil {
 			return nil, err
@@ -295,8 +291,8 @@ func (c *conntrackOffsetGuesser) runOffsetGuessing(cfg *config.Config, ns netns.
 		// Stop at a reasonable offset so we don't run forever.
 		// Reading too far away in kernel memory is not a big deal:
 		// probe_kernel_read() handles faults gracefully.
-		if c.status.Offset_netns >= threshold || c.status.Offset_status >= threshold ||
-			c.status.Offset_origin >= threshold || c.status.Offset_reply >= threshold {
+		if c.status.Offsets.Netns >= threshold || c.status.Offsets.Status >= threshold ||
+			c.status.Offsets.Origin >= threshold || c.status.Offsets.Reply >= threshold {
 			return nil, fmt.Errorf("overflow while guessing %v, bailing out", whatString[GuessWhat(c.status.What)])
 		}
 	}
@@ -331,7 +327,7 @@ func newConntrackEventGenerator(ns netns.NsHandle) (*conntrackEventGenerator, er
 }
 
 // Generate an event for offset guessing
-func (e *conntrackEventGenerator) Generate(status GuessWhat, expected *fieldValues) error {
+func (e *conntrackEventGenerator) Generate(status GuessWhat, expected *ConntrackValues) error {
 	if status >= GuessCtTupleOrigin &&
 		status <= GuessCtNet {
 		if e.udpConn != nil {
@@ -357,18 +353,18 @@ func (e *conntrackEventGenerator) Generate(status GuessWhat, expected *fieldValu
 	return fmt.Errorf("invalid status %v", status)
 }
 
-func (e *conntrackEventGenerator) populateUDPExpectedValues(expected *fieldValues) error {
+func (e *conntrackEventGenerator) populateUDPExpectedValues(expected *ConntrackValues) error {
 	saddr, daddr, _, _, err := extractIPsAndPorts(e.udpConn)
 	if err != nil {
 		return err
 	}
 
-	expected.saddr = saddr
-	expected.daddr = daddr
+	expected.Saddr = saddr
+	expected.Daddr = daddr
 	// IPS_CONFIRMED | IPS_SRC_NAT_DONE | IPS_DST_NAT_DONE
 	// see https://elixir.bootlin.com/linux/v5.19.17/source/include/uapi/linux/netfilter/nf_conntrack_common.h#L42
-	expected.ctStatus = 0x188
-	expected.netns, err = kernel.GetCurrentIno()
+	expected.Status = 0x188
+	expected.Netns, err = kernel.GetCurrentIno()
 	if err != nil {
 		return err
 	}

@@ -85,32 +85,6 @@ type OffsetGuesser interface {
 	Close()
 }
 
-type fieldValues struct {
-	saddr     uint32
-	daddr     uint32
-	sport     uint16
-	dport     uint16
-	netns     uint32
-	family    uint16
-	rtt       uint32
-	rttVar    uint32
-	daddrIPv6 [4]uint32
-
-	// Used for guessing offsets in struct flowi4
-	saddrFl4 uint32
-	daddrFl4 uint32
-	sportFl4 uint16
-	dportFl4 uint16
-
-	// Used for guessing offsets in struct flowi6
-	saddrFl6 [4]uint32
-	daddrFl6 [4]uint32
-	sportFl6 uint16
-	dportFl6 uint16
-
-	ctStatus uint32
-}
-
 func idPair(name probes.ProbeFuncName) manager.ProbeIdentificationPair {
 	return manager.ProbeIdentificationPair{
 		EBPFFuncName: name,

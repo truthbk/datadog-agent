@@ -43,84 +43,106 @@ static const __u8 STATE_CHECKED = 2;
 static const __u8 STATE_READY = 3;
 
 typedef struct {
-    __u64 state;
-    // tcp_info_kprobe_status records if the tcp_info kprobe has been triggered.
-    // 0 - not triggered 1 - triggered
-    __u64 tcp_info_kprobe_status;
+    __u64 saddr;
+    __u64 daddr;
+    __u64 sport;
+    __u64 dport;
+    __u64 netns;
+    __u64 ino;
+    __u64 family;
+    __u64 rtt;
+    __u64 rtt_var;
 
-    /* checking */
-    proc_t proc;
-    __u64 what;
-    __u64 offset_saddr;
-    __u64 offset_daddr;
-    __u64 offset_sport;
-    __u64 offset_dport;
-    __u64 offset_netns;
-    __u64 offset_ino;
-    __u64 offset_family;
-    __u64 offset_rtt;
-    __u64 offset_rtt_var;
-    __u64 offset_daddr_ipv6;
-    __u64 offset_saddr_fl4;
-    __u64 offset_daddr_fl4;
-    __u64 offset_sport_fl4;
-    __u64 offset_dport_fl4;
-    __u64 offset_saddr_fl6;
-    __u64 offset_daddr_fl6;
-    __u64 offset_sport_fl6;
-    __u64 offset_dport_fl6;
-    __u64 offset_socket_sk;
-    __u64 offset_sk_buff_sock;
-    __u64 offset_sk_buff_transport_header;
-    __u64 offset_sk_buff_head;
+    __u64 daddr_ipv6;
 
-    __u64 err;
+    __u64 saddr_fl4;
+    __u64 daddr_fl4;
+    __u64 sport_fl4;
+    __u64 dport_fl4;
 
-    __u32 daddr_ipv6[4];
-    __u32 netns;
-    __u32 rtt;
-    __u32 rtt_var;
+    __u64 saddr_fl6;
+    __u64 daddr_fl6;
+    __u64 sport_fl6;
+    __u64 dport_fl6;
+
+    __u64 socket_sk;
+    __u64 sk_buff_sock;
+    __u64 sk_buff_transport_header;
+    __u64 sk_buff_head;
+} tracer_offsets_t;
+
+typedef struct {
     __u32 saddr;
     __u32 daddr;
     __u16 sport;
     __u16 dport;
-    __u16 sport_via_sk;
-    __u16 dport_via_sk;
-    __u16 sport_via_sk_via_sk_buf;
-    __u16 dport_via_sk_via_sk_buf;
+    __u32 netns;
     __u16 family;
+    __u32 rtt;
+    __u32 rtt_var;
+
+    __u32 daddr_ipv6[4];
+
     __u32 saddr_fl4;
     __u32 daddr_fl4;
     __u16 sport_fl4;
     __u16 dport_fl4;
+
     __u32 saddr_fl6[4];
     __u32 daddr_fl6[4];
     __u16 sport_fl6;
     __u16 dport_fl6;
+
+    __u16 sport_via_sk;
+    __u16 dport_via_sk;
+    __u16 sport_via_sk_via_sk_buff;
+    __u16 dport_via_sk_via_sk_buff;
+
     __u16 transport_header;
     __u16 network_header;
     __u16 mac_header;
-
-    __u8 fl4_offsets;
-    __u8 fl6_offsets;
-
-} tracer_status_t;
+} tracer_values_t;
 
 typedef struct {
     __u64 state;
     __u64 what;
+    __u64 err;
+
+    proc_t proc;
+
+    // tcp_info_kprobe_status records if the tcp_info kprobe has been triggered.
+    // 0 - not triggered 1 - triggered
+    __u64 tcp_info_kprobe_status;
+
+    tracer_offsets_t offsets;
+    tracer_values_t values;
+} tracer_status_t;
+
+typedef struct {
+    __u64 origin;
+    __u64 reply;
+    __u64 status;
+    __u64 netns;
+    __u64 ino;
+} conntrack_offsets_t;
+
+typedef struct {
+    __u32 saddr;
+    __u32 daddr;
+    __u32 status;
+    __u32 netns;
+} conntrack_values_t;
+
+typedef struct {
+    __u64 state;
+    __u64 what;
+    __u64 err;
 
     /* checking */
     proc_t proc;
-    __u64 offset_origin;
-    __u64 offset_reply;
-    __u64 offset_status;
-    __u64 offset_netns;
-    __u64 offset_ino;
 
-    __u32 saddr;
-    __u32 status;
-    __u32 netns;
+    conntrack_offsets_t offsets;
+    conntrack_values_t values;
 } conntrack_status_t;
 
 

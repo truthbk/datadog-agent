@@ -145,8 +145,8 @@ func testOffsetGuess(t *testing.T) {
 		cfg.CollectUDPv6Conns = false
 	}
 
-	offsetguess.TracerOffsets.Reset()
-	_consts, err := offsetguess.TracerOffsets.Offsets(cfg)
+	offsetguess.Tracer.Reset()
+	_consts, err := offsetguess.Tracer.Offsets(cfg)
 	require.NoError(t, err)
 	cts, err := offsetguess.RunOffsetGuessing(cfg, offsetBuf, func() (offsetguess.OffsetGuesser, error) {
 		return offsetguess.NewConntrackOffsetGuesser(cfg)

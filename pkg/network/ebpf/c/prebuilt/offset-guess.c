@@ -12,32 +12,32 @@
 
 #define sizeof_member(T, m) sizeof(((T*)0)->m)
 
-static const __u8 SIZEOF_SADDR = sizeof_member(tracer_status_t, saddr);
-static const __u8 SIZEOF_DADDR = sizeof_member(tracer_status_t, daddr);
-static const __u8 SIZEOF_FAMILY = sizeof_member(tracer_status_t, family);
-static const __u8 SIZEOF_SPORT = sizeof_member(tracer_status_t, sport);
-static const __u8 SIZEOF_DPORT = sizeof_member(tracer_status_t, dport);
+static const __u8 SIZEOF_SADDR = sizeof_member(tracer_values_t, saddr);
+static const __u8 SIZEOF_DADDR = sizeof_member(tracer_values_t, daddr);
+static const __u8 SIZEOF_FAMILY = sizeof_member(tracer_values_t, family);
+static const __u8 SIZEOF_SPORT = sizeof_member(tracer_values_t, sport);
+static const __u8 SIZEOF_DPORT = sizeof_member(tracer_values_t, dport);
 static const __u8 SIZEOF_NETNS = sizeof((void*)0); // possible_net_t*
-static const __u8 SIZEOF_NETNS_INO = sizeof_member(tracer_status_t, netns);
-static const __u8 SIZEOF_RTT = sizeof_member(tracer_status_t, rtt);
-static const __u8 SIZEOF_RTT_VAR = sizeof_member(tracer_status_t, rtt_var);
-static const __u8 SIZEOF_DADDR_IPV6 = sizeof_member(tracer_status_t, daddr_ipv6) / 4;
-static const __u8 SIZEOF_SADDR_FL4 = sizeof_member(tracer_status_t, saddr_fl4);
-static const __u8 SIZEOF_DADDR_FL4 = sizeof_member(tracer_status_t, daddr_fl4);
-static const __u8 SIZEOF_SPORT_FL4 = sizeof_member(tracer_status_t, sport_fl4);
-static const __u8 SIZEOF_DPORT_FL4 = sizeof_member(tracer_status_t, dport_fl4);
-static const __u8 SIZEOF_SADDR_FL6 = sizeof_member(tracer_status_t, saddr_fl6) / 4;
-static const __u8 SIZEOF_DADDR_FL6 = sizeof_member(tracer_status_t, daddr_fl6) / 4;
-static const __u8 SIZEOF_SPORT_FL6 = sizeof_member(tracer_status_t, sport_fl6);
-static const __u8 SIZEOF_DPORT_FL6 = sizeof_member(tracer_status_t, dport_fl6);
+static const __u8 SIZEOF_NETNS_INO = sizeof_member(tracer_values_t, netns);
+static const __u8 SIZEOF_RTT = sizeof_member(tracer_values_t, rtt);
+static const __u8 SIZEOF_RTT_VAR = sizeof_member(tracer_values_t, rtt_var);
+static const __u8 SIZEOF_DADDR_IPV6 = sizeof_member(tracer_values_t, daddr_ipv6) / 4;
+static const __u8 SIZEOF_SADDR_FL4 = sizeof_member(tracer_values_t, saddr_fl4);
+static const __u8 SIZEOF_DADDR_FL4 = sizeof_member(tracer_values_t, daddr_fl4);
+static const __u8 SIZEOF_SPORT_FL4 = sizeof_member(tracer_values_t, sport_fl4);
+static const __u8 SIZEOF_DPORT_FL4 = sizeof_member(tracer_values_t, dport_fl4);
+static const __u8 SIZEOF_SADDR_FL6 = sizeof_member(tracer_values_t, saddr_fl6) / 4;
+static const __u8 SIZEOF_DADDR_FL6 = sizeof_member(tracer_values_t, daddr_fl6) / 4;
+static const __u8 SIZEOF_SPORT_FL6 = sizeof_member(tracer_values_t, sport_fl6);
+static const __u8 SIZEOF_DPORT_FL6 = sizeof_member(tracer_values_t, dport_fl6);
 static const __u8 SIZEOF_SOCKET_SK = sizeof((void*)0); // char*
 static const __u8 SIZEOF_SK_BUFF_SOCK = sizeof((void*)0); // char*
-static const __u8 SIZEOF_SK_BUFF_TRANSPORT_HEADER = sizeof_member(tracer_status_t, transport_header);
+static const __u8 SIZEOF_SK_BUFF_TRANSPORT_HEADER = sizeof_member(tracer_values_t, transport_header);
 static const __u8 SIZEOF_SK_BUFF_HEAD = sizeof((void*)0); // char*
 
-static const __u8 SIZEOF_CT_TUPLE_ORIGIN = sizeof_member(conntrack_status_t, saddr);
-static const __u8 SIZEOF_CT_TUPLE_REPLY = sizeof_member(conntrack_status_t, saddr);
-static const __u8 SIZEOF_CT_STATUS = sizeof_member(conntrack_status_t, status);
+static const __u8 SIZEOF_CT_TUPLE_ORIGIN = sizeof_member(conntrack_values_t, saddr);
+static const __u8 SIZEOF_CT_TUPLE_REPLY = sizeof_member(conntrack_values_t, saddr);
+static const __u8 SIZEOF_CT_STATUS = sizeof_member(conntrack_values_t, status);
 static const __u8 SIZEOF_CT_NET = sizeof((void*)0); // possible_net_t*
 
 // aligned_offset returns an offset that when added to
@@ -84,7 +84,7 @@ static __always_inline bool proc_t_comm_equals(proc_t a, proc_t b) {
 
 static __always_inline bool check_family(struct sock* sk, tracer_status_t* status, u16 expected_family) {
     u16 family = 0;
-    bpf_probe_read_kernel(&family, sizeof(u16), ((char*)sk) + status->offset_family);
+    bpf_probe_read_kernel(&family, sizeof(u16), ((char*)sk) + status->offsets.family);
     return family == expected_family;
 }
 
@@ -118,123 +118,123 @@ static __always_inline int guess_offsets(tracer_status_t* status, char* subject)
 
     switch (status->what) {
     case GUESS_SADDR:
-        new_status.offset_saddr = aligned_offset(subject, status->offset_saddr, SIZEOF_SADDR);
-        bpf_probe_read_kernel(&new_status.saddr, sizeof(new_status.saddr), subject + new_status.offset_saddr);
+        new_status.offsets.saddr = aligned_offset(subject, status->offsets.saddr, SIZEOF_SADDR);
+        bpf_probe_read_kernel(&new_status.values.saddr, sizeof(new_status.values.saddr), subject + new_status.offsets.saddr);
         break;
     case GUESS_DADDR:
-        new_status.offset_daddr = aligned_offset(subject, status->offset_daddr, SIZEOF_DADDR);
-        bpf_probe_read_kernel(&new_status.daddr, sizeof(new_status.daddr), subject + new_status.offset_daddr);
+        new_status.offsets.daddr = aligned_offset(subject, status->offsets.daddr, SIZEOF_DADDR);
+        bpf_probe_read_kernel(&new_status.values.daddr, sizeof(new_status.values.daddr), subject + new_status.offsets.daddr);
         break;
     case GUESS_FAMILY:
-        new_status.offset_family = aligned_offset(subject, status->offset_family, SIZEOF_FAMILY);
-        bpf_probe_read_kernel(&new_status.family, sizeof(new_status.family), subject + new_status.offset_family);
+        new_status.offsets.family = aligned_offset(subject, status->offsets.family, SIZEOF_FAMILY);
+        bpf_probe_read_kernel(&new_status.values.family, sizeof(new_status.values.family), subject + new_status.offsets.family);
         break;
     case GUESS_SPORT:
-        new_status.offset_sport = aligned_offset(subject, status->offset_sport, SIZEOF_SPORT);
-        bpf_probe_read_kernel(&new_status.sport, sizeof(new_status.sport), subject + new_status.offset_sport);
+        new_status.offsets.sport = aligned_offset(subject, status->offsets.sport, SIZEOF_SPORT);
+        bpf_probe_read_kernel(&new_status.values.sport, sizeof(new_status.values.sport), subject + new_status.offsets.sport);
         break;
     case GUESS_DPORT:
-        new_status.offset_dport = aligned_offset(subject, status->offset_dport, SIZEOF_DPORT);
-        bpf_probe_read_kernel(&new_status.dport, sizeof(new_status.dport), subject + new_status.offset_dport);
+        new_status.offsets.dport = aligned_offset(subject, status->offsets.dport, SIZEOF_DPORT);
+        bpf_probe_read_kernel(&new_status.values.dport, sizeof(new_status.values.dport), subject + new_status.offsets.dport);
         break;
     case GUESS_SADDR_FL4:
-        new_status.offset_saddr_fl4 = aligned_offset(subject, status->offset_saddr_fl4, SIZEOF_SADDR_FL4);
-        bpf_probe_read_kernel(&new_status.saddr_fl4, sizeof(new_status.saddr_fl4), subject + new_status.offset_saddr_fl4);
+        new_status.offsets.saddr_fl4 = aligned_offset(subject, status->offsets.saddr_fl4, SIZEOF_SADDR_FL4);
+        bpf_probe_read_kernel(&new_status.values.saddr_fl4, sizeof(new_status.values.saddr_fl4), subject + new_status.offsets.saddr_fl4);
         break;
     case GUESS_DADDR_FL4:
-        new_status.offset_daddr_fl4 = aligned_offset(subject, status->offset_daddr_fl4, SIZEOF_DADDR_FL4);
-        bpf_probe_read_kernel(&new_status.daddr_fl4, sizeof(new_status.daddr_fl4), subject + new_status.offset_daddr_fl4);
+        new_status.offsets.daddr_fl4 = aligned_offset(subject, status->offsets.daddr_fl4, SIZEOF_DADDR_FL4);
+        bpf_probe_read_kernel(&new_status.values.daddr_fl4, sizeof(new_status.values.daddr_fl4), subject + new_status.offsets.daddr_fl4);
         break;
     case GUESS_SPORT_FL4:
-        new_status.offset_sport_fl4 = aligned_offset(subject, status->offset_sport_fl4, SIZEOF_SPORT_FL4);
-        bpf_probe_read_kernel(&new_status.sport_fl4, sizeof(new_status.sport_fl4), subject + new_status.offset_sport_fl4);
+        new_status.offsets.sport_fl4 = aligned_offset(subject, status->offsets.sport_fl4, SIZEOF_SPORT_FL4);
+        bpf_probe_read_kernel(&new_status.values.sport_fl4, sizeof(new_status.values.sport_fl4), subject + new_status.offsets.sport_fl4);
         break;
     case GUESS_DPORT_FL4:
-        new_status.offset_dport_fl4 = aligned_offset(subject, status->offset_dport_fl4, SIZEOF_DPORT_FL4);
-        bpf_probe_read_kernel(&new_status.dport_fl4, sizeof(new_status.dport_fl4), subject + new_status.offset_dport_fl4);
+        new_status.offsets.dport_fl4 = aligned_offset(subject, status->offsets.dport_fl4, SIZEOF_DPORT_FL4);
+        bpf_probe_read_kernel(&new_status.values.dport_fl4, sizeof(new_status.values.dport_fl4), subject + new_status.offsets.dport_fl4);
         break;
     case GUESS_SADDR_FL6:
-        new_status.offset_saddr_fl6 = aligned_offset(subject, status->offset_saddr_fl6, SIZEOF_SADDR_FL6);
-        bpf_probe_read_kernel(&new_status.saddr_fl6, sizeof(u32) * 4, subject + new_status.offset_saddr_fl6);
+        new_status.offsets.saddr_fl6 = aligned_offset(subject, status->offsets.saddr_fl6, SIZEOF_SADDR_FL6);
+        bpf_probe_read_kernel(&new_status.values.saddr_fl6, sizeof(u32) * 4, subject + new_status.offsets.saddr_fl6);
         break;
     case GUESS_DADDR_FL6:
-        new_status.offset_daddr_fl6 = aligned_offset(subject, status->offset_daddr_fl6, SIZEOF_DADDR_FL6);
-        bpf_probe_read_kernel(&new_status.daddr_fl6, sizeof(u32) * 4, subject + new_status.offset_daddr_fl6);
+        new_status.offsets.daddr_fl6 = aligned_offset(subject, status->offsets.daddr_fl6, SIZEOF_DADDR_FL6);
+        bpf_probe_read_kernel(&new_status.values.daddr_fl6, sizeof(u32) * 4, subject + new_status.offsets.daddr_fl6);
         break;
     case GUESS_SPORT_FL6:
-        new_status.offset_sport_fl6 = aligned_offset(subject, status->offset_sport_fl6, SIZEOF_SPORT_FL6);
-        bpf_probe_read_kernel(&new_status.sport_fl6, sizeof(new_status.sport_fl6), subject + new_status.offset_sport_fl6);
+        new_status.offsets.sport_fl6 = aligned_offset(subject, status->offsets.sport_fl6, SIZEOF_SPORT_FL6);
+        bpf_probe_read_kernel(&new_status.values.sport_fl6, sizeof(new_status.values.sport_fl6), subject + new_status.offsets.sport_fl6);
         break;
     case GUESS_DPORT_FL6:
-        new_status.offset_dport_fl6 = aligned_offset(subject, status->offset_dport_fl6, SIZEOF_DPORT_FL6);
-        bpf_probe_read_kernel(&new_status.dport_fl6, sizeof(new_status.dport_fl6), subject + new_status.offset_dport_fl6);
+        new_status.offsets.dport_fl6 = aligned_offset(subject, status->offsets.dport_fl6, SIZEOF_DPORT_FL6);
+        bpf_probe_read_kernel(&new_status.values.dport_fl6, sizeof(new_status.values.dport_fl6), subject + new_status.offsets.dport_fl6);
         break;
     case GUESS_NETNS:
-        new_status.offset_netns = aligned_offset(subject, status->offset_netns, SIZEOF_NETNS);
-        bpf_probe_read_kernel(&possible_skc_net, sizeof(possible_net_t*), subject + new_status.offset_netns);
+        new_status.offsets.netns = aligned_offset(subject, status->offsets.netns, SIZEOF_NETNS);
+        bpf_probe_read_kernel(&possible_skc_net, sizeof(possible_net_t*), subject + new_status.offsets.netns);
         if (!possible_skc_net) {
             new_status.err = 1;
             break;
         }
         // if we get a kernel fault, it means possible_skc_net
         // is an invalid pointer, signal an error so we can go
-        // to the next offset_netns
-        new_status.offset_ino = aligned_offset(subject, status->offset_ino, SIZEOF_NETNS_INO);
-        ret = bpf_probe_read_kernel(&possible_netns, sizeof(possible_netns), (char*)possible_skc_net + new_status.offset_ino);
+        // to the next offsets.netns
+        new_status.offsets.ino = aligned_offset(subject, status->offsets.ino, SIZEOF_NETNS_INO);
+        ret = bpf_probe_read_kernel(&possible_netns, sizeof(possible_netns), (char*)possible_skc_net + new_status.offsets.ino);
         if (ret == -EFAULT) {
             new_status.err = 1;
             break;
         }
-        //log_debug("netns: off=%u ino=%u val=%u\n", status->offset_netns, status->offset_ino, possible_netns);
-        new_status.netns = possible_netns;
+        //log_debug("netns: off=%u ino=%u val=%u\n", status->offsets.netns, status->offsets.ino, possible_netns);
+        new_status.values.netns = possible_netns;
         break;
     case GUESS_RTT:
-        new_status.offset_rtt = aligned_offset(subject, status->offset_rtt, SIZEOF_RTT);
-        bpf_probe_read_kernel(&new_status.rtt, sizeof(new_status.rtt), subject + new_status.offset_rtt);
-        new_status.offset_rtt_var = aligned_offset(subject, status->offset_rtt_var, SIZEOF_RTT_VAR);
-        bpf_probe_read_kernel(&new_status.rtt_var, sizeof(new_status.rtt_var), subject + new_status.offset_rtt_var);
+        new_status.offsets.rtt = aligned_offset(subject, status->offsets.rtt, SIZEOF_RTT);
+        bpf_probe_read_kernel(&new_status.values.rtt, sizeof(new_status.values.rtt), subject + new_status.offsets.rtt);
+        new_status.offsets.rtt_var = aligned_offset(subject, status->offsets.rtt_var, SIZEOF_RTT_VAR);
+        bpf_probe_read_kernel(&new_status.values.rtt_var, sizeof(new_status.values.rtt_var), subject + new_status.offsets.rtt_var);
         break;
     case GUESS_DADDR_IPV6:
         if (!check_family((struct sock*)subject, status, AF_INET6)) {
             break;
         }
 
-        new_status.offset_daddr_ipv6 = aligned_offset(subject, status->offset_daddr_ipv6, SIZEOF_DADDR_IPV6);
-        bpf_probe_read_kernel(new_status.daddr_ipv6, sizeof(u32) * 4, subject + new_status.offset_daddr_ipv6);
+        new_status.offsets.daddr_ipv6 = aligned_offset(subject, status->offsets.daddr_ipv6, SIZEOF_DADDR_IPV6);
+        bpf_probe_read_kernel(new_status.values.daddr_ipv6, sizeof(u32) * 4, subject + new_status.offsets.daddr_ipv6);
         break;
     case GUESS_SOCKET_SK:
         // Note that in this line we're essentially dereferencing a pointer
         // subject initially points to a (struct socket*), and we're trying to guess the offset of
         // (struct socket*)->sk which points to a (struct sock*) object.
-        new_status.offset_socket_sk = aligned_offset(subject, status->offset_socket_sk, SIZEOF_SOCKET_SK);
-        bpf_probe_read_kernel(&subject, sizeof(subject), subject + new_status.offset_socket_sk);
-        bpf_probe_read_kernel(&new_status.sport_via_sk, sizeof(new_status.sport_via_sk), subject + new_status.offset_sport);
-        bpf_probe_read_kernel(&new_status.dport_via_sk, sizeof(new_status.dport_via_sk), subject + new_status.offset_dport);
+        new_status.offsets.socket_sk = aligned_offset(subject, status->offsets.socket_sk, SIZEOF_SOCKET_SK);
+        bpf_probe_read_kernel(&subject, sizeof(subject), subject + new_status.offsets.socket_sk);
+        bpf_probe_read_kernel(&new_status.values.sport_via_sk, sizeof(new_status.values.sport_via_sk), subject + new_status.offsets.sport);
+        bpf_probe_read_kernel(&new_status.values.dport_via_sk, sizeof(new_status.values.dport_via_sk), subject + new_status.offsets.dport);
         break;
     case GUESS_SK_BUFF_SOCK:
         // Note that in this line we're essentially dereferencing a pointer
         // subject initially points to a (struct sk_buff*), and we're trying to guess the offset of
         // (struct sk_buff*)->sk which points to a (struct sock*) object.
-        new_status.offset_sk_buff_sock = aligned_offset(subject, status->offset_sk_buff_sock, SIZEOF_SK_BUFF_SOCK);
-        bpf_probe_read_kernel(&subject, sizeof(subject), subject + new_status.offset_sk_buff_sock);
-        bpf_probe_read_kernel(&new_status.sport_via_sk_via_sk_buf, sizeof(new_status.sport_via_sk_via_sk_buf), subject + new_status.offset_sport);
-        bpf_probe_read_kernel(&new_status.dport_via_sk_via_sk_buf, sizeof(new_status.dport_via_sk_via_sk_buf), subject + new_status.offset_dport);
+        new_status.offsets.sk_buff_sock = aligned_offset(subject, status->offsets.sk_buff_sock, SIZEOF_SK_BUFF_SOCK);
+        bpf_probe_read_kernel(&subject, sizeof(subject), subject + new_status.offsets.sk_buff_sock);
+        bpf_probe_read_kernel(&new_status.values.sport_via_sk_via_sk_buff, sizeof(new_status.values.sport_via_sk_via_sk_buff), subject + new_status.offsets.sport);
+        bpf_probe_read_kernel(&new_status.values.dport_via_sk_via_sk_buff, sizeof(new_status.values.dport_via_sk_via_sk_buff), subject + new_status.offsets.dport);
         break;
     case GUESS_SK_BUFF_TRANSPORT_HEADER:
-        new_status.offset_sk_buff_transport_header = aligned_offset(subject, status->offset_sk_buff_transport_header, SIZEOF_SK_BUFF_TRANSPORT_HEADER);
-        bpf_probe_read_kernel(&new_status.transport_header, sizeof(new_status.transport_header), subject + new_status.offset_sk_buff_transport_header);
-        bpf_probe_read_kernel(&new_status.network_header, sizeof(new_status.network_header), subject + new_status.offset_sk_buff_transport_header + sizeof(__u16));
-        bpf_probe_read_kernel(&new_status.mac_header, sizeof(new_status.mac_header), subject + new_status.offset_sk_buff_transport_header + 2*sizeof(__u16));
+        new_status.offsets.sk_buff_transport_header = aligned_offset(subject, status->offsets.sk_buff_transport_header, SIZEOF_SK_BUFF_TRANSPORT_HEADER);
+        bpf_probe_read_kernel(&new_status.values.transport_header, sizeof(new_status.values.transport_header), subject + new_status.offsets.sk_buff_transport_header);
+        bpf_probe_read_kernel(&new_status.values.network_header, sizeof(new_status.values.network_header), subject + new_status.offsets.sk_buff_transport_header + sizeof(__u16));
+        bpf_probe_read_kernel(&new_status.values.mac_header, sizeof(new_status.values.mac_header), subject + new_status.offsets.sk_buff_transport_header + 2*sizeof(__u16));
         break;
     case GUESS_SK_BUFF_HEAD:
         // Loading the head field into `subject`.
-        new_status.offset_sk_buff_head = aligned_offset(subject, status->offset_sk_buff_head, SIZEOF_SK_BUFF_HEAD);
-        bpf_probe_read_kernel(&subject, sizeof(subject), subject + new_status.offset_sk_buff_head);
+        new_status.offsets.sk_buff_head = aligned_offset(subject, status->offsets.sk_buff_head, SIZEOF_SK_BUFF_HEAD);
+        bpf_probe_read_kernel(&subject, sizeof(subject), subject + new_status.offsets.sk_buff_head);
         // Loading source and dest ports.
         // The ports are located in the transport section (subject + status->transport_header), if the traffic is udp or tcp
         // the source port is the first field in the struct (16 bits), and the dest is the second field (16 bits).
-        bpf_probe_read_kernel(&new_status.sport_via_sk_via_sk_buf, sizeof(new_status.sport_via_sk_via_sk_buf), subject + status->transport_header);
-        bpf_probe_read_kernel(&new_status.dport_via_sk_via_sk_buf, sizeof(new_status.dport_via_sk_via_sk_buf), subject + status->transport_header + sizeof(__u16));
+        bpf_probe_read_kernel(&new_status.values.sport_via_sk_via_sk_buff, sizeof(new_status.values.sport_via_sk_via_sk_buff), subject + status->values.transport_header);
+        bpf_probe_read_kernel(&new_status.values.dport_via_sk_via_sk_buff, sizeof(new_status.values.dport_via_sk_via_sk_buff), subject + status->values.transport_header + sizeof(__u16));
         break;
     default:
         // not for us
@@ -407,22 +407,22 @@ static __always_inline int guess_conntrack_offsets(conntrack_status_t* status, c
     u32 possible_netns = 0;
     switch (status->what) {
     case GUESS_CT_TUPLE_ORIGIN:
-        new_status.offset_origin = aligned_offset(subject, status->offset_origin, SIZEOF_CT_TUPLE_ORIGIN);
-        bpf_probe_read_kernel(&new_status.saddr, sizeof(new_status.saddr), subject + new_status.offset_origin);
+        new_status.offsets.origin = aligned_offset(subject, status->offsets.origin, SIZEOF_CT_TUPLE_ORIGIN);
+        bpf_probe_read_kernel(&new_status.values.saddr, sizeof(new_status.values.saddr), subject + new_status.offsets.origin);
         break;
     case GUESS_CT_TUPLE_REPLY:
-        new_status.offset_reply = aligned_offset(subject, status->offset_reply, SIZEOF_CT_TUPLE_REPLY);
-        bpf_probe_read_kernel(&new_status.saddr, sizeof(new_status.saddr), subject + new_status.offset_reply);
+        new_status.offsets.reply = aligned_offset(subject, status->offsets.reply, SIZEOF_CT_TUPLE_REPLY);
+        bpf_probe_read_kernel(&new_status.values.daddr, sizeof(new_status.values.daddr), subject + new_status.offsets.reply);
         break;
     case GUESS_CT_STATUS:
-        new_status.offset_status = aligned_offset(subject, status->offset_status, SIZEOF_CT_STATUS);
-        bpf_probe_read_kernel(&new_status.status, sizeof(new_status.status), subject + new_status.offset_status);
+        new_status.offsets.status = aligned_offset(subject, status->offsets.status, SIZEOF_CT_STATUS);
+        bpf_probe_read_kernel(&new_status.values.status, sizeof(new_status.values.status), subject + new_status.offsets.status);
         break;
     case GUESS_CT_NET:
-        new_status.offset_netns = aligned_offset(subject, status->offset_netns, SIZEOF_CT_NET);
-        bpf_probe_read_kernel(&possible_ct_net, sizeof(possible_net_t*), subject + new_status.offset_netns);
-        bpf_probe_read_kernel(&possible_netns, sizeof(possible_netns), ((char*)possible_ct_net) + status->offset_ino);
-        new_status.netns = possible_netns;
+        new_status.offsets.netns = aligned_offset(subject, status->offsets.netns, SIZEOF_CT_NET);
+        bpf_probe_read_kernel(&possible_ct_net, sizeof(possible_net_t*), subject + new_status.offsets.netns);
+        bpf_probe_read_kernel(&possible_netns, sizeof(possible_netns), ((char*)possible_ct_net) + status->offsets.ino);
+        new_status.values.netns = possible_netns;
         break;
     default:
         // not for us

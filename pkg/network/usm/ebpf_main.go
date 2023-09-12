@@ -263,7 +263,7 @@ func (e *ebpfProgram) initPrebuilt() error {
 	defer bc.Close()
 
 	var offsets []manager.ConstantEditor
-	if offsets, err = offsetguess.TracerOffsets.Offsets(e.cfg); err != nil {
+	if offsets, err = offsetguess.Tracer.Offsets(e.cfg); err != nil {
 		return err
 	}
 

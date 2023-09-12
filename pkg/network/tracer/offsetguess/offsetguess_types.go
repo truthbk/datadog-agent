@@ -16,6 +16,8 @@ type Proc C.proc_t
 
 const ProcCommMaxLen = C.TASK_COMM_LEN - 1
 
+type TracerOffsets C.tracer_offsets_t
+type TracerValues C.tracer_values_t
 type TracerStatus C.tracer_status_t
 
 type State uint8
@@ -27,6 +29,8 @@ const (
 	StateReady         State = C.STATE_READY    // fully initialized, all offset known
 )
 
+type ConntrackOffsets C.conntrack_offsets_t
+type ConntrackValues C.conntrack_values_t
 type ConntrackStatus C.conntrack_status_t
 type ConntrackState uint8
 
