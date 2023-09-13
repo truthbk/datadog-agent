@@ -170,6 +170,10 @@ static __always_inline int guess_offsets(tracer_status_t* status, char* subject)
         bpf_probe_read_kernel(&new_status.values.rtt, sizeof(new_status.values.rtt), subject + new_status.offsets.rtt);
         new_status.offsets.rtt_var = aligned_offset(subject, status->offsets.rtt_var, SIZEOF_RTT_VAR);
         bpf_probe_read_kernel(&new_status.values.rtt_var, sizeof(new_status.values.rtt_var), subject + new_status.offsets.rtt_var);
+        // For more information on the bit shift operations see:
+        // https://elixir.bootlin.com/linux/v4.6/source/net/ipv4/tcp.c#L2686
+        new_status.values.rtt = new_status.values.rtt >> 3;
+        new_status.values.rtt_var = new_status.values.rtt_var >> 2;
         break;
     case GUESS_DADDR_IPV6:
         if (!check_family((struct sock*)subject, status, AF_INET6)) {

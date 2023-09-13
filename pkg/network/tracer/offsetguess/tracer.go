@@ -788,9 +788,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			offsetField: &t.status.Offsets.Rtt,
 			threshold:   thresholdInetSock,
 			equalFunc: func(field *guessField, val *TracerValues, exp *TracerValues) bool {
-				// For more information on the bit shift operations see:
-				// https://elixir.bootlin.com/linux/v4.6/source/net/ipv4/tcp.c#L2686
-				return val.Rtt>>3 == exp.Rtt && val.Rtt_var>>2 == exp.Rtt_var
+				return val.Rtt == exp.Rtt && val.Rtt_var == exp.Rtt_var
 			},
 			incrementFunc: func(field *guessField, offsets *TracerOffsets, _ bool) bool {
 				// We know that these two fields are always next to each other, 4 bytes apart:
