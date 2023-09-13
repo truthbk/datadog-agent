@@ -172,9 +172,14 @@ func (*tracerOffsetGuesser) Probes(c *config.Config) (map[probes.ProbeFuncName]s
 }
 
 func dfaultEqualFunc(field *guessField, val *TracerValues, exp *TracerValues) bool {
-	valueField := reflect.Indirect(reflect.ValueOf(val)).FieldByIndex(field.valueField.Index)
-	expectedField := reflect.Indirect(reflect.ValueOf(exp)).FieldByIndex(field.valueField.Index)
-	return valueField.Equal(expectedField)
+	for _, vf := range field.valueFields {
+		valueField := reflect.Indirect(reflect.ValueOf(val)).FieldByIndex(vf.Index)
+		expectedField := reflect.Indirect(reflect.ValueOf(exp)).FieldByIndex(vf.Index)
+		if !valueField.Equal(expectedField) {
+			return false
+		}
+	}
+	return true
 }
 
 func dfaultIncrementFunc(field *guessField, _ *TracerOffsets, _ bool) bool {
@@ -212,7 +217,7 @@ type guessField struct {
 	subject       GuessSubject
 	finished      bool
 	optional      bool
-	valueField    reflect.StructField
+	valueFields   []reflect.StructField
 	valueSize     uint64
 	offsetField   *uint64
 	threshold     uint64
@@ -683,19 +688,19 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		{
 			what:        GuessSAddr,
 			subject:     StructSock,
-			valueField:  valueStructField("Saddr"),
+			valueFields: []reflect.StructField{valueStructField("Saddr")},
 			offsetField: &t.status.Offsets.Saddr,
 		},
 		{
 			what:        GuessDAddr,
 			subject:     StructSock,
-			valueField:  valueStructField("Daddr"),
+			valueFields: []reflect.StructField{valueStructField("Daddr")},
 			offsetField: &t.status.Offsets.Daddr,
 		},
 		{
 			what:        GuessDPort,
 			subject:     StructSock,
-			valueField:  valueStructField("Dport"),
+			valueFields: []reflect.StructField{valueStructField("Dport")},
 			offsetField: &t.status.Offsets.Dport,
 			incrementFunc: func(field *guessField, offsets *TracerOffsets, errored bool) bool {
 				offsets.Dport++
@@ -708,7 +713,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		{
 			what:        GuessFamily,
 			subject:     StructSock,
-			valueField:  valueStructField("Family"),
+			valueFields: []reflect.StructField{valueStructField("Family")},
 			offsetField: &t.status.Offsets.Family,
 			incrementFunc: func(field *guessField, offsets *TracerOffsets, errored bool) bool {
 				offsets.Family++
@@ -721,7 +726,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		{
 			what:        GuessSPort,
 			subject:     StructSock,
-			valueField:  valueStructField("Sport"),
+			valueFields: []reflect.StructField{valueStructField("Sport")},
 			offsetField: &t.status.Offsets.Sport,
 			threshold:   thresholdInetSock,
 		},
@@ -729,61 +734,63 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		{
 			what:        GuessSAddrFl4,
 			subject:     StructFlowI4,
-			valueField:  valueStructField("Saddr_fl4"),
+			valueFields: []reflect.StructField{valueStructField("Saddr_fl4")},
 			offsetField: &t.status.Offsets.Saddr_fl4,
 		},
 		{
 			what:        GuessDAddrFl4,
 			subject:     StructFlowI4,
-			valueField:  valueStructField("Daddr_fl4"),
+			valueFields: []reflect.StructField{valueStructField("Daddr_fl4")},
 			offsetField: &t.status.Offsets.Daddr_fl4,
 		},
 		{
 			what:        GuessSPortFl4,
 			subject:     StructFlowI4,
-			valueField:  valueStructField("Sport_fl4"),
+			valueFields: []reflect.StructField{valueStructField("Sport_fl4")},
 			offsetField: &t.status.Offsets.Sport_fl4,
 		},
 		{
 			what:        GuessDPortFl4,
 			subject:     StructFlowI4,
-			valueField:  valueStructField("Dport_fl4"),
+			valueFields: []reflect.StructField{valueStructField("Dport_fl4")},
 			offsetField: &t.status.Offsets.Dport_fl4,
 		},
 	}
+
 	if t.guessUDPv6 {
 		t.guessFields = append(t.guessFields,
 			guessField{
 				what:        GuessSAddrFl6,
 				subject:     StructFlowI6,
-				valueField:  valueStructField("Saddr_fl6"),
+				valueFields: []reflect.StructField{valueStructField("Saddr_fl6")},
 				offsetField: &t.status.Offsets.Saddr_fl6,
 			},
 			guessField{
 				what:        GuessDAddrFl6,
 				subject:     StructFlowI6,
-				valueField:  valueStructField("Daddr_fl6"),
+				valueFields: []reflect.StructField{valueStructField("Daddr_fl6")},
 				offsetField: &t.status.Offsets.Daddr_fl6,
 			},
 			guessField{
 				what:        GuessSPortFl6,
 				subject:     StructFlowI6,
-				valueField:  valueStructField("Sport_fl6"),
+				valueFields: []reflect.StructField{valueStructField("Sport_fl6")},
 				offsetField: &t.status.Offsets.Sport_fl6,
 			},
 			guessField{
 				what:        GuessDPortFl6,
 				subject:     StructFlowI6,
-				valueField:  valueStructField("Dport_fl6"),
+				valueFields: []reflect.StructField{valueStructField("Dport_fl6")},
 				offsetField: &t.status.Offsets.Dport_fl6,
-			})
+			},
+		)
 	}
 
 	t.guessFields = append(t.guessFields,
 		guessField{
 			what:        GuessNetNS,
 			subject:     StructSock,
-			valueField:  valueStructField("Netns"),
+			valueFields: []reflect.StructField{valueStructField("Netns")},
 			offsetField: &t.status.Offsets.Netns,
 			incrementFunc: func(field *guessField, offsets *TracerOffsets, errored bool) bool {
 				offsets.Ino++
@@ -797,12 +804,9 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		guessField{
 			what:        GuessRTT,
 			subject:     StructSock,
-			valueField:  valueStructField("Rtt"),
+			valueFields: []reflect.StructField{valueStructField("Rtt"), valueStructField("Rtt_var")},
 			offsetField: &t.status.Offsets.Rtt,
 			threshold:   thresholdInetSock,
-			equalFunc: func(field *guessField, val *TracerValues, exp *TracerValues) bool {
-				return val.Rtt == exp.Rtt && val.Rtt_var == exp.Rtt_var
-			},
 			incrementFunc: func(field *guessField, offsets *TracerOffsets, _ bool) bool {
 				// We know that these two fields are always next to each other, 4 bytes apart:
 				// https://elixir.bootlin.com/linux/v4.6/source/include/linux/tcp.h#L232
@@ -816,30 +820,23 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		guessField{
 			what:        GuessSocketSK,
 			subject:     StructSocket,
+			valueFields: []reflect.StructField{valueStructField("Sport_via_sk"), valueStructField("Dport_via_sk")},
 			valueSize:   SizeofStructSock,
 			offsetField: &t.status.Offsets.Socket_sk,
-			equalFunc: func(field *guessField, val *TracerValues, exp *TracerValues) bool {
-				// TODO handle custom next logic
-				return val.Sport_via_sk == exp.Sport_via_sk &&
-					val.Dport_via_sk == exp.Dport_via_sk
-			},
 		},
 		guessField{
 			what:        GuessSKBuffSock,
 			subject:     StructSKBuff,
+			valueFields: []reflect.StructField{valueStructField("Sport_via_sk_via_sk_buff"), valueStructField("Dport_via_sk_via_sk_buff")},
 			valueSize:   SizeofSKBuffSock,
 			offsetField: &t.status.Offsets.Sk_buff_sock,
-			equalFunc: func(field *guessField, val *TracerValues, exp *TracerValues) bool {
-				return val.Sport_via_sk_via_sk_buff == exp.Sport_via_sk_via_sk_buff &&
-					val.Dport_via_sk_via_sk_buff == exp.Dport_via_sk_via_sk_buff
-			},
 		},
 		guessField{
 			what:        GuessSKBuffTransportHeader,
 			subject:     StructSKBuff,
 			valueSize:   SizeofSKBuffTransportHeader,
 			offsetField: &t.status.Offsets.Sk_buff_transport_header,
-			equalFunc: func(field *guessField, val *TracerValues, exp *TracerValues) bool {
+			equalFunc: func(field *guessField, val *TracerValues, _ *TracerValues) bool {
 				networkDiffFromMac := val.Network_header - val.Mac_header
 				transportDiffFromNetwork := val.Transport_header - val.Network_header
 				// TODO document where these values come from!
@@ -850,19 +847,17 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			// TODO handle custom next logic
 			what:        GuessSKBuffHead,
 			subject:     StructSKBuff,
+			valueFields: []reflect.StructField{valueStructField("Sport_via_sk_buff"), valueStructField("Dport_via_sk_buff")},
 			valueSize:   SizeofSKBuffHead,
 			offsetField: &t.status.Offsets.Sk_buff_head,
-			equalFunc: func(field *guessField, val *TracerValues, exp *TracerValues) bool {
-				return val.Sport_via_sk_buff == exp.Sport_via_sk_buff &&
-					val.Dport_via_sk_buff == exp.Dport_via_sk_buff
-			},
 		},
 		guessField{
 			what:        GuessDAddrIPv6,
 			subject:     StructSock,
-			valueField:  valueStructField("Daddr_ipv6"),
+			valueFields: []reflect.StructField{valueStructField("Daddr_ipv6")},
 			offsetField: &t.status.Offsets.Daddr_ipv6,
-		})
+		},
+	)
 
 	// fixup and validate guess fields
 	for i := range t.guessFields {
@@ -870,8 +865,8 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		if f.offsetField == nil {
 			return nil, fmt.Errorf("guessField %s has no valid offsetField", f.what)
 		}
-		if f.valueField.Name != "" {
-			f.valueSize = uint64(f.valueField.Type.Size())
+		if f.valueSize == 0 && len(f.valueFields) > 0 {
+			f.valueSize = uint64(f.valueFields[0].Type.Size())
 		}
 		if f.valueSize == 0 {
 			return nil, fmt.Errorf("`%s` has value field size 0", f.what)
@@ -880,8 +875,8 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			f.threshold = threshold
 		}
 		if f.equalFunc == nil {
-			if f.valueField.Name == "" {
-				return nil, fmt.Errorf("`%s` needs a valid `valueField` to use default equality function", f.what)
+			if len(f.valueFields) == 0 {
+				return nil, fmt.Errorf("`%s` needs a valid `valueFields` to use default equality function", f.what)
 			}
 			f.equalFunc = dfaultEqualFunc
 		}
