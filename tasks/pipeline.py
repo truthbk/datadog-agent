@@ -127,7 +127,7 @@ def clean_running_pipelines(ctx, git_ref=DEFAULT_BRANCH, here=False, use_latest_
     cancel_pipelines_with_confirmation(gitlab, pipelines)
 
 
-def workflow_rules(gitlab_file=".gitlab-ci.yml"):
+def workflow_rules(gitlab_file=".dynamic.yml"):
     """Get Gitlab workflow rules list in a YAML-formatted string."""
     with open(gitlab_file, 'r') as f:
         return yaml.dump(yaml.safe_load(f.read())["workflow"]["rules"])
@@ -739,7 +739,7 @@ def update_buildimages(ctx, image_tag, test_version=True, branch_name=None):
     """
     create_branch = branch_name is None
     branch_name = verify_workspace(ctx, branch_name=branch_name)
-    update_gitlab_config(".gitlab-ci.yml", image_tag, test_version=test_version)
+    update_gitlab_config(".dynamic.yml", image_tag, test_version=test_version)
     update_circleci_config(".circleci/config.yml", image_tag, test_version=test_version)
     trigger_build(ctx, branch_name=branch_name, create_branch=create_branch)
 
@@ -758,7 +758,7 @@ def verify_workspace(ctx, branch_name=None):
 
 def update_gitlab_config(file_path, image_tag, test_version):
     """
-    Override variables in .gitlab-ci.yml file
+    Override variables in .dynamic.yml file
     """
     with open(file_path, "r") as gl:
         file_content = gl.readlines()
@@ -786,7 +786,7 @@ def update_gitlab_config(file_path, image_tag, test_version):
 
 def update_circleci_config(file_path, image_tag, test_version):
     """
-    Override variables in .gitlab-ci.yml file
+    Override variables in .dynamic.yml file
     """
     image_name = "datadog/agent-buildimages-circleci-runner"
     with open(file_path, "r") as circle:
@@ -805,7 +805,7 @@ def trigger_build(ctx, branch_name=None, create_branch=False):
     """
     if create_branch:
         ctx.run(f"git checkout -b {branch_name}")
-    ctx.run("git add .gitlab-ci.yml .circleci/config.yml")
+    ctx.run("git add .dynamic.yml .circleci/config.yml")
     answer = input("Do you want to trigger a pipeline (will also commit and push)? [Y/n]\n")
     if len(answer) == 0 or answer.casefold() == "y":
         ctx.run("git commit -m 'Update buildimages version'")
