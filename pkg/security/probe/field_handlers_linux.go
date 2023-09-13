@@ -13,6 +13,7 @@ import (
 	"time"
 
 	sprocess "github.com/DataDog/datadog-agent/pkg/security/resolvers/process"
+	"github.com/DataDog/datadog-agent/pkg/security/seclog"
 
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 )
@@ -308,15 +309,21 @@ func (fh *FieldHandlers) ResolvePackageName(ev *model.Event, f *model.FileEvent)
 	if f.PkgName == "" {
 		// Force the resolution of file path to be able to map to a package provided file
 		if fh.ResolveFilePath(ev, f) == "" {
+			seclog.Infof("ResolvePackageName failed to resolve FilePath for event:\n%+v\nfile: %+v", ev, f)
 			return ""
 		}
+		seclog.Infof("ResolvePackageName resolved filepath %s", f.PathnameStr)
 
 		if fh.resolvers.SBOMResolver == nil {
+			seclog.Infof("SBOMResolver is nil")
 			return ""
 		}
 
 		if pkg := fh.resolvers.SBOMResolver.ResolvePackage(ev.ProcessCacheEntry.ContainerID, f); pkg != nil {
+			seclog.Infof("SBOMResolver.ResolvePackage resolved package %+v for filepath %s", pkg, f.PathnameStr)
 			f.PkgName = pkg.Name
+		} else {
+			seclog.Infof("SBOMResolver.ResolvePackage returned nil for filepath %s", f.PathnameStr)
 		}
 	}
 	return f.PkgName

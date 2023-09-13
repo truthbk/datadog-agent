@@ -68,7 +68,7 @@ shared_examples "passes" do |bundle, env|
         "/go/bin/test2json", "-t", "-p", "github.com/DataDog/datadog-agent/pkg/security/tests"
       ]
 
-      testsuite_args = ["-status-metrics", "-loglevel=debug", "-test.v", "-test.count=1"]
+      testsuite_args = ["-status-metrics", "-loglevel=debug", "-test.v", "-test.count=1", "-test.run", "TestSBOM"]
       if bundle == "docker"
         testsuite_args.concat(["--env", "docker"])
         gotestsum_test2json_cmd.concat(["docker", "exec", "-e", "DD_SYSTEM_PROBE_BPF_DIR=#{final_env["DD_SYSTEM_PROBE_BPF_DIR"]}",

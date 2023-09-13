@@ -293,6 +293,9 @@ func (r *Resolver) analyzeWorkload(sbom *SBOM) error {
 			for _, file := range resultPkg.SystemInstalledFiles {
 				seclog.Tracef("indexing %s as %+v", file, pkg)
 				sbom.files[file] = pkg
+				if strings.HasSuffix(file, "touch") || strings.HasSuffix(file, "os-release") {
+					seclog.Infof("indexing %s as %+v", file, pkg)
+				}
 			}
 		}
 	}
@@ -319,6 +322,7 @@ func (r *Resolver) ResolvePackage(containerID string, file *model.FileEvent) *Pa
 	defer r.sbomsLock.RUnlock()
 	sbom, ok := r.sboms[containerID]
 	if !ok {
+		seclog.Infof("ResolvePackage: no sbom for container id %s", containerID)
 		return nil
 	}
 
@@ -362,6 +366,7 @@ func (r *Resolver) queueWorkload(sbom *SBOM) {
 	if workloadKey := sbom.getWorkloadKey(); workloadKey != "" {
 		cachedSBOM, ok := r.sbomsCache.Get(workloadKey)
 		if ok {
+			seclog.Infof("queueWorkload: Got sbom from cache for workload %s", workloadKey)
 			// copy report and file cache (keeping a reference is fine, we won't be modifying the content)
 			sbom.files = cachedSBOM.files
 			sbom.report = cachedSBOM.report
@@ -376,10 +381,12 @@ func (r *Resolver) queueWorkload(sbom *SBOM) {
 	case r.scannerChan <- sbom:
 	default:
 	}
+	seclog.Infof("queueWorkload: queued workload %s", sbom.getWorkloadKey())
 }
 
 // OnWorkloadSelectorResolvedEvent is used to handle the creation of a new cgroup with its resolved tags
 func (r *Resolver) OnWorkloadSelectorResolvedEvent(sbom *cgroupModel.CacheEntry) {
+	seclog.Infof("OnWorkloadSelectorResolvedEvent: %+v", sbom.WorkloadSelector)
 	r.Retain(sbom.ID, sbom)
 }
 
@@ -414,6 +421,7 @@ func (r *Resolver) GetWorkload(id string) *SBOM {
 
 // OnCGroupDeletedEvent is used to handle a CGroupDeleted event
 func (r *Resolver) OnCGroupDeletedEvent(sbom *cgroupModel.CacheEntry) {
+	seclog.Infof("OnCGroupDeletedEvent: %+v", sbom.WorkloadSelector)
 	r.Delete(sbom.ID)
 }
 
