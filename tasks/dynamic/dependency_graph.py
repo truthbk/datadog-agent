@@ -19,6 +19,9 @@ class DepNode:
 
 class DepGraph:
     def __init__(self, entrypoint=None):
+        self.entrypoint = entrypoint
+        if entrypoint is None:
+            self.entrypoint = ".dynamic.yml"
         self.stage_list = []
         self.job_tags = {}
         self.init_graph()
@@ -27,10 +30,6 @@ class DepGraph:
         self.job_lists = []
         self.seen_map = []
         self.debug = False
-        self.entrypoint = entrypoint
-        if entrypoint is None:
-            self.entrypoint = ".dynamic.yml"
-
 
     def init_graph(self):
         """
