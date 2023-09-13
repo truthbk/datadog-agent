@@ -9,7 +9,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/DataDog/datadog-agent/pkg/aggregator/sender"
 	"github.com/DataDog/datadog-agent/pkg/config"
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/process"
 	"github.com/DataDog/datadog-agent/pkg/util/backoff"
@@ -20,8 +19,8 @@ import (
 )
 
 const (
-	subscriber   = "language_detection_client"
-	metricPeriod = 1 * time.Minute
+	subscriber          = "language_detection_client"
+	runningMetricPeriod = 1 * time.Minute
 
 	minBackoffFactor = 2.0
 	baseBackoffTime  = 1.0 * time.Second // sedconds
@@ -55,7 +54,7 @@ func (c *languagesSet) add(language string) {
 
 func (c *languagesSet) toProto() []*pbgo.Language {
 	res := make([]*pbgo.Language, 0, len(c.languages))
-	for lang, _ := range c.languages {
+	for lang := range c.languages {
 		res = append(res, &pbgo.Language{
 			Name: lang,
 		})
@@ -118,35 +117,39 @@ func (b *batch) toProto() *pbgo.ParentLanguageAnnotationRequest {
 	return res
 }
 
+func (b *batch) sendMetrics() {
+	for podName, podDetails := range b.podDetails {
+		for containerName, languages := range podDetails.containersLanguages.containersLanguages {
+			for language := range languages.languages {
+				ProcessedEvents.Inc(podName, containerName, language)
+			}
+		}
+	}
+}
+
+// Client sends language information to the Cluster-Agent
 type Client struct {
 	ctx          context.Context
 	cfg          config.Config
 	store        workloadmeta.Store
 	dcaClient    clusteragent.DCAClientInterface
-	sender       sender.Sender
 	currentBatch *batch
 }
 
+// NewClient creates a new client
 func NewClient(
 	ctx context.Context,
 	cfg config.Config,
 	store workloadmeta.Store,
 	dcaClient clusteragent.DCAClientInterface,
-	sender sender.Sender,
 ) *Client {
 	return &Client{
 		ctx:          ctx,
 		cfg:          cfg,
 		store:        store,
-		sender:       sender,
 		dcaClient:    dcaClient,
 		currentBatch: &batch{podDetails: make(map[string]*podDetails)},
 	}
-}
-
-func (c *Client) sendUsageMetrics() {
-	c.sender.Count("datadog.agent.language_detection.client_running", 1.0, "", nil)
-	c.sender.Commit()
 }
 
 func getContainerNameFromPod(cid string, pod *workloadmeta.KubernetesPod) (string, bool) {
@@ -171,7 +174,7 @@ func (c *Client) flush() {
 		clock := clock.New()
 		errorCount := 0
 		backoffPolicy := backoff.NewExpBackoffPolicy(minBackoffFactor, baseBackoffTime.Seconds(), maxBackoffTime.Seconds(), 0, false)
-
+		data.sendMetrics()
 		for {
 			if errorCount > maxError {
 				return
@@ -180,10 +183,15 @@ func (c *Client) flush() {
 			refreshInterval := backoffPolicy.GetBackoffDuration(errorCount)
 			select {
 			case <-clock.After(refreshInterval):
-				err = c.dcaClient.PostLanguageMetadata(c.ctx, data.toProto())
+				protoMessage := data.toProto()
+				t := time.Now()
+				err = c.dcaClient.PostLanguageMetadata(c.ctx, protoMessage)
 				if err == nil {
+					Latency.Observe(time.Since(t).Seconds())
+					Requests.Inc(StatusSuccess)
 					return
 				}
+				Requests.Add(1, StatusError)
 				errorCount = backoffPolicy.IncError(1)
 			case <-c.ctx.Done():
 				return
@@ -192,6 +200,7 @@ func (c *Client) flush() {
 	}()
 
 	ch <- c.currentBatch
+	c.currentBatch = &batch{podDetails: make(map[string]*podDetails)}
 }
 
 func (c *Client) processEvent(evBundle workloadmeta.EventBundle) {
@@ -223,6 +232,7 @@ func (c *Client) processEvent(evBundle workloadmeta.EventBundle) {
 	}
 }
 
+// StreamLanguages starts streaming languages to the Cluster-Agent
 func (c *Client) StreamLanguages() {
 	log.Infof("Starting language detection client")
 	defer log.Infof("Shutting down language detection client")
@@ -242,7 +252,7 @@ func (c *Client) StreamLanguages() {
 	periodicFlushTimer := time.NewTicker(time.Duration(c.cfg.GetDuration("language_detection.client_period")))
 	defer periodicFlushTimer.Stop()
 
-	metricTicker := time.NewTicker(metricPeriod)
+	metricTicker := time.NewTicker(runningMetricPeriod)
 	defer metricTicker.Stop()
 
 	for {
@@ -252,7 +262,7 @@ func (c *Client) StreamLanguages() {
 		case <-periodicFlushTimer.C:
 			c.flush()
 		case <-metricTicker.C:
-			c.sendUsageMetrics()
+			Running.Set(1.0)
 		case <-c.ctx.Done():
 			return
 		}

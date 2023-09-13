@@ -466,14 +466,13 @@ func (c *DCAClient) GetKubernetesClusterID() (string, error) {
 }
 
 // PostLanguageMetadata is called by the core-agent's language detection client
-func (c *DCAClient) PostLanguageMetadata(ctx context.Context, data *pbgo.ParentLanguageAnnotationRequest) (types.StatusResponse, error) {
-	var response types.StatusResponse
+func (c *DCAClient) PostLanguageMetadata(ctx context.Context, data *pbgo.ParentLanguageAnnotationRequest) error {
 	queryBody, err := proto.Marshal(data)
 	if err != nil {
-		return response, err
+		return err
 	}
 
 	// https://host:port/api/v1/languagedetection}
-	err = c.doJSONQueryToLeader(ctx, languageDetectionPath, "POST", bytes.NewBuffer(queryBody), &response)
-	return response, err
+	err = c.doJSONQueryToLeader(ctx, languageDetectionPath, "POST", bytes.NewBuffer(queryBody), nil)
+	return err
 }

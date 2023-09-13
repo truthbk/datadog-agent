@@ -20,6 +20,7 @@ import (
 
 	apiv1 "github.com/DataDog/datadog-agent/pkg/clusteragent/api/v1"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/clusterchecks/types"
+	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/process"
 	"github.com/DataDog/datadog-agent/pkg/util/cache"
 	"github.com/DataDog/datadog-agent/pkg/util/clusteragent"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/apiserver"
@@ -111,6 +112,10 @@ func (f *FakeDCAClient) GetKubernetesClusterID() (string, error) {
 }
 
 func (f *FakeDCAClient) GetCFAppsMetadataForNode(nodename string) (map[string][]string, error) {
+	panic("implement me")
+}
+
+func (f *FakeDCAClient) PostLanguageMetadata(context.Context, *pbgo.ParentLanguageAnnotationRequest) error {
 	panic("implement me")
 }
 
