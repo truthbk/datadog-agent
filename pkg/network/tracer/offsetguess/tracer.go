@@ -41,6 +41,8 @@ var tcpKprobeCalledString = map[uint64]string{
 	tcpGetSockOptKProbeCalled:    "tcp_getsockopt kprobe executed",
 }
 
+var errOffsetOverflow = errors.New("offset exceeded threshold")
+
 type tracerOffsetGuesser struct {
 	m           *manager.Manager
 	status      *TracerStatus
@@ -282,7 +284,7 @@ func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffsetNew(mp *ebpf.Map, expec
 
 	// TODO some fields don't error out, but mark fields as invalid and jump ahead
 	if !field.incrementFunc(field, &t.status.Offsets, t.status.Err != 0) {
-		return fmt.Errorf("overflow while guessing %s, bailing out", GuessWhat(t.status.What))
+		return fmt.Errorf("%s overflow: %w", GuessWhat(t.status.What), errOffsetOverflow)
 	}
 	t.status.State = uint64(StateChecking)
 
@@ -332,7 +334,7 @@ func (field *guessField) jumpPastOverlaps(subjectFields []*guessField) (bool, er
 			*field.offsetField = nextValid
 			overlapped = true
 			if nextValid >= field.threshold {
-				return false, fmt.Errorf("overflow while guessing %s, bailing out", field.what)
+				return false, fmt.Errorf("%s overflow: %w", field.what, errOffsetOverflow)
 			}
 			continue
 		}
