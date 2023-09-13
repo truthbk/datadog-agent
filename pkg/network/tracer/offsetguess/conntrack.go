@@ -207,13 +207,7 @@ func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEd
 	if len(processName) > ProcCommMaxLen { // Truncate process name if needed
 		processName = processName[:ProcCommMaxLen]
 	}
-
-	cProcName := [ProcCommMaxLen + 1]int8{} // Last char has to be null character, so add one
-	for i, ch := range processName {
-		cProcName[i] = int8(ch)
-	}
-
-	c.status.Proc = Proc{Comm: cProcName}
+	copy(c.status.Proc.Comm[:], processName)
 
 	// if we already have the offsets, just return
 	err = mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(c.status))

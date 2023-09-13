@@ -819,18 +819,13 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		processName = processName[:ProcCommMaxLen]
 	}
 
-	cProcName := [ProcCommMaxLen + 1]int8{} // Last char has to be null character, so add one
-	for i, ch := range processName {
-		cProcName[i] = int8(ch)
-	}
-
 	t.guessUDPv6 = cfg.CollectUDPv6Conns
 	t.guessTCPv6 = cfg.CollectTCPv6Conns
 	t.status = &TracerStatus{
 		State: uint64(StateChecking),
-		Proc:  Proc{Comm: cProcName},
 		What:  uint64(GuessSAddr),
 	}
+	copy(t.status.Proc.Comm[:], processName)
 
 	// if we already have the offsets, just return
 	err = mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(t.status))

@@ -4,7 +4,7 @@
 package offsetguess
 
 type Proc struct {
-	Comm [16]int8
+	Comm [16]byte
 }
 
 const ProcCommMaxLen = 0x10 - 1
