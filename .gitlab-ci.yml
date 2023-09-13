@@ -18,7 +18,7 @@ generate_pipeline:
   needs: []
   artifacts:
     paths:
-      - .gitlab-ci.yml
+      - .dynamic.yml
       - .gitlab/*
 
 trigger_pipeline:
@@ -28,6 +28,6 @@ trigger_pipeline:
       artifacts: true
   trigger:
     include:
-      - local: .gitlab-ci.yml
+      - local: .dynamic.yml
 
 
