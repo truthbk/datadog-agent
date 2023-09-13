@@ -33,6 +33,16 @@ var MAX_OPEN_CONNECTIONS = 10
 var DEFAULT_SQL_TRACED_RUNS = 10
 var DB_TIMEOUT = "20000"
 
+const (
+	// MaxSQLFullTextVSQL is SQL_FULLTEXT size in V$SQL
+	MaxSQLFullTextVSQL = 4000
+
+	// MaxSQLFullTextVSQLStats is SQL_FULLTEXT size in V$SQLSTATS. The column is defined as VARCHAR2(4000)
+	// but due to the Oracle bug "27760729 : V$SQLSTAT.SQL_FULLTEXT DOES NOT SHOW COMPLETE SQL STMT";
+	// it contains only the first 1000 characters
+	MaxSQLFullTextVSQLStats = 1000
+)
+
 // The structure is filled by activity sampling and serves as a filter for query metrics
 type StatementsFilter struct {
 	SQLIDs                  map[string]int
@@ -172,6 +182,12 @@ func (c *Check) Run() error {
 				return err
 			}
 		}
+		if len(c.config.CustomQueries) > 0 {
+			err := c.CustomQueries()
+			if err != nil {
+				log.Errorf("failed to execute custom queries %s", err)
+			}
+		}
 	}
 
 	if c.dbmEnabled {
@@ -192,12 +208,6 @@ func (c *Check) Run() error {
 				err := c.SharedMemory()
 				if err != nil {
 					return err
-				}
-			}
-			if len(c.config.CustomQueries) > 0 {
-				err := c.CustomQueries()
-				if err != nil {
-					log.Errorf("failed to execute custom queries %s", err)
 				}
 			}
 		}
