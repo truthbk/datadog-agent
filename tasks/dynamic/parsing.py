@@ -276,6 +276,9 @@ class GitlabExtender:
         for file in glob.glob(self.gitlab_folder + "/**/*.yml", recursive=True):
             self.parse_file(file)
 
+    def apply_jobs_data(self):
+        pass
+
 
 if __name__ == "__main__":
     extender = GitlabExtender(None)

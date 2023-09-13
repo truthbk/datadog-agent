@@ -474,6 +474,15 @@ def generate_config(ctx, build_type, output_file, env=None):
     cmd = "go run {go_file} {build_type} {template_file} {output_file}"
     return ctx.run(cmd.format(**args), env=env or {})
 
+def get_changed_files(ctx):
+    return (
+        ctx.run(
+            "git diff --name-only $(git merge-base $(inv release.get-release-json-value base_branch) HEAD) HEAD",
+            hide=True,
+        )
+        .stdout.strip()
+        .splitlines()
+    )
 
 ##
 ## release.json entry mapping functions
