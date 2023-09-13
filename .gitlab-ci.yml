@@ -3,7 +3,7 @@ stages:
   - trigger
 
 variables:
-  DATADOG_AGENT_BUILDIMAGES_SUFFIX: ""
+  DATADOG_AGENT_BUILDIMAGES_SUFFIX: "_test_only"
   DATADOG_AGENT_BUILDIMAGES: v19990326-7f3f5dc
 
 generate_pipeline:
