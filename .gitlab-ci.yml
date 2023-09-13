@@ -12,7 +12,8 @@ generate_pipeline:
   tags:
   - arch:amd64
   script:
-    - python3 -m pip install oyaml
+    - source /root/.bashrc
+    - pip install oyaml
     - inv commands.dynamic-run
   needs: []
   artifacts:
