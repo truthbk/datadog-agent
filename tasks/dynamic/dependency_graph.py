@@ -18,7 +18,7 @@ class DepNode:
 
 
 class DepGraph:
-    def __init__(self):
+    def __init__(self, entrypoint=None):
         self.stage_list = []
         self.job_tags = {}
         self.init_graph()
@@ -27,13 +27,17 @@ class DepGraph:
         self.job_lists = []
         self.seen_map = []
         self.debug = False
+        self.entrypoint = entrypoint
+        if entrypoint is None:
+            self.entrypoint = ".dynamic.yml"
+
 
     def init_graph(self):
         """
         Setuo stage node of the dependency graph
         :return: (DepNode) The root of the graph
         """
-        with open(".dynamic.yml", "r") as f:
+        with open(self.entrypoint, "r") as f:
             yaml_content = yaml.load(f.read(), Loader=yaml.SafeLoader)
         self.stage_list = list(yaml_content["stages"])
         self.job_tags = {stage: [] for stage in self.stage_list}
