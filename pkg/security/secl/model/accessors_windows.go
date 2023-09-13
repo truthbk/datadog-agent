@@ -7,7 +7,6 @@
 //go:build windows
 // +build windows
 
-// Package model holds model related files
 package model
 
 import (
@@ -28,6 +27,7 @@ func (m *Model) GetIterator(field eval.Field) (eval.Iterator, error) {
 }
 func (m *Model) GetEventTypes() []eval.EventType {
 	return []eval.EventType{
+		eval.EventType("dns"),
 		eval.EventType("exec"),
 		eval.EventType("exit"),
 	}
@@ -1628,19 +1628,19 @@ func (ev *Event) GetFieldEventType(field eval.Field) (eval.EventType, error) {
 	case "exit.tid":
 		return "exit", nil
 	case "network.destination.ip":
-		return "*", nil
+		return "dns", nil
 	case "network.destination.port":
-		return "*", nil
+		return "dns", nil
 	case "network.l3_protocol":
-		return "*", nil
+		return "dns", nil
 	case "network.l4_protocol":
-		return "*", nil
+		return "dns", nil
 	case "network.size":
-		return "*", nil
+		return "dns", nil
 	case "network.source.ip":
-		return "*", nil
+		return "dns", nil
 	case "network.source.port":
-		return "*", nil
+		return "dns", nil
 	case "process.ancestors.args":
 		return "*", nil
 	case "process.ancestors.args_flags":
