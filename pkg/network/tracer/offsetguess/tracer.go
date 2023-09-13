@@ -176,10 +176,8 @@ func dfaultEqualFunc(field *guessField, val *TracerValues, exp *TracerValues) bo
 }
 
 func dfaultIncrementFunc(field *guessField, _ *TracerOffsets, _ bool) bool {
-	offset := field.offsetField.Uint()
-	offset++
-	field.offsetField.SetUint(offset)
-	return offset < field.threshold
+	*field.offsetField++
+	return *field.offsetField < field.threshold
 }
 
 func dfaultNextFunc(field *guessField, _ bool) GuessWhat {
@@ -203,7 +201,7 @@ type guessField struct {
 	optional      bool
 	valueField    reflect.StructField
 	valueSize     uint64
-	offsetField   reflect.Value
+	offsetField   *uint64
 	threshold     uint64
 	equalFunc     func(field *guessField, val *TracerValues, exp *TracerValues) bool
 	incrementFunc func(field *guessField, offsets *TracerOffsets, errored bool) bool
@@ -249,7 +247,7 @@ func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffsetNew(mp *ebpf.Map, expec
 	}
 
 	if field.equalFunc(field, &t.status.Values, expected) {
-		offset := field.offsetField.Uint()
+		offset := *field.offsetField
 		field.finished = true
 		next := field.nextFunc(field, true)
 		if next == GuessNotApplicable {
@@ -320,7 +318,7 @@ func (field *guessField) jumpPastOverlaps(subjectFields []*guessField) (bool, er
 		if isOverlapping {
 			// TODO advancing just a single offset may not be what each field needs
 			// it may be multiple offsets in concert
-			field.offsetField.SetUint(nextValid)
+			*field.offsetField = nextValid
 			overlapped = true
 			if nextValid >= field.threshold {
 				return false, fmt.Errorf("overflow while guessing %s, bailing out", field.what)
@@ -333,13 +331,13 @@ func (field *guessField) jumpPastOverlaps(subjectFields []*guessField) (bool, er
 }
 
 func (field *guessField) overlaps(subjectFields []*guessField) (uint64, bool) {
-	offset := field.offsetField.Uint()
+	offset := *field.offsetField
 	//log.Warnf("`%s` offset %d post", field.what, offset)
 	for _, f := range subjectFields {
 		if !f.finished || f.what == field.what {
 			continue
 		}
-		soff := f.offsetField.Uint()
+		soff := *f.offsetField
 		size := f.valueSize
 		nextValid := soff + size
 		if soff <= offset && offset < nextValid {
@@ -667,27 +665,25 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		return f
 	}
 
-	offsetsValue := reflect.ValueOf(&t.status.Offsets)
-
 	// order here is not important, default nextFunc uses GuessWhat ordering
 	t.guessFields = []guessField{
 		{
 			what:        GuessSAddr,
 			subject:     StructSock,
 			valueField:  valueStructField("Saddr"),
-			offsetField: offsetsValue.Elem().FieldByName("Saddr"),
+			offsetField: &t.status.Offsets.Saddr,
 		},
 		{
 			what:        GuessDAddr,
 			subject:     StructSock,
 			valueField:  valueStructField("Daddr"),
-			offsetField: offsetsValue.Elem().FieldByName("Daddr"),
+			offsetField: &t.status.Offsets.Daddr,
 		},
 		{
 			what:        GuessDPort,
 			subject:     StructSock,
 			valueField:  valueStructField("Dport"),
-			offsetField: offsetsValue.Elem().FieldByName("Dport"),
+			offsetField: &t.status.Offsets.Dport,
 			incrementFunc: func(field *guessField, offsets *TracerOffsets, errored bool) bool {
 				offsets.Dport++
 				// we know the family ((struct __sk_common)->skc_family) is
@@ -700,7 +696,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			what:        GuessFamily,
 			subject:     StructSock,
 			valueField:  valueStructField("Family"),
-			offsetField: offsetsValue.Elem().FieldByName("Family"),
+			offsetField: &t.status.Offsets.Family,
 			incrementFunc: func(field *guessField, offsets *TracerOffsets, errored bool) bool {
 				offsets.Family++
 				// we know the sport ((struct inet_sock)->inet_sport) is
@@ -713,7 +709,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			what:        GuessSPort,
 			subject:     StructSock,
 			valueField:  valueStructField("Sport"),
-			offsetField: offsetsValue.Elem().FieldByName("Sport"),
+			offsetField: &t.status.Offsets.Sport,
 			threshold:   thresholdInetSock,
 		},
 		// TODO handle custom next logic if fl4/6 errors or IPv6 is disabled
@@ -721,25 +717,25 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			what:        GuessSAddrFl4,
 			subject:     StructFlowI4,
 			valueField:  valueStructField("Saddr_fl4"),
-			offsetField: offsetsValue.Elem().FieldByName("Saddr_fl4"),
+			offsetField: &t.status.Offsets.Saddr_fl4,
 		},
 		{
 			what:        GuessDAddrFl4,
 			subject:     StructFlowI4,
 			valueField:  valueStructField("Daddr_fl4"),
-			offsetField: offsetsValue.Elem().FieldByName("Daddr_fl4"),
+			offsetField: &t.status.Offsets.Daddr_fl4,
 		},
 		{
 			what:        GuessSPortFl4,
 			subject:     StructFlowI4,
 			valueField:  valueStructField("Sport_fl4"),
-			offsetField: offsetsValue.Elem().FieldByName("Sport_fl4"),
+			offsetField: &t.status.Offsets.Sport_fl4,
 		},
 		{
 			what:        GuessDPortFl4,
 			subject:     StructFlowI4,
 			valueField:  valueStructField("Dport_fl4"),
-			offsetField: offsetsValue.Elem().FieldByName("Dport_fl4"),
+			offsetField: &t.status.Offsets.Dport_fl4,
 		},
 	}
 	if t.guessUDPv6 {
@@ -748,25 +744,25 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 				what:        GuessSAddrFl6,
 				subject:     StructFlowI6,
 				valueField:  valueStructField("Saddr_fl6"),
-				offsetField: offsetsValue.Elem().FieldByName("Saddr_fl6"),
+				offsetField: &t.status.Offsets.Saddr_fl6,
 			},
 			guessField{
 				what:        GuessDAddrFl6,
 				subject:     StructFlowI6,
 				valueField:  valueStructField("Daddr_fl6"),
-				offsetField: offsetsValue.Elem().FieldByName("Daddr_fl6"),
+				offsetField: &t.status.Offsets.Daddr_fl6,
 			},
 			guessField{
 				what:        GuessSPortFl6,
 				subject:     StructFlowI6,
 				valueField:  valueStructField("Sport_fl6"),
-				offsetField: offsetsValue.Elem().FieldByName("Sport_fl6"),
+				offsetField: &t.status.Offsets.Sport_fl6,
 			},
 			guessField{
 				what:        GuessDPortFl6,
 				subject:     StructFlowI6,
 				valueField:  valueStructField("Dport_fl6"),
-				offsetField: offsetsValue.Elem().FieldByName("Dport_fl6"),
+				offsetField: &t.status.Offsets.Dport_fl6,
 			})
 	}
 
@@ -775,7 +771,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			what:        GuessNetNS,
 			subject:     StructSock,
 			valueField:  valueStructField("Netns"),
-			offsetField: offsetsValue.Elem().FieldByName("Netns"),
+			offsetField: &t.status.Offsets.Netns,
 			incrementFunc: func(field *guessField, offsets *TracerOffsets, errored bool) bool {
 				offsets.Ino++
 				if errored || offsets.Ino >= field.threshold {
@@ -789,7 +785,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			what:        GuessRTT,
 			subject:     StructSock,
 			valueField:  valueStructField("Rtt"),
-			offsetField: offsetsValue.Elem().FieldByName("Rtt"),
+			offsetField: &t.status.Offsets.Rtt,
 			threshold:   thresholdInetSock,
 			equalFunc: func(field *guessField, val *TracerValues, exp *TracerValues) bool {
 				// For more information on the bit shift operations see:
@@ -810,7 +806,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			what:        GuessSocketSK,
 			subject:     StructSocket,
 			valueSize:   SizeofStructSock,
-			offsetField: offsetsValue.Elem().FieldByName("Socket_sk"),
+			offsetField: &t.status.Offsets.Socket_sk,
 			equalFunc: func(field *guessField, val *TracerValues, exp *TracerValues) bool {
 				// TODO handle custom next logic
 				return val.Sport_via_sk == exp.Sport_via_sk &&
@@ -821,7 +817,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			what:        GuessSKBuffSock,
 			subject:     StructSKBuff,
 			valueSize:   SizeofSKBuffSock,
-			offsetField: offsetsValue.Elem().FieldByName("Sk_buff_sock"),
+			offsetField: &t.status.Offsets.Sk_buff_sock,
 			equalFunc: func(field *guessField, val *TracerValues, exp *TracerValues) bool {
 				return val.Sport_via_sk_via_sk_buff == exp.Sport_via_sk_via_sk_buff &&
 					val.Dport_via_sk_via_sk_buff == exp.Dport_via_sk_via_sk_buff
@@ -831,7 +827,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			what:        GuessSKBuffTransportHeader,
 			subject:     StructSKBuff,
 			valueSize:   SizeofSKBuffTransportHeader,
-			offsetField: offsetsValue.Elem().FieldByName("Sk_buff_transport_header"),
+			offsetField: &t.status.Offsets.Sk_buff_transport_header,
 			equalFunc: func(field *guessField, val *TracerValues, exp *TracerValues) bool {
 				networkDiffFromMac := val.Network_header - val.Mac_header
 				transportDiffFromNetwork := val.Transport_header - val.Network_header
@@ -844,7 +840,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			what:        GuessSKBuffHead,
 			subject:     StructSKBuff,
 			valueSize:   SizeofSKBuffHead,
-			offsetField: offsetsValue.Elem().FieldByName("Sk_buff_head"),
+			offsetField: &t.status.Offsets.Sk_buff_head,
 			equalFunc: func(field *guessField, val *TracerValues, exp *TracerValues) bool {
 				return val.Sport_via_sk_buff == exp.Sport_via_sk_buff &&
 					val.Dport_via_sk_buff == exp.Dport_via_sk_buff
@@ -854,7 +850,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			what:        GuessDAddrIPv6,
 			subject:     StructSock,
 			valueField:  valueStructField("Daddr_ipv6"),
-			offsetField: offsetsValue.Elem().FieldByName("Daddr_ipv6"),
+			offsetField: &t.status.Offsets.Daddr_ipv6,
 			nextFunc: func(field *guessField, _ bool) GuessWhat {
 				return GuessNotApplicable
 			},
@@ -863,7 +859,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 	// fixup and validate guess fields
 	for i := range t.guessFields {
 		f := &t.guessFields[i]
-		if !f.offsetField.IsValid() || !f.offsetField.CanSet() {
+		if f.offsetField == nil {
 			return nil, fmt.Errorf("guessField %s has no valid offsetField", f.what)
 		}
 		if f.valueField.Name != "" {
