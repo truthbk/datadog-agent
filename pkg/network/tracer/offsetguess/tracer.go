@@ -180,9 +180,20 @@ func dfaultIncrementFunc(field *guessField, _ *TracerOffsets, _ bool) bool {
 	return *field.offsetField < field.threshold
 }
 
-func dfaultNextFunc(field *guessField, _ bool) GuessWhat {
-	return GuessWhat(int(field.what) + 1)
+func advanceField(n int) func(field *guessField, allFields *guessFields, _ bool) GuessWhat {
+	return func(field *guessField, allFields *guessFields, _ bool) GuessWhat {
+		fieldIndex := slices.IndexFunc(*allFields, func(f guessField) bool {
+			return f.what == field.what
+		})
+		fieldIndex += n
+		if fieldIndex >= len(*allFields) {
+			return GuessNotApplicable
+		}
+		return (*allFields)[fieldIndex].what
+	}
 }
+
+var dfaultNextFunc = advanceField(1)
 
 type GuessSubject int
 
@@ -205,7 +216,7 @@ type guessField struct {
 	threshold     uint64
 	equalFunc     func(field *guessField, val *TracerValues, exp *TracerValues) bool
 	incrementFunc func(field *guessField, offsets *TracerOffsets, errored bool) bool
-	nextFunc      func(field *guessField, equal bool) GuessWhat
+	nextFunc      func(field *guessField, allFields *guessFields, equal bool) GuessWhat
 }
 
 func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffsetNew(mp *ebpf.Map, expected *TracerValues, maxRetries *int) error {
@@ -249,7 +260,7 @@ func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffsetNew(mp *ebpf.Map, expec
 	if field.equalFunc(field, &t.status.Values, expected) {
 		offset := *field.offsetField
 		field.finished = true
-		next := field.nextFunc(field, true)
+		next := field.nextFunc(field, &t.guessFields, true)
 		if next == GuessNotApplicable {
 			t.status.State = uint64(StateReady)
 			goto NextCheck
@@ -849,9 +860,6 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			subject:     StructSock,
 			valueField:  valueStructField("Daddr_ipv6"),
 			offsetField: &t.status.Offsets.Daddr_ipv6,
-			nextFunc: func(field *guessField, _ bool) GuessWhat {
-				return GuessNotApplicable
-			},
 		})
 
 	// fixup and validate guess fields
@@ -925,18 +933,6 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		if err := t.checkAndUpdateCurrentOffsetNew(mp, expected, &maxRetries); err != nil {
 			return nil, err
 		}
-
-		// Stop at a reasonable offset so we don't run forever.
-		// Reading too far away in kernel memory is not a big deal:
-		// probe_kernel_read() handles faults gracefully.
-		//if t.status.Offsets.Saddr >= threshold || t.status.Offsets.Daddr >= threshold ||
-		//	t.status.Offsets.Sport >= thresholdInetSock || t.status.Offsets.Dport >= threshold ||
-		//	t.status.Offsets.Netns >= threshold || t.status.Offsets.Family >= threshold ||
-		//	t.status.Offsets.Daddr_ipv6 >= threshold || t.status.Offsets.Rtt >= thresholdInetSock ||
-		//	t.status.Offsets.Socket_sk >= threshold || t.status.Offsets.Sk_buff_sock >= threshold ||
-		//	t.status.Offsets.Sk_buff_transport_header >= threshold || t.status.Offsets.Sk_buff_head >= threshold {
-		//	return nil, fmt.Errorf("overflow while guessing %v, bailing out", GuessWhat(t.status.What))
-		//}
 	}
 	log.Warnf("finished in %d iterations", t.iterations)
 
