@@ -140,3 +140,10 @@ const (
 
 	GuessNotApplicable GuessWhat = 99999
 )
+
+const (
+	SizeofStructSock            = 0x8
+	SizeofSKBuffSock            = 0x8
+	SizeofSKBuffTransportHeader = 0x2
+	SizeofSKBuffHead            = 0x8
+)

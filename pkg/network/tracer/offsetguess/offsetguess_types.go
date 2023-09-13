@@ -72,3 +72,10 @@ const (
 
 	GuessNotApplicable GuessWhat = 99999
 )
+
+const (
+	SizeofStructSock            = C.SIZEOF_SOCKET_SK
+	SizeofSKBuffSock            = C.SIZEOF_SK_BUFF_SOCK
+	SizeofSKBuffTransportHeader = C.SIZEOF_SK_BUFF_TRANSPORT_HEADER
+	SizeofSKBuffHead            = C.SIZEOF_SK_BUFF_HEAD
+)

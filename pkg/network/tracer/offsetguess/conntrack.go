@@ -122,8 +122,8 @@ func (c *conntrackOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expec
 
 	if State(c.status.State) != StateChecked {
 		if *maxRetries == 0 {
-			return fmt.Errorf("invalid guessing state while guessing %v, got %v expected %v",
-				whatString[GuessWhat(c.status.What)], stateString[State(c.status.State)], stateString[StateChecked])
+			return fmt.Errorf("invalid guessing state while guessing %s, got %s expected %s",
+				GuessWhat(c.status.What), State(c.status.State), StateChecked)
 		}
 		*maxRetries--
 		time.Sleep(10 * time.Millisecond)
@@ -158,7 +158,7 @@ func (c *conntrackOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expec
 		}
 		c.status.Offsets.Netns++
 	default:
-		return fmt.Errorf("unexpected field to guess: %v", whatString[GuessWhat(c.status.What)])
+		return fmt.Errorf("unexpected field to guess: %s", GuessWhat(c.status.What))
 	}
 
 	c.status.State = uint64(StateChecking)
@@ -182,12 +182,12 @@ func (c *conntrackOffsetGuesser) setReadyState(mp *ebpf.Map) error {
 func (c *conntrackOffsetGuesser) logAndAdvance(offset uint64, next GuessWhat) {
 	guess := GuessWhat(c.status.What)
 	if offset != notApplicable {
-		log.Debugf("Successfully guessed %v with offset of %d bytes", whatString[guess], offset)
+		log.Debugf("Successfully guessed %s with offset of %d bytes", guess, offset)
 	} else {
-		log.Debugf("Could not guess offset for %v", whatString[guess])
+		log.Debugf("Could not guess offset for %s", guess)
 	}
 	if next != GuessNotApplicable {
-		log.Debugf("Started offset guessing for %v", whatString[next])
+		log.Debugf("Started offset guessing for %s", next)
 		c.status.What = uint64(next)
 	}
 }
@@ -287,7 +287,7 @@ func (c *conntrackOffsetGuesser) runOffsetGuessing(cfg *config.Config, ns netns.
 		// probe_kernel_read() handles faults gracefully.
 		if c.status.Offsets.Netns >= threshold || c.status.Offsets.Status >= threshold ||
 			c.status.Offsets.Origin >= threshold || c.status.Offsets.Reply >= threshold {
-			return nil, fmt.Errorf("overflow while guessing %v, bailing out", whatString[GuessWhat(c.status.What)])
+			return nil, fmt.Errorf("overflow while guessing %s, bailing out", GuessWhat(c.status.What))
 		}
 	}
 

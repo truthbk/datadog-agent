@@ -39,6 +39,10 @@ var stateString = map[State]string{
 	StateReady:         "ready",
 }
 
+func (s State) String() string {
+	return stateString[s]
+}
+
 var whatString = map[GuessWhat]string{
 	GuessSAddr:     "source address",
 	GuessDAddr:     "destination address",
@@ -70,6 +74,10 @@ var whatString = map[GuessWhat]string{
 	GuessCtTupleReply:  "conntrack reply tuple",
 	GuessCtStatus:      "conntrack status",
 	GuessCtNet:         "conntrack network namespace",
+}
+
+func (w GuessWhat) String() string {
+	return whatString[w]
 }
 
 type OffsetGuesser interface {
@@ -133,7 +141,7 @@ func setupOffsetGuesser(guesser OffsetGuesser, config *config.Config, buf byteco
 func RunOffsetGuessing(cfg *config.Config, buf bytecode.AssetReader, newGuesser func() (OffsetGuesser, error)) (editors []manager.ConstantEditor, err error) {
 	// Offset guessing has been flaky for some customers, so if it fails we'll retry it up to 5 times
 	start := time.Now()
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 1; i++ {
 		err = func() error {
 			guesser, err := newGuesser()
 			if err != nil {
