@@ -478,7 +478,7 @@ def generate_config(ctx, build_type, output_file, env=None):
 def get_changed_files(ctx):
     return (
         ctx.run(
-            "git diff --name-only $(git merge-base $(inv release.get-release-json-value base_branch) HEAD) HEAD",
+            "git diff --name-only $(git merge-base origin/$(inv release.get-release-json-value base_branch) HEAD) HEAD",
             hide=True,
         )
         .stdout.strip()
