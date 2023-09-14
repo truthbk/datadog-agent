@@ -168,7 +168,11 @@ static __always_inline int guess_offsets(tracer_status_t* status, char* subject)
     case GUESS_RTT:
         new_status.offsets.rtt = aligned_offset(subject, status->offsets.rtt, SIZEOF_RTT);
         bpf_probe_read_kernel(&new_status.values.rtt, sizeof(new_status.values.rtt), subject + new_status.offsets.rtt);
-        new_status.offsets.rtt_var = aligned_offset(subject, status->offsets.rtt_var, SIZEOF_RTT_VAR);
+        // We know that these two fields are always next to each other, 4 bytes apart:
+        // https://elixir.bootlin.com/linux/v4.6/source/include/linux/tcp.h#L232
+        // rtt -> srtt_us
+        // rtt_var -> mdev_us
+        new_status.offsets.rtt_var = aligned_offset(subject, new_status.offsets.rtt + SIZEOF_RTT, SIZEOF_RTT_VAR);
         bpf_probe_read_kernel(&new_status.values.rtt_var, sizeof(new_status.values.rtt_var), subject + new_status.offsets.rtt_var);
         // For more information on the bit shift operations see:
         // https://elixir.bootlin.com/linux/v4.6/source/net/ipv4/tcp.c#L2686

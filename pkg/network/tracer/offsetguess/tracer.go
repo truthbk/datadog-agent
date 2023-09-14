@@ -580,15 +580,6 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			valueFields: []reflect.StructField{valueStructField("Rtt"), valueStructField("Rtt_var")},
 			offsetField: &t.status.Offsets.Rtt,
 			threshold:   thresholdInetSock,
-			incrementFunc: func(field *guessField, offsets *TracerOffsets, _ bool) {
-				// We know that these two fields are always next to each other, 4 bytes apart:
-				// https://elixir.bootlin.com/linux/v4.6/source/include/linux/tcp.h#L232
-				// rtt -> srtt_us
-				// rtt_var -> mdev_us
-				// TODO handle paired increment when overlap adjustments happen
-				offsets.Rtt++
-				offsets.Rtt_var = offsets.Rtt + 4
-			},
 		},
 		guessField{
 			what:        GuessSocketSK,
