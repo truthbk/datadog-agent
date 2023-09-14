@@ -19,7 +19,7 @@ generate_pipeline:
   artifacts:
     paths:
       - .dynamic.yml
-      - .gitlab/*
+      - .dynamic/*
 
 trigger_pipeline:
   stage: trigger

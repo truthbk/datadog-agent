@@ -6,6 +6,7 @@ import os
 
 def _jobs_to_run(ctx):
     changed_files = utils.get_changed_files(ctx)
+    print("Changed files : ", changed_files)
     with open("tasks/dynamic/FILEJOBS", "r") as f:
         yaml_content = yaml.load(f.read())
     jobs_to_run = []

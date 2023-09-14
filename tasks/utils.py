@@ -474,6 +474,7 @@ def generate_config(ctx, build_type, output_file, env=None):
     cmd = "go run {go_file} {build_type} {template_file} {output_file}"
     return ctx.run(cmd.format(**args), env=env or {})
 
+
 def get_changed_files(ctx):
     return (
         ctx.run(
