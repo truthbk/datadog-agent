@@ -20,7 +20,7 @@ def _jobs_to_run(ctx):
 
 @task
 def dynamic_run(ctx, full_pipeline=False):
-    extender = parsing.GitlabExtender(ctx, source_ci_file=".dynamic.yml")
+    extender = parsing.GitlabExtender(ctx, source_ci_file=".dynamic.yml", output_folder=".gitlab")
     extender.run()
     extender.deps_graph.resolve_stage_dep()
     if not full_pipeline:
