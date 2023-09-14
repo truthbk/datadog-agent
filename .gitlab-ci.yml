@@ -26,9 +26,6 @@ trigger_pipeline:
   needs:
     - job: generate_pipeline
       artifacts: true
-  before_script:
-    - rm -rf .gitlab/
-    - mv .dynamic/ .gitlab/
   trigger:
     include:
       - local: .dynamic.yml

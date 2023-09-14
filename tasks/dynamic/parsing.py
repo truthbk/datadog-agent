@@ -320,6 +320,10 @@ class GitlabExtender:
 
         with createAndOpen(f"{self.output_folder}/" + "/".join(output_name), "w") as f:
             yaml.dump(yaml_content, f, Dumper=Dumper)
+        with open(f"{self.output_folder}/" + "/".join(output_name), "r") as f:
+            content = f.read()
+        with open(f"{self.output_folder}/" + "/".join(output_name), "w") as f:
+            f.write(content.replace(".gitlab", self.output_folder))
 
     def apply_jobs_data(self, enabledJobs):
         self.apply_on_file(self.gitlab_ci_file, enabledJobs)
