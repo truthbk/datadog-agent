@@ -25,41 +25,34 @@ type tracerOffsets struct {
 	err     error
 }
 
-func boolConst(name string, value bool) manager.ConstantEditor {
-	c := manager.ConstantEditor{
-		Name:  name,
-		Value: uint64(1),
+func boolToUint64(v bool) uint64 {
+	if v {
+		return 1
 	}
-	if !value {
-		c.Value = uint64(0)
-	}
+	return 0
+}
 
-	return c
+func boolConst(name string, value bool) manager.ConstantEditor {
+	return manager.ConstantEditor{
+		Name:  name,
+		Value: boolToUint64(value),
+	}
+}
+
+func overrideBoolConstant(consts []manager.ConstantEditor, name string, value bool) []manager.ConstantEditor {
+	for i := range consts {
+		if consts[i].Name == name {
+			consts[i] = boolConst(name, value)
+			return consts
+		}
+	}
+	return append(consts, boolConst(name, value))
 }
 
 func (o *tracerOffsets) Offsets(cfg *config.Config) ([]manager.ConstantEditor, error) {
 	fromConfig := func(c *config.Config, offsets []manager.ConstantEditor) []manager.ConstantEditor {
-		var foundTCP, foundUDP bool
-		for o := range offsets {
-			switch offsets[o].Name {
-			case "tcpv6_enabled":
-				offsets[o] = boolConst("tcpv6_enabled", c.CollectTCPv6Conns)
-				foundTCP = true
-			case "udpv6_enabled":
-				offsets[o] = boolConst("udpv6_enabled", c.CollectUDPv6Conns)
-				foundUDP = true
-			}
-			if foundTCP && foundUDP {
-				break
-			}
-		}
-		if !foundTCP {
-			offsets = append(offsets, boolConst("tcpv6_enabled", c.CollectTCPv6Conns))
-		}
-		if !foundUDP {
-			offsets = append(offsets, boolConst("udpv6_enabled", c.CollectUDPv6Conns))
-		}
-
+		offsets = overrideBoolConstant(offsets, "tcpv6_enabled", c.CollectTCPv6Conns)
+		offsets = overrideBoolConstant(offsets, "udpv6_enabled", c.CollectUDPv6Conns)
 		return offsets
 	}
 
