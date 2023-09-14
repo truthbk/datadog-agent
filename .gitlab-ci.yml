@@ -14,8 +14,10 @@ generate_pipeline:
   script:
     - source /root/.bashrc
     - pip install oyaml
+    - inv release.get-release-json-value base_branch
+    - git merge-base $(inv release.get-release-json-value base_branch) HEAD
+    - git diff --name-only $(git merge-base $(inv release.get-release-json-value base_branch) HEAD) HEAD"
     - inv commands.dynamic-run
-    - ls dynamic/
   needs: []
   artifacts:
     paths:
