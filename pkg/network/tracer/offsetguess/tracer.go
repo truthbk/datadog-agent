@@ -32,12 +32,9 @@ import (
 var _ guesser[TracerValues, TracerOffsets] = (*tracerOffsetGuesser)(nil)
 
 type tracerOffsetGuesser struct {
-	m          *manager.Manager
-	guess      *TracerGuess
-	fields     guessFields[TracerValues, TracerOffsets]
-	guessTCPv6 bool
-	guessUDPv6 bool
-	iterations uint
+	m      *manager.Manager
+	guess  *TracerGuess
+	fields guessFields[TracerValues, TracerOffsets]
 }
 
 func (t *tracerOffsetGuesser) Status() *GuessStatus {
@@ -237,8 +234,8 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	t.guessUDPv6 = cfg.CollectUDPv6Conns
-	t.guessTCPv6 = cfg.CollectTCPv6Conns
+	guessUDPv6 := cfg.CollectUDPv6Conns
+	guessTCPv6 := cfg.CollectTCPv6Conns
 	t.guess = &TracerGuess{
 		Status: GuessStatus{
 			State: uint32(StateChecking),
@@ -335,7 +332,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		},
 	}
 
-	if t.guessUDPv6 {
+	if guessUDPv6 {
 		t.fields = append(t.fields,
 			guessField[TracerValues, TracerOffsets]{
 				what:        GuessSAddrFl6,
@@ -453,7 +450,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		)
 	}
 
-	if t.guessUDPv6 || t.guessTCPv6 {
+	if guessUDPv6 || guessTCPv6 {
 		t.fields = append(t.fields,
 			guessField[TracerValues, TracerOffsets]{
 				what:        GuessDAddrIPv6,
@@ -468,7 +465,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		return nil, err
 	}
 
-	eventGenerator, err := newTracerEventGenerator(t.guessUDPv6)
+	eventGenerator, err := newTracerEventGenerator(guessUDPv6)
 	if err != nil {
 		return nil, err
 	}
@@ -505,7 +502,6 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			return nil, err
 		}
 	}
-	log.Debugf("finished in %d iterations", t.iterations)
 
 	return t.getConstantEditors(), nil
 }

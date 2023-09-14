@@ -40,7 +40,6 @@ type conntrackOffsetGuesser struct {
 	fields       guessFields[ConntrackValues, ConntrackOffsets]
 	tcpv6Enabled uint64
 	udpv6Enabled uint64
-	iterations   uint
 }
 
 func (c *conntrackOffsetGuesser) Status() *GuessStatus {
@@ -235,7 +234,6 @@ func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEd
 	for _, ns := range nss {
 		var consts []manager.ConstantEditor
 		if consts, err = c.runOffsetGuessing(cfg, ns, mp); err == nil {
-			log.Debugf("finished in %d iterations", c.iterations)
 			return consts, nil
 		}
 	}
