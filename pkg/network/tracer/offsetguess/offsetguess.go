@@ -120,12 +120,8 @@ func setupOffsetGuesser(guesser OffsetGuesser, config *config.Config, buf byteco
 	for funcName := range enabledProbes {
 		offsetOptions.ActivatedProbes = append(
 			offsetOptions.ActivatedProbes,
-			&manager.ProbeSelector{
-				ProbeIdentificationPair: manager.ProbeIdentificationPair{
-					EBPFFuncName: funcName,
-					UID:          "offset",
-				},
-			})
+			&manager.ProbeSelector{ProbeIdentificationPair: idPair(funcName)},
+		)
 	}
 	if err := offsetMgr.InitWithOptions(buf, offsetOptions); err != nil {
 		return fmt.Errorf("could not load bpf module for offset guessing: %s", err)
