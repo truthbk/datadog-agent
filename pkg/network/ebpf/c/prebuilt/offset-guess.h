@@ -175,7 +175,7 @@ static const __u8 SIZEOF_SK_BUFF_TRANSPORT_HEADER = sizeof_member(tracer_values_
 static const __u8 SIZEOF_SK_BUFF_HEAD = sizeof((void*)0); // char*
 
 static const __u8 SIZEOF_CT_TUPLE_ORIGIN = sizeof_member(conntrack_values_t, saddr);
-static const __u8 SIZEOF_CT_TUPLE_REPLY = sizeof_member(conntrack_values_t, saddr);
+static const __u8 SIZEOF_CT_TUPLE_REPLY = sizeof_member(conntrack_values_t, daddr);
 static const __u8 SIZEOF_CT_STATUS = sizeof_member(conntrack_values_t, status);
 static const __u8 SIZEOF_CT_NET = sizeof((void*)0); // possible_net_t*
 

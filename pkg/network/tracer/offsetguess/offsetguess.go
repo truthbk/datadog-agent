@@ -141,7 +141,7 @@ func setupOffsetGuesser(guesser OffsetGuesser, config *config.Config, buf byteco
 func RunOffsetGuessing(cfg *config.Config, buf bytecode.AssetReader, newGuesser func() (OffsetGuesser, error)) (editors []manager.ConstantEditor, err error) {
 	// Offset guessing has been flaky for some customers, so if it fails we'll retry it up to 5 times
 	start := time.Now()
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 5; i++ {
 		err = func() error {
 			guesser, err := newGuesser()
 			if err != nil {
