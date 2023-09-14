@@ -9,7 +9,6 @@ package offsetguess
 
 import (
 	"crypto/rand"
-	"encoding/binary"
 	"fmt"
 	"net"
 	"os"
@@ -25,12 +24,12 @@ import (
 
 const listenIPv4 = "127.0.0.2"
 
-// TcpGetInfo obtains information from a TCP socket via GETSOCKOPT(2) system call.
+// TCPGetInfo obtains information from a TCP socket via GETSOCKOPT(2) system call.
 // The motivation for using this is twofold: 1) it is a way of triggering the kprobe
 // responsible for the V4 offset guessing in kernel-space and 2) using it we can obtain
 // in user-space TCP socket information such as RTT and use it for setting the expected
 // values in the `fieldValues` struct.
-func TcpGetInfo(conn net.Conn) (*unix.TCPInfo, error) {
+func TCPGetInfo(conn net.Conn) (*unix.TCPInfo, error) {
 	tcpConn, ok := conn.(*net.TCPConn)
 	if !ok {
 		return nil, fmt.Errorf("not a TCPConn")
@@ -81,6 +80,7 @@ func newUDPServer(addr string) (string, func(), error) {
 	return ln.LocalAddr().String(), doneFn, nil
 }
 
+// GetIPv6LinkLocalAddress gets the IPv6 addresses of the link-local interface(s)
 func GetIPv6LinkLocalAddress() ([]*net.UDPAddr, error) {
 	ints, err := net.Interfaces()
 	if err != nil {
@@ -143,21 +143,6 @@ func generateRandomIPv6Address() net.IP {
 	}
 
 	return addr
-}
-
-func htons(a uint16) uint16 {
-	var arr [2]byte
-	binary.BigEndian.PutUint16(arr[:], a)
-	return native.Endian.Uint16(arr[:])
-}
-
-func compareIPv6(a [4]uint32, b [4]uint32) bool {
-	for i := 0; i < 4; i++ {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 func extractIPv6AddressAndPort(addr net.Addr) (ip [4]uint32, port uint16, err error) {

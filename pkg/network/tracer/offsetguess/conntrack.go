@@ -172,14 +172,14 @@ func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEd
 	c.guesser.fields = []guessField[ConntrackValues, ConntrackOffsets]{
 		{
 			what:        GuessCtTupleOrigin,
-			subject:     StructNFConn,
+			subject:     structNFConn,
 			valueSize:   sizeofNfConntrackTuple,
 			valueFields: []reflect.StructField{valueStructField("Saddr")},
 			offsetField: &c.status.Offsets.Origin,
 		},
 		{
 			what:        GuessCtTupleReply,
-			subject:     StructNFConn,
+			subject:     structNFConn,
 			valueSize:   sizeofNfConntrackTuple,
 			valueFields: []reflect.StructField{valueStructField("Daddr")},
 			offsetField: &c.status.Offsets.Reply,
@@ -187,13 +187,13 @@ func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEd
 		},
 		{
 			what:        GuessCtStatus,
-			subject:     StructNFConn,
+			subject:     structNFConn,
 			valueFields: []reflect.StructField{valueStructField("Status")},
 			offsetField: &c.status.Offsets.Status,
 		},
 		{
 			what:        GuessCtNet,
-			subject:     StructNFConn,
+			subject:     structNFConn,
 			valueFields: []reflect.StructField{valueStructField("Netns")},
 			offsetField: &c.status.Offsets.Netns,
 			startOffset: &c.status.Offsets.Status,

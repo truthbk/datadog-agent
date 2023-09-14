@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/kernel"
 )
 
+// Tracer is of the offset results of the tracer offset guesser
 var Tracer tracerOffsets
 
 type tracerOffsets struct {
@@ -38,24 +39,24 @@ func boolConst(name string, value bool) manager.ConstantEditor {
 
 func (o *tracerOffsets) Offsets(cfg *config.Config) ([]manager.ConstantEditor, error) {
 	fromConfig := func(c *config.Config, offsets []manager.ConstantEditor) []manager.ConstantEditor {
-		var foundTcp, foundUdp bool
+		var foundTCP, foundUDP bool
 		for o := range offsets {
 			switch offsets[o].Name {
 			case "tcpv6_enabled":
 				offsets[o] = boolConst("tcpv6_enabled", c.CollectTCPv6Conns)
-				foundTcp = true
+				foundTCP = true
 			case "udpv6_enabled":
 				offsets[o] = boolConst("udpv6_enabled", c.CollectUDPv6Conns)
-				foundUdp = true
+				foundUDP = true
 			}
-			if foundTcp && foundUdp {
+			if foundTCP && foundUDP {
 				break
 			}
 		}
-		if !foundTcp {
+		if !foundTCP {
 			offsets = append(offsets, boolConst("tcpv6_enabled", c.CollectTCPv6Conns))
 		}
-		if !foundUdp {
+		if !foundUDP {
 			offsets = append(offsets, boolConst("udpv6_enabled", c.CollectUDPv6Conns))
 		}
 

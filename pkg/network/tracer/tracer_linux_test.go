@@ -276,7 +276,7 @@ func (s *TracerSuite) TestTCPRTT() {
 	require.NoError(t, err)
 
 	// Obtain information from a TCP socket via GETSOCKOPT(2) system call.
-	tcpInfo, err := offsetguess.TcpGetInfo(c)
+	tcpInfo, err := offsetguess.TCPGetInfo(c)
 	require.NoError(t, err)
 
 	// Fetch connection matching source and target address

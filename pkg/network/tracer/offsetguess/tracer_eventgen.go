@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
+// InterfaceLocalMulticastIPv6 is the default IPv6 multicast local IP
 const InterfaceLocalMulticastIPv6 = "ff01::1"
 
 type tracerEventGenerator struct {
@@ -124,7 +125,7 @@ func (e *tracerEventGenerator) Generate(status GuessWhat, expected *TracerValues
 	}
 
 	// This triggers the KProbe handler attached to `tcp_getsockopt`
-	_, err := TcpGetInfo(e.conn)
+	_, err := TCPGetInfo(e.conn)
 	return err
 }
 

@@ -32,6 +32,17 @@ const (
 	notApplicable = 99999 // An arbitrary large number to indicate that the value should be ignored
 )
 
+type guessSubject int
+
+const (
+	structSock guessSubject = iota
+	structSocket
+	structFlowI4
+	structFlowI6
+	structSKBuff
+	structNFConn
+)
+
 var stateString = map[State]string{
 	StateUninitialized: "uninitialized",
 	StateChecking:      "checking",
@@ -50,7 +61,7 @@ var whatString = map[GuessWhat]string{
 	GuessSPort:     "source port",
 	GuessDPort:     "destination port",
 	GuessNetNS:     "network namespace",
-	GuessRTT:       "Round Trip Time",
+	GuessRTT:       "round trip time",
 	GuessDAddrIPv6: "destination address IPv6",
 
 	// Guess offsets in struct flowi4

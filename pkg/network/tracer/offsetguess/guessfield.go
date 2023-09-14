@@ -19,7 +19,7 @@ import (
 
 type guessField[V, O any] struct {
 	what          GuessWhat
-	subject       GuessSubject
+	subject       guessSubject
 	finished      bool
 	optional      bool
 	valueFields   []reflect.StructField
@@ -34,7 +34,7 @@ type guessField[V, O any] struct {
 
 type guessFields[V, O any] []guessField[V, O]
 
-func (gf guessFields[V, O]) subjectFields(sub GuessSubject) []*guessField[V, O] {
+func (gf guessFields[V, O]) subjectFields(sub guessSubject) []*guessField[V, O] {
 	var sf []*guessField[V, O]
 	for i, f := range gf {
 		if f.subject != sub {

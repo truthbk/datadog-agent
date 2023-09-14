@@ -79,7 +79,7 @@ func expectedValues(conn net.Conn) (*TracerValues, error) {
 		return nil, err
 	}
 
-	tcpInfo, err := TcpGetInfo(conn)
+	tcpInfo, err := TCPGetInfo(conn)
 	if err != nil {
 		return nil, err
 	}
@@ -155,17 +155,6 @@ func (*tracerOffsetGuesser) Probes(c *config.Config) (map[probes.ProbeFuncName]s
 	}
 	return p, nil
 }
-
-type GuessSubject int
-
-const (
-	StructSock GuessSubject = iota
-	StructSocket
-	StructFlowI4
-	StructFlowI6
-	StructSKBuff
-	StructNFConn
-)
 
 // checkAndUpdateCurrentOffset checks the value for the current offset stored
 // in the eBPF map against the expected value, incrementing the offset if it
@@ -260,25 +249,25 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 	t.guesser.fields = []guessField[TracerValues, TracerOffsets]{
 		{
 			what:        GuessSAddr,
-			subject:     StructSock,
+			subject:     structSock,
 			valueFields: []reflect.StructField{valueStructField("Saddr")},
 			offsetField: &t.status.Offsets.Saddr,
 		},
 		{
 			what:        GuessDAddr,
-			subject:     StructSock,
+			subject:     structSock,
 			valueFields: []reflect.StructField{valueStructField("Daddr")},
 			offsetField: &t.status.Offsets.Daddr,
 		},
 		{
 			what:        GuessDPort,
-			subject:     StructSock,
+			subject:     structSock,
 			valueFields: []reflect.StructField{valueStructField("Dport")},
 			offsetField: &t.status.Offsets.Dport,
 		},
 		{
 			what:        GuessFamily,
-			subject:     StructSock,
+			subject:     structSock,
 			valueFields: []reflect.StructField{valueStructField("Family")},
 			offsetField: &t.status.Offsets.Family,
 			// we know the family ((struct __sk_common)->skc_family) is
@@ -287,7 +276,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		},
 		{
 			what:        GuessSPort,
-			subject:     StructSock,
+			subject:     structSock,
 			valueFields: []reflect.StructField{valueStructField("Sport")},
 			offsetField: &t.status.Offsets.Sport,
 			// we know the sport ((struct inet_sock)->inet_sport) is
@@ -297,7 +286,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		},
 		{
 			what:        GuessSAddrFl4,
-			subject:     StructFlowI4,
+			subject:     structFlowI4,
 			optional:    true,
 			valueFields: []reflect.StructField{valueStructField("Saddr_fl4")},
 			offsetField: &t.status.Offsets.Saddr_fl4,
@@ -310,7 +299,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		},
 		{
 			what:        GuessDAddrFl4,
-			subject:     StructFlowI4,
+			subject:     structFlowI4,
 			optional:    true,
 			valueFields: []reflect.StructField{valueStructField("Daddr_fl4")},
 			offsetField: &t.status.Offsets.Daddr_fl4,
@@ -323,7 +312,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		},
 		{
 			what:        GuessSPortFl4,
-			subject:     StructFlowI4,
+			subject:     structFlowI4,
 			optional:    true,
 			valueFields: []reflect.StructField{valueStructField("Sport_fl4")},
 			offsetField: &t.status.Offsets.Sport_fl4,
@@ -336,7 +325,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		},
 		{
 			what:        GuessDPortFl4,
-			subject:     StructFlowI4,
+			subject:     structFlowI4,
 			optional:    true,
 			valueFields: []reflect.StructField{valueStructField("Dport_fl4")},
 			offsetField: &t.status.Offsets.Dport_fl4,
@@ -347,7 +336,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		t.guesser.fields = append(t.guesser.fields,
 			guessField[TracerValues, TracerOffsets]{
 				what:        GuessSAddrFl6,
-				subject:     StructFlowI6,
+				subject:     structFlowI6,
 				optional:    true,
 				valueFields: []reflect.StructField{valueStructField("Saddr_fl6")},
 				offsetField: &t.status.Offsets.Saddr_fl6,
@@ -360,7 +349,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			},
 			guessField[TracerValues, TracerOffsets]{
 				what:        GuessDAddrFl6,
-				subject:     StructFlowI6,
+				subject:     structFlowI6,
 				optional:    true,
 				valueFields: []reflect.StructField{valueStructField("Daddr_fl6")},
 				offsetField: &t.status.Offsets.Daddr_fl6,
@@ -373,7 +362,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			},
 			guessField[TracerValues, TracerOffsets]{
 				what:        GuessSPortFl6,
-				subject:     StructFlowI6,
+				subject:     structFlowI6,
 				optional:    true,
 				valueFields: []reflect.StructField{valueStructField("Sport_fl6")},
 				offsetField: &t.status.Offsets.Sport_fl6,
@@ -386,7 +375,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			},
 			guessField[TracerValues, TracerOffsets]{
 				what:        GuessDPortFl6,
-				subject:     StructFlowI6,
+				subject:     structFlowI6,
 				optional:    true,
 				valueFields: []reflect.StructField{valueStructField("Dport_fl6")},
 				offsetField: &t.status.Offsets.Dport_fl6,
@@ -397,7 +386,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 	t.guesser.fields = append(t.guesser.fields,
 		guessField[TracerValues, TracerOffsets]{
 			what:        GuessNetNS,
-			subject:     StructSock,
+			subject:     structSock,
 			valueFields: []reflect.StructField{valueStructField("Netns")},
 			offsetField: &t.status.Offsets.Netns,
 			incrementFunc: func(field *guessField[TracerValues, TracerOffsets], offsets *TracerOffsets, errored bool) {
@@ -414,14 +403,14 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		},
 		guessField[TracerValues, TracerOffsets]{
 			what:        GuessRTT,
-			subject:     StructSock,
+			subject:     structSock,
 			valueFields: []reflect.StructField{valueStructField("Rtt"), valueStructField("Rtt_var")},
 			offsetField: &t.status.Offsets.Rtt,
 			threshold:   thresholdInetSock,
 		},
 		guessField[TracerValues, TracerOffsets]{
 			what:        GuessSocketSK,
-			subject:     StructSocket,
+			subject:     structSocket,
 			valueFields: []reflect.StructField{valueStructField("Sport_via_sk"), valueStructField("Dport_via_sk")},
 			valueSize:   SizeofStructSock,
 			offsetField: &t.status.Offsets.Socket_sk,
@@ -434,14 +423,14 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		t.guesser.fields = append(t.guesser.fields,
 			guessField[TracerValues, TracerOffsets]{
 				what:        GuessSKBuffSock,
-				subject:     StructSKBuff,
+				subject:     structSKBuff,
 				valueFields: []reflect.StructField{valueStructField("Sport_via_sk_via_sk_buff"), valueStructField("Dport_via_sk_via_sk_buff")},
 				valueSize:   SizeofSKBuffSock,
 				offsetField: &t.status.Offsets.Sk_buff_sock,
 			},
 			guessField[TracerValues, TracerOffsets]{
 				what:        GuessSKBuffTransportHeader,
-				subject:     StructSKBuff,
+				subject:     structSKBuff,
 				valueSize:   SizeofSKBuffTransportHeader,
 				offsetField: &t.status.Offsets.Sk_buff_transport_header,
 				equalFunc: func(field *guessField[TracerValues, TracerOffsets], val *TracerValues, _ *TracerValues) bool {
@@ -453,7 +442,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			},
 			guessField[TracerValues, TracerOffsets]{
 				what:        GuessSKBuffHead,
-				subject:     StructSKBuff,
+				subject:     structSKBuff,
 				valueFields: []reflect.StructField{valueStructField("Sport_via_sk_buff"), valueStructField("Dport_via_sk_buff")},
 				valueSize:   SizeofSKBuffHead,
 				offsetField: &t.status.Offsets.Sk_buff_head,
@@ -465,7 +454,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		t.guesser.fields = append(t.guesser.fields,
 			guessField[TracerValues, TracerOffsets]{
 				what:        GuessDAddrIPv6,
-				subject:     StructSock,
+				subject:     structSock,
 				valueFields: []reflect.StructField{valueStructField("Daddr_ipv6")},
 				offsetField: &t.status.Offsets.Daddr_ipv6,
 			},
