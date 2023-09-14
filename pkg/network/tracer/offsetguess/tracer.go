@@ -216,6 +216,7 @@ type guessField struct {
 	valueFields   []reflect.StructField
 	valueSize     uint64
 	offsetField   *uint64
+	startOffset   *uint64
 	threshold     uint64
 	equalFunc     func(field *guessField, val *TracerValues, exp *TracerValues) bool
 	incrementFunc func(field *guessField, offsets *TracerOffsets, errored bool)
@@ -417,7 +418,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		return f
 	}
 
-	// order here is not important, default nextFunc uses GuessWhat ordering
+	// fields are guessed in the order of this slice
 	t.guessFields = []guessField{
 		{
 			what:        GuessSAddr,
@@ -436,30 +437,24 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			subject:     StructSock,
 			valueFields: []reflect.StructField{valueStructField("Dport")},
 			offsetField: &t.status.Offsets.Dport,
-			incrementFunc: func(field *guessField, offsets *TracerOffsets, errored bool) {
-				offsets.Dport++
-				// we know the family ((struct __sk_common)->skc_family) is
-				// after the skc_dport field, so we start from there
-				offsets.Family++
-			},
 		},
 		{
 			what:        GuessFamily,
 			subject:     StructSock,
 			valueFields: []reflect.StructField{valueStructField("Family")},
 			offsetField: &t.status.Offsets.Family,
-			incrementFunc: func(field *guessField, offsets *TracerOffsets, errored bool) {
-				offsets.Family++
-				// we know the sport ((struct inet_sock)->inet_sport) is
-				// after the family field, so we start from there
-				offsets.Sport++
-			},
+			// we know the family ((struct __sk_common)->skc_family) is
+			// after the skc_dport field, so we start from there
+			startOffset: &t.status.Offsets.Dport,
 		},
 		{
 			what:        GuessSPort,
 			subject:     StructSock,
 			valueFields: []reflect.StructField{valueStructField("Sport")},
 			offsetField: &t.status.Offsets.Sport,
+			// we know the sport ((struct inet_sock)->inet_sport) is
+			// after the family field, so we start from there
+			startOffset: &t.status.Offsets.Family,
 			threshold:   thresholdInetSock,
 		},
 		{
@@ -784,6 +779,9 @@ func (t *tracerOffsetGuesser) logAndAdvance(offset uint64, next GuessWhat) error
 	nextField := t.guessFields.whatField(next)
 	if nextField == nil {
 		return fmt.Errorf("invalid offset guessing field %d", t.status.What)
+	}
+	if nextField.startOffset != nil {
+		*nextField.offsetField = *nextField.startOffset
 	}
 	_ = nextField.jumpPastOverlaps(t.guessFields.subjectFields(nextField.subject))
 	return nil
