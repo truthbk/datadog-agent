@@ -11,9 +11,10 @@ def _jobs_to_run(ctx):
     jobs_to_run = []
     for file in changed_files:
         for key in yaml_content:
-            if file.startswith(os.path.abspath(key)+os.sep):
+            if file.startswith(key):
                 jobs_to_run.extend(yaml_content[key])
                 break
+    print("Jobs needed to run : ", jobs_to_run)
     return jobs_to_run
 
 @task

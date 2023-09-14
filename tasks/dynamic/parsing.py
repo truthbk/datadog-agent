@@ -10,12 +10,15 @@ import os
 Yaml Loader edit to allow '!reference' tags support
 """
 
+
 @dataclass
 class reference:
     content: str
 
+
 class Loader(yaml.SafeLoader):
     pass
+
 
 class Dumper(yaml.Dumper):
     def process_scalar(self):
@@ -24,7 +27,7 @@ class Dumper(yaml.Dumper):
         if self.style is None:
             self.style = self.choose_scalar_style()
         split = (not self.simple_key_context)
-        #if self.analysis.multiline and split    \
+        # if self.analysis.multiline and split    \
         #        and (not self.style or self.style in '\'\"'):
         #    self.write_indent()
         if self.analysis.scalar.startswith("!reference"):
@@ -44,17 +47,17 @@ class Dumper(yaml.Dumper):
         self.style = None
 
 
-
 class AsHex:
-    def __init__(self,data):
+    def __init__(self, data):
         self.data = data
 
     def __repr__(self):
         return self.data
 
+
 def represent_hex(dumper, data):
-    #return yaml.Dumper.represent_tuple(dumper, data.data)
-    #return yaml.ScalarNode("tag:yaml.org,2002:int", data, style="")
+    # return yaml.Dumper.represent_tuple(dumper, data.data)
+    # return yaml.ScalarNode("tag:yaml.org,2002:int", data, style="")
     return dumper.represent_scalar("tag:yaml.org,2002:str", data.data, style='')
 
 
@@ -62,16 +65,18 @@ yaml.add_representer(AsHex, represent_hex)
 
 
 def construct_reference(loader, node):
-    content = str(node.tag+"["+",".join([e.value for e in node.value])+"]")
+    content = str(node.tag + "[" + ",".join([e.value for e in node.value]) + "]")
     return AsHex(content)
     # return reference(node.tag+"["+",".join([e.value for e in node.value])+"]")
 
 
 Loader.add_constructor("!reference", construct_reference)
 
+
 def createAndOpen(filename, mode):
-     os.makedirs(os.path.dirname(filename), exist_ok=True)
-     return open(filename, mode)
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    return open(filename, mode)
+
 
 class InvalidGitlabYamlExtension(Exception):
     """
@@ -108,8 +113,9 @@ class Condition:
 
 
 class GitlabExtender:
-    def __init__(self, invoke_ctx, source_folder=".gitlab", source_ci_file=".gitlab-ci.yml", output_folder="dynamic", debug_log=False):
-        self.deps_graph =  dependency_graph.DepGraph()
+    def __init__(self, invoke_ctx, source_folder=".gitlab", source_ci_file=".gitlab-ci.yml", output_folder="dynamic",
+                 debug_log=False):
+        self.deps_graph = dependency_graph.DepGraph()
         self.gitlab_folder = source_folder
         self.gitlab_ci_file = source_ci_file
         self.ctx = invoke_ctx
@@ -276,7 +282,6 @@ class GitlabExtender:
         for file in glob.glob(self.gitlab_folder + "/**/*.yml", recursive=True):
             self.parse_file(file)
 
-
     def yaml_applier(self, yaml_content, enabledJobs, parentKey=None):
         if type(yaml_content) == list:
             for content in yaml_content:
@@ -290,6 +295,7 @@ class GitlabExtender:
 
             for key in yaml_content:
                 self.yaml_applier(yaml_content[key], enabledJobs, key)
+
     def apply_on_file(self, file_path, enabledJobs):
         with open(file_path, "r") as f:
             yaml_content = yaml.load(f.read(), Loader=Loader)
