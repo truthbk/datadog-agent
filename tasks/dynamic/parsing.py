@@ -318,17 +318,19 @@ class GitlabExtender:
         if self.gitlab_folder in output_name:
             output_name.remove(self.gitlab_folder)
 
-        with createAndOpen(f"{self.output_folder}/" + "/".join(output_name), "w") as f:
-            yaml.dump(yaml_content, f, Dumper=Dumper)
-        with open(f"{self.output_folder}/" + "/".join(output_name), "r") as f:
-            content = f.read()
-        with open(f"{self.output_folder}/" + "/".join(output_name), "w") as f:
-            f.write(content.replace(".gitlab", self.output_folder))
+        if yaml_content.get("include", None) is not None:
+            yaml_content.pop("include")
+
+        return yaml_content
+
 
     def apply_jobs_data(self, enabledJobs):
-        self.apply_on_file(self.gitlab_ci_file, enabledJobs)
+        yaml_content = self.apply_on_file(self.gitlab_ci_file, enabledJobs)
         for file in glob.glob(self.gitlab_folder + "/**/*.yml", recursive=True):
-            self.apply_on_file(file, enabledJobs)
+            yaml_content.update(self.apply_on_file(file, enabledJobs))
+
+        with open(f"{self.gitlab_ci_file}", "w") as f:
+            yaml.dump(yaml_content, f, Dumper=Dumper)
 
 
 if __name__ == "__main__":

@@ -19,7 +19,6 @@ generate_pipeline:
   artifacts:
     paths:
       - .dynamic.yml
-      - .dynamic/*
 
 trigger_pipeline:
   stage: trigger
