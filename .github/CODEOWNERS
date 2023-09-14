@@ -321,6 +321,7 @@
 /pkg/util/intern/                       @DataDog/ebpf-platform
 /pkg/util/winutil/                      @DataDog/windows-agent
 /pkg/languagedetection                  @DataDog/processes @DataDog/universal-service-monitoring
+/pkg/languagedetection/client           @DataDog/container-integrations
 /pkg/logs/                              @DataDog/agent-metrics-logs
 /pkg/process/                           @DataDog/processes
 /pkg/process/util/address*.go           @DataDog/Networks
