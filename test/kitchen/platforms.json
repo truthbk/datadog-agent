@@ -44,7 +44,8 @@
             "x86_64": {
                 "debian-10": "ami-041540a5c191757a0",
                 "debian-11": "ami-09e24b0cfe072ecef",
-                "debian-12": "ami-0076a5c1d029e906a"
+                "debian-12": "ami-0076a5c1d029e906a",
+                "debian-11-debug": "ami-0a298a1814e103a04"
             },
             "arm64": {
                 "debian-10": "ami-0108ade0d057c8eba",
