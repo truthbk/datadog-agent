@@ -14,37 +14,43 @@ typedef struct {
     char comm[TASK_COMM_LEN];
 } proc_t;
 
-static const __u8 GUESS_SADDR = 0;
-static const __u8 GUESS_DADDR = 1;
-static const __u8 GUESS_DPORT = 2;
-static const __u8 GUESS_FAMILY = 3;
-static const __u8 GUESS_SPORT = 4;
-static const __u8 GUESS_SADDR_FL4 = 5;
-static const __u8 GUESS_DADDR_FL4 = 6;
-static const __u8 GUESS_SPORT_FL4 = 7;
-static const __u8 GUESS_DPORT_FL4 = 8;
-static const __u8 GUESS_SADDR_FL6 = 9;
-static const __u8 GUESS_DADDR_FL6 = 10;
-static const __u8 GUESS_SPORT_FL6 = 11;
-static const __u8 GUESS_DPORT_FL6 = 12;
-static const __u8 GUESS_NETNS = 13;
-static const __u8 GUESS_RTT = 14;
-static const __u8 GUESS_SOCKET_SK = 15;
-static const __u8 GUESS_SK_BUFF_SOCK = 16;
-static const __u8 GUESS_SK_BUFF_TRANSPORT_HEADER = 17;
-static const __u8 GUESS_SK_BUFF_HEAD = 18;
-static const __u8 GUESS_DADDR_IPV6 = 19;
+typedef enum guess_what {
+    GUESS_SADDR = 0,
+    GUESS_DADDR,
+    GUESS_DPORT,
+    GUESS_FAMILY,
+    GUESS_SPORT,
+    GUESS_SADDR_FL4,
+    GUESS_DADDR_FL4,
+    GUESS_SPORT_FL4,
+    GUESS_DPORT_FL4,
+    GUESS_SADDR_FL6,
+    GUESS_DADDR_FL6,
+    GUESS_SPORT_FL6,
+    GUESS_DPORT_FL6,
+    GUESS_NETNS,
+    GUESS_RTT,
+    GUESS_SOCKET_SK,
+    GUESS_SK_BUFF_SOCK,
+    GUESS_SK_BUFF_TRANSPORT_HEADER,
+    GUESS_SK_BUFF_HEAD,
+    GUESS_DADDR_IPV6,
 
 
-static const __u8 GUESS_CT_TUPLE_ORIGIN = 20;
-static const __u8 GUESS_CT_TUPLE_REPLY = 21;
-static const __u8 GUESS_CT_STATUS = 22;
-static const __u8 GUESS_CT_NET = 23;
+    GUESS_CT_TUPLE_ORIGIN,
+    GUESS_CT_TUPLE_REPLY,
+    GUESS_CT_STATUS,
+    GUESS_CT_NET,
 
-static const __u8 STATE_UNINITIALIZED = 0;
-static const __u8 STATE_CHECKING = 1;
-static const __u8 STATE_CHECKED = 2;
-static const __u8 STATE_READY = 3;
+    GUESS_MAX,
+} guess_what_t;
+
+typedef enum guess_state {
+    STATE_UNINITIALIZED = 0,
+    STATE_CHECKING,
+    STATE_CHECKED,
+    STATE_READY,
+} guess_state_t;
 
 typedef struct {
     __u64 saddr;
@@ -110,18 +116,17 @@ typedef struct {
 } tracer_values_t;
 
 typedef struct {
-    __u64 state;
-    __u64 what;
+    enum guess_state state;
+    enum guess_what what;
     __u64 err;
-
     proc_t proc;
-} guess_state_t;
+} guess_status_t;
 
 typedef struct {
-    guess_state_t state;
+    guess_status_t status;
     tracer_offsets_t offsets;
     tracer_values_t values;
-} tracer_status_t;
+} tracer_guess_t;
 
 typedef struct {
     __u64 origin;
@@ -139,10 +144,10 @@ typedef struct {
 } conntrack_values_t;
 
 typedef struct {
-    guess_state_t state;
+    guess_status_t status;
     conntrack_offsets_t offsets;
     conntrack_values_t values;
-} conntrack_status_t;
+} conntrack_guess_t;
 
 static const __u8 SIZEOF_SADDR = sizeof_member(tracer_values_t, saddr);
 static const __u8 SIZEOF_DADDR = sizeof_member(tracer_values_t, daddr);

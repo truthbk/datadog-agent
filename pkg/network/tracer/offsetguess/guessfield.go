@@ -88,7 +88,7 @@ func (gf guessFields[V, O]) fixup(threshold uint64) error {
 	return nil
 }
 
-func (gf guessFields[V, O]) logAndAdvance(state *GuessState, offset uint64, next GuessWhat) error {
+func (gf guessFields[V, O]) logAndAdvance(state *GuessStatus, offset uint64, next GuessWhat) error {
 	guess := GuessWhat(state.What)
 	if offset != notApplicable {
 		log.Debugf("Successfully guessed `%s` with offset of %d bytes", guess, offset)
@@ -97,13 +97,13 @@ func (gf guessFields[V, O]) logAndAdvance(state *GuessState, offset uint64, next
 	}
 
 	if next == GuessNotApplicable {
-		state.State = uint64(StateReady)
+		state.State = uint32(StateReady)
 		return nil
 	}
 
 	log.Debugf("Started offset guessing for %s", next)
-	state.What = uint64(next)
-	state.State = uint64(StateChecking)
+	state.What = uint32(next)
+	state.State = uint32(StateChecking)
 
 	// check initial offset for next field and jump past overlaps
 	nextField := gf.whatField(next)
@@ -186,13 +186,14 @@ func (field *guessField[V, O]) overlaps(subjectFields []*guessField[V, O]) (uint
 }
 
 type guesser[V, O any] interface {
-	State() *GuessState
+	Status() *GuessStatus
 	Fields() *guessFields[V, O]
 	Values() *V
 	Offsets() *O
 }
 
-func valueFieldFunc[V, O any](og guesser[V, O]) func(name string) reflect.StructField {
+// keep unused guesser argument to enforce type matching
+func valueFieldFunc[V, O any](_ guesser[V, O]) func(name string) reflect.StructField {
 	valuesType := reflect.TypeOf((*V)(nil)).Elem()
 	return func(name string) reflect.StructField {
 		f, ok := valuesType.FieldByName(name)
@@ -204,11 +205,11 @@ func valueFieldFunc[V, O any](og guesser[V, O]) func(name string) reflect.Struct
 }
 
 func iterate[V, O any](og guesser[V, O], expected *V, maxRetries *int) error {
-	state := og.State()
-	if State(state.State) != StateChecked {
+	state := og.Status()
+	if GuessState(state.State) != StateChecked {
 		if *maxRetries == 0 {
 			return fmt.Errorf("invalid guessing state while guessing %s, got %s expected %s",
-				GuessWhat(state.What), State(state.State), StateChecked)
+				GuessWhat(state.What), GuessState(state.State), StateChecked)
 		}
 		*maxRetries--
 		time.Sleep(10 * time.Millisecond)
@@ -228,7 +229,7 @@ func iterate[V, O any](og guesser[V, O], expected *V, maxRetries *int) error {
 	overlapped := field.jumpPastOverlaps(fields.subjectFields(field.subject))
 	if overlapped {
 		// skip to checking the newly set offset
-		state.State = uint64(StateChecking)
+		state.State = uint32(StateChecking)
 		goto NextCheck
 	}
 
@@ -243,7 +244,7 @@ func iterate[V, O any](og guesser[V, O], expected *V, maxRetries *int) error {
 	}
 
 	field.incrementFunc(field, offsets, state.Err != 0)
-	state.State = uint64(StateChecking)
+	state.State = uint32(StateChecking)
 
 NextCheck:
 	if *field.offsetField >= field.threshold {

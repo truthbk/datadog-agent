@@ -9,9 +9,11 @@ type Proc struct {
 
 const ProcCommMaxLen = 0x10 - 1
 
-type GuessState struct {
-	State uint64
-	What  uint64
+type GuessWhat uint32
+type GuessState uint32
+type GuessStatus struct {
+	State uint32
+	What  uint32
 	Err   uint64
 	Proc  Proc
 }
@@ -69,19 +71,17 @@ type TracerValues struct {
 	Mac_header               uint16
 	Pad_cgo_0                [2]byte
 }
-type TracerStatus struct {
-	State   GuessState
+type TracerGuess struct {
+	Status  GuessStatus
 	Offsets TracerOffsets
 	Values  TracerValues
 }
 
-type State uint8
-
 const (
-	StateUninitialized State = 0x0
-	StateChecking      State = 0x1
-	StateChecked       State = 0x2
-	StateReady         State = 0x3
+	StateUninitialized GuessState = 0x0
+	StateChecking      GuessState = 0x1
+	StateChecked       GuessState = 0x2
+	StateReady         GuessState = 0x3
 )
 
 type ConntrackOffsets struct {
@@ -97,14 +97,11 @@ type ConntrackValues struct {
 	Status uint32
 	Netns  uint32
 }
-type ConntrackStatus struct {
-	State   GuessState
+type ConntrackGuess struct {
+	Status  GuessStatus
 	Offsets ConntrackOffsets
 	Values  ConntrackValues
 }
-type ConntrackState uint8
-
-type GuessWhat uint64
 
 const (
 	GuessSAddr  GuessWhat = 0x0
@@ -138,7 +135,7 @@ const (
 	GuessCtStatus      GuessWhat = 0x16
 	GuessCtNet         GuessWhat = 0x17
 
-	GuessNotApplicable GuessWhat = 99999
+	GuessNotApplicable GuessWhat = 0x18
 )
 
 const (

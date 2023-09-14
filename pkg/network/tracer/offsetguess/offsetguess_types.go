@@ -16,27 +16,24 @@ type Proc C.proc_t
 
 const ProcCommMaxLen = C.TASK_COMM_LEN - 1
 
-type GuessState C.guess_state_t
+type GuessWhat C.enum_guess_what
+type GuessState C.enum_guess_state
+type GuessStatus C.guess_status_t
 
 type TracerOffsets C.tracer_offsets_t
 type TracerValues C.tracer_values_t
-type TracerStatus C.tracer_status_t
-
-type State uint8
+type TracerGuess C.tracer_guess_t
 
 const (
-	StateUninitialized State = C.STATE_UNINITIALIZED
-	StateChecking      State = C.STATE_CHECKING // status set by userspace, waiting for eBPF
-	StateChecked       State = C.STATE_CHECKED  // status set by eBPF, waiting for userspace
-	StateReady         State = C.STATE_READY    // fully initialized, all offset known
+	StateUninitialized GuessState = C.STATE_UNINITIALIZED
+	StateChecking      GuessState = C.STATE_CHECKING // guess set by userspace, waiting for eBPF
+	StateChecked       GuessState = C.STATE_CHECKED  // guess set by eBPF, waiting for userspace
+	StateReady         GuessState = C.STATE_READY    // fully initialized, all offset known
 )
 
 type ConntrackOffsets C.conntrack_offsets_t
 type ConntrackValues C.conntrack_values_t
-type ConntrackStatus C.conntrack_status_t
-type ConntrackState uint8
-
-type GuessWhat uint64
+type ConntrackGuess C.conntrack_guess_t
 
 const (
 	GuessSAddr  GuessWhat = C.GUESS_SADDR
@@ -72,7 +69,7 @@ const (
 	GuessCtStatus      GuessWhat = C.GUESS_CT_STATUS
 	GuessCtNet         GuessWhat = C.GUESS_CT_NET
 
-	GuessNotApplicable GuessWhat = 99999
+	GuessNotApplicable GuessWhat = C.GUESS_MAX
 )
 
 const (

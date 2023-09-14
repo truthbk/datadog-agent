@@ -43,14 +43,14 @@ const (
 	structNFConn
 )
 
-var stateString = map[State]string{
+var stateString = map[GuessState]string{
 	StateUninitialized: "uninitialized",
 	StateChecking:      "checking",
 	StateChecked:       "checked",
 	StateReady:         "ready",
 }
 
-func (s State) String() string {
+func (s GuessState) String() string {
 	return stateString[s]
 }
 
@@ -83,7 +83,7 @@ var whatString = map[GuessWhat]string{
 
 	GuessCtTupleOrigin: "conntrack origin tuple",
 	GuessCtTupleReply:  "conntrack reply tuple",
-	GuessCtStatus:      "conntrack status",
+	GuessCtStatus:      "conntrack guess",
 	GuessCtNet:         "conntrack network namespace",
 }
 
@@ -91,7 +91,7 @@ func (w GuessWhat) String() string {
 	return whatString[w]
 }
 
-func (g *GuessState) SetProcessName(name string) {
+func (g *GuessStatus) SetProcessName(name string) {
 	if len(name) > ProcCommMaxLen { // Truncate process name if needed
 		name = name[:ProcCommMaxLen]
 	}

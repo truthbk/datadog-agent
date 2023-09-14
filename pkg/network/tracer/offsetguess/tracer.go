@@ -33,15 +33,15 @@ var _ guesser[TracerValues, TracerOffsets] = (*tracerOffsetGuesser)(nil)
 
 type tracerOffsetGuesser struct {
 	m          *manager.Manager
-	status     *TracerStatus
+	guess      *TracerGuess
 	fields     guessFields[TracerValues, TracerOffsets]
 	guessTCPv6 bool
 	guessUDPv6 bool
 	iterations uint
 }
 
-func (t *tracerOffsetGuesser) State() *GuessState {
-	return &t.status.State
+func (t *tracerOffsetGuesser) Status() *GuessStatus {
+	return &t.guess.Status
 }
 
 func (t *tracerOffsetGuesser) Fields() *guessFields[TracerValues, TracerOffsets] {
@@ -49,11 +49,11 @@ func (t *tracerOffsetGuesser) Fields() *guessFields[TracerValues, TracerOffsets]
 }
 
 func (t *tracerOffsetGuesser) Values() *TracerValues {
-	return &t.status.Values
+	return &t.guess.Values
 }
 
 func (t *tracerOffsetGuesser) Offsets() *TracerOffsets {
-	return &t.status.Offsets
+	return &t.guess.Offsets
 }
 
 func NewTracerOffsetGuesser() (OffsetGuesser, error) {
@@ -61,7 +61,7 @@ func NewTracerOffsetGuesser() (OffsetGuesser, error) {
 		m: &manager.Manager{
 			Maps: []*manager.Map{
 				{Name: "connectsock_ipv6"},
-				{Name: probes.TracerStatusMap},
+				{Name: probes.TracerGuessMap},
 			},
 			PerfMaps: []*manager.PerfMap{},
 			Probes: []*manager.Probe{
@@ -178,8 +178,8 @@ func (*tracerOffsetGuesser) Probes(c *config.Config) (map[probes.ProbeFuncName]s
 func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected *TracerValues, maxRetries *int) error {
 	// get the updated map value, so we can check if the current offset is
 	// the right one
-	if err := mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(t.status)); err != nil {
-		return fmt.Errorf("error reading tracer_status: %v", err)
+	if err := mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(t.guess)); err != nil {
+		return fmt.Errorf("error reading tracer_guess: %v", err)
 	}
 
 	if err := iterate[TracerValues, TracerOffsets](t, expected, maxRetries); err != nil {
@@ -187,14 +187,14 @@ func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected
 	}
 
 	// update the map with the new offset/field to check
-	if err := mp.Put(unsafe.Pointer(&zero), unsafe.Pointer(t.status)); err != nil {
-		return fmt.Errorf("error updating tracer_t.status: %v", err)
+	if err := mp.Put(unsafe.Pointer(&zero), unsafe.Pointer(t.guess)); err != nil {
+		return fmt.Errorf("error updating tracer_guess: %v", err)
 	}
 
 	return nil
 }
 
-// Guess expects manager.Manager to contain a map named tracer_status and helps initialize the
+// Guess expects manager.Manager to contain a map named tracer_guess and helps initialize the
 // tracer by guessing the right struct sock kernel struct offsets. Results are
 // returned as constants which are runtime-edited into the tracer eBPF code.
 //
@@ -211,14 +211,14 @@ func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected
 // offset and repeating the process until we find the value we expect. Then, we
 // guess the next field.
 func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEditor, error) {
-	mp, _, err := t.m.GetMap(probes.TracerStatusMap)
+	mp, _, err := t.m.GetMap(probes.TracerGuessMap)
 	if err != nil {
-		return nil, fmt.Errorf("unable to find map %s: %s", probes.TracerStatusMap, err)
+		return nil, fmt.Errorf("unable to find map %s: %s", probes.TracerGuessMap, err)
 	}
 
 	// if we already have the offsets, just return
-	err = mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(t.status))
-	if err == nil && State(t.status.State.State) == StateReady {
+	err = mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(t.guess))
+	if err == nil && GuessState(t.guess.Status.State) == StateReady {
 		return t.getConstantEditors(), nil
 	}
 
@@ -239,13 +239,13 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 
 	t.guessUDPv6 = cfg.CollectUDPv6Conns
 	t.guessTCPv6 = cfg.CollectTCPv6Conns
-	t.status = &TracerStatus{
-		State: GuessState{
-			State: uint64(StateChecking),
-			What:  uint64(GuessSAddr),
+	t.guess = &TracerGuess{
+		Status: GuessStatus{
+			State: uint32(StateChecking),
+			What:  uint32(GuessSAddr),
 		},
 	}
-	t.status.State.SetProcessName(filepath.Base(os.Args[0]))
+	t.guess.Status.SetProcessName(filepath.Base(os.Args[0]))
 
 	valueStructField := valueFieldFunc[TracerValues, TracerOffsets](t)
 	// fields are guessed in the order of this slice
@@ -254,37 +254,37 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			what:        GuessSAddr,
 			subject:     structSock,
 			valueFields: []reflect.StructField{valueStructField("Saddr")},
-			offsetField: &t.status.Offsets.Saddr,
+			offsetField: &t.guess.Offsets.Saddr,
 		},
 		{
 			what:        GuessDAddr,
 			subject:     structSock,
 			valueFields: []reflect.StructField{valueStructField("Daddr")},
-			offsetField: &t.status.Offsets.Daddr,
+			offsetField: &t.guess.Offsets.Daddr,
 		},
 		{
 			what:        GuessDPort,
 			subject:     structSock,
 			valueFields: []reflect.StructField{valueStructField("Dport")},
-			offsetField: &t.status.Offsets.Dport,
+			offsetField: &t.guess.Offsets.Dport,
 		},
 		{
 			what:        GuessFamily,
 			subject:     structSock,
 			valueFields: []reflect.StructField{valueStructField("Family")},
-			offsetField: &t.status.Offsets.Family,
+			offsetField: &t.guess.Offsets.Family,
 			// we know the family ((struct __sk_common)->skc_family) is
 			// after the skc_dport field, so we start from there
-			startOffset: &t.status.Offsets.Dport,
+			startOffset: &t.guess.Offsets.Dport,
 		},
 		{
 			what:        GuessSPort,
 			subject:     structSock,
 			valueFields: []reflect.StructField{valueStructField("Sport")},
-			offsetField: &t.status.Offsets.Sport,
+			offsetField: &t.guess.Offsets.Sport,
 			// we know the sport ((struct inet_sock)->inet_sport) is
 			// after the family field, so we start from there
-			startOffset: &t.status.Offsets.Family,
+			startOffset: &t.guess.Offsets.Family,
 			threshold:   thresholdInetSock,
 		},
 		{
@@ -292,7 +292,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			subject:     structFlowI4,
 			optional:    true,
 			valueFields: []reflect.StructField{valueStructField("Saddr_fl4")},
-			offsetField: &t.status.Offsets.Saddr_fl4,
+			offsetField: &t.guess.Offsets.Saddr_fl4,
 			nextFunc: func(field *guessField[TracerValues, TracerOffsets], allFields *guessFields[TracerValues, TracerOffsets], equal bool) GuessWhat {
 				if !equal {
 					return advanceField[TracerValues, TracerOffsets](4)(field, allFields, equal)
@@ -305,7 +305,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			subject:     structFlowI4,
 			optional:    true,
 			valueFields: []reflect.StructField{valueStructField("Daddr_fl4")},
-			offsetField: &t.status.Offsets.Daddr_fl4,
+			offsetField: &t.guess.Offsets.Daddr_fl4,
 			nextFunc: func(field *guessField[TracerValues, TracerOffsets], allFields *guessFields[TracerValues, TracerOffsets], equal bool) GuessWhat {
 				if !equal {
 					return advanceField[TracerValues, TracerOffsets](3)(field, allFields, equal)
@@ -318,7 +318,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			subject:     structFlowI4,
 			optional:    true,
 			valueFields: []reflect.StructField{valueStructField("Sport_fl4")},
-			offsetField: &t.status.Offsets.Sport_fl4,
+			offsetField: &t.guess.Offsets.Sport_fl4,
 			nextFunc: func(field *guessField[TracerValues, TracerOffsets], allFields *guessFields[TracerValues, TracerOffsets], equal bool) GuessWhat {
 				if !equal {
 					return advanceField[TracerValues, TracerOffsets](2)(field, allFields, equal)
@@ -331,7 +331,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			subject:     structFlowI4,
 			optional:    true,
 			valueFields: []reflect.StructField{valueStructField("Dport_fl4")},
-			offsetField: &t.status.Offsets.Dport_fl4,
+			offsetField: &t.guess.Offsets.Dport_fl4,
 		},
 	}
 
@@ -342,7 +342,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 				subject:     structFlowI6,
 				optional:    true,
 				valueFields: []reflect.StructField{valueStructField("Saddr_fl6")},
-				offsetField: &t.status.Offsets.Saddr_fl6,
+				offsetField: &t.guess.Offsets.Saddr_fl6,
 				nextFunc: func(field *guessField[TracerValues, TracerOffsets], allFields *guessFields[TracerValues, TracerOffsets], equal bool) GuessWhat {
 					if !equal {
 						return advanceField[TracerValues, TracerOffsets](4)(field, allFields, equal)
@@ -355,7 +355,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 				subject:     structFlowI6,
 				optional:    true,
 				valueFields: []reflect.StructField{valueStructField("Daddr_fl6")},
-				offsetField: &t.status.Offsets.Daddr_fl6,
+				offsetField: &t.guess.Offsets.Daddr_fl6,
 				nextFunc: func(field *guessField[TracerValues, TracerOffsets], allFields *guessFields[TracerValues, TracerOffsets], equal bool) GuessWhat {
 					if !equal {
 						return advanceField[TracerValues, TracerOffsets](3)(field, allFields, equal)
@@ -368,7 +368,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 				subject:     structFlowI6,
 				optional:    true,
 				valueFields: []reflect.StructField{valueStructField("Sport_fl6")},
-				offsetField: &t.status.Offsets.Sport_fl6,
+				offsetField: &t.guess.Offsets.Sport_fl6,
 				nextFunc: func(field *guessField[TracerValues, TracerOffsets], allFields *guessFields[TracerValues, TracerOffsets], equal bool) GuessWhat {
 					if !equal {
 						return advanceField[TracerValues, TracerOffsets](2)(field, allFields, equal)
@@ -381,7 +381,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 				subject:     structFlowI6,
 				optional:    true,
 				valueFields: []reflect.StructField{valueStructField("Dport_fl6")},
-				offsetField: &t.status.Offsets.Dport_fl6,
+				offsetField: &t.guess.Offsets.Dport_fl6,
 			},
 		)
 	}
@@ -391,7 +391,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			what:        GuessNetNS,
 			subject:     structSock,
 			valueFields: []reflect.StructField{valueStructField("Netns")},
-			offsetField: &t.status.Offsets.Netns,
+			offsetField: &t.guess.Offsets.Netns,
 			incrementFunc: func(field *guessField[TracerValues, TracerOffsets], offsets *TracerOffsets, errored bool) {
 				offsets.Ino++
 				if errored || offsets.Ino >= field.threshold {
@@ -400,7 +400,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 				}
 			},
 			nextFunc: func(field *guessField[TracerValues, TracerOffsets], allFields *guessFields[TracerValues, TracerOffsets], equal bool) GuessWhat {
-				log.Debugf("Successfully guessed %s with offset of %d bytes", "ino", t.status.Offsets.Ino)
+				log.Debugf("Successfully guessed %s with offset of %d bytes", "ino", t.guess.Offsets.Ino)
 				return advanceField[TracerValues, TracerOffsets](1)(field, allFields, equal)
 			},
 		},
@@ -408,7 +408,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			what:        GuessRTT,
 			subject:     structSock,
 			valueFields: []reflect.StructField{valueStructField("Rtt"), valueStructField("Rtt_var")},
-			offsetField: &t.status.Offsets.Rtt,
+			offsetField: &t.guess.Offsets.Rtt,
 			threshold:   thresholdInetSock,
 		},
 		guessField[TracerValues, TracerOffsets]{
@@ -416,7 +416,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			subject:     structSocket,
 			valueFields: []reflect.StructField{valueStructField("Sport_via_sk"), valueStructField("Dport_via_sk")},
 			valueSize:   SizeofStructSock,
-			offsetField: &t.status.Offsets.Socket_sk,
+			offsetField: &t.guess.Offsets.Socket_sk,
 		},
 	)
 
@@ -429,13 +429,13 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 				subject:     structSKBuff,
 				valueFields: []reflect.StructField{valueStructField("Sport_via_sk_via_sk_buff"), valueStructField("Dport_via_sk_via_sk_buff")},
 				valueSize:   SizeofSKBuffSock,
-				offsetField: &t.status.Offsets.Sk_buff_sock,
+				offsetField: &t.guess.Offsets.Sk_buff_sock,
 			},
 			guessField[TracerValues, TracerOffsets]{
 				what:        GuessSKBuffTransportHeader,
 				subject:     structSKBuff,
 				valueSize:   SizeofSKBuffTransportHeader,
-				offsetField: &t.status.Offsets.Sk_buff_transport_header,
+				offsetField: &t.guess.Offsets.Sk_buff_transport_header,
 				equalFunc: func(field *guessField[TracerValues, TracerOffsets], val *TracerValues, _ *TracerValues) bool {
 					networkDiffFromMac := val.Network_header - val.Mac_header
 					transportDiffFromNetwork := val.Transport_header - val.Network_header
@@ -448,7 +448,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 				subject:     structSKBuff,
 				valueFields: []reflect.StructField{valueStructField("Sport_via_sk_buff"), valueStructField("Dport_via_sk_buff")},
 				valueSize:   SizeofSKBuffHead,
-				offsetField: &t.status.Offsets.Sk_buff_head,
+				offsetField: &t.guess.Offsets.Sk_buff_head,
 			},
 		)
 	}
@@ -459,7 +459,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 				what:        GuessDAddrIPv6,
 				subject:     structSock,
 				valueFields: []reflect.StructField{valueStructField("Daddr_ipv6")},
-				offsetField: &t.status.Offsets.Daddr_ipv6,
+				offsetField: &t.guess.Offsets.Daddr_ipv6,
 			},
 		)
 	}
@@ -475,8 +475,8 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 	defer eventGenerator.Close()
 
 	// initialize map
-	if err := mp.Put(unsafe.Pointer(&zero), unsafe.Pointer(t.status)); err != nil {
-		return nil, fmt.Errorf("error initializing tracer_status map: %v", err)
+	if err := mp.Put(unsafe.Pointer(&zero), unsafe.Pointer(t.guess)); err != nil {
+		return nil, fmt.Errorf("error initializing tracer_guess map: %v", err)
 	}
 
 	// If the kretprobe for tcp_v4_connect() is configured with a too-low maxactive, some kretprobe might be missing.
@@ -496,8 +496,8 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 	log.Tracef("expected values: %+v", expected)
 
 	log.Debugf("Checking for offsets with threshold of %d", threshold)
-	for State(t.status.State.State) != StateReady {
-		if err := eventGenerator.Generate(GuessWhat(t.status.State.What), expected); err != nil {
+	for GuessState(t.guess.Status.State) != StateReady {
+		if err := eventGenerator.Generate(GuessWhat(t.guess.Status.What), expected); err != nil {
 			return nil, err
 		}
 
@@ -521,29 +521,29 @@ func (t *tracerOffsetGuesser) getConstantEditors() []manager.ConstantEditor {
 		t.fields.whatField(GuessDPortFl6).finished
 
 	return []manager.ConstantEditor{
-		{Name: "offset_saddr", Value: t.status.Offsets.Saddr},
-		{Name: "offset_daddr", Value: t.status.Offsets.Daddr},
-		{Name: "offset_sport", Value: t.status.Offsets.Sport},
-		{Name: "offset_dport", Value: t.status.Offsets.Dport},
-		{Name: "offset_netns", Value: t.status.Offsets.Netns},
-		{Name: "offset_ino", Value: t.status.Offsets.Ino},
-		{Name: "offset_family", Value: t.status.Offsets.Family},
-		{Name: "offset_rtt", Value: t.status.Offsets.Rtt},
-		{Name: "offset_rtt_var", Value: t.status.Offsets.Rtt_var},
-		{Name: "offset_daddr_ipv6", Value: t.status.Offsets.Daddr_ipv6},
-		{Name: "offset_saddr_fl4", Value: t.status.Offsets.Saddr_fl4},
-		{Name: "offset_daddr_fl4", Value: t.status.Offsets.Daddr_fl4},
-		{Name: "offset_sport_fl4", Value: t.status.Offsets.Sport_fl4},
-		{Name: "offset_dport_fl4", Value: t.status.Offsets.Dport_fl4},
+		{Name: "offset_saddr", Value: t.guess.Offsets.Saddr},
+		{Name: "offset_daddr", Value: t.guess.Offsets.Daddr},
+		{Name: "offset_sport", Value: t.guess.Offsets.Sport},
+		{Name: "offset_dport", Value: t.guess.Offsets.Dport},
+		{Name: "offset_netns", Value: t.guess.Offsets.Netns},
+		{Name: "offset_ino", Value: t.guess.Offsets.Ino},
+		{Name: "offset_family", Value: t.guess.Offsets.Family},
+		{Name: "offset_rtt", Value: t.guess.Offsets.Rtt},
+		{Name: "offset_rtt_var", Value: t.guess.Offsets.Rtt_var},
+		{Name: "offset_daddr_ipv6", Value: t.guess.Offsets.Daddr_ipv6},
+		{Name: "offset_saddr_fl4", Value: t.guess.Offsets.Saddr_fl4},
+		{Name: "offset_daddr_fl4", Value: t.guess.Offsets.Daddr_fl4},
+		{Name: "offset_sport_fl4", Value: t.guess.Offsets.Sport_fl4},
+		{Name: "offset_dport_fl4", Value: t.guess.Offsets.Dport_fl4},
 		boolConst("fl4_offsets", fl4offsets),
-		{Name: "offset_saddr_fl6", Value: t.status.Offsets.Saddr_fl6},
-		{Name: "offset_daddr_fl6", Value: t.status.Offsets.Daddr_fl6},
-		{Name: "offset_sport_fl6", Value: t.status.Offsets.Sport_fl6},
-		{Name: "offset_dport_fl6", Value: t.status.Offsets.Dport_fl6},
+		{Name: "offset_saddr_fl6", Value: t.guess.Offsets.Saddr_fl6},
+		{Name: "offset_daddr_fl6", Value: t.guess.Offsets.Daddr_fl6},
+		{Name: "offset_sport_fl6", Value: t.guess.Offsets.Sport_fl6},
+		{Name: "offset_dport_fl6", Value: t.guess.Offsets.Dport_fl6},
 		boolConst("fl6_offsets", fl6offsets),
-		{Name: "offset_socket_sk", Value: t.status.Offsets.Socket_sk},
-		{Name: "offset_sk_buff_sock", Value: t.status.Offsets.Sk_buff_sock},
-		{Name: "offset_sk_buff_transport_header", Value: t.status.Offsets.Sk_buff_transport_header},
-		{Name: "offset_sk_buff_head", Value: t.status.Offsets.Sk_buff_head},
+		{Name: "offset_socket_sk", Value: t.guess.Offsets.Socket_sk},
+		{Name: "offset_sk_buff_sock", Value: t.guess.Offsets.Sk_buff_sock},
+		{Name: "offset_sk_buff_transport_header", Value: t.guess.Offsets.Sk_buff_transport_header},
+		{Name: "offset_sk_buff_head", Value: t.guess.Offsets.Sk_buff_head},
 	}
 }

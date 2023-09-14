@@ -36,15 +36,15 @@ var _ guesser[ConntrackValues, ConntrackOffsets] = (*conntrackOffsetGuesser)(nil
 
 type conntrackOffsetGuesser struct {
 	m            *manager.Manager
-	status       *ConntrackStatus
+	guess        *ConntrackGuess
 	fields       guessFields[ConntrackValues, ConntrackOffsets]
 	tcpv6Enabled uint64
 	udpv6Enabled uint64
 	iterations   uint
 }
 
-func (c *conntrackOffsetGuesser) State() *GuessState {
-	return &c.status.State
+func (c *conntrackOffsetGuesser) Status() *GuessStatus {
+	return &c.guess.Status
 }
 
 func (c *conntrackOffsetGuesser) Fields() *guessFields[ConntrackValues, ConntrackOffsets] {
@@ -52,11 +52,11 @@ func (c *conntrackOffsetGuesser) Fields() *guessFields[ConntrackValues, Conntrac
 }
 
 func (c *conntrackOffsetGuesser) Values() *ConntrackValues {
-	return &c.status.Values
+	return &c.guess.Values
 }
 
 func (c *conntrackOffsetGuesser) Offsets() *ConntrackOffsets {
-	return &c.status.Offsets
+	return &c.guess.Offsets
 }
 
 func NewConntrackOffsetGuesser(cfg *config.Config) (OffsetGuesser, error) {
@@ -85,7 +85,7 @@ func NewConntrackOffsetGuesser(cfg *config.Config) (OffsetGuesser, error) {
 	return &conntrackOffsetGuesser{
 		m: &manager.Manager{
 			Maps: []*manager.Map{
-				{Name: probes.ConntrackStatusMap},
+				{Name: probes.ConntrackGuessMap},
 			},
 			PerfMaps: []*manager.PerfMap{},
 			Probes: []*manager.Probe{
@@ -96,7 +96,7 @@ func NewConntrackOffsetGuesser(cfg *config.Config) (OffsetGuesser, error) {
 				// so explicitly disabled, and the manager won't load it
 				{ProbeIdentificationPair: idPair(probes.NetDevQueue)}},
 		},
-		status:       &ConntrackStatus{Offsets: ConntrackOffsets{Ino: offsetIno}},
+		guess:        &ConntrackGuess{Offsets: ConntrackOffsets{Ino: offsetIno}},
 		tcpv6Enabled: tcpv6Enabled,
 		udpv6Enabled: udpv6Enabled,
 	}, nil
@@ -121,11 +121,11 @@ func (c *conntrackOffsetGuesser) Probes(_ *config.Config) (map[probes.ProbeFuncN
 
 func (c *conntrackOffsetGuesser) getConstantEditors() []manager.ConstantEditor {
 	return []manager.ConstantEditor{
-		{Name: "offset_ct_origin", Value: c.status.Offsets.Origin},
-		{Name: "offset_ct_reply", Value: c.status.Offsets.Reply},
-		{Name: "offset_ct_status", Value: c.status.Offsets.Status},
-		{Name: "offset_ct_netns", Value: c.status.Offsets.Netns},
-		{Name: "offset_ct_ino", Value: c.status.Offsets.Ino},
+		{Name: "offset_ct_origin", Value: c.guess.Offsets.Origin},
+		{Name: "offset_ct_reply", Value: c.guess.Offsets.Reply},
+		{Name: "offset_ct_status", Value: c.guess.Offsets.Status},
+		{Name: "offset_ct_netns", Value: c.guess.Offsets.Netns},
+		{Name: "offset_ct_ino", Value: c.guess.Offsets.Ino},
 		{Name: "tcpv6_enabled", Value: c.tcpv6Enabled},
 		{Name: "udpv6_enabled", Value: c.udpv6Enabled},
 	}
@@ -137,8 +137,8 @@ func (c *conntrackOffsetGuesser) getConstantEditors() []manager.ConstantEditor {
 func (c *conntrackOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected *ConntrackValues, maxRetries *int) error {
 	// get the updated map value, so we can check if the current offset is
 	// the right one
-	if err := mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(c.status)); err != nil {
-		return fmt.Errorf("error reading conntrack_status: %v", err)
+	if err := mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(c.guess)); err != nil {
+		return fmt.Errorf("error reading conntrack_guess: %v", err)
 	}
 
 	if err := iterate[ConntrackValues, ConntrackOffsets](c, expected, maxRetries); err != nil {
@@ -146,17 +146,17 @@ func (c *conntrackOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expec
 	}
 
 	// update the map with the new offset/field to check
-	if err := mp.Put(unsafe.Pointer(&zero), unsafe.Pointer(c.status)); err != nil {
-		return fmt.Errorf("error updating conntrack_status: %v", err)
+	if err := mp.Put(unsafe.Pointer(&zero), unsafe.Pointer(c.guess)); err != nil {
+		return fmt.Errorf("error updating conntrack_guess: %v", err)
 	}
 
 	return nil
 }
 
 func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEditor, error) {
-	mp, _, err := c.m.GetMap(probes.ConntrackStatusMap)
+	mp, _, err := c.m.GetMap(probes.ConntrackGuessMap)
 	if err != nil {
-		return nil, fmt.Errorf("unable to find map %s: %s", probes.ConntrackStatusMap, err)
+		return nil, fmt.Errorf("unable to find map %s: %s", probes.ConntrackGuessMap, err)
 	}
 
 	// pid & tid must not change during the guessing work: the communication
@@ -164,11 +164,11 @@ func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEd
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	c.status.State.SetProcessName(filepath.Base(os.Args[0]))
+	c.guess.Status.SetProcessName(filepath.Base(os.Args[0]))
 
 	// if we already have the offsets, just return
-	err = mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(c.status))
-	if err == nil && State(c.status.State.State) == StateReady {
+	err = mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(c.guess))
+	if err == nil && GuessState(c.guess.Status.State) == StateReady {
 		return c.getConstantEditors(), nil
 	}
 
@@ -179,28 +179,28 @@ func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEd
 			subject:     structNFConn,
 			valueSize:   sizeofNfConntrackTuple,
 			valueFields: []reflect.StructField{valueStructField("Saddr")},
-			offsetField: &c.status.Offsets.Origin,
+			offsetField: &c.guess.Offsets.Origin,
 		},
 		{
 			what:        GuessCtTupleReply,
 			subject:     structNFConn,
 			valueSize:   sizeofNfConntrackTuple,
 			valueFields: []reflect.StructField{valueStructField("Daddr")},
-			offsetField: &c.status.Offsets.Reply,
-			startOffset: &c.status.Offsets.Origin,
+			offsetField: &c.guess.Offsets.Reply,
+			startOffset: &c.guess.Offsets.Origin,
 		},
 		{
 			what:        GuessCtStatus,
 			subject:     structNFConn,
 			valueFields: []reflect.StructField{valueStructField("Status")},
-			offsetField: &c.status.Offsets.Status,
+			offsetField: &c.guess.Offsets.Status,
 		},
 		{
 			what:        GuessCtNet,
 			subject:     structNFConn,
 			valueFields: []reflect.StructField{valueStructField("Netns")},
-			offsetField: &c.status.Offsets.Netns,
-			startOffset: &c.status.Offsets.Status,
+			offsetField: &c.guess.Offsets.Netns,
+			startOffset: &c.guess.Offsets.Status,
 		},
 	}
 
@@ -251,12 +251,12 @@ func (c *conntrackOffsetGuesser) runOffsetGuessing(cfg *config.Config, ns netns.
 	}
 	defer eventGenerator.Close()
 
-	c.status.State.State = uint64(StateChecking)
-	c.status.State.What = uint64(GuessCtTupleOrigin)
+	c.guess.Status.State = uint32(StateChecking)
+	c.guess.Status.What = uint32(GuessCtTupleOrigin)
 
 	// initialize map
-	if err := mp.Put(unsafe.Pointer(&zero), unsafe.Pointer(c.status)); err != nil {
-		return nil, fmt.Errorf("error initializing conntrack_c.status map: %v", err)
+	if err := mp.Put(unsafe.Pointer(&zero), unsafe.Pointer(c.guess)); err != nil {
+		return nil, fmt.Errorf("error initializing conntrack_c.guess map: %v", err)
 	}
 
 	// When reading kernel structs at different offsets, don't go over the set threshold
@@ -267,8 +267,8 @@ func (c *conntrackOffsetGuesser) runOffsetGuessing(cfg *config.Config, ns netns.
 
 	log.Debugf("Checking for offsets with threshold of %d", threshold)
 	expected := &ConntrackValues{}
-	for State(c.status.State.State) != StateReady {
-		if err := eventGenerator.Generate(GuessWhat(c.status.State.What), expected); err != nil {
+	for GuessState(c.guess.Status.State) != StateReady {
+		if err := eventGenerator.Generate(GuessWhat(c.guess.Status.What), expected); err != nil {
 			return nil, err
 		}
 
@@ -330,7 +330,7 @@ func (e *conntrackEventGenerator) Generate(status GuessWhat, expected *Conntrack
 		return err
 	}
 
-	return fmt.Errorf("invalid status %v", status)
+	return fmt.Errorf("invalid guess %v", status)
 }
 
 func (e *conntrackEventGenerator) populateUDPExpectedValues(expected *ConntrackValues) error {

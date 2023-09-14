@@ -36,20 +36,20 @@ func dumpMapsHandler(manager *manager.Manager, mapName string, currentMap *ebpf.
 			output.WriteString(spew.Sdump(key, value))
 		}
 
-	case probes.TracerStatusMap: // maps/tracer_status (BPF_MAP_TYPE_HASH), key C.__u64, value tracerStatus
-		output.WriteString("Map: '" + mapName + "', key: 'C.__u64', value: 'tracerStatus'\n")
+	case probes.TracerGuessMap: // maps/tracer_guess (BPF_MAP_TYPE_HASH), key C.__u64, value tracerGuess
+		output.WriteString("Map: '" + mapName + "', key: 'C.__u64', value: 'tracerGuess'\n")
 		iter := currentMap.Iterate()
 		var key uint64
-		var value offsetguess.TracerStatus
+		var value offsetguess.TracerGuess
 		for iter.Next(unsafe.Pointer(&key), unsafe.Pointer(&value)) {
 			output.WriteString(spew.Sdump(key, value))
 		}
 
-	case probes.ConntrackStatusMap: // maps/conntrack_status (BPF_MAP_TYPE_HASH), key C.__u64, value conntrackStatus
-		output.WriteString("Map: '" + mapName + "', key: 'C.__u64', value: 'conntrackStatus'\n")
+	case probes.ConntrackGuessMap: // maps/conntrack_guess (BPF_MAP_TYPE_HASH), key C.__u64, value conntrackGuess
+		output.WriteString("Map: '" + mapName + "', key: 'C.__u64', value: 'conntrackGuess'\n")
 		iter := currentMap.Iterate()
 		var key uint64
-		var value offsetguess.ConntrackStatus
+		var value offsetguess.ConntrackGuess
 		for iter.Next(unsafe.Pointer(&key), unsafe.Pointer(&value)) {
 			output.WriteString(spew.Sdump(key, value))
 		}
