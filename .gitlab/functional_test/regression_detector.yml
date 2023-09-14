@@ -41,21 +41,21 @@ single-machine-performance-regression_detector:
     - SMP_MERGE_BASE=$(git merge-base ${CI_COMMIT_SHA} origin/${SMP_BASE_BRANCH})
     - echo "Merge base is ${SMP_MERGE_BASE}"
     # Setup AWS credentials for single-machine-performance AWS account
-    - AWS_NAMED_PROFILE="single-machine-performance"
-    - SMP_ACCOUNT_ID=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.single-machine-performance-account-id --with-decryption --query "Parameter.Value" --out text)
-    - SMP_ECR_URL=${SMP_ACCOUNT_ID}.dkr.ecr.us-west-2.amazonaws.com
-    - SMP_AGENT_TEAM_ID=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.single-machine-performance-agent-team-id --with-decryption --query "Parameter.Value" --out text)
-    - SMP_API=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.single-machine-performance-api --with-decryption --query "Parameter.Value" --out text)
-    - aws configure set aws_access_key_id $(aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.single-machine-performance-bot-access-key-id --with-decryption --query "Parameter.Value" --out text) --profile ${AWS_NAMED_PROFILE}
-    - aws configure set aws_secret_access_key $(aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.single-machine-performance-bot-access-key --with-decryption --query "Parameter.Value" --out text) --profile ${AWS_NAMED_PROFILE}
-    - aws configure set region us-west-2 --profile ${AWS_NAMED_PROFILE}
+    #- AWS_NAMED_PROFILE="single-machine-performance"
+    #- SMP_ACCOUNT_ID=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.single-machine-performance-account-id --with-decryption --query "Parameter.Value" --out text)
+    #- SMP_ECR_URL=${SMP_ACCOUNT_ID}.dkr.ecr.us-west-2.amazonaws.com
+    #- SMP_AGENT_TEAM_ID=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.single-machine-performance-agent-team-id --with-decryption --query "Parameter.Value" --out text)
+    #- SMP_API=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.single-machine-performance-api --with-decryption --query "Parameter.Value" --out text)
+    #- aws configure set aws_access_key_id $(aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.single-machine-performance-bot-access-key-id --with-decryption --query "Parameter.Value" --out text) --profile ${AWS_NAMED_PROFILE}
+    #- aws configure set aws_secret_access_key $(aws ssm get-parameter --region us-east-1 --name ci.datadog-agent.single-machine-performance-bot-access-key --with-decryption --query "Parameter.Value" --out text) --profile ${AWS_NAMED_PROFILE}
+    #- aws configure set region us-west-2 --profile ${AWS_NAMED_PROFILE}
     # Download smp binary and prepare it for use
     - aws --profile single-machine-performance s3 cp s3://smp-cli-releases/v${SMP_VERSION}/x86_64-unknown-linux-gnu/smp smp
     - chmod +x smp
     - BASELINE_SHA="${SMP_MERGE_BASE}"
     - echo "Computing baseline..."
     - echo "Checking if image exists for commit ${BASELINE_SHA}..."
-    - while [[ ! $(aws ecr describe-images --profile single-machine-performance --registry-id "${SMP_ACCOUNT_ID}" --repository-name "${SMP_AGENT_TEAM_ID}-agent" --image-ids imageTag="${BASELINE_SHA}-7-amd64") ]]; do echo "No image exists for ${BASELINE_SHA} - checking predecessor of ${BASELINE_SHA} next"; BASELINE_SHA=$(git rev-parse ${BASELINE_SHA}^); echo "Checking if image exists for commit ${BASELINE_SHA}..."; done
+    - while [[ ! $(aws ecr describe-images --registry-id "${SMP_ACCOUNT_ID}" --repository-name "${SMP_AGENT_TEAM_ID}-agent" --image-ids imageTag="${BASELINE_SHA}-7-amd64") ]]; do echo "No image exists for ${BASELINE_SHA} - checking predecessor of ${BASELINE_SHA} next"; BASELINE_SHA=$(git rev-parse ${BASELINE_SHA}^); echo "Checking if image exists for commit ${BASELINE_SHA}..."; done
     - echo "Image exists for commit ${BASELINE_SHA}"
     - echo "Baseline SHA is ${BASELINE_SHA}"
     - echo -n "${BASELINE_SHA}" > "${CI_COMMIT_SHA}-baseline_sha"
