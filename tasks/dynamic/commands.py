@@ -20,11 +20,12 @@ def _jobs_to_run(ctx):
 
 @task
 def dynamic_run(ctx, full_pipeline=False):
+    jobs_to_run = _jobs_to_run(ctx)
     extender = parsing.GitlabExtender(ctx, source_ci_file=".dynamic.yml", output_folder=".gitlab")
     extender.run()
     extender.deps_graph.resolve_stage_dep()
     if not full_pipeline:
-        extender.apply_jobs_data(extender.deps_graph.pipeline_jobs_to_run(_jobs_to_run(ctx)))
+        extender.apply_jobs_data(extender.deps_graph.pipeline_jobs_to_run(jobs_to_run))
 
 @task
 def print_changed_files(ctx):
