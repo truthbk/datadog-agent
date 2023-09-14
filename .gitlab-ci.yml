@@ -19,13 +19,16 @@ generate_pipeline:
   artifacts:
     paths:
       - .dynamic.yml
-      - .gitlab/*
+      - .dynamic/*
 
 trigger_pipeline:
   stage: trigger
   needs:
     - job: generate_pipeline
       artifacts: true
+  before_script:
+    - rm -rf .gitlab/
+    - mv .dynamic/ .gitlab/
   trigger:
     include:
       - local: .dynamic.yml
