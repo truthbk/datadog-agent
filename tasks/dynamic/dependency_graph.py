@@ -61,6 +61,8 @@ class DepGraph:
     def propagate_node_state(self, node_name, new_state, reverse=False): # TODO: Slow because of seen map
         self.seen_map = []
         node = self.find_node(node_name)
+        if node is None:
+            print(f"[WARN] Job {node_name} not found")
         self.seen_map = []
         if node is not None:
             if not reverse:
@@ -198,13 +200,16 @@ class DepGraph:
         self.propagate_node_state("StartNode", False)
         for job in needed_jobs_list:
             self.propagate_node_state(job, True, True)
-        queue = []
+        queue = [self.root]
         nodes = []
+        seenmap = []
         while queue:
             node = queue.pop(0)
+            seenmap.append(node.name)
             if node.data:
                 nodes.append(node.name)
             for child in node.children:
-                queue.append(child)
+                if child.name not in seenmap:
+                    queue.append(child)
         return nodes
 
