@@ -31,13 +31,31 @@ import (
 
 var errOffsetOverflow = errors.New("offset exceeded threshold")
 
+var _ guesser[TracerValues, TracerOffsets] = (*tracerOffsetGuesser)(nil)
+
 type tracerOffsetGuesser struct {
 	m          *manager.Manager
 	status     *TracerStatus
-	guesser    *offsetGuesser[TracerValues, TracerOffsets]
+	fields     guessFields[TracerValues, TracerOffsets]
 	guessTCPv6 bool
 	guessUDPv6 bool
 	iterations uint
+}
+
+func (t *tracerOffsetGuesser) State() *GuessState {
+	return &t.status.State
+}
+
+func (t *tracerOffsetGuesser) Fields() *guessFields[TracerValues, TracerOffsets] {
+	return &t.fields
+}
+
+func (t *tracerOffsetGuesser) Values() *TracerValues {
+	return &t.status.Values
+}
+
+func (t *tracerOffsetGuesser) Offsets() *TracerOffsets {
+	return &t.status.Offsets
 }
 
 func NewTracerOffsetGuesser() (OffsetGuesser, error) {
@@ -166,7 +184,7 @@ func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected
 		return fmt.Errorf("error reading tracer_status: %v", err)
 	}
 
-	if err := t.guesser.iterate(expected, maxRetries); err != nil {
+	if err := iterate[TracerValues, TracerOffsets](t, expected, maxRetries); err != nil {
 		return err
 	}
 
@@ -234,7 +252,6 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		processName = processName[:ProcCommMaxLen]
 	}
 	copy(t.status.State.Proc.Comm[:], processName)
-	t.guesser = newOffsetGuesser(&t.status.State, &t.status.Values, &t.status.Offsets)
 
 	valuesType := reflect.TypeOf((*TracerValues)(nil)).Elem()
 	valueStructField := func(name string) reflect.StructField {
@@ -246,7 +263,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 	}
 
 	// fields are guessed in the order of this slice
-	t.guesser.fields = []guessField[TracerValues, TracerOffsets]{
+	t.fields = []guessField[TracerValues, TracerOffsets]{
 		{
 			what:        GuessSAddr,
 			subject:     structSock,
@@ -333,7 +350,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 	}
 
 	if t.guessUDPv6 {
-		t.guesser.fields = append(t.guesser.fields,
+		t.fields = append(t.fields,
 			guessField[TracerValues, TracerOffsets]{
 				what:        GuessSAddrFl6,
 				subject:     structFlowI6,
@@ -383,7 +400,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		)
 	}
 
-	t.guesser.fields = append(t.guesser.fields,
+	t.fields = append(t.fields,
 		guessField[TracerValues, TracerOffsets]{
 			what:        GuessNetNS,
 			subject:     structSock,
@@ -420,7 +437,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 	// if we are on kernel version < 4.7, net_dev_queue tracepoint will not be activated, and thus we should skip
 	// the guessing for `struct sk_buff`
 	if kv >= kv470 {
-		t.guesser.fields = append(t.guesser.fields,
+		t.fields = append(t.fields,
 			guessField[TracerValues, TracerOffsets]{
 				what:        GuessSKBuffSock,
 				subject:     structSKBuff,
@@ -451,7 +468,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 	}
 
 	if t.guessUDPv6 || t.guessTCPv6 {
-		t.guesser.fields = append(t.guesser.fields,
+		t.fields = append(t.fields,
 			guessField[TracerValues, TracerOffsets]{
 				what:        GuessDAddrIPv6,
 				subject:     structSock,
@@ -461,7 +478,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		)
 	}
 
-	if err := t.guesser.fields.fixup(threshold); err != nil {
+	if err := t.fields.fixup(threshold); err != nil {
 		return nil, err
 	}
 
@@ -508,14 +525,14 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 }
 
 func (t *tracerOffsetGuesser) getConstantEditors() []manager.ConstantEditor {
-	fl4offsets := t.guesser.fields.whatField(GuessSAddrFl4).finished &&
-		t.guesser.fields.whatField(GuessDAddrFl4).finished &&
-		t.guesser.fields.whatField(GuessSPortFl4).finished &&
-		t.guesser.fields.whatField(GuessDPortFl4).finished
-	fl6offsets := t.guesser.fields.whatField(GuessSAddrFl6).finished &&
-		t.guesser.fields.whatField(GuessDAddrFl6).finished &&
-		t.guesser.fields.whatField(GuessSPortFl6).finished &&
-		t.guesser.fields.whatField(GuessDPortFl6).finished
+	fl4offsets := t.fields.whatField(GuessSAddrFl4).finished &&
+		t.fields.whatField(GuessDAddrFl4).finished &&
+		t.fields.whatField(GuessSPortFl4).finished &&
+		t.fields.whatField(GuessDPortFl4).finished
+	fl6offsets := t.fields.whatField(GuessSAddrFl6).finished &&
+		t.fields.whatField(GuessDAddrFl6).finished &&
+		t.fields.whatField(GuessSPortFl6).finished &&
+		t.fields.whatField(GuessDPortFl6).finished
 
 	return []manager.ConstantEditor{
 		{Name: "offset_saddr", Value: t.status.Offsets.Saddr},

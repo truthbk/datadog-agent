@@ -32,13 +32,31 @@ import (
 // sizeof(struct nf_conntrack_tuple), see https://github.com/torvalds/linux/blob/master/include/net/netfilter/nf_conntrack_tuple.h
 const sizeofNfConntrackTuple = 40
 
+var _ guesser[ConntrackValues, ConntrackOffsets] = (*conntrackOffsetGuesser)(nil)
+
 type conntrackOffsetGuesser struct {
 	m            *manager.Manager
 	status       *ConntrackStatus
-	guesser      *offsetGuesser[ConntrackValues, ConntrackOffsets]
+	fields       guessFields[ConntrackValues, ConntrackOffsets]
 	tcpv6Enabled uint64
 	udpv6Enabled uint64
 	iterations   uint
+}
+
+func (c *conntrackOffsetGuesser) State() *GuessState {
+	return &c.status.State
+}
+
+func (c *conntrackOffsetGuesser) Fields() *guessFields[ConntrackValues, ConntrackOffsets] {
+	return &c.fields
+}
+
+func (c *conntrackOffsetGuesser) Values() *ConntrackValues {
+	return &c.status.Values
+}
+
+func (c *conntrackOffsetGuesser) Offsets() *ConntrackOffsets {
+	return &c.status.Offsets
 }
 
 func NewConntrackOffsetGuesser(cfg *config.Config) (OffsetGuesser, error) {
@@ -123,7 +141,7 @@ func (c *conntrackOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expec
 		return fmt.Errorf("error reading conntrack_status: %v", err)
 	}
 
-	if err := c.guesser.iterate(expected, maxRetries); err != nil {
+	if err := iterate[ConntrackValues, ConntrackOffsets](c, expected, maxRetries); err != nil {
 		return err
 	}
 
@@ -158,8 +176,6 @@ func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEd
 		return c.getConstantEditors(), nil
 	}
 
-	c.guesser = newOffsetGuesser(&c.status.State, &c.status.Values, &c.status.Offsets)
-
 	valuesType := reflect.TypeOf((*ConntrackValues)(nil)).Elem()
 	valueStructField := func(name string) reflect.StructField {
 		f, ok := valuesType.FieldByName(name)
@@ -169,7 +185,7 @@ func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEd
 		return f
 	}
 
-	c.guesser.fields = []guessField[ConntrackValues, ConntrackOffsets]{
+	c.fields = []guessField[ConntrackValues, ConntrackOffsets]{
 		{
 			what:        GuessCtTupleOrigin,
 			subject:     structNFConn,
@@ -200,7 +216,7 @@ func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEd
 		},
 	}
 
-	if err := c.guesser.fields.fixup(cfg.OffsetGuessThreshold); err != nil {
+	if err := c.fields.fixup(cfg.OffsetGuessThreshold); err != nil {
 		return nil, err
 	}
 

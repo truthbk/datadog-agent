@@ -185,71 +185,67 @@ func (field *guessField[V, O]) overlaps(subjectFields []*guessField[V, O]) (uint
 	return 0, false
 }
 
-type offsetGuesser[V, O any] struct {
-	state   *GuessState
-	fields  guessFields[V, O]
-	values  *V
-	offsets *O
+type guesser[V, O any] interface {
+	State() *GuessState
+	Fields() *guessFields[V, O]
+	Values() *V
+	Offsets() *O
 }
 
-func newOffsetGuesser[V, O any](state *GuessState, values *V, offsets *O) *offsetGuesser[V, O] {
-	return &offsetGuesser[V, O]{
-		state:   state,
-		values:  values,
-		offsets: offsets,
-	}
-}
-
-func (og *offsetGuesser[V, O]) iterate(expected *V, maxRetries *int) error {
-	if State(og.state.State) != StateChecked {
+func iterate[V, O any](og guesser[V, O], expected *V, maxRetries *int) error {
+	state := og.State()
+	if State(state.State) != StateChecked {
 		if *maxRetries == 0 {
 			return fmt.Errorf("invalid guessing state while guessing %s, got %s expected %s",
-				GuessWhat(og.state.What), State(og.state.State), StateChecked)
+				GuessWhat(state.What), State(state.State), StateChecked)
 		}
 		*maxRetries--
 		time.Sleep(10 * time.Millisecond)
 		return nil
 	}
 
-	field := og.fields.whatField(GuessWhat(og.state.What))
+	fields := og.Fields()
+	values := og.Values()
+	offsets := og.Offsets()
+	field := fields.whatField(GuessWhat(state.What))
 	if field == nil {
-		return fmt.Errorf("invalid offset guessing field %d", og.state.What)
+		return fmt.Errorf("invalid offset guessing field %d", state.What)
 	}
 
 	// check if used offset overlaps. If so, ignore equality because it isn't a valid offset
 	// we check after usage, because the eBPF code can adjust the offset due to alignment rules
-	overlapped := field.jumpPastOverlaps(og.fields.subjectFields(field.subject))
+	overlapped := field.jumpPastOverlaps(fields.subjectFields(field.subject))
 	if overlapped {
 		// skip to checking the newly set offset
-		og.state.State = uint64(StateChecking)
+		state.State = uint64(StateChecking)
 		goto NextCheck
 	}
 
-	if field.equalFunc(field, og.values, expected) {
+	if field.equalFunc(field, values, expected) {
 		offset := *field.offsetField
 		field.finished = true
-		next := field.nextFunc(field, &og.fields, true)
-		if err := og.fields.logAndAdvance(og.state, offset, next); err != nil {
+		next := field.nextFunc(field, fields, true)
+		if err := fields.logAndAdvance(state, offset, next); err != nil {
 			return err
 		}
 		goto NextCheck
 	}
 
-	field.incrementFunc(field, og.offsets, og.state.Err != 0)
-	og.state.State = uint64(StateChecking)
+	field.incrementFunc(field, offsets, state.Err != 0)
+	state.State = uint64(StateChecking)
 
 NextCheck:
 	if *field.offsetField >= field.threshold {
 		if field.optional {
-			next := field.nextFunc(field, &og.fields, false)
-			if err := og.fields.logAndAdvance(og.state, notApplicable, next); err != nil {
+			next := field.nextFunc(field, fields, false)
+			if err := fields.logAndAdvance(state, notApplicable, next); err != nil {
 				return err
 			}
 		} else {
-			return fmt.Errorf("%s overflow: %w", GuessWhat(og.state.What), errOffsetOverflow)
+			return fmt.Errorf("%s overflow: %w", GuessWhat(state.What), errOffsetOverflow)
 		}
 	}
 
-	og.state.Err = 0
+	state.Err = 0
 	return nil
 }
