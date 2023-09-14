@@ -18,14 +18,16 @@ import (
 )
 
 type guessField[V, O any] struct {
-	what          GuessWhat
-	subject       guessSubject
-	finished      bool
-	optional      bool
-	valueFields   []reflect.StructField
-	valueSize     uint64
-	offsetField   *uint64
-	startOffset   *uint64
+	what        GuessWhat
+	subject     guessSubject
+	finished    bool
+	optional    bool
+	valueFields []reflect.StructField
+	valueSize   uint64
+	offsetField *uint64
+	startOffset *uint64
+	// When reading kernel structs at different offsets, don't go over the set threshold
+	// Defaults to 400, with a max of 3000. This is an arbitrary choice to avoid infinite loops.
 	threshold     uint64
 	equalFunc     func(field *guessField[V, O], val *V, exp *V) bool
 	incrementFunc func(field *guessField[V, O], offsets *O, errored bool)
@@ -33,6 +35,16 @@ type guessField[V, O any] struct {
 }
 
 type guessFields[V, O any] []guessField[V, O]
+
+func (gf guessFields[V, O]) reset() {
+	for i := range gf {
+		f := &gf[i]
+		f.finished = false
+		if f.offsetField != nil {
+			*f.offsetField = 0
+		}
+	}
+}
 
 func (gf guessFields[V, O]) subjectFields(sub guessSubject) []*guessField[V, O] {
 	var sf []*guessField[V, O]
@@ -56,18 +68,18 @@ func (gf guessFields[V, O]) whatField(what GuessWhat) *guessField[V, O] {
 	return &gf[fieldIndex]
 }
 
-func (gf guessFields[V, O]) fixup(threshold uint64) error {
+func (gf guessFields[V, O]) validate(threshold uint64) error {
 	// fixup and validate guess fields
 	for i := range gf {
 		f := &gf[i]
 		if f.offsetField == nil {
-			return fmt.Errorf("guessField %s has no valid offsetField", f.what)
+			return fmt.Errorf("guessField `%s` has no valid `offsetField`", f.what)
 		}
 		if f.valueSize == 0 && len(f.valueFields) > 0 {
 			f.valueSize = uint64(f.valueFields[0].Type.Size())
 		}
 		if f.valueSize == 0 {
-			return fmt.Errorf("`%s` has value field size 0", f.what)
+			return fmt.Errorf("`%s` has `valueSize` of 0", f.what)
 		}
 		if f.threshold == 0 {
 			f.threshold = threshold
@@ -91,9 +103,9 @@ func (gf guessFields[V, O]) fixup(threshold uint64) error {
 func (gf guessFields[V, O]) logAndAdvance(state *GuessStatus, offset uint64, next GuessWhat) error {
 	guess := GuessWhat(state.What)
 	if offset != notApplicable {
-		log.Debugf("Successfully guessed `%s` with offset of %d bytes", guess, offset)
+		log.Debugf("guessed `%s` with offset of %d bytes", guess, offset)
 	} else {
-		log.Debugf("Could not guess offset for %s", guess)
+		log.Debugf("failed to guess offset for `%s`", guess)
 	}
 
 	if next == GuessNotApplicable {
@@ -101,7 +113,7 @@ func (gf guessFields[V, O]) logAndAdvance(state *GuessStatus, offset uint64, nex
 		return nil
 	}
 
-	log.Debugf("Started offset guessing for %s", next)
+	log.Debugf("started offset guessing for `%s`", next)
 	state.What = uint32(next)
 	state.State = uint32(StateChecking)
 
@@ -208,7 +220,7 @@ func iterate[V, O any](og guesser[V, O], expected *V, maxRetries *int) error {
 	state := og.Status()
 	if GuessState(state.State) != StateChecked {
 		if *maxRetries == 0 {
-			return fmt.Errorf("invalid guessing state while guessing %s, got %s expected %s",
+			return fmt.Errorf("invalid guessing state while guessing `%s`, got `%s` expected `%s`",
 				GuessWhat(state.What), GuessState(state.State), StateChecked)
 		}
 		*maxRetries--
@@ -254,7 +266,7 @@ NextCheck:
 				return err
 			}
 		} else {
-			return fmt.Errorf("%s overflow: offset exceeded threshold", GuessWhat(state.What))
+			return fmt.Errorf("`%s` overflow: offset exceeded threshold of %d", GuessWhat(state.What), field.threshold)
 		}
 	}
 

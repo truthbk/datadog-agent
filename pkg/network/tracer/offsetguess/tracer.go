@@ -176,7 +176,7 @@ func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected
 	// get the updated map value, so we can check if the current offset is
 	// the right one
 	if err := mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(t.guess)); err != nil {
-		return fmt.Errorf("error reading tracer_guess: %v", err)
+		return fmt.Errorf("error reading %s: %v", probes.TracerGuessMap, err)
 	}
 
 	if err := iterate[TracerValues, TracerOffsets](t, expected, maxRetries); err != nil {
@@ -185,7 +185,7 @@ func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected
 
 	// update the map with the new offset/field to check
 	if err := mp.Put(unsafe.Pointer(&zero), unsafe.Pointer(t.guess)); err != nil {
-		return fmt.Errorf("error updating tracer_guess: %v", err)
+		return fmt.Errorf("error updating %s: %v", probes.TracerGuessMap, err)
 	}
 
 	return nil
@@ -224,10 +224,6 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		return nil, fmt.Errorf("error getting kernel version: %w", err)
 	}
 	kv470 := kernel.VersionCode(4, 7, 0)
-
-	// When reading kernel structs at different offsets, don't go over the set threshold
-	// Defaults to 400, with a max of 3000. This is an arbitrary choice to avoid infinite loops.
-	threshold := cfg.OffsetGuessThreshold
 
 	// pid & tid must not change during the guessing work: the communication
 	// between ebpf and userspace relies on it
@@ -397,7 +393,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 				}
 			},
 			nextFunc: func(field *guessField[TracerValues, TracerOffsets], allFields *guessFields[TracerValues, TracerOffsets], equal bool) GuessWhat {
-				log.Debugf("Successfully guessed %s with offset of %d bytes", "ino", t.guess.Offsets.Ino)
+				log.Debugf("guessed `%s` with offset of %d bytes", "ino", t.guess.Offsets.Ino)
 				return advanceField[TracerValues, TracerOffsets](1)(field, allFields, equal)
 			},
 		},
@@ -461,7 +457,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 		)
 	}
 
-	if err := t.fields.fixup(threshold); err != nil {
+	if err := t.fields.validate(cfg.OffsetGuessThreshold); err != nil {
 		return nil, err
 	}
 
@@ -473,7 +469,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 
 	// initialize map
 	if err := mp.Put(unsafe.Pointer(&zero), unsafe.Pointer(t.guess)); err != nil {
-		return nil, fmt.Errorf("error initializing tracer_guess map: %v", err)
+		return nil, fmt.Errorf("error initializing %s map: %v", probes.TracerGuessMap, err)
 	}
 
 	// If the kretprobe for tcp_v4_connect() is configured with a too-low maxactive, some kretprobe might be missing.
@@ -492,7 +488,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 	}
 	log.Tracef("expected values: %+v", expected)
 
-	log.Debugf("Checking for offsets with threshold of %d", threshold)
+	log.Debugf("offset guessing with default threshold of %d", cfg.OffsetGuessThreshold)
 	for GuessState(t.guess.Status.State) != StateReady {
 		if err := eventGenerator.Generate(GuessWhat(t.guess.Status.What), expected); err != nil {
 			return nil, err

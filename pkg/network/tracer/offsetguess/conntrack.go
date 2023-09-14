@@ -64,6 +64,7 @@ func NewConntrackOffsetGuesser(cfg *config.Config) (OffsetGuesser, error) {
 		return nil, err
 	}
 
+	// TODO this is a strange way to pass constants between offset guessers
 	var offsetIno uint64
 	var tcpv6Enabled, udpv6Enabled uint64
 	for _, c := range consts {
@@ -78,7 +79,7 @@ func NewConntrackOffsetGuesser(cfg *config.Config) (OffsetGuesser, error) {
 	}
 
 	if offsetIno == 0 {
-		return nil, fmt.Errorf("ino offset is 0")
+		return nil, fmt.Errorf("ino offset must not be 0")
 	}
 
 	return &conntrackOffsetGuesser{
@@ -137,7 +138,7 @@ func (c *conntrackOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expec
 	// get the updated map value, so we can check if the current offset is
 	// the right one
 	if err := mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(c.guess)); err != nil {
-		return fmt.Errorf("error reading conntrack_guess: %v", err)
+		return fmt.Errorf("error reading %s: %v", probes.ConntrackGuessMap, err)
 	}
 
 	if err := iterate[ConntrackValues, ConntrackOffsets](c, expected, maxRetries); err != nil {
@@ -146,7 +147,7 @@ func (c *conntrackOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expec
 
 	// update the map with the new offset/field to check
 	if err := mp.Put(unsafe.Pointer(&zero), unsafe.Pointer(c.guess)); err != nil {
-		return fmt.Errorf("error updating conntrack_guess: %v", err)
+		return fmt.Errorf("error updating %s: %v", probes.ConntrackGuessMap, err)
 	}
 
 	return nil
@@ -203,7 +204,7 @@ func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEd
 		},
 	}
 
-	if err := c.fields.fixup(cfg.OffsetGuessThreshold); err != nil {
+	if err := c.fields.validate(cfg.OffsetGuessThreshold); err != nil {
 		return nil, err
 	}
 
@@ -249,21 +250,17 @@ func (c *conntrackOffsetGuesser) runOffsetGuessing(cfg *config.Config, ns netns.
 	}
 	defer eventGenerator.Close()
 
+	c.fields.reset()
 	c.guess.Status.State = uint32(StateChecking)
 	c.guess.Status.What = uint32(GuessCtTupleOrigin)
 
 	// initialize map
 	if err := mp.Put(unsafe.Pointer(&zero), unsafe.Pointer(c.guess)); err != nil {
-		return nil, fmt.Errorf("error initializing conntrack_c.guess map: %v", err)
+		return nil, fmt.Errorf("error initializing %s map: %v", probes.ConntrackGuessMap, err)
 	}
 
-	// When reading kernel structs at different offsets, don't go over the set threshold
-	// Defaults to 400, with a max of 3000. This is an arbitrary choice to avoid infinite loops.
-	threshold := cfg.OffsetGuessThreshold
-
+	log.Debugf("offset guessing with default threshold of %d", cfg.OffsetGuessThreshold)
 	maxRetries := 100
-
-	log.Debugf("Checking for offsets with threshold of %d", threshold)
 	expected := &ConntrackValues{}
 	for GuessState(c.guess.Status.State) != StateReady {
 		if err := eventGenerator.Generate(GuessWhat(c.guess.Status.What), expected); err != nil {
