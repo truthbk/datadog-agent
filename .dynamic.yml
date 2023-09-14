@@ -1,47 +1,47 @@
 ---
 include:
-  - /.dynamic/setup.yml
-  - /.dynamic/shared.yml
-  - /.dynamic/maintenance_jobs.yml
-  - /.dynamic/deps_build.yml
-  - /.dynamic/package_deps_build.yml
-  - /.dynamic/deps_fetch.yml
-  - /.dynamic/source_test.yml
-  - /.dynamic/source_test_junit_upload.yml
-  - /.dynamic/binary_build.yml
-  - /.dynamic/cancel-prev-pipelines.yml
-  - /.dynamic/integration_test.yml
-  - /.dynamic/package_build.yml
-  - /.dynamic/kitchen_deploy.yml
-  - /.dynamic/kitchen_testing.yml
-  - /.dynamic/kitchen_tests_upload.yml
-  - /.dynamic/install_script_testing.yml
-  - /.dynamic/pkg_metrics.yml
-  - /.dynamic/container_build.yml
-  - /.dynamic/container_scan.yml
-  - /.dynamic/check_deploy.yml
-  - /.dynamic/dev_container_deploy.yml
-  - /.dynamic/deploy_common.yml
-  - /.dynamic/deploy_containers.yml
-  - /.dynamic/deploy_packages.yml
-  - /.dynamic/deploy_dca.yml
-  - /.dynamic/choco_build.yml
-  - /.dynamic/choco_deploy.yml
-  - /.dynamic/internal_image_deploy.yml
-  - /.dynamic/trigger_release.yml
-  - /.dynamic/e2e.yml
-  - /.dynamic/e2e_test_junit_upload.yml
-  - /.dynamic/fakeintake.yml
-  - /.dynamic/kitchen_cleanup.yml
-  - /.dynamic/functional_test.yml
-  - /.dynamic/functional_test_cleanup.yml
-  - /.dynamic/functional_test_junit_upload.yml
-  - /.dynamic/internal_kubernetes_deploy.yml
-  - /.dynamic/notify.yml
-  - /.dynamic/kitchen_common/cleanup.yml
-  - /.dynamic/kitchen_common/testing.yml
-  - /.dynamic/benchmarks/benchmarks.yml
-  - /.dynamic/benchmarks/macrobenchmarks.yml
+  - /.gitlab/setup.yml
+  - /.gitlab/shared.yml
+  - /.gitlab/maintenance_jobs.yml
+  - /.gitlab/deps_build.yml
+  - /.gitlab/package_deps_build.yml
+  - /.gitlab/deps_fetch.yml
+  - /.gitlab/source_test.yml
+  - /.gitlab/source_test_junit_upload.yml
+  - /.gitlab/binary_build.yml
+  - /.gitlab/cancel-prev-pipelines.yml
+  - /.gitlab/integration_test.yml
+  - /.gitlab/package_build.yml
+  - /.gitlab/kitchen_deploy.yml
+  - /.gitlab/kitchen_testing.yml
+  - /.gitlab/kitchen_tests_upload.yml
+  - /.gitlab/install_script_testing.yml
+  - /.gitlab/pkg_metrics.yml
+  - /.gitlab/container_build.yml
+  - /.gitlab/container_scan.yml
+  - /.gitlab/check_deploy.yml
+  - /.gitlab/dev_container_deploy.yml
+  - /.gitlab/deploy_common.yml
+  - /.gitlab/deploy_containers.yml
+  - /.gitlab/deploy_packages.yml
+  - /.gitlab/deploy_dca.yml
+  - /.gitlab/choco_build.yml
+  - /.gitlab/choco_deploy.yml
+  - /.gitlab/internal_image_deploy.yml
+  - /.gitlab/trigger_release.yml
+  - /.gitlab/e2e.yml
+  - /.gitlab/e2e_test_junit_upload.yml
+  - /.gitlab/fakeintake.yml
+  - /.gitlab/kitchen_cleanup.yml
+  - /.gitlab/functional_test.yml
+  - /.gitlab/functional_test_cleanup.yml
+  - /.gitlab/functional_test_junit_upload.yml
+  - /.gitlab/internal_kubernetes_deploy.yml
+  - /.gitlab/notify.yml
+  - /.gitlab/kitchen_common/cleanup.yml
+  - /.gitlab/kitchen_common/testing.yml
+  - /.gitlab/benchmarks/benchmarks.yml
+  - /.gitlab/benchmarks/macrobenchmarks.yml
 
 default:
   retry:
@@ -234,7 +234,7 @@ variables:
   if: $BUCKET_BRANCH != "stable"
 
 # CI_PIPELINE_SOURCE can be set to "trigger" or "pipeline" depending on how the trigger was done.
-# See https://docs.dynamic.com/ee/ci/triggers/index.html#configure-cicd-jobs-to-run-in-triggered-pipelines.
+# See https://docs.gitlab.com/ee/ci/triggers/index.html#configure-cicd-jobs-to-run-in-triggered-pipelines.
 .if_triggered_pipeline: &if_triggered_pipeline
   if: $CI_PIPELINE_SOURCE == "trigger" || $CI_PIPELINE_SOURCE == "pipeline"
 
@@ -858,7 +858,7 @@ workflow:
         - test/kitchen/site-cookbooks/dd-security-agent-check/**/*
         - test/kitchen/test/integration/security-agent-test/**/*
         - test/kitchen/test/integration/security-agent-stress/**/*
-        - .dynamic/functional_test/security_agent.yml
+        - .gitlab/functional_test/security_agent.yml
       compare_to: main # TODO: use a variable, when this is supported https://gitlab.com/gitlab-org/gitlab/-/issues/369916
     when: on_success
   - when: manual
@@ -876,8 +876,8 @@ workflow:
         - test/kitchen/site-cookbooks/dd-system-probe-check/**/*
         - test/kitchen/test/integration/system-probe-test/**/*
         - test/kitchen/test/integration/win-sysprobe-test/**/*
-        - .dynamic/functional_test/system_probe.yml
-        - .dynamic/kernel_version_testing/system_probe.yml
+        - .gitlab/functional_test/system_probe.yml
+        - .gitlab/kernel_version_testing/system_probe.yml
         - test/new-e2e/system-probe/**/*
         - test/new-e2e/scenarios/system-probe/**/*
         - test/new-e2e/runner/**/*
@@ -903,7 +903,7 @@ workflow:
 .on_trace_agent_changes_or_manual:
   - changes:
       - pkg/trace/**/*
-      - .dynamic/benchmarks/*
+      - .gitlab/benchmarks/*
     when: on_success
   - when: manual
     allow_failure: true
