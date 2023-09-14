@@ -15,7 +15,9 @@ generate_pipeline:
     - source /root/.bashrc
     - pip install oyaml
     - inv release.get-release-json-value base_branch
+    - touch test
     - git merge-base $(inv release.get-release-json-value base_branch) HEAD
+    - rm test
     - git diff --name-only $(git merge-base $(inv release.get-release-json-value base_branch) HEAD) HEAD"
     - inv commands.dynamic-run
   needs: []
