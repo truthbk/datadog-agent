@@ -25,9 +25,10 @@ import (
 )
 
 var (
-	infoMu        sync.RWMutex
-	receiverStats = []TagStats{} // only for the last minute
-	languages     []string
+	infoMu         sync.RWMutex
+	receiverStats  = []TagStats{} // only for the last minute
+	languages      []string
+	tracerVersions []string
 
 	// TODO: move from package globals to a clean single struct
 
@@ -122,12 +123,21 @@ func UpdateReceiverStats(rs *ReceiverStats) {
 
 	receiverStats = s
 	languages = rs.Languages()
+	tracerVersions = rs.TracerVersions()
 }
 
 // Languages exposes languages reporting traces to the Agent.
 func Languages() []string {
-	infoMu.Lock()
-	defer infoMu.Unlock()
+	infoMu.RLock()
+	defer infoMu.RUnlock()
+
+	return languages
+}
+
+// TracerVersions exposes tracer versions reporting traces to the Agent.
+func TracerVersions() []string {
+	infoMu.RLock()
+	defer infoMu.RUnlock()
 
 	return languages
 }

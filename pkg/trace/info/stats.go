@@ -65,14 +65,14 @@ func (rs *ReceiverStats) PublishAndReset() {
 
 // Languages returns the set of languages reporting traces to the Agent.
 func (rs *ReceiverStats) Languages() []string {
-	langSet := make(map[string]bool)
-	langs := []string{}
+	langSet := make(map[string]struct{})
+	var langs []string
 
 	rs.RLock()
 	for tags := range rs.Stats {
 		if _, ok := langSet[tags.Lang]; !ok {
 			langs = append(langs, tags.Lang)
-			langSet[tags.Lang] = true
+			langSet[tags.Lang] = struct{}{}
 		}
 	}
 	rs.RUnlock()
@@ -80,6 +80,25 @@ func (rs *ReceiverStats) Languages() []string {
 	sort.Strings(langs)
 
 	return langs
+}
+
+// TracerVersions returns the set of tracer versions reporting traces to the Agent.
+func (rs *ReceiverStats) TracerVersions() []string {
+	versionsSet := make(map[string]struct{})
+	var versions []string
+
+	rs.RLock()
+	for tags := range rs.Stats {
+		if _, ok := versionsSet[tags.TracerVersion]; !ok {
+			versions = append(versions, tags.TracerVersion)
+			versionsSet[tags.TracerVersion] = struct{}{}
+		}
+	}
+	rs.RUnlock()
+
+	sort.Strings(versions)
+
+	return versions
 }
 
 // LogAndResetStats logs one-line summaries of ReceiverStats and resets internal data. Problematic stats are logged as warnings.

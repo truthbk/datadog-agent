@@ -225,6 +225,7 @@ func (w *TraceWriter) resetBuffer() {
 }
 
 const headerLanguages = "X-Datadog-Reported-Languages"
+const headerTracerVersions = "X-Datadog-Reported-Tracers"
 
 func (w *TraceWriter) flush() {
 	if len(w.tracerPayloads) == 0 {
@@ -259,9 +260,10 @@ func (w *TraceWriter) flush() {
 		defer timing.Since("datadog.trace_agent.trace_writer.compress_ms", time.Now())
 		defer w.wg.Done()
 		p := newPayload(map[string]string{
-			"Content-Type":     "application/x-protobuf",
-			"Content-Encoding": "gzip",
-			headerLanguages:    strings.Join(info.Languages(), "|"),
+			"Content-Type":       "application/x-protobuf",
+			"Content-Encoding":   "gzip",
+			headerLanguages:      strings.Join(info.Languages(), "|"),
+			headerTracerVersions: strings.Join(info.TracerVersions(), "|"),
 		})
 		gzipw, err := gzip.NewWriterLevel(p.body, gzip.BestSpeed)
 		if err != nil {
