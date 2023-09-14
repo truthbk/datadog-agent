@@ -32,7 +32,7 @@ func (m *MockDCAClient) PostLanguageMetadata(ctx context.Context, request *pbgo.
 func TestClientFlush(t *testing.T) {
 	doneCh := make(chan struct{})
 	mockDCAClient := &MockDCAClient{doneCh: doneCh}
-	client := NewLanguageDetectionClient(context.Background(), nil, nil, mockDCAClient)
+	client := NewClient(context.Background(), nil, nil, mockDCAClient)
 
 	containerDetails := &containerDetails{
 		containersLanguages: map[string]*languagesSet{
@@ -81,7 +81,7 @@ func TestClientProcessEvent(t *testing.T) {
 	mockConfig.Set("language_detection.client_period", time.Second)
 
 	mockStore := workloadmeta.NewMockStore()
-	client := NewLanguageDetectionClient(ctx, mockConfig, mockStore, &MockDCAClient{})
+	client := NewClient(ctx, mockConfig, mockStore, &MockDCAClient{})
 
 	container := &workloadmeta.Container{
 		EntityID: workloadmeta.EntityID{

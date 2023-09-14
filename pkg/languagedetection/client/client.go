@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config"
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/process"
 	"github.com/DataDog/datadog-agent/pkg/util/backoff"
+	"github.com/DataDog/datadog-agent/pkg/util/clusteragent"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 	"github.com/benbjohnson/clock"
@@ -128,28 +129,23 @@ func (b *batch) sendMetrics() {
 	}
 }
 
-// Client defines the method to send a message to the Cluster-Agent
-type Client interface {
-	PostLanguageMetadata(ctx context.Context, data *pbgo.ParentLanguageAnnotationRequest) error
-}
-
-// LanguageDetectionClient sends language information to the Cluster-Agent
-type LanguageDetectionClient struct {
+// Client sends language information to the Cluster-Agent
+type Client struct {
 	ctx                        context.Context
 	cfg                        config.Config
 	store                      workloadmeta.Store
-	dcaLanguageDetectionClient Client
+	dcaLanguageDetectionClient clusteragent.LanguageDetectionClient
 	currentBatch               *batch
 }
 
-// NewLanguageDetectionClient creates a new LanguageDetectionClient
-func NewLanguageDetectionClient(
+// NewClient creates a new Client
+func NewClient(
 	ctx context.Context,
 	cfg config.Config,
 	store workloadmeta.Store,
-	dcaLanguageDetectionClient Client,
-) *LanguageDetectionClient {
-	return &LanguageDetectionClient{
+	dcaLanguageDetectionClient clusteragent.LanguageDetectionClient,
+) *Client {
+	return &Client{
 		ctx:                        ctx,
 		cfg:                        cfg,
 		store:                      store,
@@ -171,12 +167,13 @@ func podHasOwner(pod *workloadmeta.KubernetesPod) bool {
 	return pod.Owners != nil && len(pod.Owners) > 0
 }
 
-func (c *LanguageDetectionClient) flush() {
+func (c *Client) flush() {
+	if len(c.currentBatch.podDetails) == 0 {
+		return
+	}
 	ch := make(chan *batch)
-
 	go func() {
 		data := <-ch
-
 		clock := clock.New()
 		errorCount := 0
 		backoffPolicy := backoff.NewExpBackoffPolicy(minBackoffFactor, baseBackoffTime.Seconds(), maxBackoffTime.Seconds(), 0, false)
@@ -204,12 +201,11 @@ func (c *LanguageDetectionClient) flush() {
 			}
 		}
 	}()
-
 	ch <- c.currentBatch
 	c.currentBatch = newBatch()
 }
 
-func (c *LanguageDetectionClient) processEvent(evBundle workloadmeta.EventBundle) {
+func (c *Client) processEvent(evBundle workloadmeta.EventBundle) {
 	close(evBundle.Ch)
 	log.Tracef("Processing %d events", len(evBundle.Events))
 	for _, event := range evBundle.Events {
@@ -239,9 +235,9 @@ func (c *LanguageDetectionClient) processEvent(evBundle workloadmeta.EventBundle
 }
 
 // StreamLanguages starts streaming languages to the Cluster-Agent
-func (c *LanguageDetectionClient) StreamLanguages() {
-	log.Infof("Starting language detection LanguageDetectionClient")
-	defer log.Infof("Shutting down language detection LanguageDetectionClient")
+func (c *Client) StreamLanguages() {
+	log.Infof("Starting language detection client")
+	defer log.Infof("Shutting down language detection client")
 
 	processEventCh := c.store.Subscribe(
 		subscriber,
@@ -255,7 +251,7 @@ func (c *LanguageDetectionClient) StreamLanguages() {
 		),
 	)
 
-	periodicFlushTimer := time.NewTicker(time.Duration(c.cfg.GetDuration("language_detection.LanguageDetectionClient_period")))
+	periodicFlushTimer := time.NewTicker(time.Duration(c.cfg.GetDuration("language_detection.client_period")))
 	defer periodicFlushTimer.Stop()
 
 	metricTicker := time.NewTicker(runningMetricPeriod)
@@ -266,6 +262,14 @@ func (c *LanguageDetectionClient) StreamLanguages() {
 		case eventBundle := <-processEventCh:
 			c.processEvent(eventBundle)
 		case <-periodicFlushTimer.C:
+			if c.dcaLanguageDetectionClient == nil {
+				dcaClient, err := clusteragent.GetClusterAgentClient()
+				if err != nil {
+					log.Errorf("failed to get dca client %s", err)
+					continue
+				}
+				c.dcaLanguageDetectionClient = dcaClient
+			}
 			c.flush()
 		case <-metricTicker.C:
 			Running.Set(1.0)
