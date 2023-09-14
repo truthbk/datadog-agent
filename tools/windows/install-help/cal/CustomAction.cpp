@@ -13,6 +13,11 @@ extern "C" UINT __stdcall FinalizeInstall(MSIHANDLE hInstall)
 #ifdef _DEBUG
     MessageBox(NULL, L"hi", L"bye", MB_OK);
 #endif
+    {
+        WCHAR msg[1024] = {0};
+        _snwprintf_s(msg, sizeof(msg), _ARRAYSIZE(msg), L"Attach to process %u, then press OK to continue.", GetCurrentProcessId());
+        MessageBoxW(NULL,msg, L"FinalizeInstall", MB_OK);
+    }
     // first, get the necessary initialization data
     // need the dd-agent-username (if provided)
     // need the dd-agent-password (if provided)
