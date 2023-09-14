@@ -192,6 +192,17 @@ type guesser[V, O any] interface {
 	Offsets() *O
 }
 
+func valueFieldFunc[V, O any](og guesser[V, O]) func(name string) reflect.StructField {
+	valuesType := reflect.TypeOf((*V)(nil)).Elem()
+	return func(name string) reflect.StructField {
+		f, ok := valuesType.FieldByName(name)
+		if !ok {
+			panic("unable to find struct field " + name)
+		}
+		return f
+	}
+}
+
 func iterate[V, O any](og guesser[V, O], expected *V, maxRetries *int) error {
 	state := og.State()
 	if State(state.State) != StateChecked {

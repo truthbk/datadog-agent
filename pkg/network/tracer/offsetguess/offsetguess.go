@@ -91,6 +91,13 @@ func (w GuessWhat) String() string {
 	return whatString[w]
 }
 
+func (g *GuessState) SetProcessName(name string) {
+	if len(name) > ProcCommMaxLen { // Truncate process name if needed
+		name = name[:ProcCommMaxLen]
+	}
+	copy(g.Proc.Comm[:], name)
+}
+
 type OffsetGuesser interface {
 	Manager() *manager.Manager
 	Probes(c *config.Config) (map[string]struct{}, error)

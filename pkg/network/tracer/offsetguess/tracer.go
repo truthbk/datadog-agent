@@ -247,21 +247,9 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			What:  uint64(GuessSAddr),
 		},
 	}
-	processName := filepath.Base(os.Args[0])
-	if len(processName) > ProcCommMaxLen { // Truncate process name if needed
-		processName = processName[:ProcCommMaxLen]
-	}
-	copy(t.status.State.Proc.Comm[:], processName)
+	t.status.State.SetProcessName(filepath.Base(os.Args[0]))
 
-	valuesType := reflect.TypeOf((*TracerValues)(nil)).Elem()
-	valueStructField := func(name string) reflect.StructField {
-		f, ok := valuesType.FieldByName(name)
-		if !ok {
-			panic("unable to find struct field " + name)
-		}
-		return f
-	}
-
+	valueStructField := valueFieldFunc[TracerValues, TracerOffsets](t)
 	// fields are guessed in the order of this slice
 	t.fields = []guessField[TracerValues, TracerOffsets]{
 		{

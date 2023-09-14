@@ -164,11 +164,7 @@ func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEd
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	processName := filepath.Base(os.Args[0])
-	if len(processName) > ProcCommMaxLen { // Truncate process name if needed
-		processName = processName[:ProcCommMaxLen]
-	}
-	copy(c.status.State.Proc.Comm[:], processName)
+	c.status.State.SetProcessName(filepath.Base(os.Args[0]))
 
 	// if we already have the offsets, just return
 	err = mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(c.status))
@@ -176,15 +172,7 @@ func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEd
 		return c.getConstantEditors(), nil
 	}
 
-	valuesType := reflect.TypeOf((*ConntrackValues)(nil)).Elem()
-	valueStructField := func(name string) reflect.StructField {
-		f, ok := valuesType.FieldByName(name)
-		if !ok {
-			panic("unable to find struct field " + name)
-		}
-		return f
-	}
-
+	valueStructField := valueFieldFunc[ConntrackValues, ConntrackOffsets](c)
 	c.fields = []guessField[ConntrackValues, ConntrackOffsets]{
 		{
 			what:        GuessCtTupleOrigin,
