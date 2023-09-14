@@ -12,7 +12,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/config"
 	pbgo "github.com/DataDog/datadog-agent/pkg/proto/pbgo/process"
 	"github.com/DataDog/datadog-agent/pkg/util/backoff"
-	"github.com/DataDog/datadog-agent/pkg/util/clusteragent"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 	"github.com/DataDog/datadog-agent/pkg/workloadmeta"
 	"github.com/benbjohnson/clock"
@@ -23,10 +22,10 @@ const (
 	runningMetricPeriod = 1 * time.Minute
 
 	minBackoffFactor = 2.0
-	baseBackoffTime  = 1.0 * time.Second // sedconds
-	recoveryInterval = 2 * time.Second   // seconds
+	baseBackoffTime  = 1.0 * time.Second
+	recoveryInterval = 2 * time.Second
 	maxError         = 10
-	maxBackoffTime   = 30 * time.Second // seconds
+	maxBackoffTime   = 30 * time.Second
 )
 
 type containerDetails struct {
@@ -109,6 +108,8 @@ type batch struct {
 	podDetails map[string]*podDetails
 }
 
+func newBatch() *batch { return &batch{make(map[string]*podDetails, 0)} }
+
 func (b *batch) toProto() *pbgo.ParentLanguageAnnotationRequest {
 	res := &pbgo.ParentLanguageAnnotationRequest{}
 	for podName, language := range b.podDetails {
@@ -127,28 +128,33 @@ func (b *batch) sendMetrics() {
 	}
 }
 
-// Client sends language information to the Cluster-Agent
-type Client struct {
-	ctx          context.Context
-	cfg          config.Config
-	store        workloadmeta.Store
-	dcaClient    clusteragent.DCAClientInterface
-	currentBatch *batch
+// Client defines the method to send a message to the Cluster-Agent
+type Client interface {
+	PostLanguageMetadata(ctx context.Context, data *pbgo.ParentLanguageAnnotationRequest) error
 }
 
-// NewClient creates a new client
-func NewClient(
+// LanguageDetectionClient sends language information to the Cluster-Agent
+type LanguageDetectionClient struct {
+	ctx                        context.Context
+	cfg                        config.Config
+	store                      workloadmeta.Store
+	dcaLanguageDetectionClient Client
+	currentBatch               *batch
+}
+
+// NewLanguageDetectionClient creates a new LanguageDetectionClient
+func NewLanguageDetectionClient(
 	ctx context.Context,
 	cfg config.Config,
 	store workloadmeta.Store,
-	dcaClient clusteragent.DCAClientInterface,
-) *Client {
-	return &Client{
-		ctx:          ctx,
-		cfg:          cfg,
-		store:        store,
-		dcaClient:    dcaClient,
-		currentBatch: &batch{podDetails: make(map[string]*podDetails)},
+	dcaLanguageDetectionClient Client,
+) *LanguageDetectionClient {
+	return &LanguageDetectionClient{
+		ctx:                        ctx,
+		cfg:                        cfg,
+		store:                      store,
+		dcaLanguageDetectionClient: dcaLanguageDetectionClient,
+		currentBatch:               newBatch(),
 	}
 }
 
@@ -165,7 +171,7 @@ func podHasOwner(pod *workloadmeta.KubernetesPod) bool {
 	return pod.Owners != nil && len(pod.Owners) > 0
 }
 
-func (c *Client) flush() {
+func (c *LanguageDetectionClient) flush() {
 	ch := make(chan *batch)
 
 	go func() {
@@ -185,7 +191,7 @@ func (c *Client) flush() {
 			case <-clock.After(refreshInterval):
 				protoMessage := data.toProto()
 				t := time.Now()
-				err = c.dcaClient.PostLanguageMetadata(c.ctx, protoMessage)
+				err = c.dcaLanguageDetectionClient.PostLanguageMetadata(c.ctx, protoMessage)
 				if err == nil {
 					Latency.Observe(time.Since(t).Seconds())
 					Requests.Inc(StatusSuccess)
@@ -200,10 +206,10 @@ func (c *Client) flush() {
 	}()
 
 	ch <- c.currentBatch
-	c.currentBatch = &batch{podDetails: make(map[string]*podDetails)}
+	c.currentBatch = newBatch()
 }
 
-func (c *Client) processEvent(evBundle workloadmeta.EventBundle) {
+func (c *LanguageDetectionClient) processEvent(evBundle workloadmeta.EventBundle) {
 	close(evBundle.Ch)
 	log.Tracef("Processing %d events", len(evBundle.Events))
 	for _, event := range evBundle.Events {
@@ -233,9 +239,9 @@ func (c *Client) processEvent(evBundle workloadmeta.EventBundle) {
 }
 
 // StreamLanguages starts streaming languages to the Cluster-Agent
-func (c *Client) StreamLanguages() {
-	log.Infof("Starting language detection client")
-	defer log.Infof("Shutting down language detection client")
+func (c *LanguageDetectionClient) StreamLanguages() {
+	log.Infof("Starting language detection LanguageDetectionClient")
+	defer log.Infof("Shutting down language detection LanguageDetectionClient")
 
 	processEventCh := c.store.Subscribe(
 		subscriber,
@@ -249,7 +255,7 @@ func (c *Client) StreamLanguages() {
 		),
 	)
 
-	periodicFlushTimer := time.NewTicker(time.Duration(c.cfg.GetDuration("language_detection.client_period")))
+	periodicFlushTimer := time.NewTicker(time.Duration(c.cfg.GetDuration("language_detection.LanguageDetectionClient_period")))
 	defer periodicFlushTimer.Stop()
 
 	metricTicker := time.NewTicker(runningMetricPeriod)
