@@ -162,7 +162,7 @@ func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEd
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	c.guess.Status.SetProcessName(filepath.Base(os.Args[0]))
+	c.guess.Status.setProcessName(filepath.Base(os.Args[0]))
 
 	// if we already have the offsets, just return
 	err = mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(c.guess))

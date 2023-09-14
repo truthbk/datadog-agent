@@ -91,7 +91,7 @@ func (w GuessWhat) String() string {
 	return whatString[w]
 }
 
-func (g *GuessStatus) SetProcessName(name string) {
+func (g *GuessStatus) setProcessName(name string) {
 	if len(name) > ProcCommMaxLen { // Truncate process name if needed
 		name = name[:ProcCommMaxLen]
 	}

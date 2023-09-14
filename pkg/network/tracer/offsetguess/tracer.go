@@ -238,7 +238,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			What:  uint32(GuessSAddr),
 		},
 	}
-	t.guess.Status.SetProcessName(filepath.Base(os.Args[0]))
+	t.guess.Status.setProcessName(filepath.Base(os.Args[0]))
 
 	valueStructField := valueFieldFunc[TracerValues, TracerOffsets](t)
 	// fields are guessed in the order of this slice
