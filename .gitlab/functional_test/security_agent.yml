@@ -71,9 +71,6 @@ kitchen_test_security_agent_x64:
       - KITCHEN_PLATFORM: "debian"
         KITCHEN_OSVERS: "debian-10-daily,debian-11"
         KITCHEN_CWS_PLATFORM: [host, docker]
-      - KITCHEN_PLATFORM: "debian"
-        KITCHEN_OSVERS: "debian-11-debug"
-        KITCHEN_CWS_PLATFORM: [host]
       - KITCHEN_PLATFORM: "oracle"
         KITCHEN_OSVERS: "oracle-7-9"
         KITCHEN_CWS_PLATFORM: [host, docker]
@@ -143,6 +140,9 @@ kitchen_test_security_agent_x64_ec2:
     matrix:
       - KITCHEN_PLATFORM: "centos"
         KITCHEN_OSVERS: "rocky-92"
+        KITCHEN_CWS_PLATFORM: [host]
+      - KITCHEN_PLATFORM: "debian"
+        KITCHEN_OSVERS: "debian-11-debug"
         KITCHEN_CWS_PLATFORM: [host]
 
 kitchen_test_security_agent_amazonlinux_x64_fentry:
