@@ -29,8 +29,6 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-var errOffsetOverflow = errors.New("offset exceeded threshold")
-
 var _ guesser[TracerValues, TracerOffsets] = (*tracerOffsetGuesser)(nil)
 
 type tracerOffsetGuesser struct {

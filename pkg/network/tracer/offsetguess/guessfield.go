@@ -253,7 +253,7 @@ NextCheck:
 				return err
 			}
 		} else {
-			return fmt.Errorf("%s overflow: %w", GuessWhat(state.What), errOffsetOverflow)
+			return fmt.Errorf("%s overflow: offset exceeded threshold", GuessWhat(state.What))
 		}
 	}
 
