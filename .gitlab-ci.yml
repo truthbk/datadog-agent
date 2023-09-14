@@ -15,6 +15,7 @@ generate_pipeline:
     - source /root/.bashrc
     - pip install oyaml
     - inv commands.dynamic-run
+    - ls dynamic/
   needs: []
   artifacts:
     paths:
