@@ -320,10 +320,10 @@ func (fh *FieldHandlers) ResolvePackageName(ev *model.Event, f *model.FileEvent)
 		}
 
 		if pkg := fh.resolvers.SBOMResolver.ResolvePackage(ev.ProcessCacheEntry.ContainerID, f); pkg != nil {
-			seclog.Infof("SBOMResolver.ResolvePackage resolved package %+v for filepath %s", pkg, f.PathnameStr)
+			seclog.Infof("SBOMResolver.ResolvePackage resolved package %+v for filepath %s / id %s", pkg, f.PathnameStr, ev.ProcessCacheEntry.ContainerID)
 			f.PkgName = pkg.Name
 		} else {
-			seclog.Infof("SBOMResolver.ResolvePackage returned nil for filepath %s", f.PathnameStr)
+			seclog.Infof("SBOMResolver.ResolvePackage returned nil for filepath %s / id %s", f.PathnameStr, ev.ProcessCacheEntry.ContainerID)
 		}
 	}
 	return f.PkgName
