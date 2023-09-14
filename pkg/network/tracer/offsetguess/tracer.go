@@ -49,10 +49,7 @@ type tracerOffsetGuesser struct {
 	guessFields guessFields
 	guessTCPv6  bool
 	guessUDPv6  bool
-	fl4offsets  bool
-	fl6offsets  bool
-
-	iterations uint
+	iterations  uint
 }
 
 func NewTracerOffsetGuesser() (OffsetGuesser, error) {
@@ -182,9 +179,8 @@ func dfaultEqualFunc(field *guessField, val *TracerValues, exp *TracerValues) bo
 	return true
 }
 
-func dfaultIncrementFunc(field *guessField, _ *TracerOffsets, _ bool) bool {
+func dfaultIncrementFunc(field *guessField, _ *TracerOffsets, _ bool) {
 	*field.offsetField++
-	return *field.offsetField < field.threshold
 }
 
 func advanceField(n int) func(field *guessField, allFields *guessFields, _ bool) GuessWhat {
@@ -222,11 +218,14 @@ type guessField struct {
 	offsetField   *uint64
 	threshold     uint64
 	equalFunc     func(field *guessField, val *TracerValues, exp *TracerValues) bool
-	incrementFunc func(field *guessField, offsets *TracerOffsets, errored bool) bool
+	incrementFunc func(field *guessField, offsets *TracerOffsets, errored bool)
 	nextFunc      func(field *guessField, allFields *guessFields, equal bool) GuessWhat
 }
 
-func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffsetNew(mp *ebpf.Map, expected *TracerValues, maxRetries *int) error {
+// checkAndUpdateCurrentOffset checks the value for the current offset stored
+// in the eBPF map against the expected value, incrementing the offset if it
+// doesn't match, or going to the next field to guess if it does
+func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected *TracerValues, maxRetries *int) error {
 	// get the updated map value, so we can check if the current offset is
 	// the right one
 	if err := mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(t.status)); err != nil {
@@ -253,11 +252,7 @@ func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffsetNew(mp *ebpf.Map, expec
 
 	// check if used offset overlaps. If so, ignore equality because it isn't a valid offset
 	// we check after usage, because the eBPF code can adjust the offset due to alignment rules
-	overlapped, err := field.jumpPastOverlaps(t.guessFields.subjectFields(field.subject))
-	if err != nil {
-		return err
-	}
-
+	overlapped := field.jumpPastOverlaps(t.guessFields.subjectFields(field.subject))
 	if overlapped {
 		// skip to checking the newly set offset
 		t.status.State = uint64(StateChecking)
@@ -268,32 +263,27 @@ func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffsetNew(mp *ebpf.Map, expec
 		offset := *field.offsetField
 		field.finished = true
 		next := field.nextFunc(field, &t.guessFields, true)
-		if next == GuessNotApplicable {
-			t.status.State = uint64(StateReady)
-			goto NextCheck
-		}
-
-		t.logAndAdvance(offset, next)
-		t.status.State = uint64(StateChecking)
-		// check initial offset for next field and jump past overlaps
-		nextField := t.guessFields.whatField(GuessWhat(t.status.What))
-		if nextField == nil {
-			return fmt.Errorf("invalid offset guessing field %d", t.status.What)
-		}
-		_, err := nextField.jumpPastOverlaps(t.guessFields.subjectFields(nextField.subject))
-		if err != nil {
+		if err := t.logAndAdvance(offset, next); err != nil {
 			return err
 		}
 		goto NextCheck
 	}
 
-	// TODO some fields don't error out, but mark fields as invalid and jump ahead
-	if !field.incrementFunc(field, &t.status.Offsets, t.status.Err != 0) {
-		return fmt.Errorf("%s overflow: %w", GuessWhat(t.status.What), errOffsetOverflow)
-	}
+	field.incrementFunc(field, &t.status.Offsets, t.status.Err != 0)
 	t.status.State = uint64(StateChecking)
 
 NextCheck:
+	if *field.offsetField >= field.threshold {
+		if field.optional {
+			next := field.nextFunc(field, &t.guessFields, false)
+			if err := t.logAndAdvance(notApplicable, next); err != nil {
+				return err
+			}
+		} else {
+			return fmt.Errorf("%s overflow: %w", GuessWhat(t.status.What), errOffsetOverflow)
+		}
+	}
+
 	log.Warnf("pre : %+v", t.status.Offsets)
 	t.status.Err = 0
 	// update the map with the new offset/field to check
@@ -328,7 +318,7 @@ func (gf guessFields) whatField(what GuessWhat) *guessField {
 	return &gf[fieldIndex]
 }
 
-func (field *guessField) jumpPastOverlaps(subjectFields []*guessField) (bool, error) {
+func (field *guessField) jumpPastOverlaps(subjectFields []*guessField) bool {
 	overlapped := false
 	for {
 		// overlaps only checks for a single field overlap, so we must keep jumping until valid
@@ -339,13 +329,13 @@ func (field *guessField) jumpPastOverlaps(subjectFields []*guessField) (bool, er
 			*field.offsetField = nextValid
 			overlapped = true
 			if nextValid >= field.threshold {
-				return false, fmt.Errorf("%s overflow: %w", field.what, errOffsetOverflow)
+				return true
 			}
 			continue
 		}
 		break
 	}
-	return overlapped, nil
+	return overlapped
 }
 
 func (field *guessField) overlaps(subjectFields []*guessField) (uint64, bool) {
@@ -366,268 +356,6 @@ func (field *guessField) overlaps(subjectFields []*guessField) (uint64, bool) {
 		}
 	}
 	return 0, false
-}
-
-// checkAndUpdateCurrentOffset checks the value for the current offset stored
-// in the eBPF map against the expected value, incrementing the offset if it
-// doesn't match, or going to the next field to guess if it does
-func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected *TracerValues, maxRetries *int, threshold uint64) error {
-	// get the updated map value so we can check if the current offset is
-	// the right one
-	if err := mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(t.status)); err != nil {
-		return fmt.Errorf("error reading tracer_status: %v", err)
-	}
-
-	if State(t.status.State) != StateChecked {
-		if *maxRetries == 0 {
-			return fmt.Errorf("invalid guessing state while guessing %s, got %s expected %s. %v",
-				GuessWhat(t.status.What), State(t.status.State), StateChecked, tcpKprobeCalledString[t.status.Info_kprobe_status])
-		}
-		*maxRetries--
-		time.Sleep(10 * time.Millisecond)
-		return nil
-	}
-
-	switch GuessWhat(t.status.What) {
-	case GuessSAddr:
-		if t.status.Values.Saddr == expected.Saddr {
-			t.logAndAdvance(t.status.Offsets.Saddr, GuessDAddr)
-			break
-		}
-		t.status.Offsets.Saddr++
-	case GuessDAddr:
-		if t.status.Values.Daddr == expected.Daddr {
-			t.logAndAdvance(t.status.Offsets.Daddr, GuessDPort)
-			break
-		}
-		t.status.Offsets.Daddr++
-	case GuessDPort:
-		if t.status.Values.Dport == htons(expected.Dport) {
-			t.logAndAdvance(t.status.Offsets.Dport, GuessFamily)
-			// we know the family ((struct __sk_common)->skc_family) is
-			// after the skc_dport field, so we start from there
-			t.status.Offsets.Family = t.status.Offsets.Dport
-			break
-		}
-		t.status.Offsets.Dport++
-	case GuessFamily:
-		if t.status.Values.Family == expected.Family {
-			t.logAndAdvance(t.status.Offsets.Family, GuessSPort)
-			// we know the sport ((struct inet_sock)->inet_sport) is
-			// after the family field, so we start from there
-			t.status.Offsets.Sport = t.status.Offsets.Family
-			break
-		}
-		t.status.Offsets.Family++
-	case GuessSPort:
-		if t.status.Values.Sport == htons(expected.Sport) {
-			t.logAndAdvance(t.status.Offsets.Sport, GuessSAddrFl4)
-			break
-		}
-		t.status.Offsets.Sport++
-	case GuessSAddrFl4:
-		if t.status.Values.Saddr_fl4 == expected.Saddr_fl4 {
-			t.logAndAdvance(t.status.Offsets.Saddr_fl4, GuessDAddrFl4)
-			break
-		}
-		t.status.Offsets.Saddr_fl4++
-		if t.status.Offsets.Saddr_fl4 >= threshold {
-			// Let's skip all other flowi4 fields
-			t.logAndAdvance(notApplicable, t.flowi6EntryState())
-			t.fl4offsets = false
-			break
-		}
-	case GuessDAddrFl4:
-		if t.status.Values.Daddr_fl4 == expected.Daddr_fl4 {
-			t.logAndAdvance(t.status.Offsets.Daddr_fl4, GuessSPortFl4)
-			break
-		}
-		t.status.Offsets.Daddr_fl4++
-		if t.status.Offsets.Daddr_fl4 >= threshold {
-			t.logAndAdvance(notApplicable, t.flowi6EntryState())
-			t.fl4offsets = false
-			break
-		}
-	case GuessSPortFl4:
-		if t.status.Values.Sport_fl4 == htons(expected.Sport_fl4) {
-			t.logAndAdvance(t.status.Offsets.Sport_fl4, GuessDPortFl4)
-			break
-		}
-		t.status.Offsets.Sport_fl4++
-		if t.status.Offsets.Sport_fl4 >= threshold {
-			t.logAndAdvance(notApplicable, t.flowi6EntryState())
-			t.fl4offsets = false
-			break
-		}
-	case GuessDPortFl4:
-		if t.status.Values.Dport_fl4 == htons(expected.Dport_fl4) {
-			t.logAndAdvance(t.status.Offsets.Dport_fl4, t.flowi6EntryState())
-			t.fl4offsets = true
-			break
-		}
-		t.status.Offsets.Dport_fl4++
-		if t.status.Offsets.Dport_fl4 >= threshold {
-			t.logAndAdvance(notApplicable, t.flowi6EntryState())
-			t.fl4offsets = false
-			break
-		}
-	case GuessSAddrFl6:
-		if compareIPv6(t.status.Values.Saddr_fl6, expected.Saddr_fl6) {
-			t.logAndAdvance(t.status.Offsets.Saddr_fl6, GuessDAddrFl6)
-			break
-		}
-		t.status.Offsets.Saddr_fl6++
-		if t.status.Offsets.Saddr_fl6 >= threshold {
-			// Let's skip all other flowi6 fields
-			t.logAndAdvance(notApplicable, GuessNetNS)
-			t.fl6offsets = false
-			break
-		}
-	case GuessDAddrFl6:
-		if compareIPv6(t.status.Values.Daddr_fl6, expected.Daddr_fl6) {
-			t.logAndAdvance(t.status.Offsets.Daddr_fl6, GuessSPortFl6)
-			break
-		}
-		t.status.Offsets.Daddr_fl6++
-		if t.status.Offsets.Daddr_fl6 >= threshold {
-			t.logAndAdvance(notApplicable, GuessNetNS)
-			t.fl6offsets = false
-			break
-		}
-	case GuessSPortFl6:
-		if t.status.Values.Sport_fl6 == htons(expected.Sport_fl6) {
-			t.logAndAdvance(t.status.Offsets.Sport_fl6, GuessDPortFl6)
-			break
-		}
-		t.status.Offsets.Sport_fl6++
-		if t.status.Offsets.Sport_fl6 >= threshold {
-			t.logAndAdvance(notApplicable, GuessNetNS)
-			t.fl6offsets = false
-			break
-		}
-	case GuessDPortFl6:
-		if t.status.Values.Dport_fl6 == htons(expected.Dport_fl6) {
-			t.logAndAdvance(t.status.Offsets.Dport_fl6, GuessNetNS)
-			t.fl6offsets = true
-			break
-		}
-		t.status.Offsets.Dport_fl6++
-		if t.status.Offsets.Dport_fl6 >= threshold {
-			t.logAndAdvance(notApplicable, GuessNetNS)
-			t.fl6offsets = false
-			break
-		}
-	case GuessNetNS:
-		if t.status.Values.Netns == expected.Netns {
-			t.logAndAdvance(t.status.Offsets.Netns, GuessRTT)
-			log.Debugf("Successfully guessed %v with offset of %d bytes", "ino", t.status.Offsets.Ino)
-			break
-		}
-		t.status.Offsets.Ino++
-		// go to the next offset_netns if we get an error
-		if t.status.Err != 0 || t.status.Offsets.Ino >= threshold {
-			t.status.Offsets.Ino = 0
-			t.status.Offsets.Netns++
-		}
-	case GuessRTT:
-		// For more information on the bit shift operations see:
-		// https://elixir.bootlin.com/linux/v4.6/source/net/ipv4/tcp.c#L2686
-		if t.status.Values.Rtt>>3 == expected.Rtt && t.status.Values.Rtt_var>>2 == expected.Rtt_var {
-			t.logAndAdvance(t.status.Offsets.Rtt, GuessSocketSK)
-			break
-		}
-		// We know that these two fields are always next to each other, 4 bytes apart:
-		// https://elixir.bootlin.com/linux/v4.6/source/include/linux/tcp.h#L232
-		// rtt -> srtt_us
-		// rtt_var -> mdev_us
-		t.status.Offsets.Rtt++
-		t.status.Offsets.Rtt_var = t.status.Offsets.Rtt + 4
-
-	case GuessSocketSK:
-		if t.status.Values.Sport_via_sk == htons(expected.Sport) && t.status.Values.Dport_via_sk == htons(expected.Dport) {
-			// if we are on kernel version < 4.7, net_dev_queue tracepoint will not be activated, and thus we should skip
-			// the guessing for `struct sk_buff`
-			next := GuessSKBuffSock
-			kv, err := kernel.HostVersion()
-			if err != nil {
-				return fmt.Errorf("error getting kernel version: %w", err)
-			}
-			kv470 := kernel.VersionCode(4, 7, 0)
-
-			// if IPv6 enabled & kv lower than 4.7.0, skip guessing for some fields
-			if (t.guessTCPv6 || t.guessUDPv6) && kv < kv470 {
-				next = GuessDAddrIPv6
-			}
-
-			// if both IPv6 disabled and kv lower than 4.7.0, skip to the end
-			if !t.guessTCPv6 && !t.guessUDPv6 && kv < kv470 {
-				t.logAndAdvance(t.status.Offsets.Socket_sk, GuessNotApplicable)
-				return t.setReadyState(mp)
-			}
-
-			t.logAndAdvance(t.status.Offsets.Socket_sk, next)
-			break
-		}
-		t.status.Offsets.Socket_sk++
-	case GuessSKBuffSock:
-		if t.status.Values.Sport_via_sk_via_sk_buff == htons(expected.Sport_fl4) && t.status.Values.Dport_via_sk_via_sk_buff == htons(expected.Dport_fl4) {
-			t.logAndAdvance(t.status.Offsets.Sk_buff_sock, GuessSKBuffTransportHeader)
-			break
-		}
-		t.status.Offsets.Sk_buff_sock++
-	case GuessSKBuffTransportHeader:
-		networkDiffFromMac := t.status.Values.Network_header - t.status.Values.Mac_header
-		transportDiffFromNetwork := t.status.Values.Transport_header - t.status.Values.Network_header
-		if networkDiffFromMac == 14 && transportDiffFromNetwork == 20 {
-			t.logAndAdvance(t.status.Offsets.Sk_buff_transport_header, GuessSKBuffHead)
-			break
-		}
-		t.status.Offsets.Sk_buff_transport_header++
-	case GuessSKBuffHead:
-		if t.status.Values.Sport_via_sk_via_sk_buff == htons(expected.Sport_fl4) && t.status.Values.Dport_via_sk_via_sk_buff == htons(expected.Dport_fl4) {
-			if !t.guessTCPv6 && !t.guessUDPv6 {
-				t.logAndAdvance(t.status.Offsets.Sk_buff_head, GuessNotApplicable)
-				return t.setReadyState(mp)
-			} else {
-				t.logAndAdvance(t.status.Offsets.Sk_buff_head, GuessDAddrIPv6)
-				break
-			}
-		}
-		t.status.Offsets.Sk_buff_head++
-	case GuessDAddrIPv6:
-		if compareIPv6(t.status.Values.Daddr_ipv6, expected.Daddr_ipv6) {
-			t.logAndAdvance(t.status.Offsets.Daddr_ipv6, GuessNotApplicable)
-			// at this point, we've guessed all the offsets we need,
-			// set the t.status to "stateReady"
-			return t.setReadyState(mp)
-		}
-		t.status.Offsets.Daddr_ipv6++
-	default:
-		return fmt.Errorf("unexpected field to guess: %s", GuessWhat(t.status.What))
-	}
-
-	t.status.State = uint64(StateChecking)
-	// update the map with the new offset/field to check
-	if err := mp.Put(unsafe.Pointer(&zero), unsafe.Pointer(t.status)); err != nil {
-		return fmt.Errorf("error updating tracer_t.status: %v", err)
-	}
-
-	return nil
-}
-
-func (t *tracerOffsetGuesser) setReadyState(mp *ebpf.Map) error {
-	t.status.State = uint64(StateReady)
-	if err := mp.Put(unsafe.Pointer(&zero), unsafe.Pointer(t.status)); err != nil {
-		return fmt.Errorf("error updating tracer_status: %v", err)
-	}
-	return nil
-}
-
-func (t *tracerOffsetGuesser) flowi6EntryState() GuessWhat {
-	if !t.guessUDPv6 {
-		return GuessNetNS
-	}
-	return GuessSAddrFl6
 }
 
 // Guess expects manager.Manager to contain a map named tracer_status and helps initialize the
@@ -651,6 +379,12 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 	if err != nil {
 		return nil, fmt.Errorf("unable to find map %s: %s", probes.TracerStatusMap, err)
 	}
+
+	kv, err := kernel.HostVersion()
+	if err != nil {
+		return nil, fmt.Errorf("error getting kernel version: %w", err)
+	}
+	kv470 := kernel.VersionCode(4, 7, 0)
 
 	// When reading kernel structs at different offsets, don't go over the set threshold
 	// Defaults to 400, with a max of 3000. This is an arbitrary choice to avoid infinite loops.
@@ -702,12 +436,11 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			subject:     StructSock,
 			valueFields: []reflect.StructField{valueStructField("Dport")},
 			offsetField: &t.status.Offsets.Dport,
-			incrementFunc: func(field *guessField, offsets *TracerOffsets, errored bool) bool {
+			incrementFunc: func(field *guessField, offsets *TracerOffsets, errored bool) {
 				offsets.Dport++
 				// we know the family ((struct __sk_common)->skc_family) is
 				// after the skc_dport field, so we start from there
 				offsets.Family++
-				return offsets.Dport < field.threshold
 			},
 		},
 		{
@@ -715,12 +448,11 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			subject:     StructSock,
 			valueFields: []reflect.StructField{valueStructField("Family")},
 			offsetField: &t.status.Offsets.Family,
-			incrementFunc: func(field *guessField, offsets *TracerOffsets, errored bool) bool {
+			incrementFunc: func(field *guessField, offsets *TracerOffsets, errored bool) {
 				offsets.Family++
 				// we know the sport ((struct inet_sock)->inet_sport) is
 				// after the family field, so we start from there
 				offsets.Sport++
-				return offsets.Family < field.threshold
 			},
 		},
 		{
@@ -730,28 +462,49 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			offsetField: &t.status.Offsets.Sport,
 			threshold:   thresholdInetSock,
 		},
-		// TODO handle custom next logic if fl4/6 errors or IPv6 is disabled
 		{
 			what:        GuessSAddrFl4,
 			subject:     StructFlowI4,
+			optional:    true,
 			valueFields: []reflect.StructField{valueStructField("Saddr_fl4")},
 			offsetField: &t.status.Offsets.Saddr_fl4,
+			nextFunc: func(field *guessField, allFields *guessFields, equal bool) GuessWhat {
+				if !equal {
+					return advanceField(4)(field, allFields, equal)
+				}
+				return advanceField(1)(field, allFields, equal)
+			},
 		},
 		{
 			what:        GuessDAddrFl4,
 			subject:     StructFlowI4,
+			optional:    true,
 			valueFields: []reflect.StructField{valueStructField("Daddr_fl4")},
 			offsetField: &t.status.Offsets.Daddr_fl4,
+			nextFunc: func(field *guessField, allFields *guessFields, equal bool) GuessWhat {
+				if !equal {
+					return advanceField(3)(field, allFields, equal)
+				}
+				return advanceField(1)(field, allFields, equal)
+			},
 		},
 		{
 			what:        GuessSPortFl4,
 			subject:     StructFlowI4,
+			optional:    true,
 			valueFields: []reflect.StructField{valueStructField("Sport_fl4")},
 			offsetField: &t.status.Offsets.Sport_fl4,
+			nextFunc: func(field *guessField, allFields *guessFields, equal bool) GuessWhat {
+				if !equal {
+					return advanceField(2)(field, allFields, equal)
+				}
+				return advanceField(1)(field, allFields, equal)
+			},
 		},
 		{
 			what:        GuessDPortFl4,
 			subject:     StructFlowI4,
+			optional:    true,
 			valueFields: []reflect.StructField{valueStructField("Dport_fl4")},
 			offsetField: &t.status.Offsets.Dport_fl4,
 		},
@@ -762,24 +515,46 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			guessField{
 				what:        GuessSAddrFl6,
 				subject:     StructFlowI6,
+				optional:    true,
 				valueFields: []reflect.StructField{valueStructField("Saddr_fl6")},
 				offsetField: &t.status.Offsets.Saddr_fl6,
+				nextFunc: func(field *guessField, allFields *guessFields, equal bool) GuessWhat {
+					if !equal {
+						return advanceField(4)(field, allFields, equal)
+					}
+					return advanceField(1)(field, allFields, equal)
+				},
 			},
 			guessField{
 				what:        GuessDAddrFl6,
 				subject:     StructFlowI6,
+				optional:    true,
 				valueFields: []reflect.StructField{valueStructField("Daddr_fl6")},
 				offsetField: &t.status.Offsets.Daddr_fl6,
+				nextFunc: func(field *guessField, allFields *guessFields, equal bool) GuessWhat {
+					if !equal {
+						return advanceField(3)(field, allFields, equal)
+					}
+					return advanceField(1)(field, allFields, equal)
+				},
 			},
 			guessField{
 				what:        GuessSPortFl6,
 				subject:     StructFlowI6,
+				optional:    true,
 				valueFields: []reflect.StructField{valueStructField("Sport_fl6")},
 				offsetField: &t.status.Offsets.Sport_fl6,
+				nextFunc: func(field *guessField, allFields *guessFields, equal bool) GuessWhat {
+					if !equal {
+						return advanceField(2)(field, allFields, equal)
+					}
+					return advanceField(1)(field, allFields, equal)
+				},
 			},
 			guessField{
 				what:        GuessDPortFl6,
 				subject:     StructFlowI6,
+				optional:    true,
 				valueFields: []reflect.StructField{valueStructField("Dport_fl6")},
 				offsetField: &t.status.Offsets.Dport_fl6,
 			},
@@ -792,13 +567,16 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			subject:     StructSock,
 			valueFields: []reflect.StructField{valueStructField("Netns")},
 			offsetField: &t.status.Offsets.Netns,
-			incrementFunc: func(field *guessField, offsets *TracerOffsets, errored bool) bool {
+			incrementFunc: func(field *guessField, offsets *TracerOffsets, errored bool) {
 				offsets.Ino++
 				if errored || offsets.Ino >= field.threshold {
 					offsets.Ino = 0
 					offsets.Netns++
 				}
-				return offsets.Netns < field.threshold
+			},
+			nextFunc: func(field *guessField, allFields *guessFields, equal bool) GuessWhat {
+				log.Debugf("Successfully guessed %s with offset of %d bytes", "ino", t.status.Offsets.Ino)
+				return dfaultNextFunc(field, allFields, equal)
 			},
 		},
 		guessField{
@@ -807,14 +585,14 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			valueFields: []reflect.StructField{valueStructField("Rtt"), valueStructField("Rtt_var")},
 			offsetField: &t.status.Offsets.Rtt,
 			threshold:   thresholdInetSock,
-			incrementFunc: func(field *guessField, offsets *TracerOffsets, _ bool) bool {
+			incrementFunc: func(field *guessField, offsets *TracerOffsets, _ bool) {
 				// We know that these two fields are always next to each other, 4 bytes apart:
 				// https://elixir.bootlin.com/linux/v4.6/source/include/linux/tcp.h#L232
 				// rtt -> srtt_us
 				// rtt_var -> mdev_us
+				// TODO handle paired increment when overlap adjustments happen
 				offsets.Rtt++
 				offsets.Rtt_var = offsets.Rtt + 4
-				return offsets.Rtt < field.threshold
 			},
 		},
 		guessField{
@@ -824,40 +602,51 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			valueSize:   SizeofStructSock,
 			offsetField: &t.status.Offsets.Socket_sk,
 		},
-		guessField{
-			what:        GuessSKBuffSock,
-			subject:     StructSKBuff,
-			valueFields: []reflect.StructField{valueStructField("Sport_via_sk_via_sk_buff"), valueStructField("Dport_via_sk_via_sk_buff")},
-			valueSize:   SizeofSKBuffSock,
-			offsetField: &t.status.Offsets.Sk_buff_sock,
-		},
-		guessField{
-			what:        GuessSKBuffTransportHeader,
-			subject:     StructSKBuff,
-			valueSize:   SizeofSKBuffTransportHeader,
-			offsetField: &t.status.Offsets.Sk_buff_transport_header,
-			equalFunc: func(field *guessField, val *TracerValues, _ *TracerValues) bool {
-				networkDiffFromMac := val.Network_header - val.Mac_header
-				transportDiffFromNetwork := val.Transport_header - val.Network_header
-				// TODO document where these values come from!
-				return networkDiffFromMac == 14 && transportDiffFromNetwork == 20
-			},
-		},
-		guessField{
-			// TODO handle custom next logic
-			what:        GuessSKBuffHead,
-			subject:     StructSKBuff,
-			valueFields: []reflect.StructField{valueStructField("Sport_via_sk_buff"), valueStructField("Dport_via_sk_buff")},
-			valueSize:   SizeofSKBuffHead,
-			offsetField: &t.status.Offsets.Sk_buff_head,
-		},
-		guessField{
-			what:        GuessDAddrIPv6,
-			subject:     StructSock,
-			valueFields: []reflect.StructField{valueStructField("Daddr_ipv6")},
-			offsetField: &t.status.Offsets.Daddr_ipv6,
-		},
 	)
+
+	// if we are on kernel version < 4.7, net_dev_queue tracepoint will not be activated, and thus we should skip
+	// the guessing for `struct sk_buff`
+	if kv >= kv470 {
+		t.guessFields = append(t.guessFields,
+			guessField{
+				what:        GuessSKBuffSock,
+				subject:     StructSKBuff,
+				valueFields: []reflect.StructField{valueStructField("Sport_via_sk_via_sk_buff"), valueStructField("Dport_via_sk_via_sk_buff")},
+				valueSize:   SizeofSKBuffSock,
+				offsetField: &t.status.Offsets.Sk_buff_sock,
+			},
+			guessField{
+				what:        GuessSKBuffTransportHeader,
+				subject:     StructSKBuff,
+				valueSize:   SizeofSKBuffTransportHeader,
+				offsetField: &t.status.Offsets.Sk_buff_transport_header,
+				equalFunc: func(field *guessField, val *TracerValues, _ *TracerValues) bool {
+					networkDiffFromMac := val.Network_header - val.Mac_header
+					transportDiffFromNetwork := val.Transport_header - val.Network_header
+					// TODO document where these values come from!
+					return networkDiffFromMac == 14 && transportDiffFromNetwork == 20
+				},
+			},
+			guessField{
+				what:        GuessSKBuffHead,
+				subject:     StructSKBuff,
+				valueFields: []reflect.StructField{valueStructField("Sport_via_sk_buff"), valueStructField("Dport_via_sk_buff")},
+				valueSize:   SizeofSKBuffHead,
+				offsetField: &t.status.Offsets.Sk_buff_head,
+			},
+		)
+	}
+
+	if t.guessUDPv6 || t.guessTCPv6 {
+		t.guessFields = append(t.guessFields,
+			guessField{
+				what:        GuessDAddrIPv6,
+				subject:     StructSock,
+				valueFields: []reflect.StructField{valueStructField("Daddr_ipv6")},
+				offsetField: &t.status.Offsets.Daddr_ipv6,
+			},
+		)
+	}
 
 	// fixup and validate guess fields
 	for i := range t.guessFields {
@@ -927,7 +716,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 			return nil, err
 		}
 
-		if err := t.checkAndUpdateCurrentOffsetNew(mp, expected, &maxRetries); err != nil {
+		if err := t.checkAndUpdateCurrentOffset(mp, expected, &maxRetries); err != nil {
 			return nil, err
 		}
 	}
@@ -937,6 +726,15 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 }
 
 func (t *tracerOffsetGuesser) getConstantEditors() []manager.ConstantEditor {
+	fl4offsets := t.guessFields.whatField(GuessSAddrFl4).finished &&
+		t.guessFields.whatField(GuessDAddrFl4).finished &&
+		t.guessFields.whatField(GuessSPortFl4).finished &&
+		t.guessFields.whatField(GuessDPortFl4).finished
+	fl6offsets := t.guessFields.whatField(GuessSAddrFl6).finished &&
+		t.guessFields.whatField(GuessDAddrFl6).finished &&
+		t.guessFields.whatField(GuessSPortFl6).finished &&
+		t.guessFields.whatField(GuessDPortFl6).finished
+
 	return []manager.ConstantEditor{
 		{Name: "offset_saddr", Value: t.status.Offsets.Saddr},
 		{Name: "offset_daddr", Value: t.status.Offsets.Daddr},
@@ -952,12 +750,12 @@ func (t *tracerOffsetGuesser) getConstantEditors() []manager.ConstantEditor {
 		{Name: "offset_daddr_fl4", Value: t.status.Offsets.Daddr_fl4},
 		{Name: "offset_sport_fl4", Value: t.status.Offsets.Sport_fl4},
 		{Name: "offset_dport_fl4", Value: t.status.Offsets.Dport_fl4},
-		boolConst("fl4_offsets", t.fl4offsets),
+		boolConst("fl4_offsets", fl4offsets),
 		{Name: "offset_saddr_fl6", Value: t.status.Offsets.Saddr_fl6},
 		{Name: "offset_daddr_fl6", Value: t.status.Offsets.Daddr_fl6},
 		{Name: "offset_sport_fl6", Value: t.status.Offsets.Sport_fl6},
 		{Name: "offset_dport_fl6", Value: t.status.Offsets.Dport_fl6},
-		boolConst("fl6_offsets", t.fl6offsets),
+		boolConst("fl6_offsets", fl6offsets),
 		{Name: "offset_socket_sk", Value: t.status.Offsets.Socket_sk},
 		{Name: "offset_sk_buff_sock", Value: t.status.Offsets.Sk_buff_sock},
 		{Name: "offset_sk_buff_transport_header", Value: t.status.Offsets.Sk_buff_transport_header},
@@ -965,15 +763,28 @@ func (t *tracerOffsetGuesser) getConstantEditors() []manager.ConstantEditor {
 	}
 }
 
-func (t *tracerOffsetGuesser) logAndAdvance(offset uint64, next GuessWhat) {
+func (t *tracerOffsetGuesser) logAndAdvance(offset uint64, next GuessWhat) error {
 	guess := GuessWhat(t.status.What)
 	if offset != notApplicable {
-		log.Debugf("Successfully guessed %s with offset of %d bytes", guess, offset)
+		log.Debugf("Successfully guessed `%s` with offset of %d bytes", guess, offset)
 	} else {
 		log.Debugf("Could not guess offset for %s", guess)
 	}
-	if next != GuessNotApplicable {
-		log.Debugf("Started offset guessing for %s", next)
-		t.status.What = uint64(next)
+
+	if next == GuessNotApplicable {
+		t.status.State = uint64(StateReady)
+		return nil
 	}
+
+	log.Debugf("Started offset guessing for %s", next)
+	t.status.What = uint64(next)
+	t.status.State = uint64(StateChecking)
+
+	// check initial offset for next field and jump past overlaps
+	nextField := t.guessFields.whatField(next)
+	if nextField == nil {
+		return fmt.Errorf("invalid offset guessing field %d", t.status.What)
+	}
+	_ = nextField.jumpPastOverlaps(t.guessFields.subjectFields(nextField.subject))
+	return nil
 }
