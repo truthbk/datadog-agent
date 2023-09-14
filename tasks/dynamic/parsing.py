@@ -72,6 +72,19 @@ def construct_reference(loader, node):
 
 Loader.add_constructor("!reference", construct_reference)
 
+def ignore(loader, tag, node):
+    classname = node.__class__.__name__
+    if (classname == 'SequenceNode'):
+        resolved = loader.construct_sequence(node)
+    elif (classname == 'MappingNode'):
+        resolved = loader.construct_mapping(node)
+    else:
+        resolved = loader.construct_scalar(node)
+    return resolved
+
+yaml.add_multi_constructor('!', ignore, Loader=yaml.SafeLoader)
+yaml.add_multi_constructor('', ignore, Loader=yaml.SafeLoader)
+
 
 def createAndOpen(filename, mode):
     os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -298,7 +311,7 @@ class GitlabExtender:
 
     def apply_on_file(self, file_path, enabledJobs):
         with open(file_path, "r") as f:
-            yaml_content = yaml.load(f.read(), Loader=Loader)
+            yaml_content = yaml.load(f.read(), Loader=yaml.SafeLoader)
 
         self.yaml_applier(yaml_content, enabledJobs)
         output_name = file_path.split("/")

@@ -13,7 +13,7 @@ def _jobs_to_run(ctx):
     for file in changed_files:
         for key in yaml_content:
             if file.startswith(key):
-                jobs_to_run.extend(yaml_content[key])
+                jobs_to_run.extend(x for x in yaml_content[key] if x not in jobs_to_run)
                 break
     print("Jobs needed to run : ", jobs_to_run)
     return jobs_to_run
