@@ -9,6 +9,13 @@ type Proc struct {
 
 const ProcCommMaxLen = 0x10 - 1
 
+type GuessState struct {
+	State uint64
+	What  uint64
+	Err   uint64
+	Proc  Proc
+}
+
 type TracerOffsets struct {
 	Saddr                    uint64
 	Daddr                    uint64
@@ -63,10 +70,7 @@ type TracerValues struct {
 	Pad_cgo_0                [2]byte
 }
 type TracerStatus struct {
-	State              uint64
-	What               uint64
-	Err                uint64
-	Proc               Proc
+	State              GuessState
 	Info_kprobe_status uint64
 	Offsets            TracerOffsets
 	Values             TracerValues
@@ -95,10 +99,7 @@ type ConntrackValues struct {
 	Netns  uint32
 }
 type ConntrackStatus struct {
-	State   uint64
-	What    uint64
-	Err     uint64
-	Proc    Proc
+	State   GuessState
 	Offsets ConntrackOffsets
 	Values  ConntrackValues
 }

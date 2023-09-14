@@ -234,10 +234,10 @@ func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected
 		return fmt.Errorf("error reading tracer_status: %v", err)
 	}
 
-	if State(t.status.State) != StateChecked {
+	if State(t.status.State.State) != StateChecked {
 		if *maxRetries == 0 {
 			return fmt.Errorf("invalid guessing state while guessing %s, got %s expected %s. %v",
-				GuessWhat(t.status.What), State(t.status.State), StateChecked, tcpKprobeCalledString[t.status.Info_kprobe_status])
+				GuessWhat(t.status.State.What), State(t.status.State.State), StateChecked, tcpKprobeCalledString[t.status.Info_kprobe_status])
 		}
 		*maxRetries--
 		time.Sleep(10 * time.Millisecond)
@@ -245,9 +245,9 @@ func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected
 	}
 	t.iterations++
 
-	field := t.guessFields.whatField(GuessWhat(t.status.What))
+	field := t.guessFields.whatField(GuessWhat(t.status.State.What))
 	if field == nil {
-		return fmt.Errorf("invalid offset guessing field %d", t.status.What)
+		return fmt.Errorf("invalid offset guessing field %d", t.status.State.What)
 	}
 
 	// check if used offset overlaps. If so, ignore equality because it isn't a valid offset
@@ -255,7 +255,7 @@ func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected
 	overlapped := field.jumpPastOverlaps(t.guessFields.subjectFields(field.subject))
 	if overlapped {
 		// skip to checking the newly set offset
-		t.status.State = uint64(StateChecking)
+		t.status.State.State = uint64(StateChecking)
 		goto NextCheck
 	}
 
@@ -263,28 +263,28 @@ func (t *tracerOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expected
 		offset := *field.offsetField
 		field.finished = true
 		next := field.nextFunc(field, &t.guessFields, true)
-		if err := t.logAndAdvance(offset, next); err != nil {
+		if err := t.guessFields.logAndAdvance(&t.status.State, offset, next); err != nil {
 			return err
 		}
 		goto NextCheck
 	}
 
-	field.incrementFunc(field, &t.status.Offsets, t.status.Err != 0)
-	t.status.State = uint64(StateChecking)
+	field.incrementFunc(field, &t.status.Offsets, t.status.State.Err != 0)
+	t.status.State.State = uint64(StateChecking)
 
 NextCheck:
 	if *field.offsetField >= field.threshold {
 		if field.optional {
 			next := field.nextFunc(field, &t.guessFields, false)
-			if err := t.logAndAdvance(notApplicable, next); err != nil {
+			if err := t.guessFields.logAndAdvance(&t.status.State, notApplicable, next); err != nil {
 				return err
 			}
 		} else {
-			return fmt.Errorf("%s overflow: %w", GuessWhat(t.status.What), errOffsetOverflow)
+			return fmt.Errorf("%s overflow: %w", GuessWhat(t.status.State.What), errOffsetOverflow)
 		}
 	}
 
-	t.status.Err = 0
+	t.status.State.Err = 0
 	// update the map with the new offset/field to check
 	if err := mp.Put(unsafe.Pointer(&zero), unsafe.Pointer(t.status)); err != nil {
 		return fmt.Errorf("error updating tracer_t.status: %v", err)
@@ -434,10 +434,12 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 	t.guessUDPv6 = cfg.CollectUDPv6Conns
 	t.guessTCPv6 = cfg.CollectTCPv6Conns
 	t.status = &TracerStatus{
-		State: uint64(StateChecking),
-		What:  uint64(GuessSAddr),
+		State: GuessState{
+			State: uint64(StateChecking),
+			What:  uint64(GuessSAddr),
+		},
 	}
-	copy(t.status.Proc.Comm[:], processName)
+	copy(t.status.State.Proc.Comm[:], processName)
 
 	valuesType := reflect.TypeOf((*TracerValues)(nil)).Elem()
 	valueStructField := func(name string) reflect.StructField {
@@ -670,7 +672,7 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 
 	// if we already have the offsets, just return
 	err = mp.Lookup(unsafe.Pointer(&zero), unsafe.Pointer(t.status))
-	if err == nil && State(t.status.State) == StateReady {
+	if err == nil && State(t.status.State.State) == StateReady {
 		return t.getConstantEditors(), nil
 	}
 
@@ -702,8 +704,8 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 	log.Tracef("expected values: %+v", expected)
 
 	log.Debugf("Checking for offsets with threshold of %d", threshold)
-	for State(t.status.State) != StateReady {
-		if err := eventGenerator.Generate(GuessWhat(t.status.What), expected); err != nil {
+	for State(t.status.State.State) != StateReady {
+		if err := eventGenerator.Generate(GuessWhat(t.status.State.What), expected); err != nil {
 			return nil, err
 		}
 
@@ -754,8 +756,8 @@ func (t *tracerOffsetGuesser) getConstantEditors() []manager.ConstantEditor {
 	}
 }
 
-func (t *tracerOffsetGuesser) logAndAdvance(offset uint64, next GuessWhat) error {
-	guess := GuessWhat(t.status.What)
+func (gf guessFields[V, O]) logAndAdvance(state *GuessState, offset uint64, next GuessWhat) error {
+	guess := GuessWhat(state.What)
 	if offset != notApplicable {
 		log.Debugf("Successfully guessed `%s` with offset of %d bytes", guess, offset)
 	} else {
@@ -763,22 +765,22 @@ func (t *tracerOffsetGuesser) logAndAdvance(offset uint64, next GuessWhat) error
 	}
 
 	if next == GuessNotApplicable {
-		t.status.State = uint64(StateReady)
+		state.State = uint64(StateReady)
 		return nil
 	}
 
 	log.Debugf("Started offset guessing for %s", next)
-	t.status.What = uint64(next)
-	t.status.State = uint64(StateChecking)
+	state.What = uint64(next)
+	state.State = uint64(StateChecking)
 
 	// check initial offset for next field and jump past overlaps
-	nextField := t.guessFields.whatField(next)
+	nextField := gf.whatField(next)
 	if nextField == nil {
-		return fmt.Errorf("invalid offset guessing field %d", t.status.What)
+		return fmt.Errorf("invalid offset guessing field %d", state.What)
 	}
 	if nextField.startOffset != nil {
 		*nextField.offsetField = *nextField.startOffset
 	}
-	_ = nextField.jumpPastOverlaps(t.guessFields.subjectFields(nextField.subject))
+	_ = nextField.jumpPastOverlaps(gf.subjectFields(nextField.subject))
 	return nil
 }

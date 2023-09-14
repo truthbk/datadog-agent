@@ -16,6 +16,8 @@ type Proc C.proc_t
 
 const ProcCommMaxLen = C.TASK_COMM_LEN - 1
 
+type GuessState C.guess_state_t
+
 type TracerOffsets C.tracer_offsets_t
 type TracerValues C.tracer_values_t
 type TracerStatus C.tracer_status_t

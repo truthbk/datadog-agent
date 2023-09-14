@@ -115,6 +115,10 @@ typedef struct {
     __u64 err;
 
     proc_t proc;
+} guess_state_t;
+
+typedef struct {
+    guess_state_t state;
 
     // tcp_info_kprobe_status records if the tcp_info kprobe has been triggered.
     // 0 - not triggered 1 - triggered
@@ -140,13 +144,7 @@ typedef struct {
 } conntrack_values_t;
 
 typedef struct {
-    __u64 state;
-    __u64 what;
-    __u64 err;
-
-    /* checking */
-    proc_t proc;
-
+    guess_state_t state;
     conntrack_offsets_t offsets;
     conntrack_values_t values;
 } conntrack_status_t;

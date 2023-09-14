@@ -62,7 +62,7 @@ static __always_inline bool check_family(struct sock* sk, tracer_status_t* statu
 static __always_inline int guess_offsets(tracer_status_t* status, char* subject) {
     u64 zero = 0;
 
-    if (status->state != STATE_CHECKING) {
+    if (status->state.state != STATE_CHECKING) {
         return 1;
     }
 
@@ -72,22 +72,22 @@ static __always_inline int guess_offsets(tracer_status_t* status, char* subject)
     proc_t proc = {};
     bpf_get_current_comm(&proc.comm, sizeof(proc.comm));
 
-    if (!proc_t_comm_equals(status->proc, proc)) {
+    if (!proc_t_comm_equals(status->state.proc, proc)) {
         return 0;
     }
 
     tracer_status_t new_status = {};
     // Copy values from status to new_status
     bpf_probe_read_kernel(&new_status, sizeof(tracer_status_t), status);
-    new_status.state = STATE_CHECKED;
-    new_status.err = 0;
-    bpf_probe_read_kernel(&new_status.proc.comm, sizeof(proc.comm), proc.comm);
+    new_status.state.state = STATE_CHECKED;
+    new_status.state.err = 0;
+    bpf_probe_read_kernel(&new_status.state.proc.comm, sizeof(proc.comm), proc.comm);
 
     possible_net_t* possible_skc_net = NULL;
     u32 possible_netns = 0;
     long ret;
 
-    switch (status->what) {
+    switch (status->state.what) {
     case GUESS_SADDR:
         new_status.offsets.saddr = aligned_offset(subject, status->offsets.saddr, SIZEOF_SADDR);
         bpf_probe_read_kernel(&new_status.values.saddr, sizeof(new_status.values.saddr), subject + new_status.offsets.saddr);
@@ -150,7 +150,7 @@ static __always_inline int guess_offsets(tracer_status_t* status, char* subject)
         new_status.offsets.netns = aligned_offset(subject, status->offsets.netns, SIZEOF_NETNS);
         bpf_probe_read_kernel(&possible_skc_net, sizeof(possible_net_t*), subject + new_status.offsets.netns);
         if (!possible_skc_net) {
-            new_status.err = 1;
+            new_status.state.err = 1;
             break;
         }
         // if we get a kernel fault, it means possible_skc_net
@@ -159,7 +159,7 @@ static __always_inline int guess_offsets(tracer_status_t* status, char* subject)
         new_status.offsets.ino = aligned_offset(subject, status->offsets.ino, SIZEOF_NETNS_INO);
         ret = bpf_probe_read_kernel(&possible_netns, sizeof(possible_netns), (char*)possible_skc_net + new_status.offsets.ino);
         if (ret == -EFAULT) {
-            new_status.err = 1;
+            new_status.state.err = 1;
             break;
         }
         //log_debug("netns: off=%u ino=%u val=%u\n", status->offsets.netns, status->offsets.ino, possible_netns);
@@ -246,7 +246,7 @@ int kprobe__ip_make_skb(struct pt_regs* ctx) {
     u64 zero = 0;
     tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);
 
-    if (status == NULL || is_sk_buff_event(status->what)) {
+    if (status == NULL || is_sk_buff_event(status->state.what)) {
         return 0;
     }
 
@@ -259,7 +259,7 @@ SEC("kprobe/ip6_make_skb")
 int kprobe__ip6_make_skb(struct pt_regs* ctx) {
     u64 zero = 0;
     tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);
-    if (status == NULL || is_sk_buff_event(status->what)) {
+    if (status == NULL || is_sk_buff_event(status->state.what)) {
         return 0;
     }
     struct flowi6* fl6 = (struct flowi6*)PT_REGS_PARM7(ctx);
@@ -271,7 +271,7 @@ SEC("kprobe/ip6_make_skb")
 int kprobe__ip6_make_skb__pre_4_7_0(struct pt_regs* ctx) {
     u64 zero = 0;
     tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);
-    if (status == NULL || is_sk_buff_event(status->what)) {
+    if (status == NULL || is_sk_buff_event(status->state.what)) {
         return 0;
     }
     struct flowi6* fl6 = (struct flowi6*)PT_REGS_PARM9(ctx);
@@ -290,7 +290,7 @@ int kprobe__tcp_getsockopt(struct pt_regs* ctx) {
 
     u64 zero = 0;
     tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);
-    if (status == NULL || status->what == GUESS_SOCKET_SK || is_sk_buff_event(status->what)) {
+    if (status == NULL || status->state.what == GUESS_SOCKET_SK || is_sk_buff_event(status->state.what)) {
         return 0;
     }
     struct sock* sk = (struct sock*)PT_REGS_PARM1(ctx);
@@ -305,7 +305,7 @@ SEC("kprobe/sock_common_getsockopt")
 int kprobe__sock_common_getsockopt(struct pt_regs* ctx) {
     u64 zero = 0;
     tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);
-    if (status == NULL || status->what != GUESS_SOCKET_SK) {
+    if (status == NULL || status->state.what != GUESS_SOCKET_SK) {
         return 0;
     }
 
@@ -343,7 +343,7 @@ int kretprobe__tcp_v6_connect(struct pt_regs* __attribute__((unused)) ctx) {
     bpf_map_delete_elem(&connectsock_ipv6, &pid);
 
     status = bpf_map_lookup_elem(&tracer_status, &zero);
-    if (status == NULL || is_sk_buff_event(status->what)) {
+    if (status == NULL || is_sk_buff_event(status->state.what)) {
         return 0;
     }
     // We should figure out offsets if they're not already figured out
@@ -363,7 +363,7 @@ int tracepoint__net__net_dev_queue(struct net_dev_queue_ctx* ctx) {
     tracer_status_t* status = bpf_map_lookup_elem(&tracer_status, &zero);
     // If we've triggered the hook and we are not under the context of guess offsets for GUESS_SK_BUFF_SOCK,
     // GUESS_SK_BUFF_TRANSPORT_HEADER, or GUESS_SK_BUFF_HEAD then we should do nothing in the hook.
-    if (status == NULL || !is_sk_buff_event(status->what)) {
+    if (status == NULL || !is_sk_buff_event(status->state.what)) {
         return 0;
     }
 
@@ -374,7 +374,7 @@ int tracepoint__net__net_dev_queue(struct net_dev_queue_ctx* ctx) {
 static __always_inline int guess_conntrack_offsets(conntrack_status_t* status, char* subject) {
     u64 zero = 0;
 
-    if (status->state != STATE_CHECKING) {
+    if (status->state.state != STATE_CHECKING) {
         return 1;
     }
 
@@ -384,19 +384,19 @@ static __always_inline int guess_conntrack_offsets(conntrack_status_t* status, c
     proc_t proc = {};
     bpf_get_current_comm(&proc.comm, sizeof(proc.comm));
 
-    if (!proc_t_comm_equals(status->proc, proc)) {
+    if (!proc_t_comm_equals(status->state.proc, proc)) {
         return 0;
     }
 
     conntrack_status_t new_status = {};
     // Copy values from status to new_status
     bpf_probe_read_kernel(&new_status, sizeof(conntrack_status_t), status);
-    new_status.state = STATE_CHECKED;
-    bpf_probe_read_kernel(&new_status.proc.comm, sizeof(proc.comm), proc.comm);
+    new_status.state.state = STATE_CHECKED;
+    bpf_probe_read_kernel(&new_status.state.proc.comm, sizeof(proc.comm), proc.comm);
 
     possible_net_t* possible_ct_net = NULL;
     u32 possible_netns = 0;
-    switch (status->what) {
+    switch (status->state.what) {
     case GUESS_CT_TUPLE_ORIGIN:
         new_status.offsets.origin = aligned_offset(subject, status->offsets.origin, SIZEOF_CT_TUPLE_ORIGIN);
         bpf_probe_read_kernel(&new_status.values.saddr, sizeof(new_status.values.saddr), subject + new_status.offsets.origin);
@@ -441,7 +441,7 @@ SEC("kprobe/__nf_conntrack_hash_insert")
 int kprobe___nf_conntrack_hash_insert(struct pt_regs* ctx) {
     u64 zero = 0;
     conntrack_status_t* status = bpf_map_lookup_elem(&conntrack_status, &zero);
-    if (status == NULL || !is_ct_event(status->what)) {
+    if (status == NULL || !is_ct_event(status->state.what)) {
         return 0;
     }
 
