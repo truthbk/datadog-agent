@@ -503,14 +503,21 @@ func (t *tracerOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEdito
 }
 
 func (t *tracerOffsetGuesser) getConstantEditors() []manager.ConstantEditor {
-	fl4offsets := t.fields.whatField(GuessSAddrFl4).finished &&
-		t.fields.whatField(GuessDAddrFl4).finished &&
-		t.fields.whatField(GuessSPortFl4).finished &&
-		t.fields.whatField(GuessDPortFl4).finished
-	fl6offsets := t.fields.whatField(GuessSAddrFl6).finished &&
-		t.fields.whatField(GuessDAddrFl6).finished &&
-		t.fields.whatField(GuessSPortFl6).finished &&
-		t.fields.whatField(GuessDPortFl6).finished
+	fieldFinished := func(what GuessWhat) bool {
+		if f := t.fields.whatField(what); f != nil {
+			return f.finished
+		}
+		return false
+	}
+
+	fl4offsets := fieldFinished(GuessSAddrFl4) &&
+		fieldFinished(GuessDAddrFl4) &&
+		fieldFinished(GuessSPortFl4) &&
+		fieldFinished(GuessDPortFl4)
+	fl6offsets := fieldFinished(GuessSAddrFl6) &&
+		fieldFinished(GuessDAddrFl6) &&
+		fieldFinished(GuessSPortFl6) &&
+		fieldFinished(GuessDPortFl6)
 
 	return []manager.ConstantEditor{
 		{Name: "offset_saddr", Value: t.guess.Offsets.Saddr},
