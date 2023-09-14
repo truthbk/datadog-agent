@@ -1,0 +1,1018 @@
+./:
+- docker_build_agent6
+- kitchen_windows_upgrade7_agent-a7
+- kitchen_windows_old_upgrade7_agent-a7
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kernel_matrix_testing_run_tests_x64
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_windows_chef_agent-a7
+- kitchen_windows_ng_installer_npm_driver-a7
+- kitchen_windows_installer_npm_driver-a7
+- kitchen_test_system_probe_linux_arm64
+- single-machine-performance-regression_detector
+- kitchen_ubuntu_step_by_step_agent-a6_arm64
+- kitchen_ubuntu_install_script_agent-a6_arm64
+- kitchen_debian_install_script_agent-a6_arm64
+- kitchen_amazonlinux_install_script_agent-a6_arm64
+- kitchen_amazonlinux_install_script_agent-a7_arm64
+- kitchen_ubuntu_step_by_step_agent-a7_arm64
+- kitchen_ubuntu_install_script_agent-a7_arm64
+- kitchen_debian_install_script_agent-a7_arm64
+- single-machine-performance-regression_detector
+- send_pipeline_stats
+- tests_macos
+- kitchen_amazonlinux_install_script_agent-a7_x64
+- single-machine-performance-regression_detector
+- single-machine-performance-workload-checks
+- send_pipeline_stats
+- go_deps
+- kitchen_test_system_probe_linux_arm64
+- serverless_cold_start_performance-deb_x64
+- send_pipeline_stats
+- single-machine-performance-regression_detector
+.circleci/:
+- single-machine-performance-regression_detector
+.ddqa/:
+- single-machine-performance-regression_detector
+.github/workflows/:
+- send_pipeline_stats
+- send_pipeline_stats
+- single-machine-performance-regression_detector
+.gitlab/:
+- send_pipeline_stats
+- send_pipeline_stats
+- deploy_suse_rpm_testing-a7
+.gitlab/binary_build/:
+- single-machine-performance-regression_detector
+.gitlab/deploy_packages/:
+- kitchen_windows_upgrade7_agent-a7
+- kitchen_windows_old_upgrade7_agent-a7
+- kitchen_ubuntu_step_by_step_agent-a6_arm64
+- kitchen_debian_install_script_agent-a6_arm64
+- kitchen_ubuntu_install_script_agent-a6_arm64
+- kitchen_amazonlinux_install_script_agent-a6_arm64
+- kitchen_ubuntu_step_by_step_agent-a7_arm64
+- kitchen_debian_install_script_agent-a7_arm64
+- kitchen_ubuntu_install_script_agent-a7_arm64
+- kitchen_amazonlinux_install_script_agent-a7_arm64
+.gitlab/functional_test/:
+- single-machine-performance-workload-checks
+- single-machine-performance-regression_detector
+- serverless_cold_start_performance-deb_x64
+- single-machine-performance-regression_detector
+.gitlab/kernel_version_testing/:
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- functional_test_junit_upload_system_probe
+.gitlab/package_build/:
+- send_pipeline_stats
+- agent_dmg-x64-a7
+.gitlab/scripts/:
+- cluster_agent-build_amd64
+- single-machine-performance-regression_detector
+.gitlab/source_test/:
+- tests_macos
+- tests_ebpf_x64
+- single-machine-performance-regression_detector
+Dockerfiles/dogstatsd/alpine/:
+- docker_build_agent6_py2py3_jmx
+- docker_build_agent6
+- docker_build_agent6_jmx
+- docker_build_agent7
+- docker_build_agent7_jmx
+- docker_build_agent7_arm64
+- docker_build_agent7_jmx_arm64
+- docker_build_cluster_agent_amd64
+cmd/serverless-init/:
+- single-machine-performance-regression_detector
+comp/dogstatsd/server/:
+- send_pipeline_stats
+docs/dev/:
+- golang_deps_diff
+internal/tools/:
+- send_pipeline_stats
+omnibus/:
+- tests_macos
+- lint_rpm-x64
+- iot_agent_rpm-x64
+omnibus/config/software/:
+- agent_suse-x64-a6
+- send_pipeline_stats
+- send_pipeline_stats
+- kitchen_debian_install_script_agent-a7_x64
+- single-machine-performance-regression_detector
+omnibus/lib/:
+- send_pipeline_stats
+- single-machine-performance-regression_detector
+pkg/collector/corechecks/cluster/ksm/:
+- single-machine-performance-regression_detector
+- single-machine-performance-regression_detector
+pkg/collector/corechecks/oracle-dbm/:
+- single-machine-performance-regression_detector
+- send_pipeline_stats
+- tests_macos
+- single-machine-performance-regression_detector
+pkg/compliance/:
+- send_pipeline_stats
+- kitchen_test_system_probe_linux_arm64
+pkg/compliance/tests/:
+- single-machine-performance-regression_detector
+pkg/compliance/utils/:
+- send_pipeline_stats
+- single-machine-performance-regression_detector
+- send_pipeline_stats
+pkg/config/:
+- cluster_agent-build_amd64
+- golang_deps_commenter
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- single-machine-performance-regression_detector
+- send_pipeline_stats
+- single-machine-performance-regression_detector
+pkg/config/settings/:
+- single-machine-performance-regression_detector
+pkg/diagnose/:
+- send_pipeline_stats
+pkg/flare/:
+- cluster_agent-build_amd64
+- single-machine-performance-regression_detector
+pkg/gohai/:
+- send_pipeline_stats
+pkg/gohai/processes/:
+- build_system-probe-x64
+- agent_deb-arm64-a7
+- single-machine-performance-regression_detector
+pkg/languagedetection/:
+- tests_macos
+pkg/logs/:
+- single-machine-performance-regression_detector
+pkg/logs/client/http/:
+- send_pipeline_stats
+pkg/logs/client/tcp/:
+- send_pipeline_stats
+pkg/logs/config/:
+- lint_flavor_dogstatsd_deb-x64
+- lint_flavor_heroku_deb-x64
+pkg/logs/internal/decoder/:
+- send_pipeline_stats
+pkg/logs/internal/processor/:
+- send_pipeline_stats
+- single-machine-performance-regression_detector
+pkg/logs/tailers/socket/:
+- cluster_agent-build_amd64
+- send_pipeline_stats
+pkg/metadata/inventories/:
+- docker_build_agent7_jmx
+pkg/metadata/v5/:
+- single-machine-performance-regression_detector
+- send_pipeline_stats
+- go_deps
+pkg/netflow/:
+- tests_windows-x64
+- send_pipeline_stats
+- single-machine-performance-regression_detector
+pkg/netflow/testutil/:
+- single-machine-performance-regression_detector
+pkg/network/:
+- send_pipeline_stats
+pkg/network/ebpf/c/co-re/:
+- single-machine-performance-regression_detector
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_x64_ec2
+pkg/network/ebpf/c/protocols/:
+- functional_test_junit_upload_system_probe
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+pkg/network/ebpf/c/protocols/grpc/:
+- send_pipeline_stats
+- kitchen_test_system_probe_linux_arm64
+pkg/network/ebpf/c/protocols/http/:
+- functional_test_junit_upload_system_probe
+- kitchen_test_system_probe_linux_arm64
+pkg/network/ebpf/c/protocols/tls/:
+- send_pipeline_stats
+pkg/network/ebpf/c/runtime/:
+- send_pipeline_stats
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+pkg/network/encoding/:
+- kitchen_test_system_probe_windows_x64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kernel_matrix_testing_run_tests_arm64
+- lint_flavor_dogstatsd_deb-x64
+- tests_rpm-x64-py3
+- kitchen_test_system_probe_linux_x64_ec2
+- functional_test_junit_upload_system_probe
+- kitchen_test_system_probe_linux_arm64
+- kitchen_centos_fips_install_script_agent-a7
+- single-machine-performance-regression_detector
+pkg/network/protocols/grpc/:
+- send_pipeline_stats
+pkg/network/protocols/http/:
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- functional_test_junit_upload_system_probe
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- functional_test_junit_upload_system_probe
+- functional_test_junit_upload_system_probe
+- kitchen_test_system_probe_linux_arm64
+pkg/network/protocols/http2/:
+- send_pipeline_stats
+- kitchen_test_system_probe_linux_arm64
+- send_pipeline_stats
+- functional_test_junit_upload_system_probe
+pkg/network/protocols/tls/java/:
+- kitchen_test_system_probe_linux_arm64
+- functional_test_junit_upload_system_probe
+pkg/network/telemetry/:
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- single-machine-performance-regression_detector
+pkg/network/tracer/:
+- send_pipeline_stats
+- functional_test_junit_upload_system_probe
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- agent_rpm-x64-a7
+- agent_rpm-x64-a6
+- kitchen_test_system_probe_windows_x64
+- kernel_matrix_testing_run_tests_arm64
+- single-machine-performance-regression_detector
+- single-machine-performance-regression_detector
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_windows_x64
+- lint_flavor_heroku_deb-x64
+- single-machine-performance-regression_detector
+- kitchen_test_system_probe_windows_x64
+- send_pipeline_stats
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_arm64
+- single-machine-performance-regression_detector
+pkg/network/tracer/connection/:
+- kitchen_test_system_probe_linux_arm64
+pkg/network/tracer/connection/kprobe/:
+- kitchen_ubuntu_install_script_agent-a7_x64
+- functional_test_junit_upload_system_probe
+- functional_test_junit_upload_system_probe
+pkg/network/tracer/testutil/grpc/:
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+pkg/network/usm/:
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- single-machine-performance-regression_detector
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_x64_ec2
+- pull_test_dockers_arm64
+- single-machine-performance-regression_detector
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- functional_test_junit_upload_system_probe
+pkg/network/usm/sharedlibraries/:
+- single-machine-performance-regression_detector
+- kitchen_test_system_probe_linux_arm64
+pkg/network/usm/utils/:
+- functional_test_junit_upload_system_probe
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- single-machine-performance-regression_detector
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- single-machine-performance-regression_detector
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- single-machine-performance-regression_detector
+pkg/networkdevice/profile/profiledefinition/:
+- single-machine-performance-regression_detector
+pkg/orchestrator/:
+- lint_windows-x64
+- single-machine-performance-regression_detector
+pkg/otlp/internal/logsagentexporter/:
+- single-machine-performance-regression_detector
+pkg/otlp/testdata/receiver/:
+- single-machine-performance-regression_detector
+pkg/process/checks/:
+- single-machine-performance-regression_detector
+pkg/process/metadata/workloadmeta/collector/:
+- functional_test_junit_upload_system_probe
+- kitchen_test_system_probe_linux_arm64
+pkg/process/monitor/:
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- single-machine-performance-regression_detector
+- single-machine-performance-regression_detector
+pkg/process/net/resolver/:
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- single-machine-performance-regression_detector
+pkg/process/procutil/:
+- send_pipeline_stats
+pkg/process/util/:
+- tests_rpm-x64-py3
+pkg/proto/connectionserver/:
+- agent_dmg-x64-a7
+- send_pipeline_stats
+- tests_macos
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- functional_test_junit_upload_system_probe
+- kernel_matrix_testing_run_tests_x64
+- single-machine-performance-regression_detector
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kernel_matrix_testing_run_tests_arm64
+- kernel_matrix_testing_run_tests_x64
+- kitchen_test_system_probe_linux_arm64
+- lint_rpm-x64
+pkg/proto/pbgo/languagedetection/:
+- tests_rpm-x64-py3
+pkg/remoteconfig/state/:
+- single-machine-performance-regression_detector
+- tests_ebpf_x64
+- tests_ebpf_arm64
+pkg/secrets/:
+- single-machine-performance-regression_detector
+pkg/security/ebpf/:
+- single-machine-performance-regression_detector
+pkg/security/ebpf/c/include/helpers/:
+- single-machine-performance-regression_detector
+pkg/security/ebpf/c/include/hooks/:
+- send_pipeline_stats
+- kitchen_centos_fips_install_script_agent-a7
+- single-machine-performance-regression_detector
+- single-machine-performance-regression_detector
+pkg/security/ebpf/probes/:
+- single-machine-performance-regression_detector
+- functional_test_junit_upload_system_probe
+- single-machine-performance-regression_detector
+pkg/security/module/:
+- send_pipeline_stats
+pkg/security/probe/:
+- kitchen_test_security_agent_x64
+- kitchen_test_security_agent_x64
+- kitchen_test_security_agent_x64
+- kitchen_test_security_agent_x64
+- kitchen_test_security_agent_x64
+- kitchen_centos_fips_install_script_agent-a7
+- kitchen_suse_install_script_agent-a7
+- single-machine-performance-regression_detector
+- kitchen_amazonlinux_install_script_agent-a7_x64
+- kitchen_ubuntu_install_script_agent-a7_x64
+- kitchen_debian_install_script_agent-a7_x64
+pkg/security/probe/constantfetch/:
+- send_pipeline_stats
+- single-machine-performance-regression_detector
+pkg/security/probe/constantfetch/btfhub/:
+- send_pipeline_stats
+- docker_build_agent6
+- single-machine-performance-regression_detector
+pkg/security/proto/api/mocks/:
+- send_pipeline_stats
+pkg/security/resolvers/process/:
+- send_pipeline_stats
+pkg/security/resolvers/sbom/:
+- send_pipeline_stats
+pkg/security/rules/:
+- single-machine-performance-regression_detector
+pkg/security/secl/:
+- send_pipeline_stats
+pkg/security/secl/model/:
+- send_pipeline_stats
+- send_pipeline_stats
+- send_pipeline_stats
+pkg/security/secl/rules/:
+- single-machine-performance-regression_detector
+pkg/security/secl/validators/:
+- lint_windows-x64
+pkg/security/security_profile/activity_tree/:
+- send_pipeline_stats
+- single-machine-performance-regression_detector
+pkg/security/security_profile/dump/:
+- single-machine-performance-workload-checks
+pkg/security/security_profile/profile/:
+- kitchen_test_system_probe_linux_arm64
+pkg/security/tests/:
+- kitchen_centos_fips_install_script_agent-a7
+- serverless_cold_start_performance-deb_x64
+- single-machine-performance-regression_detector
+- kitchen_centos_fips_install_script_agent-a7
+- kitchen_suse_install_script_agent-a7
+- send_pipeline_stats
+- single-machine-performance-regression_detector
+- single-machine-performance-regression_detector
+pkg/security/utils/:
+- single-machine-performance-regression_detector
+- send_pipeline_stats
+- send_pipeline_stats
+pkg/serializer/internal/stream/:
+- single-machine-performance-regression_detector
+- tests_deb-x64-py3
+- lint_rpm-x64
+pkg/serverless/:
+- docker_build_agent6
+- serverless_cold_start_performance-deb_x64
+pkg/serverless/daemon/:
+- lint_rpm-x64
+- lint_flavor_iot_deb-x64
+- tests_macos
+- docker_build_agent6
+pkg/serverless/invocationlifecycle/:
+- security_go_generate_check
+pkg/serverless/logs/:
+- single-machine-performance-regression_detector
+pkg/serverless/metrics/:
+- lint_rpm-x64
+- docker_build_agent7_jmx
+- single-machine-performance-regression_detector
+pkg/serverless/registration/:
+- send_pipeline_stats
+pkg/serverless/tags/:
+- docker_build_agent6
+- single-machine-performance-regression_detector
+- single-machine-performance-regression_detector
+pkg/serverless/trace/:
+- single-machine-performance-regression_detector
+- serverless_cold_start_performance-deb_x64
+pkg/serverless/trace/inferredspan/:
+- single-machine-performance-regression_detector
+pkg/serverless/trigger/:
+- single-machine-performance-regression_detector
+pkg/snmp/traps/:
+- single-machine-performance-regression_detector
+pkg/status/:
+- single-machine-performance-regression_detector
+- tests_flavor_heroku_deb-x64
+- single-machine-performance-regression_detector
+pkg/trace/api/:
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+pkg/trace/remoteconfighandler/:
+- docker_build_agent6_jmx
+pkg/trace/stats/:
+- send_pipeline_stats
+pkg/trace/stats/utils/:
+- send_pipeline_stats
+pkg/util/:
+- single-machine-performance-regression_detector
+pkg/util/cache/:
+- send_pipeline_stats
+pkg/util/cloudproviders/:
+- send_pipeline_stats
+- golang_deps_commenter
+- single-machine-performance-regression_detector
+pkg/util/containers/metrics/kubelet/:
+- single-machine-performance-regression_detector
+pkg/util/ec2/:
+- send_pipeline_stats
+pkg/util/grpc/:
+- kitchen_windows_ng_installer_npm_driver-a7
+- kitchen_windows_installer_npm_driver-a7
+- kitchen_centos_fips_install_script_agent-a7
+- single-machine-performance-regression_detector
+- kitchen_test_system_probe_linux_arm64
+pkg/util/kernel/:
+- kitchen_test_system_probe_linux_arm64
+- agent_deb-arm64-a7
+- agent_deb-x64-a6
+- agent_deb-x64-a7
+- agent_heroku_deb-x64-a6
+- agent_heroku_deb-x64-a7
+- agent_rpm-x64-a6
+- agent_rpm-x64-a7
+- agent_suse-x64-a6
+- agent_suse-x64-a7
+- send_pipeline_stats
+pkg/util/kubernetes/apiserver/:
+- serverless_cold_start_performance-deb_x64
+pkg/util/kubernetes/autoscalers/:
+- single-machine-performance-regression_detector
+pkg/util/kubernetes/kubelet/:
+- kitchen_test_system_probe_linux_arm64
+pkg/util/profiling/:
+- single-machine-performance-regression_detector
+pkg/util/proto/:
+- single-machine-performance-regression_detector
+pkg/util/scrubber/test/:
+- tests_flavor_heroku_deb-x64
+pkg/util/testutil/:
+- single-machine-performance-regression_detector
+pkg/util/trivy/:
+- cluster_agent-build_amd64
+- single-machine-performance-regression_detector
+- send_pipeline_stats
+- security_go_generate_check
+pkg/util/util_sort/:
+- single-machine-performance-regression_detector
+- tests_windows-x64
+- lint_windows-x64
+pkg/util/winutil/messagestrings/:
+- single-machine-performance-regression_detector
+pkg/workloadmeta/:
+- single-machine-performance-regression_detector
+- functional_test_junit_upload_security_agent
+pkg/workloadmeta/collectors/internal/containerd/:
+- go_deps
+pkg/workloadmeta/collectors/process-agent/:
+- single-machine-performance-regression_detector
+releasenotes-dca/notes/:
+- single-machine-performance-regression_detector
+- send_pipeline_stats
+- single-machine-performance-regression_detector
+- single-machine-performance-regression_detector
+releasenotes/notes/:
+- agent_rpm-x64-a6
+- agent_rpm-x64-a7
+- agent_deb-arm64-a7
+- upload_system_probe_tests_x64
+- single-machine-performance-regression_detector
+- build_system-probe-x64
+- send_pipeline_stats
+- send_pipeline_stats
+- single-machine-performance-regression_detector
+- send_pipeline_stats
+- send_pipeline_stats
+- send_pipeline_stats
+- single-machine-performance-regression_detector
+- single-machine-performance-regression_detector
+- single-machine-performance-regression_detector
+- single-machine-performance-regression_detector
+- serverless_cold_start_performance-deb_x64
+- single-machine-performance-regression_detector
+- lint_rpm-x64
+- kitchen_suse_install_script_agent-a7
+- single-machine-performance-regression_detector
+- single-machine-performance-regression_detector
+- single-machine-performance-regression_detector
+- serverless_cold_start_performance-deb_x64
+tasks/:
+- send_pipeline_stats
+- agent_dmg-x64-a7
+- kitchen_test_system_probe_linux_arm64
+- kitchen_centos_fips_install_script_agent-a7
+- kitchen_amazonlinux_install_script_agent-a7_x64
+- kitchen_suse_install_script_agent-a7
+- kitchen_ubuntu_install_script_agent-a7_x64
+- kitchen_debian_install_script_agent-a7_x64
+- k8s-e2e-cws-dev
+- functional_test_junit_upload_security_agent
+- functional_test_junit_upload_system_probe
+- kitchen_test_system_probe_windows_x64
+- kitchen_test_system_probe_linux_arm64
+- send_pipeline_stats
+- functional_test_junit_upload_system_probe
+- single-machine-performance-regression_detector
+- kitchen_windows_chef_agent-a7
+- kitchen_windows_ng_installer_npm_driver-a7
+- kitchen_windows_installer_npm_driver-a7
+- kitchen_centos_fips_install_script_agent-a7
+- kitchen_debian_install_script_agent-a7_x64
+- kitchen_ubuntu_install_script_agent-a7_x64
+- kitchen_amazonlinux_install_script_agent-a7_x64
+- kitchen_suse_install_script_agent-a7
+- agent_suse-x64-a7
+- agent_suse-x64-a6
+- agent_rpm-x64-a7
+- agent_rpm-x64-a6
+- agent_heroku_deb-x64-a7
+- agent_deb-arm64-a7
+- agent_deb-x64-a6
+- agent_deb-x64-a7
+- agent_heroku_deb-x64-a6
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- send_pipeline_stats
+- kitchen_centos_fips_install_script_agent-a7
+- kitchen_amazonlinux_install_script_agent-a7_x64
+- kitchen_suse_install_script_agent-a7
+- kitchen_ubuntu_install_script_agent-a7_x64
+- kitchen_debian_install_script_agent-a7_x64
+- agent_rpm-x64-a7
+- kitchen_test_security_agent_amazonlinux_x64
+- tests_ebpf_x64
+- single-machine-performance-regression_detector
+- kitchen_test_system_probe_linux_arm64
+- functional_test_junit_upload_system_probe
+- kitchen_windows_chef_agent-a7
+- kitchen_windows_ng_installer_npm_driver-a7
+- kitchen_windows_installer_npm_driver-a7
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- send_pipeline_stats
+- docker_build_agent6_py2py3_jmx
+- docker_build_agent7
+- single-machine-performance-regression_detector
+- single-machine-performance-regression_detector
+- agent_rpm-x64-a6
+- kitchen_ubuntu_install_script_agent-a7_x64
+- send_pipeline_stats
+- send_pipeline_stats
+- agent_deb-x64-a7
+- send_pipeline_stats
+- functional_test_junit_upload_system_probe
+- single-machine-performance-regression_detector
+tasks/libs/:
+- send_pipeline_stats
+- single-machine-performance-regression_detector
+tasks/libs/common/:
+- single-machine-performance-regression_detector
+tasks/show_linters_issues/:
+- send_pipeline_stats
+tasks/unit-tests/:
+- send_pipeline_stats
+- functional_test_junit_upload_security_agent
+- functional_test_junit_upload_system_probe
+tasks/unit-tests/testdata/:
+- send_pipeline_stats
+- single-machine-performance-workload-checks
+- kitchen_ubuntu_install_script_agent-a6_arm64
+- kitchen_ubuntu_step_by_step_agent-a6_arm64
+- kitchen_debian_install_script_agent-a6_arm64
+- docker_build_cws_injector_arm64
+- docker_build_cws_injector_amd64
+- single-machine-performance-regression_detector
+test/e2e/containers/otlp_sender/:
+- send_pipeline_stats
+test/e2e/cws-tests/:
+- send_pipeline_stats
+- single-machine-performance-regression_detector
+test/e2e/cws-tests/tests/lib/cws/:
+- single-machine-performance-regression_detector
+test/e2e/scripts/setup-instance/:
+- golang_deps_commenter
+- kitchen_amazonlinux_install_script_agent-a6_arm64
+- kitchen_ubuntu_install_script_agent-a6_arm64
+- kitchen_debian_install_script_agent-a6_arm64
+- kitchen_amazonlinux_install_script_agent-a7_arm64
+- kitchen_ubuntu_install_script_agent-a7_arm64
+- kitchen_debian_install_script_agent-a7_arm64
+- kitchen_suse_upgrade6_agent-a6
+- kitchen_suse_upgrade7_iot_agent-a7
+- kitchen_suse_upgrade6_agent-a7
+- kitchen_suse_upgrade7_agent-a7
+test/fakeintake/client/:
+- send_pipeline_stats
+test/fakeintake/server/:
+- send_pipeline_stats
+- single-machine-performance-regression_detector
+- docker_build_fakeintake
+test/integration/corechecks/docker/:
+- single-machine-performance-regression_detector
+- kernel_matrix_testing_setup_env
+- kernel_matrix_testing_run_tests_arm64
+test/integration/serverless/src/:
+- docker_build_agent6_py2py3_jmx
+- single-machine-performance-regression_detector
+- agent_rpm-x64-a6
+- go_deps
+test/kitchen/:
+- kitchen_ubuntu_install_script_agent-a6_arm64
+- kitchen_amazonlinux_install_script_agent-a6_arm64
+- kitchen_debian_install_script_agent-a6_arm64
+- kitchen_amazonlinux_install_script_agent-a7_arm64
+- kitchen_ubuntu_install_script_agent-a7_arm64
+- kitchen_debian_install_script_agent-a7_arm64
+- single-machine-performance-regression_detector
+test/kitchen/tasks/:
+- kitchen_centos_fips_install_script_agent-a7
+- kitchen_amazonlinux_install_script_agent-a7_x64
+- kitchen_windows_installer_npm_driver-a7
+- kitchen_windows_ng_installer_npm_driver-a7
+- kitchen_windows_chef_agent-a7
+- kitchen_test_system_probe_windows_x64
+- kitchen_suse_install_script_agent-a7
+- kitchen_debian_install_script_agent-a7_x64
+- kitchen_ubuntu_install_script_agent-a7_x64
+- send_pipeline_stats
+test/kitchen/test/integration/common/rspec_datadog/:
+- kitchen_windows_chef_agent-a7
+- kitchen_ubuntu_install_script_agent-a7_x64
+- kitchen_centos_fips_install_script_agent-a7
+- kitchen_debian_install_script_agent-a7_x64
+- kitchen_amazonlinux_install_script_agent-a7_x64
+- kitchen_suse_install_script_agent-a7
+test/kitchen/test/integration/security-agent-test/rspec_datadog/:
+- single-machine-performance-regression_detector
+test/new-e2e/:
+- send_pipeline_stats
+- kitchen_test_system_probe_linux_arm64
+- lint_rpm-x64
+- kitchen_test_system_probe_linux_arm64
+- tests_macos
+- kitchen_windows_installer_agent-a7
+- single-machine-performance-workload-checks
+- docker_build_agent7_jmx
+test/new-e2e/agent-subcommands/:
+- send_pipeline_stats
+- lint_rpm-x64
+- single-machine-performance-regression_detector
+- kitchen_test_system_probe_linux_arm64
+- kernel_matrix_testing_run_tests_x64
+- functional_test_junit_upload_system_probe
+test/new-e2e/languagedetection/:
+- single-machine-performance-regression_detector
+test/new-e2e/pkg/runner/parameters/:
+- tests_ebpf_arm64
+test/new-e2e/pkg/utils/e2e/client/:
+- send_pipeline_stats
+- send_pipeline_stats
+test/new-e2e/system-probe/:
+- kitchen_test_system_probe_linux_arm64
+- single-machine-performance-regression_detector
+- kitchen_test_system_probe_linux_arm64
+test/new-e2e/system-probe/config/:
+- single-machine-performance-regression_detector
+- kitchen_test_system_probe_linux_arm64
+test/new-e2e/system-probe/connector/:
+- functional_test_junit_upload_system_probe
+- single-machine-performance-regression_detector
+- kitchen_test_system_probe_linux_arm64
+- kernel_matrix_testing_run_tests_x64
+- kernel_matrix_testing_run_tests_x64
+- kitchen_test_system_probe_linux_arm64
+test/new-e2e/system-probe/test/:
+- single-machine-performance-regression_detector
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- single-machine-performance-regression_detector
+- kitchen_test_system_probe_linux_arm64
+test/new-e2e/test-infra-definition/:
+- functional_test_junit_upload_system_probe
+- kitchen_test_system_probe_linux_arm64
+test/new-e2e/utils/e2e/:
+- single-machine-performance-regression_detector
+- kitchen_test_system_probe_linux_arm64
+test/new-e2e/utils/e2e/client/:
+- kitchen_test_system_probe_linux_arm64
+- single-machine-performance-regression_detector
+- agent_heroku_deb-x64-a7
+- agent_suse-x64-a7
+- agent_suse-x64-a6
+- agent_rpm-x64-a7
+- agent_rpm-x64-a6
+- agent_heroku_deb-x64-a6
+- agent_deb-arm64-a7
+- agent_deb-x64-a7
+- agent_deb-x64-a6
+test/new-e2e/utils/infra/:
+- kitchen_test_system_probe_linux_arm64
+- functional_test_junit_upload_system_probe
+test/regression/cases/file_tree/:
+- single-machine-performance-regression_detector
+test/regression/cases/file_tree/lading/:
+- cluster_agent-build_amd64
+- send_pipeline_stats
+test/regression/cases/tcp_syslog_to_blackhole/datadog-agent/:
+- send_pipeline_stats
+test/regression/cases/uds_dogstatsd_to_api/:
+- single-machine-performance-regression_detector
+test/regression/cases/uds_dogstatsd_to_api_nodist/lading/:
+- send_pipeline_stats
+test/regression/disable-cases/trace_agent_json/lading/:
+- single-machine-performance-regression_detector
+test/system/dogstatsd/:
+- single-machine-performance-regression_detector
+tools/ebpf/Dockerfiles/:
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_windows_x64
+- functional_test_junit_upload_system_probe
+tools/gdb/:
+- kitchen_windows_installer_agent-a7
+- kitchen_windows_ng_installer_agent-a7
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_ubuntu_upgrade5_agent-a7
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_windows_installer_agent-a6
+- kitchen_windows_ng_installer_agent-a6
+- single-machine-performance-regression_detector
+- kitchen_windows_ng_installer_npm_driver-a7
+- kitchen_test_system_probe_linux_arm64
+- serverless_cold_start_performance-deb_x64
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_x64_ec2
+- tests_deb-x64-py3
+- kitchen_ubuntu_install_script_agent-a6_arm64
+- send_pipeline_stats
+- functional_test_junit_upload_security_agent
+- functional_test_junit_upload_system_probe
+- kitchen_amazonlinux_install_script_agent-a6_arm64
+- kitchen_debian_install_script_agent-a6_arm64
+- kitchen_ubuntu_step_by_step_agent-a6_arm64
+- kitchen_ubuntu_install_script_agent-a7_arm64
+- kitchen_debian_install_script_agent-a7_arm64
+- kitchen_ubuntu_step_by_step_agent-a7_arm64
+- kitchen_amazonlinux_install_script_agent-a7_arm64
+- agent_suse-x64-a7
+- agent_rpm-x64-a7
+- agent_rpm-arm64-a7
+- agent_heroku_deb-x64-a7
+- agent_deb-x64-a7
+- agent_deb-arm64-a7
+tools/windows/DatadogAgentInstaller/CustomActions/:
+- kitchen_windows_ng_installer_npm_install_scenarios-a7
+- kitchen_test_system_probe_linux_x64_ec2
+- kitchen_test_system_probe_linux_arm64
+- single-machine-performance-regression_detector
+- serverless_cold_start_performance-deb_x64
+- kitchen_test_system_probe_linux_arm64
+- kitchen_windows_installer_agent-a7
+tools/windows/DatadogAgentInstaller/WixSetup/Datadog/:
+- kitchen_windows_chef_agent-a7
+- kitchen_windows_ng_installer_npm_driver-a7
+- kitchen_windows_installer_npm_driver-a7
+- kitchen_test_system_probe_linux_arm64
+- single-machine-performance-regression_detector
+- agent_rpm-x64-a7
+- single-machine-performance-regression_detector
+- send_pipeline_stats
+- kitchen_windows_installer_agent-a7

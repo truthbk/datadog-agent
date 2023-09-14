@@ -276,8 +276,36 @@ class GitlabExtender:
         for file in glob.glob(self.gitlab_folder + "/**/*.yml", recursive=True):
             self.parse_file(file)
 
-    def apply_jobs_data(self):
-        pass
+
+    def yaml_applier(self, yaml_content, enabledJobs, parentKey=None):
+        if type(yaml_content) == list:
+            for content in yaml_content:
+                self.yaml_applier(content, enabledJobs)
+        elif type(yaml_content) == dict:
+            if parentKey is not None and parentKey[0] == ".":
+                pass
+            elif yaml_content.get("stage", None) is not None:
+                if parentKey not in enabledJobs:
+                    yaml_content["when"] = "never"
+
+            for key in yaml_content:
+                self.yaml_applier(yaml_content[key], enabledJobs, key)
+    def apply_on_file(self, file_path, enabledJobs):
+        with open(file_path, "r") as f:
+            yaml_content = yaml.load(f.read(), Loader=Loader)
+
+        self.yaml_applier(yaml_content, enabledJobs)
+        output_name = file_path.split("/")
+        if self.gitlab_folder in output_name:
+            output_name.remove(self.gitlab_folder)
+
+        with createAndOpen(f"{self.output_folder}/" + "/".join(output_name), "w") as f:
+            yaml.dump(yaml_content, f, Dumper=Dumper)
+
+    def apply_jobs_data(self, enabledJobs):
+        self.apply_on_file(self.gitlab_ci_file, enabledJobs)
+        for file in glob.glob(self.gitlab_folder + "/**/*.yml", recursive=True):
+            self.apply_on_file(file, enabledJobs)
 
 
 if __name__ == "__main__":
