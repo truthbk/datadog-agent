@@ -35,7 +35,7 @@ const sizeofNfConntrackTuple = 40
 type conntrackOffsetGuesser struct {
 	m            *manager.Manager
 	status       *ConntrackStatus
-	guessFields  guessFields[ConntrackValues, ConntrackOffsets]
+	guesser      *offsetGuesser[ConntrackValues, ConntrackOffsets]
 	tcpv6Enabled uint64
 	udpv6Enabled uint64
 	iterations   uint
@@ -123,57 +123,10 @@ func (c *conntrackOffsetGuesser) checkAndUpdateCurrentOffset(mp *ebpf.Map, expec
 		return fmt.Errorf("error reading conntrack_status: %v", err)
 	}
 
-	if State(c.status.State.State) != StateChecked {
-		if *maxRetries == 0 {
-			return fmt.Errorf("invalid guessing state while guessing %s, got %s expected %s",
-				GuessWhat(c.status.State.What), State(c.status.State.State), StateChecked)
-		}
-		*maxRetries--
-		time.Sleep(10 * time.Millisecond)
-		return nil
-	}
-	c.iterations++
-
-	field := c.guessFields.whatField(GuessWhat(c.status.State.What))
-	if field == nil {
-		return fmt.Errorf("invalid offset guessing field %d", c.status.State.What)
+	if err := c.guesser.iterate(expected, maxRetries); err != nil {
+		return err
 	}
 
-	// check if used offset overlaps. If so, ignore equality because it isn't a valid offset
-	// we check after usage, because the eBPF code can adjust the offset due to alignment rules
-	overlapped := field.jumpPastOverlaps(c.guessFields.subjectFields(field.subject))
-	if overlapped {
-		// skip to checking the newly set offset
-		c.status.State.State = uint64(StateChecking)
-		goto NextCheck
-	}
-
-	if field.equalFunc(field, &c.status.Values, expected) {
-		offset := *field.offsetField
-		field.finished = true
-		next := field.nextFunc(field, &c.guessFields, true)
-		if err := c.guessFields.logAndAdvance(&c.status.State, offset, next); err != nil {
-			return err
-		}
-		goto NextCheck
-	}
-
-	field.incrementFunc(field, &c.status.Offsets, c.status.State.Err != 0)
-	c.status.State.State = uint64(StateChecking)
-
-NextCheck:
-	if *field.offsetField >= field.threshold {
-		if field.optional {
-			next := field.nextFunc(field, &c.guessFields, false)
-			if err := c.guessFields.logAndAdvance(&c.status.State, notApplicable, next); err != nil {
-				return err
-			}
-		} else {
-			return fmt.Errorf("%s overflow: %w", GuessWhat(c.status.State.What), errOffsetOverflow)
-		}
-	}
-
-	c.status.State.Err = 0
 	// update the map with the new offset/field to check
 	if err := mp.Put(unsafe.Pointer(&zero), unsafe.Pointer(c.status)); err != nil {
 		return fmt.Errorf("error updating conntrack_status: %v", err)
@@ -205,6 +158,8 @@ func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEd
 		return c.getConstantEditors(), nil
 	}
 
+	c.guesser = newOffsetGuesser(&c.status.State, &c.status.Values, &c.status.Offsets)
+
 	valuesType := reflect.TypeOf((*ConntrackValues)(nil)).Elem()
 	valueStructField := func(name string) reflect.StructField {
 		f, ok := valuesType.FieldByName(name)
@@ -214,7 +169,7 @@ func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEd
 		return f
 	}
 
-	c.guessFields = []guessField[ConntrackValues, ConntrackOffsets]{
+	c.guesser.fields = []guessField[ConntrackValues, ConntrackOffsets]{
 		{
 			what:        GuessCtTupleOrigin,
 			subject:     StructNFConn,
@@ -245,7 +200,7 @@ func (c *conntrackOffsetGuesser) Guess(cfg *config.Config) ([]manager.ConstantEd
 		},
 	}
 
-	if err := c.guessFields.fixup(cfg.OffsetGuessThreshold); err != nil {
+	if err := c.guesser.fields.fixup(cfg.OffsetGuessThreshold); err != nil {
 		return nil, err
 	}
 

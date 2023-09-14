@@ -119,11 +119,6 @@ typedef struct {
 
 typedef struct {
     guess_state_t state;
-
-    // tcp_info_kprobe_status records if the tcp_info kprobe has been triggered.
-    // 0 - not triggered 1 - triggered
-    __u64 tcp_info_kprobe_status;
-
     tracer_offsets_t offsets;
     tracer_values_t values;
 } tracer_status_t;

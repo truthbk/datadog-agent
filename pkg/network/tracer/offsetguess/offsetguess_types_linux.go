@@ -70,10 +70,9 @@ type TracerValues struct {
 	Pad_cgo_0                [2]byte
 }
 type TracerStatus struct {
-	State              GuessState
-	Info_kprobe_status uint64
-	Offsets            TracerOffsets
-	Values             TracerValues
+	State   GuessState
+	Offsets TracerOffsets
+	Values  TracerValues
 }
 
 type State uint8

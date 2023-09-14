@@ -294,7 +294,6 @@ int kprobe__tcp_getsockopt(struct pt_regs* ctx) {
         return 0;
     }
     struct sock* sk = (struct sock*)PT_REGS_PARM1(ctx);
-    status->tcp_info_kprobe_status = 1;
     guess_offsets(status, (char*)sk);
 
     return 0;
