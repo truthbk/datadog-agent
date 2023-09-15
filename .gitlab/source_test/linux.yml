@@ -49,7 +49,7 @@
     - inv -e rtloader.make --install-prefix=$CI_PROJECT_DIR/dev --python-runtimes "3"
     - inv -e rtloader.install
     - inv -e install-tools
-    - inv -e lint-go --cpus $KUBERNETES_CPU_REQUEST $FLAVORS $EXTRA_OPTS
+    - time inv -e lint-go --cpus $KUBERNETES_CPU_REQUEST $FLAVORS $EXTRA_OPTS
 
 tests_deb-x64-py2:
   extends: .rtloader_tests
