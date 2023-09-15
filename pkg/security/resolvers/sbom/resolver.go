@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -294,11 +293,11 @@ func (r *Resolver) analyzeWorkload(sbom *SBOM) error {
 				fmt.Printf("maybe in mount ns fs !!\n")
 			}
 			containerOSReleasePath := path.Join(scannedPath, "etc/os-release")
-			content, err := ioutil.ReadFile(containerOSReleasePath)
+			content, err := os.ReadFile(containerOSReleasePath)
 			if err != nil {
 				fmt.Printf("failed to read file %s: %s\n", containerOSReleasePath, err)
 			} else {
-				fmt.Printf("Read file %s:\n%s\n", containerOSReleasePath, content)
+				fmt.Printf("Read file %s:\n%s\n", containerOSReleasePath, string(content))
 			}
 			scanned = true
 			break
