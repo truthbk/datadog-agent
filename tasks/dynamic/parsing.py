@@ -302,7 +302,7 @@ class GitlabExtender:
         elif type(yaml_content) == dict:
             if parentKey is not None and parentKey[0] == ".":
                 pass
-            elif yaml_content.get("stage", None) is not None:
+            elif yaml_content.get("stage", None) is not None or yaml_content.get("extends", None) is not None:
                 if parentKey not in enabledJobs:
                     yaml_content["when"] = "never"
 
