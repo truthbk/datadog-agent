@@ -21,7 +21,7 @@ class DepGraph:
     def __init__(self, entrypoint=None):
         self.entrypoint = entrypoint
         if entrypoint is None:
-            self.entrypoint = ".dynamic.yml"
+            self.entrypoint = ".gitlab-source.yml"
         self.stage_list = []
         self.job_tags = {}
         self.init_graph()
