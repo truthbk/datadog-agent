@@ -310,7 +310,6 @@ class GitlabExtender:
                         yaml_content.pop("rules")
                     if not yaml_content.get("stage", False):
                         yaml_content["stage"] = "setup"
-
                     yaml_content["when"] = "never"
                     #yaml_content["rules"] = [{"if":"$BLABLA == null","when":"never"}]
 
