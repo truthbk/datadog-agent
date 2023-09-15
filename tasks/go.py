@@ -53,6 +53,7 @@ def run_golangci_lint(
     tags.extend(UNIT_TEST_TAGS)
 
     _, _, env = get_build_flags(ctx, rtloader_root=rtloader_root)
+    env["GOGC"] = "50"
     verbosity = "-v" if verbose else ""
     # we split targets to avoid going over the memory limit from circleCI
     results = []
