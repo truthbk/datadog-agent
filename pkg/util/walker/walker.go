@@ -1,0 +1,148 @@
+package walker
+
+import (
+	"context"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"sync/atomic"
+
+	"golang.org/x/sync/errgroup"
+)
+
+// Walk wraps WalkWithContext using the background context.
+func Walk(root string, walkFn func(pathname string, fi os.FileInfo) error, opts ...Option) error {
+	return WalkWithContext(context.Background(), root, walkFn, opts...)
+}
+
+// WalkWithContext walks the file tree rooted at root, calling walkFn for each
+// file or directory in the tree, including root.
+//
+// If fastWalk returns filepath.SkipDir, the directory is skipped.
+//
+// Multiple goroutines stat the filesystem concurrently. The provided
+// walkFn must be safe for concurrent use.
+func WalkWithContext(ctx context.Context, root string, walkFn func(pathname string, fi os.FileInfo) error, opts ...Option) error {
+	wg, ctx := errgroup.WithContext(ctx)
+
+	fi, err := os.Lstat(root)
+	if err != nil {
+		return err
+	}
+	if err = walkFn(root, fi); err == filepath.SkipDir {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if fi.Mode()&fs.ModeSymlink != 0 {
+		fi, err = os.Stat(root)
+		if err != nil {
+			return err
+		}
+	}
+	if !fi.IsDir() {
+		return nil
+	}
+
+	cpuLimit := runtime.NumCPU()
+	if cpuLimit < 4 {
+		cpuLimit = 4
+	}
+
+	w := walker{
+		counter: 1,
+		options: walkerOptions{
+			limit: cpuLimit,
+		},
+		ctx: ctx,
+		wg:  wg,
+		fn:  walkFn,
+	}
+
+	for _, o := range opts {
+		err := o(&w.options)
+		if err != nil {
+			return err
+		}
+	}
+
+	w.wg.Go(func() error {
+		return w.gowalk(root)
+	})
+
+	return w.wg.Wait()
+}
+
+type walker struct {
+	counter uint32
+	ctx     context.Context
+	wg      *errgroup.Group
+	fn      func(pathname string, fi os.FileInfo) error
+	options walkerOptions
+}
+
+func (w *walker) walk(dirname string, fi os.FileInfo) error {
+	pathname := dirname + string(filepath.Separator) + fi.Name()
+
+	if strings.HasSuffix(pathname, "os-release") {
+		fmt.Printf("walk found %s\n", pathname)
+	}
+
+	err := w.fn(pathname, fi)
+	if err == filepath.SkipDir {
+		if strings.HasSuffix(pathname, "os-release") {
+			fmt.Printf("dir skipped: %s\n", pathname)
+		}
+		return nil
+	}
+	if err != nil {
+		fmt.Printf("error for: %s : %s\n", pathname, err)
+		return err
+	}
+
+	// don't follow symbolic links
+	if fi.Mode()&os.ModeSymlink != 0 {
+		return nil
+	}
+
+	if !fi.IsDir() {
+		return nil
+	}
+
+	if err = w.ctx.Err(); err != nil {
+		return err
+	}
+
+	current := atomic.LoadUint32(&w.counter)
+
+	// if we haven't reached our goroutine limit, spawn a new one
+	if current < uint32(w.options.limit) {
+		if atomic.CompareAndSwapUint32(&w.counter, current, current+1) {
+			w.wg.Go(func() error {
+				return w.gowalk(pathname)
+			})
+			return nil
+		}
+	}
+
+	// if we've reached our limit, continue with this goroutine
+	err = w.readdir(pathname)
+	if err != nil && w.options.errorCallback != nil {
+		err = w.options.errorCallback(pathname, err)
+	}
+	return err
+}
+
+func (w *walker) gowalk(pathname string) error {
+	err := w.readdir(pathname)
+	if err != nil && w.options.errorCallback != nil {
+		err = w.options.errorCallback(pathname, err)
+	}
+
+	atomic.AddUint32(&w.counter, ^uint32(0))
+	return err
+}
