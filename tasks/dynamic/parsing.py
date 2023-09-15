@@ -336,7 +336,7 @@ class GitlabExtender:
         for file in glob.glob(self.gitlab_folder + "/**/*.yml", recursive=True):
             yaml_content.update(self.apply_on_file(file, enabledJobs))
 
-        with open(f"{self.gitlab_ci_file}", "w") as f:
+        with open(f".dynamic.yml", "w") as f:
             yaml.dump(yaml_content, f, Dumper=Dumper)
 
 
