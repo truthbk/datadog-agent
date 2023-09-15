@@ -18,7 +18,8 @@ var wildcard = netip.Prefix{}
 
 // ConnectionFilter holds a user-defined excluded IP/CIDR, and ports
 type ConnectionFilter struct {
-	IP       netip.Prefix // zero-value matches all IPs
+	IP netip.Prefix // zero-value matches all IPs
+
 	AllPorts ConnTypeFilter
 
 	Ports map[uint16]ConnTypeFilter
@@ -32,6 +33,7 @@ type ConnTypeFilter struct {
 
 // ParseConnectionFilters takes the user defined excludelist and returns a slice of ConnectionFilters
 func ParseConnectionFilters(filters map[string][]string) (excludelist []*ConnectionFilter) {
+	fmt.Println("")
 	for ip, portFilters := range filters {
 		filter := &ConnectionFilter{Ports: map[uint16]ConnTypeFilter{}}
 		var subnet netip.Prefix

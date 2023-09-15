@@ -31,7 +31,8 @@ import (
 )
 
 type Server struct {
-	mu            sync.RWMutex
+	mu sync.RWMutex
+
 	server        http.Server
 	ready         chan bool
 	clock         clock.Clock

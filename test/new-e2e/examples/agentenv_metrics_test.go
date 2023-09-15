@@ -25,6 +25,7 @@ func TestVMSuiteEx5(t *testing.T) {
 }
 
 func (v *vmSuiteEx5) Test1_FakeIntakeReceivesMetrics() {
+
 	t := v.T()
 	err := backoff.Retry(func() error {
 		metricNames, err := v.Env().Fakeintake.GetMetricNames()
