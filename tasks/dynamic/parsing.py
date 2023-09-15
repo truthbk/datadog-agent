@@ -306,6 +306,8 @@ class GitlabExtender:
                 if parentKey not in enabledJobs:
                     if yaml_content.get("extends", False):
                         yaml_content.pop("extends")
+                    if yaml_content.get("rules", False):
+                        yaml_content.pop("rules")
                     if not yaml_content.get("stage", False):
                         yaml_content["stage"] = "setup"
 
