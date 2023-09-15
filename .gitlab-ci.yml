@@ -22,11 +22,9 @@ generate_pipeline:
 
 trigger_pipeline:
   stage: trigger
-  needs:
-    - job: generate_pipeline
-      artifacts: true
   trigger:
     include:
-      - local: .dynamic.yml
+      - artifact: .dynamic.yml
+        job: generate_pipeline
 
 
