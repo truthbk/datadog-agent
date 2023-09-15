@@ -31,7 +31,7 @@ func (w FS) Walk(root string, fn WalkFunc) error {
 	walkFn := func(pathname string, fi os.FileInfo) error {
 		pathname = filepath.Clean(pathname)
 
-		if strings.HasSuffix(pathname, "os-release") {
+		if strings.HasSuffix(pathname, "os-release") || strings.HasSuffix(pathname, "info/base-files.list") {
 			fmt.Printf("trivy walking %s\n", pathname)
 		}
 
@@ -44,19 +44,19 @@ func (w FS) Walk(root string, fn WalkFunc) error {
 
 		if fi.IsDir() {
 			if w.shouldSkipDir(relPath) {
-				if strings.HasSuffix(pathname, "os-release") {
+				if strings.HasSuffix(pathname, "os-release") || strings.HasSuffix(pathname, "info/base-files.list") {
 					fmt.Printf("trivy SkipDir %s (%s)\n", pathname, relPath)
 				}
 				return filepath.SkipDir
 			}
 			return nil
 		} else if !fi.Mode().IsRegular() {
-			if strings.HasSuffix(pathname, "os-release") {
+			if strings.HasSuffix(pathname, "os-release") || strings.HasSuffix(pathname, "info/base-files.list") {
 				fmt.Printf("trivy skipping %s (nonregular)\n", pathname)
 			}
 			return nil
 		} else if w.shouldSkipFile(relPath) {
-			if strings.HasSuffix(pathname, "os-release") {
+			if strings.HasSuffix(pathname, "os-release") || strings.HasSuffix(pathname, "info/base-files.list") {
 				fmt.Printf("trivy shouldSkipFile %s (%s)\n", pathname, relPath)
 			}
 			return nil

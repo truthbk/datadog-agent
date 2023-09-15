@@ -78,7 +78,7 @@ func (w *walker) shouldSkipDir(dir string) bool {
 
 	// Skip system dirs and specified dirs (absolute path)
 	if utils.StringInSlice(dir, w.skipDirs) {
-		if strings.HasSuffix(dir, "os-release") {
+		if strings.HasSuffix(dir, "os-release") || strings.HasSuffix(dir, "info/base-files.list") {
 			fmt.Printf("dir %s in skipDirs\n", dir)
 		}
 		return true
@@ -90,7 +90,7 @@ func (w *walker) shouldSkipDir(dir string) bool {
 				return false
 			}
 		}
-		if strings.HasSuffix(dir, "os-release") {
+		if strings.HasSuffix(dir, "os-release") || strings.HasSuffix(dir, "info/base-files.list") {
 			fmt.Printf("dir %s not in onlyDirs\n", dir)
 		}
 		return true
