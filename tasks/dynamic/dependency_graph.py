@@ -206,7 +206,7 @@ class DepGraph:
         while queue:
             node = queue.pop(0)
             seenmap.append(node.name)
-            if node.data:
+            if node.data and node.name not in nodes:
                 nodes.append(node.name)
             for child in node.children:
                 if child.name not in seenmap:

@@ -297,7 +297,7 @@ class GitlabExtender:
 
     def yaml_applier(self, yaml_content, enabledJobs, parentKey=None):
         if type(yaml_content) == list:
-            for content in yaml_content:
+            for k,content in enumerate(yaml_content):
                 self.yaml_applier(content, enabledJobs)
         elif type(yaml_content) == dict:
             if parentKey is not None and parentKey[0] == ".":
@@ -305,6 +305,7 @@ class GitlabExtender:
             elif yaml_content.get("stage", None) is not None or yaml_content.get("extends", None) is not None:
                 if parentKey not in enabledJobs:
                     yaml_content["when"] = "never"
+                    yaml_content["rules"] = [{"if":"$BLABLA == null","when":"never"}]
 
             for key in yaml_content:
                 self.yaml_applier(yaml_content[key], enabledJobs, key)
