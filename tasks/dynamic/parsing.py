@@ -304,8 +304,13 @@ class GitlabExtender:
                 pass
             elif yaml_content.get("stage", None) is not None or yaml_content.get("extends", None) is not None:
                 if parentKey not in enabledJobs:
+                    if yaml_content.get("extends", False):
+                        yaml_content.pop("extends")
+                    if not yaml_content.get("stage", False):
+                        yaml_content["stage"] = "setup"
+
                     yaml_content["when"] = "never"
-                    yaml_content["rules"] = [{"if":"$BLABLA == null","when":"never"}]
+                    #yaml_content["rules"] = [{"if":"$BLABLA == null","when":"never"}]
 
             for key in yaml_content:
                 self.yaml_applier(yaml_content[key], enabledJobs, key)
