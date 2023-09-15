@@ -385,9 +385,9 @@ func (r *Resolver) queueWorkload(sbom *SBOM) {
 }
 
 // OnWorkloadSelectorResolvedEvent is used to handle the creation of a new cgroup with its resolved tags
-func (r *Resolver) OnWorkloadSelectorResolvedEvent(sbom *cgroupModel.CacheEntry) {
-	seclog.Infof("OnWorkloadSelectorResolvedEvent: %+v", sbom.WorkloadSelector)
-	r.Retain(sbom.ID, sbom)
+func (r *Resolver) OnWorkloadSelectorResolvedEvent(cgroup *cgroupModel.CacheEntry) {
+	seclog.Infof("OnWorkloadSelectorResolvedEvent: %+v", cgroup.WorkloadSelector)
+	r.Retain(cgroup.ID, cgroup)
 }
 
 // Retain increments the reference counter of the SBOM of a sbom
@@ -420,9 +420,9 @@ func (r *Resolver) GetWorkload(id string) *SBOM {
 }
 
 // OnCGroupDeletedEvent is used to handle a CGroupDeleted event
-func (r *Resolver) OnCGroupDeletedEvent(sbom *cgroupModel.CacheEntry) {
-	seclog.Infof("OnCGroupDeletedEvent: %+v", sbom.WorkloadSelector)
-	r.Delete(sbom.ID)
+func (r *Resolver) OnCGroupDeletedEvent(cgroup *cgroupModel.CacheEntry) {
+	seclog.Infof("OnCGroupDeletedEvent: %+v", cgroup.WorkloadSelector)
+	r.Delete(cgroup.ID)
 }
 
 // Delete removes the SBOM of the provided cgroup
