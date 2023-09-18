@@ -558,7 +558,7 @@ func (at *ActivityTree) findBranch(parent ProcessNodeParent, branch []*model.Pro
 			//   parent -> treeNodeToRebase -> [...] -> matchingNode
 			// here is what we want:
 			//   parent -> { result of branch[i+1:].insert(treeNodeToRebase) } -> matchingNode
-			at.rebaseTree(parent, treeNodeToRebaseIndex, parent, branch[i:], generationType, resolvers)
+			at.rebaseTree(parent, treeNodeToRebaseIndex, parent, branch[i:], generationType, resolvers, dryRun)
 
 			return matchingNode, len(branch) - i, true
 
@@ -584,7 +584,7 @@ func (at *ActivityTree) findBranch(parent ProcessNodeParent, branch []*model.Pro
 				//   parent of parent -> treeNodeToRebase -> [...] -> matchingNode
 				// here is what we want:
 				//   parent -> { result of branch[i+1:].insert(treeNodeToRebase) } -> matchingNode
-				at.rebaseTree(parent.GetParent(), treeNodeToRebaseIndex, parent, branch[i:], generationType, resolvers)
+				at.rebaseTree(parent.GetParent(), treeNodeToRebaseIndex, parent, branch[i:], generationType, resolvers, dryRun)
 
 				return matchingNode, len(branch) - i, i < len(branch)-1
 			}
@@ -608,7 +608,7 @@ func (at *ActivityTree) findBranch(parent ProcessNodeParent, branch []*model.Pro
 // rebaseTree rebases the node identified by "nodeIndexToRebase" in the input "tree" onto a newly created branch made of
 // "branchToInsert" and appended to "treeToRebaseOnto". New nodes will be tagged with the input "generationType".
 // This function returns the top level node, owner of the newly inserted branch that lead to the rebased node
-func (at *ActivityTree) rebaseTree(parent ProcessNodeParent, childIndexToRebase int, newParent ProcessNodeParent, branchToInsert []*model.ProcessCacheEntry, generationType NodeGenerationType, resolvers *resolvers.Resolvers) *ProcessNode {
+func (at *ActivityTree) rebaseTree(parent ProcessNodeParent, childIndexToRebase int, newParent ProcessNodeParent, branchToInsert []*model.ProcessCacheEntry, generationType NodeGenerationType, resolvers *resolvers.Resolvers, dryRun bool) *ProcessNode {
 	if len(branchToInsert) > 1 {
 		// We know that the entries in "branch" are all "isExecChild = true" nodes, except the top level entry that might be
 		// a "isExecChild = false" node. Similarly, all the nodes below parent.GetChildren()[childIndexToRebase] must be non
@@ -616,10 +616,10 @@ func (at *ActivityTree) rebaseTree(parent ProcessNodeParent, childIndexToRebase 
 		// = false" node. To be safe, check if the 2 top level nodes match if one of them is an "isExecChild = true" node.
 		childToRebase := (*parent.GetChildren())[childIndexToRebase]
 		if topLevelNode := branchToInsert[len(branchToInsert)-1]; !topLevelNode.IsExecChild || !childToRebase.Process.IsExecChild {
-			if childToRebase.Matches(&topLevelNode.Process, at.differentiateArgs) {
+			if childToRebase.Matches(&topLevelNode.Process, at.differentiateArgs, !dryRun) {
 				// ChildNodeToRebase and topLevelNode match and need to be merged, rebase the one in the profile, and insert
 				// the remaining nodes of the branch on top of it
-				newRebasedChild := at.rebaseTree(parent, childIndexToRebase, newParent, nil, generationType, resolvers)
+				newRebasedChild := at.rebaseTree(parent, childIndexToRebase, newParent, nil, generationType, resolvers, dryRun)
 				output, _, _ := at.insertBranch(newRebasedChild, branchToInsert[:len(branchToInsert)-1], generationType, false, resolvers)
 
 				if output == nil {
