@@ -17,7 +17,7 @@ systemctl start docker
 ## Load docker images
 [ -d $KITCHEN_DOCKERS ] && find $KITCHEN_DOCKERS -maxdepth 1 -type f > /kitchen-dockers.txt
 while read p; do
-    docker load "$p" &
+    docker load -i "$p" &
 done < /kitchen-dockers.txt
 wait
 
