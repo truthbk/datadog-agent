@@ -11,12 +11,13 @@
 package probe
 
 import (
+	"github.com/mailru/easyjson"
+
 	"github.com/DataDog/datadog-agent/pkg/security/events"
 	"github.com/DataDog/datadog-agent/pkg/security/resolvers/dentry"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/model"
 	"github.com/DataDog/datadog-agent/pkg/security/secl/rules"
 	"github.com/DataDog/datadog-agent/pkg/security/serializers"
-	easyjson "github.com/mailru/easyjson"
 )
 
 // EventLostRead is the event used to report lost events detected from user space
@@ -75,10 +76,10 @@ type AbnormalEvent struct {
 }
 
 // NewAbnormalEvent returns the rule and a populated custom event for a abnormal event
-func NewAbnormalEvent(id string, description string, event *model.Event, probe *Probe, err error) (*rules.Rule, *events.CustomEvent) {
+func NewAbnormalEvent[T any](id string, description string, event *model.Event, p *Probe[T], err error) (*rules.Rule, *events.CustomEvent) {
 	marshalerCtor := func() easyjson.Marshaler {
 		evt := AbnormalEvent{
-			Event: serializers.NewEventSerializer(event, probe.resolvers),
+			Event: serializers.NewEventSerializer(event, p.resolvers),
 			Error: err.Error(),
 		}
 		evt.FillCustomEventCommonFields()

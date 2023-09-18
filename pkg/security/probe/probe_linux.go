@@ -115,7 +115,7 @@ type PlatformProbe struct {
 	useFentry bool
 }
 
-func (p *Probe) detectKernelVersion() error {
+func (p *Probe[T]) detectKernelVersion() error {
 	kernelVersion, err := kernel.NewKernelVersion()
 	if err != nil {
 		return fmt.Errorf("unable to detect the kernel version: %w", err)
@@ -125,7 +125,7 @@ func (p *Probe) detectKernelVersion() error {
 }
 
 // GetKernelVersion computes and returns the running kernel version
-func (p *Probe) GetKernelVersion() (*kernel.Version, error) {
+func (p *Probe[T]) GetKernelVersion() (*kernel.Version, error) {
 	if err := p.detectKernelVersion(); err != nil {
 		return nil, err
 	}
@@ -133,11 +133,11 @@ func (p *Probe) GetKernelVersion() (*kernel.Version, error) {
 }
 
 // UseRingBuffers returns true if eBPF ring buffers are supported and used
-func (p *Probe) UseRingBuffers() bool {
+func (p *Probe[T]) UseRingBuffers() bool {
 	return p.kernelVersion.HaveRingBuffers() && p.Config.Probe.EventStreamUseRingBuffer
 }
 
-func (p *Probe) sanityChecks() error {
+func (p *Probe[T]) sanityChecks() error {
 	// make sure debugfs is mounted
 	if _, err := tracefs.Root(); err != nil {
 		return err
@@ -156,7 +156,7 @@ func (p *Probe) sanityChecks() error {
 }
 
 // VerifyOSVersion returns an error if the current kernel version is not supported
-func (p *Probe) VerifyOSVersion() error {
+func (p *Probe[T]) VerifyOSVersion() error {
 	if !p.kernelVersion.IsRH7Kernel() && !p.kernelVersion.IsRH8Kernel() && p.kernelVersion.Code < kernel.Kernel4_15 {
 		return fmt.Errorf("the following kernel is not supported: %s", p.kernelVersion)
 	}
@@ -164,7 +164,7 @@ func (p *Probe) VerifyOSVersion() error {
 }
 
 // VerifyEnvironment returns an error if the current environment seems to be misconfigured
-func (p *Probe) VerifyEnvironment() *multierror.Error {
+func (p *Probe[T]) VerifyEnvironment() *multierror.Error {
 	var err *multierror.Error
 	if aconfig.IsContainerized() {
 		if mounted, _ := mountinfo.Mounted("/etc/passwd"); !mounted {
@@ -216,7 +216,7 @@ func (p *Probe) VerifyEnvironment() *multierror.Error {
 }
 
 // Init initializes the probe
-func (p *Probe) Init() error {
+func (p *Probe[T]) Init() error {
 	p.startTime = time.Now()
 
 	useSyscallWrapper, err := ebpf.IsSyscallWrapperRequired()
@@ -275,12 +275,12 @@ func (p *Probe) Init() error {
 }
 
 // IsRuntimeCompiled returns true if the eBPF programs where successfully runtime compiled
-func (p *Probe) IsRuntimeCompiled() bool {
+func (p *Probe[T]) IsRuntimeCompiled() bool {
 	return p.runtimeCompiled
 }
 
 // Setup the runtime security probe
-func (p *Probe) Setup() error {
+func (p *Probe[T]) Setup() error {
 	if err := p.Manager.Start(); err != nil {
 		return err
 	}
@@ -298,14 +298,14 @@ func (p *Probe) Setup() error {
 }
 
 // Start plays the snapshot data and then start the event stream
-func (p *Probe) Start() error {
+func (p *Probe[T]) Start() error {
 	// Apply rules to the snapshotted data before starting the event stream to avoid concurrency issues
 	p.PlaySnapshot()
 	return p.eventStream.Start(&p.wg)
 }
 
 // PlaySnapshot plays a snapshot
-func (p *Probe) PlaySnapshot() {
+func (p *Probe[T]) PlaySnapshot() {
 	// Get the snapshotted data
 	var events []*model.Event
 
@@ -335,7 +335,7 @@ func (p *Probe) PlaySnapshot() {
 	}
 }
 
-func (p *Probe) sendAnomalyDetection(event *model.Event) {
+func (p *Probe[T]) sendAnomalyDetection(event *model.Event) {
 	tags := p.GetEventTags(event.ContainerContext.ID)
 	if service := p.GetService(event); service != "" {
 		tags = append(tags, "service:"+service)
@@ -348,12 +348,12 @@ func (p *Probe) sendAnomalyDetection(event *model.Event) {
 }
 
 // AddActivityDumpHandler set the probe activity dump handler
-func (p *Probe) AddActivityDumpHandler(handler dump.ActivityDumpHandler) {
+func (p *Probe[T]) AddActivityDumpHandler(handler dump.ActivityDumpHandler) {
 	p.activityDumpHandler = handler
 }
 
 // DispatchEvent sends an event to the probe event handler
-func (p *Probe) DispatchEvent(event *model.Event) {
+func (p *Probe[T]) DispatchEvent(event *model.Event) {
 	traceEvent("Dispatching event %s", func() ([]byte, model.EventType, error) {
 		eventJSON, err := serializers.MarshalEvent(event, p.resolvers)
 		return eventJSON, event.GetEventType(), err
@@ -385,20 +385,20 @@ func (p *Probe) DispatchEvent(event *model.Event) {
 	p.monitor.ProcessEvent(event)
 }
 
-func (p *Probe) sendEventToWildcardHandlers(event *model.Event) {
+func (p *Probe[T]) sendEventToWildcardHandlers(event *model.Event) {
 	for _, handler := range p.fullAccessEventHandlers[model.UnknownEventType] {
 		handler.HandleEvent(event)
 	}
 }
 
-func (p *Probe) sendEventToSpecificEventTypeHandlers(event *model.Event) {
+func (p *Probe[T]) sendEventToSpecificEventTypeHandlers(event *model.Event) {
 	for _, handler := range p.eventHandlers[event.GetEventType()] {
 		handler.HandleEvent(handler.Copy(event))
 	}
 }
 
 // DispatchCustomEvent sends a custom event to the probe event handler
-func (p *Probe) DispatchCustomEvent(rule *rules.Rule, event *events.CustomEvent) {
+func (p *Probe[T]) DispatchCustomEvent(rule *rules.Rule, event *events.CustomEvent) {
 	traceEvent("Dispatching custom event %s", func() ([]byte, model.EventType, error) {
 		eventJSON, err := serializers.MarshalCustomEvent(event)
 		return eventJSON, event.GetEventType(), err
@@ -433,7 +433,7 @@ func traceEvent(fmt string, marshaller func() ([]byte, model.EventType, error)) 
 }
 
 // SendStats sends statistics about the probe to Datadog
-func (p *Probe) SendStats() error {
+func (p *Probe[T]) SendStats() error {
 	p.resolvers.TCResolver.SendTCProgramsStats(p.StatsdClient)
 
 	if err := p.profileManagers.SendStats(); err != nil {
@@ -444,18 +444,18 @@ func (p *Probe) SendStats() error {
 }
 
 // GetMonitor returns the monitor of the probe
-func (p *Probe) GetMonitor() *Monitor {
+func (p *Probe[T]) GetMonitor() *Monitor {
 	return p.monitor
 }
 
 // EventMarshallerCtor returns the event marshaller ctor
-func (p *Probe) EventMarshallerCtor(event *model.Event) func() easyjson.Marshaler {
+func (p *Probe[T]) EventMarshallerCtor(event *model.Event) func() easyjson.Marshaler {
 	return func() easyjson.Marshaler {
 		return serializers.NewEventSerializer(event, p.resolvers)
 	}
 }
 
-func (p *Probe) unmarshalContexts(data []byte, event *model.Event) (int, error) {
+func (p *Probe[T]) unmarshalContexts(data []byte, event *model.Event) (int, error) {
 	read, err := model.UnmarshalBinary(data, &event.PIDContext, &event.SpanContext, event.ContainerContext)
 	if err != nil {
 		return 0, err
@@ -469,7 +469,7 @@ func eventWithNoProcessContext(eventType model.EventType) bool {
 }
 
 // UnmarshalProcessCacheEntry unmarshal a Process
-func (p *Probe) UnmarshalProcessCacheEntry(ev *model.Event, data []byte) (int, error) {
+func (p *Probe[T]) UnmarshalProcessCacheEntry(ev *model.Event, data []byte) (int, error) {
 	entry := p.resolvers.ProcessResolver.NewProcessCacheEntry(ev.PIDContext)
 	ev.ProcessCacheEntry = entry
 
@@ -482,7 +482,7 @@ func (p *Probe) UnmarshalProcessCacheEntry(ev *model.Event, data []byte) (int, e
 	return n, nil
 }
 
-func (p *Probe) onEventLost(perfMapName string, perEvent map[string]uint64) {
+func (p *Probe[T]) onEventLost(perfMapName string, perEvent map[string]uint64) {
 	p.DispatchCustomEvent(
 		NewEventLostWriteEvent(perfMapName, perEvent),
 	)
@@ -493,7 +493,7 @@ func (p *Probe) onEventLost(perfMapName string, perEvent map[string]uint64) {
 	}
 }
 
-func (p *Probe) handleEvent(CPU int, data []byte) {
+func (p *Probe[T]) handleEvent(CPU int, data []byte) {
 	offset := 0
 	event := p.zeroEvent()
 
@@ -898,7 +898,7 @@ func (p *Probe) handleEvent(CPU int, data []byte) {
 }
 
 // AddNewNotifyDiscarderPushedCallback add a callback to the list of func that have to be called when a discarder is pushed to kernel
-func (p *Probe) AddNewNotifyDiscarderPushedCallback(cb NotifyDiscarderPushedCallback) {
+func (p *Probe[T]) AddNewNotifyDiscarderPushedCallback(cb NotifyDiscarderPushedCallback) {
 	p.notifyDiscarderPushedCallbacksLock.Lock()
 	defer p.notifyDiscarderPushedCallbacksLock.Unlock()
 
@@ -906,7 +906,7 @@ func (p *Probe) AddNewNotifyDiscarderPushedCallback(cb NotifyDiscarderPushedCall
 }
 
 // OnNewDiscarder is called when a new discarder is found
-func (p *Probe) OnNewDiscarder(rs *rules.RuleSet, ev *model.Event, field eval.Field, eventType eval.EventType) {
+func (p *Probe[T]) OnNewDiscarder(rs *rules.RuleSet, ev *model.Event, field eval.Field, eventType eval.EventType) {
 	// discarders disabled
 	if !p.Config.Probe.EnableDiscarders {
 		return
@@ -937,7 +937,7 @@ func (p *Probe) OnNewDiscarder(rs *rules.RuleSet, ev *model.Event, field eval.Fi
 }
 
 // ApplyFilterPolicy is called when a passing policy for an event type is applied
-func (p *Probe) ApplyFilterPolicy(eventType eval.EventType, mode kfilters.PolicyMode, flags kfilters.PolicyFlag) error {
+func (p *Probe[T]) ApplyFilterPolicy(eventType eval.EventType, mode kfilters.PolicyMode, flags kfilters.PolicyFlag) error {
 	seclog.Infof("Setting in-kernel filter policy to `%s` for `%s`", mode, eventType)
 	table, err := managerhelper.Map(p.Manager, "filter_policy")
 	if err != nil {
@@ -958,7 +958,7 @@ func (p *Probe) ApplyFilterPolicy(eventType eval.EventType, mode kfilters.Policy
 }
 
 // SetApprovers applies approvers and removes the unused ones
-func (p *Probe) SetApprovers(eventType eval.EventType, approvers rules.Approvers) error {
+func (p *Probe[T]) SetApprovers(eventType eval.EventType, approvers rules.Approvers) error {
 	handler, exists := kfilters.AllApproversHandlers[eventType]
 	if !exists {
 		return nil
@@ -1026,7 +1026,7 @@ func getApproverType(approverTableName string) string {
 	return approverType
 }
 
-func (p *Probe) isNeededForActivityDump(eventType eval.EventType) bool {
+func (p *Probe[T]) isNeededForActivityDump(eventType eval.EventType) bool {
 	if p.Config.RuntimeSecurity.ActivityDumpEnabled {
 		for _, e := range p.profileManagers.GetActivityDumpTracedEventTypes() {
 			if e.String() == eventType {
@@ -1037,7 +1037,7 @@ func (p *Probe) isNeededForActivityDump(eventType eval.EventType) bool {
 	return false
 }
 
-func (p *Probe) isNeededForSecurityProfile(eventType eval.EventType) bool {
+func (p *Probe[T]) isNeededForSecurityProfile(eventType eval.EventType) bool {
 	if p.Config.RuntimeSecurity.SecurityProfileEnabled {
 		for _, e := range p.Config.RuntimeSecurity.AnomalyDetectionEventTypes {
 			if e.String() == eventType {
@@ -1048,7 +1048,7 @@ func (p *Probe) isNeededForSecurityProfile(eventType eval.EventType) bool {
 	return false
 }
 
-func (p *Probe) validEventTypeForConfig(eventType string) bool {
+func (p *Probe[T]) validEventTypeForConfig(eventType string) bool {
 	if eventType == "dns" && !p.Config.Probe.NetworkEnabled {
 		return false
 	}
@@ -1057,7 +1057,7 @@ func (p *Probe) validEventTypeForConfig(eventType string) bool {
 
 // updateProbes applies the loaded set of rules and returns a report
 // of the applied approvers for it.
-func (p *Probe) updateProbes(ruleEventTypes []eval.EventType, useSnapshotProbes bool) error {
+func (p *Probe[T]) updateProbes(ruleEventTypes []eval.EventType, useSnapshotProbes bool) error {
 	// event types enabled either by event handlers or by rules
 	eventTypes := append([]eval.EventType{}, defaultEventTypes...)
 	eventTypes = append(eventTypes, ruleEventTypes...)
@@ -1139,7 +1139,7 @@ func (p *Probe) updateProbes(ruleEventTypes []eval.EventType, useSnapshotProbes 
 }
 
 // GetDiscarders retrieve the discarders
-func (p *Probe) GetDiscarders() (*DiscardersDump, error) {
+func (p *Probe[T]) GetDiscarders() (*DiscardersDump, error) {
 	inodeMap, err := managerhelper.Map(p.Manager, "inode_discarders")
 	if err != nil {
 		return nil, err
@@ -1168,7 +1168,7 @@ func (p *Probe) GetDiscarders() (*DiscardersDump, error) {
 }
 
 // DumpDiscarders removes all the discarders
-func (p *Probe) DumpDiscarders() (string, error) {
+func (p *Probe[T]) DumpDiscarders() (string, error) {
 	seclog.Debugf("Dumping discarders")
 
 	dump, err := p.GetDiscarders()
@@ -1200,24 +1200,24 @@ func (p *Probe) DumpDiscarders() (string, error) {
 }
 
 // FlushDiscarders invalidates all the discarders
-func (p *Probe) FlushDiscarders() error {
+func (p *Probe[T]) FlushDiscarders() error {
 	seclog.Debugf("Flushing discarders")
 	return bumpDiscardersRevision(p.Erpc)
 }
 
 // Snapshot runs the different snapshot functions of the resolvers that
 // require to sync with the current state of the system
-func (p *Probe) Snapshot() error {
+func (p *Probe[T]) Snapshot() error {
 	return p.resolvers.Snapshot()
 }
 
 // Stop the probe
-func (p *Probe) Stop() {
+func (p *Probe[T]) Stop() {
 	_ = p.Manager.StopReaders(manager.CleanAll)
 }
 
 // Close the probe
-func (p *Probe) Close() error {
+func (p *Probe[T]) Close() error {
 	// Cancelling the context will stop the reorderer = we won't dequeue events anymore and new events from the
 	// perf map reader are ignored
 	p.cancelFnc()
@@ -1236,7 +1236,7 @@ func (p *Probe) Close() error {
 }
 
 // GetDebugStats returns the debug stats
-func (p *Probe) GetDebugStats() map[string]interface{} {
+func (p *Probe[T]) GetDebugStats() map[string]interface{} {
 	debug := map[string]interface{}{
 		"start_time": p.startTime.String(),
 	}
@@ -1254,7 +1254,7 @@ func (err QueuedNetworkDeviceError) Error() string {
 	return err.msg
 }
 
-func (p *Probe) setupNewTCClassifier(device model.NetDevice) error {
+func (p *Probe[T]) setupNewTCClassifier(device model.NetDevice) error {
 	// select netns handle
 	var handle *os.File
 	var err error
@@ -1284,14 +1284,14 @@ func (p *Probe) setupNewTCClassifier(device model.NetDevice) error {
 
 // FlushNetworkNamespace removes all references and stops all TC programs in the provided network namespace. This method
 // flushes the network namespace in the network namespace resolver as well.
-func (p *Probe) FlushNetworkNamespace(namespace *netns.NetworkNamespace) {
+func (p *Probe[T]) FlushNetworkNamespace(namespace *netns.NetworkNamespace) {
 	p.resolvers.NamespaceResolver.FlushNetworkNamespace(namespace)
 
 	// cleanup internal structures
 	p.resolvers.TCResolver.FlushNetworkNamespaceID(namespace.ID(), p.Manager)
 }
 
-func (p *Probe) handleNewMount(ev *model.Event, m *model.Mount) error {
+func (p *Probe[T]) handleNewMount(ev *model.Event, m *model.Mount) error {
 	// There could be entries of a previous mount_id in the cache for instance,
 	// runc does the following : it bind mounts itself (using /proc/exe/self),
 	// opens a file descriptor on the new file with O_CLOEXEC then umount the bind mount using
@@ -1320,7 +1320,7 @@ func (p *Probe) handleNewMount(ev *model.Event, m *model.Mount) error {
 	return nil
 }
 
-func (p *Probe) applyDefaultFilterPolicies() {
+func (p *Probe[T]) applyDefaultFilterPolicies() {
 	if !p.Config.Probe.EnableKernelFilters {
 		seclog.Warnf("Forcing in-kernel filter policy to `pass`: filtering not enabled")
 	}
@@ -1343,7 +1343,7 @@ func (p *Probe) applyDefaultFilterPolicies() {
 }
 
 // ApplyRuleSet setup the probes for the provided set of rules and returns the policy report.
-func (p *Probe) ApplyRuleSet(rs *rules.RuleSet) (*kfilters.ApplyRuleSetReport, error) {
+func (p *Probe[T]) ApplyRuleSet(rs *rules.RuleSet) (*kfilters.ApplyRuleSetReport, error) {
 	ars, err := kfilters.NewApplyRuleSetReport(p.Config.Probe, rs)
 	if err != nil {
 		return nil, err
@@ -1643,11 +1643,11 @@ func NewProbe(config *config.Config, opts Opts) (*Probe, error) {
 }
 
 // GetProfileManagers returns the security profile managers
-func (p *Probe) GetProfileManagers() *SecurityProfileManagers {
+func (p *Probe[T]) GetProfileManagers() *SecurityProfileManagers {
 	return p.profileManagers
 }
 
-func (p *Probe) ensureConfigDefaults() {
+func (p *Probe[T]) ensureConfigDefaults() {
 	// enable runtime compiled constants on COS by default
 	if !p.Config.Probe.RuntimeCompiledConstantsIsSet && p.kernelVersion.IsCOSKernel() {
 		p.Config.Probe.RuntimeCompiledConstantsEnabled = true
@@ -1744,7 +1744,7 @@ func getCGroupWriteConstants() manager.ConstantEditor {
 }
 
 // GetOffsetConstants returns the offsets and struct sizes constants
-func (p *Probe) GetOffsetConstants() (map[string]uint64, error) {
+func (p *Probe[T]) GetOffsetConstants() (map[string]uint64, error) {
 	constantFetcher := constantfetch.ComposeConstantFetchers(constantfetch.GetAvailableConstantFetchers(p.Config.Probe, p.kernelVersion, p.StatsdClient))
 	kv, err := p.GetKernelVersion()
 	if err != nil {
@@ -1755,7 +1755,7 @@ func (p *Probe) GetOffsetConstants() (map[string]uint64, error) {
 }
 
 // GetConstantFetcherStatus returns the status of the constant fetcher associated with this probe
-func (p *Probe) GetConstantFetcherStatus() (*constantfetch.ConstantFetcherStatus, error) {
+func (p *Probe[T]) GetConstantFetcherStatus() (*constantfetch.ConstantFetcherStatus, error) {
 	constantFetcher := constantfetch.ComposeConstantFetchers(constantfetch.GetAvailableConstantFetchers(p.Config.Probe, p.kernelVersion, p.StatsdClient))
 	kv, err := p.GetKernelVersion()
 	if err != nil {

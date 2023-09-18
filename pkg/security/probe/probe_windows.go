@@ -33,7 +33,7 @@ type PlatformProbe struct {
 }
 
 // Init initializes the probe
-func (p *Probe) Init() error {
+func (p *Probe[T]) Init() error {
 	p.startTime = time.Now()
 
 	pm, err := procmon.NewWinProcMon(p.onStart, p.onStop)
@@ -46,15 +46,15 @@ func (p *Probe) Init() error {
 }
 
 // Setup the runtime security probe
-func (p *Probe) Setup() error {
+func (p *Probe[T]) Setup() error {
 	return nil
 }
 
 // Stop the probe
-func (p *Probe) Stop() {}
+func (p *Probe[T]) Stop() {}
 
 // Start processing events
-func (p *Probe) Start() error {
+func (p *Probe[T]) Start() error {
 	log.Infof("Windows probe started")
 	p.wg.Add(1)
 	go func() {
@@ -129,13 +129,13 @@ func (p *Probe[T]) sendEventToSpecificEventTypeHandlers(event *model.Event) {
 
 // Snapshot runs the different snapshot functions of the resolvers that
 // require to sync with the current state of the system
-func (p *Probe) Snapshot() error {
+func (p *Probe[T]) Snapshot() error {
 	//return p.resolvers.Snapshot()
 	return nil
 }
 
 // Close the probe
-func (p *Probe) Close() error {
+func (p *Probe[T]) Close() error {
 	p.pm.Stop()
 	p.cancelFnc()
 	p.wg.Wait()
@@ -143,7 +143,7 @@ func (p *Probe) Close() error {
 }
 
 // SendStats sends statistics about the probe to Datadog
-func (p *Probe) SendStats() error {
+func (p *Probe[T]) SendStats() error {
 	//p.resolvers.TCResolver.SendTCProgramsStats(p.StatsdClient)
 	//
 	//return p.monitor.SendStats()
@@ -151,7 +151,7 @@ func (p *Probe) SendStats() error {
 }
 
 // GetDebugStats returns the debug stats
-func (p *Probe) GetDebugStats() map[string]interface{} {
+func (p *Probe[T]) GetDebugStats() map[string]interface{} {
 	debug := map[string]interface{}{
 		"start_time": p.startTime.String(),
 	}
@@ -197,14 +197,14 @@ func NewProbe(config *config.Config, opts Opts) (*Probe, error) {
 }
 
 // Does nothing if on windows
-func (p *Probe) PlaySnapshot() {
+func (p *Probe[T]) PlaySnapshot() {
 }
 
 // OnNewDiscarder is called when a new discarder is found. We currently don't generate discarders on Windows.
-func (p *Probe) OnNewDiscarder(rs *rules.RuleSet, ev *model.Event, field eval.Field, eventType eval.EventType) {
+func (p *Probe[T]) OnNewDiscarder(rs *rules.RuleSet, ev *model.Event, field eval.Field, eventType eval.EventType) {
 }
 
 // ApplyRuleSet setup the probes for the provided set of rules and returns the policy report.
-func (p *Probe) ApplyRuleSet(rs *rules.RuleSet) (*kfilters.ApplyRuleSetReport, error) {
+func (p *Probe[T]) ApplyRuleSet(rs *rules.RuleSet) (*kfilters.ApplyRuleSetReport, error) {
 	return kfilters.NewApplyRuleSetReport(p.Config.Probe, rs)
 }
