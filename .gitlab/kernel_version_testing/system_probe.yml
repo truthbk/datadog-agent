@@ -326,27 +326,53 @@ kernel_matrix_testing_setup_env:
     - scp -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP:/home/ubuntu/junit.tar.gz $DD_AGENT_TESTING_DIR/
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "ssh -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP} '/test-json-review'"
 
-kernel_matrix_testing_run_tests_x64:
+kmt_run_tests_no_tracer_x64:
   extends:
     - .kernel_matrix_testing_run_tests
   needs: ["kernel_matrix_testing_setup_env", "upload_dependencies_x64", "upload_system_probe_tests_x64", "upload_minimized_btfs_x64"]
   timeout: 3h
   variables:
     ARCH: "x86_64"
+    RUNNER_CMD: "-exclude-packages pkg/network/tracer"
   parallel:
     matrix:
-      - TAG: ["bionic", "focal", "jammy", "amzn_4.14", "amzn_5.4", "amzn_5.10", "fedora_35", "fedora_36", "fedora_37", "fedora_38"]
+      - TAG: ["bionic", "focal", "jammy", "amzn_4.14", "amzn_5.4", "amzn_5.10", "fedora_36", "fedora_37", "fedora_38"]
 
-kernel_matrix_testing_run_tests_arm64:
+kmt_run_tests_no_tracer_arm64:
   extends:
     - .kernel_matrix_testing_run_tests
   needs: ["kernel_matrix_testing_setup_env", "upload_dependencies_arm64", "upload_system_probe_tests_arm64", "upload_minimized_btfs_arm64"]
   timeout: 3h
   variables:
     ARCH: "arm64"
+    RUNNER_CMD: "-exclude-packages pkg/network/tracer"
   parallel:
     matrix:
-      - TAG: ["focal", "jammy", "amzn_4.14", "amzn_5.4", "amzn_5.10", "fedora_35", "fedora_36", "fedora_37", "fedora_38"]
+      - TAG: ["focal", "jammy", "amzn_4.14", "amzn_5.4", "amzn_5.10", "fedora_36", "fedora_37", "fedora_38"]
+
+kmt_run_tests_tracer_only_x64:
+  extends:
+    - .kernel_matrix_testing_run_tests
+  needs: ["kernel_matrix_testing_setup_env", "upload_dependencies_x64", "upload_system_probe_tests_x64", "upload_minimized_btfs_x64"]
+  timeout: 3h
+  variables:
+    ARCH: "x86_64"
+    RUNNER_CMD: "-include-packages pkg/network/tracer"
+  parallel:
+    matrix:
+      - TAG: ["bionic", "focal", "jammy", "amzn_4.14", "amzn_5.4", "amzn_5.10", "fedora_36", "fedora_37", "fedora_38"]
+
+kmt_run_tests_tracer_only_arm64:
+  extends:
+    - .kernel_matrix_testing_run_tests
+  needs: ["kernel_matrix_testing_setup_env", "upload_dependencies_x64", "upload_system_probe_tests_x64", "upload_minimized_btfs_x64"]
+  timeout: 3h
+  variables:
+    ARCH: "arm64"
+    RUNNER_CMD: "-include-packages pkg/network/tracer"
+  parallel:
+    matrix:
+      - TAG: ["focal", "jammy", "amzn_4.14", "amzn_5.4", "amzn_5.10", "fedora_36", "fedora_37", "fedora_38"]
 
 kernel_matrix_testing_cleanup:
   stage: kernel_matrix_testing
