@@ -26,7 +26,7 @@ import (
 
 // Monitor regroups all the work we want to do to monitor the probes we pushed in the kernel
 type Monitor struct {
-	probe *Probe
+	probe *Probe[any]
 
 	eventStreamMonitor *eventstream.Monitor
 	runtimeMonitor     *runtime.Monitor
@@ -37,7 +37,7 @@ type Monitor struct {
 }
 
 // NewMonitor returns a new instance of a ProbeMonitor
-func NewMonitor(p *Probe) *Monitor {
+func NewMonitor(p *Probe[any]) *Monitor {
 	return &Monitor{
 		probe: p,
 	}
