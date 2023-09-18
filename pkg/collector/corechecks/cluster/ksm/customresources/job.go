@@ -50,7 +50,7 @@ func (f *extendedJobFactory) CreateClient(cfg *rest.Config) (interface{}, error)
 }
 
 // MetricFamilyGenerators returns the extended job metric family generators
-func (f *extendedJobFactory) MetricFamilyGenerators(allowAnnotationsList, allowLabelsList []string) []generator.FamilyGenerator {
+func (f *extendedJobFactory) MetricFamilyGenerators() []generator.FamilyGenerator {
 	return []generator.FamilyGenerator{
 		*generator.NewFamilyGenerator(
 			"kube_job_duration",

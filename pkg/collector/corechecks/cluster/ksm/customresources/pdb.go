@@ -58,7 +58,7 @@ func (f *pdbv1beta1Factory) CreateClient(cfg *rest.Config) (interface{}, error) 
 	return f.client, nil
 }
 
-func (f *pdbv1beta1Factory) MetricFamilyGenerators(allowAnnotationsList, allowLabelsList []string) []generator.FamilyGenerator {
+func (f *pdbv1beta1Factory) MetricFamilyGenerators() []generator.FamilyGenerator {
 	return []generator.FamilyGenerator{
 		*generator.NewFamilyGenerator(
 			descPodDisruptionBudgetAnnotationsName,
@@ -66,7 +66,7 @@ func (f *pdbv1beta1Factory) MetricFamilyGenerators(allowAnnotationsList, allowLa
 			metric.Gauge,
 			"",
 			wrapPodDisruptionBudgetFunc(func(p *policyv1beta1.PodDisruptionBudget) *metric.Family {
-				annotationKeys, annotationValues := createPrometheusLabelKeysValues("annotation", p.Annotations, allowAnnotationsList)
+				annotationKeys, annotationValues := createPrometheusLabelKeysValues("annotation", p.Annotations, []string{"*"})
 				return &metric.Family{
 					Metrics: []*metric.Metric{
 						{
@@ -84,7 +84,7 @@ func (f *pdbv1beta1Factory) MetricFamilyGenerators(allowAnnotationsList, allowLa
 			metric.Gauge,
 			"",
 			wrapPodDisruptionBudgetFunc(func(p *policyv1beta1.PodDisruptionBudget) *metric.Family {
-				labelKeys, labelValues := createPrometheusLabelKeysValues("label", p.Labels, allowLabelsList)
+				labelKeys, labelValues := createPrometheusLabelKeysValues("label", p.Labels, []string{"*"})
 				return &metric.Family{
 					Metrics: []*metric.Metric{
 						{

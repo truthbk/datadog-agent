@@ -60,7 +60,7 @@ func (f *vpaV1Factory) CreateClient(cfg *rest.Config) (interface{}, error) {
 	return f.client, nil
 }
 
-func (f *vpaV1Factory) MetricFamilyGenerators(allowAnnotationsList, allowLabelsList []string) []generator.FamilyGenerator {
+func (f *vpaV1Factory) MetricFamilyGenerators() []generator.FamilyGenerator {
 	return []generator.FamilyGenerator{
 		*generator.NewFamilyGenerator(
 			descVerticalPodAutoscalerLabelsName,
@@ -68,7 +68,7 @@ func (f *vpaV1Factory) MetricFamilyGenerators(allowAnnotationsList, allowLabelsL
 			metric.Gauge,
 			"",
 			wrapVPAFunc(func(a *autoscaling.VerticalPodAutoscaler) *metric.Family {
-				labelKeys, labelValues := createPrometheusLabelKeysValues("label", a.Labels, allowLabelsList)
+				labelKeys, labelValues := createPrometheusLabelKeysValues("label", a.Labels, []string{"*"})
 				return &metric.Family{
 					Metrics: []*metric.Metric{
 						{

@@ -46,15 +46,15 @@ type crdFactory struct {
 	client interface{}
 }
 
-func (f *crdFactory) MetricFamilyGenerators(allowAnnotationsList, allowLabelsList []string) []generator.FamilyGenerator {
+func (f *crdFactory) MetricFamilyGenerators() []generator.FamilyGenerator {
 	return []generator.FamilyGenerator{
-		*generator.NewFamilyGenerator(
+		*generator.NewFamilyGeneratorWithStability(
 			descCustomResourceDefinitionAnnotationsName,
 			descCustomResourceDefinitionAnnotationsHelp,
 			metric.Gauge,
 			"",
 			wrapCustomResourceDefinition(func(c *crd.CustomResourceDefinition) *metric.Family {
-				annotationKeys, annotationValues := createPrometheusLabelKeysValues("annotation", c.Annotations, allowAnnotationsList)
+				annotationKeys, annotationValues := createPrometheusLabelKeysValues("annotation", c.Annotations, []string{"*"})
 				return &metric.Family{
 					Metrics: []*metric.Metric{
 						{
@@ -66,13 +66,13 @@ func (f *crdFactory) MetricFamilyGenerators(allowAnnotationsList, allowLabelsLis
 				}
 			}),
 		),
-		*generator.NewFamilyGenerator(
+		*generator.NewFamilyGeneratorWithStability(
 			descCustomResourceDefinitionLabelsName,
 			descCustomResourceDefinitionLabelsHelp,
 			metric.Gauge,
 			"",
 			wrapCustomResourceDefinition(func(c *crd.CustomResourceDefinition) *metric.Family {
-				labelKeys, labelValues := createPrometheusLabelKeysValues("label", c.Labels, allowLabelsList)
+				labelKeys, labelValues := createPrometheusLabelKeysValues("label", c.Labels, []string{"*"})
 				return &metric.Family{
 					Metrics: []*metric.Metric{
 						{
@@ -84,7 +84,7 @@ func (f *crdFactory) MetricFamilyGenerators(allowAnnotationsList, allowLabelsLis
 				}
 			}),
 		),
-		*generator.NewFamilyGenerator(
+		*generator.NewFamilyGeneratorWithStability(
 			"kube_customresourcedefinition_status_condition",
 			"The condition of this custom resource definition.",
 			metric.Gauge,

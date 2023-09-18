@@ -92,12 +92,6 @@ func (b *Builder) WithCustomResourceClients(clients map[string]interface{}) {
 	b.ksmBuilder.WithCustomResourceClients(clients)
 }
 
-// WithVPAClient sets the vpaClient property of a Builder so that the verticalpodautoscaler collector can query VPA objects.
-func (b *Builder) WithVPAClient(c vpaclientset.Interface) {
-	b.vpaClient = c
-	b.ksmBuilder.WithVPAClient(c)
-}
-
 // WithMetrics sets the metrics property of a Builder.
 func (b *Builder) WithMetrics(r prometheus.Registerer) {
 	b.ksmBuilder.WithMetrics(r)
@@ -147,7 +141,7 @@ func (b *Builder) WithAllowAnnotations(l map[string][]string) {
 
 // Build initializes and registers all enabled stores.
 // Returns metric writers.
-func (b *Builder) Build() []metricsstore.MetricsWriter {
+func (b *Builder) Build() metricsstore.MetricsWriterList {
 	return b.ksmBuilder.Build()
 }
 
