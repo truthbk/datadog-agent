@@ -25,6 +25,7 @@ import (
 	vpaclientset "k8s.io/autoscaler/vertical-pod-autoscaler/pkg/client/clientset/versioned"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+	basemetrics "k8s.io/component-base/metrics"
 
 	"k8s.io/kube-state-metrics/v2/pkg/constant"
 	"k8s.io/kube-state-metrics/v2/pkg/customresource"
@@ -62,10 +63,11 @@ func (f *vpaV1Factory) CreateClient(cfg *rest.Config) (interface{}, error) {
 
 func (f *vpaV1Factory) MetricFamilyGenerators() []generator.FamilyGenerator {
 	return []generator.FamilyGenerator{
-		*generator.NewFamilyGenerator(
+		*generator.NewFamilyGeneratorWithStability(
 			descVerticalPodAutoscalerLabelsName,
 			descVerticalPodAutoscalerLabelsHelp,
 			metric.Gauge,
+			basemetrics.ALPHA,
 			"",
 			wrapVPAFunc(func(a *autoscaling.VerticalPodAutoscaler) *metric.Family {
 				labelKeys, labelValues := createPrometheusLabelKeysValues("label", a.Labels, []string{"*"})
@@ -80,10 +82,11 @@ func (f *vpaV1Factory) MetricFamilyGenerators() []generator.FamilyGenerator {
 				}
 			}),
 		),
-		*generator.NewFamilyGenerator(
+		*generator.NewFamilyGeneratorWithStability(
 			"kube_verticalpodautoscaler_spec_updatepolicy_updatemode",
 			"Update mode of the VerticalPodAutoscaler.",
 			metric.Gauge,
+			basemetrics.ALPHA,
 			"",
 			wrapVPAFunc(func(a *autoscaling.VerticalPodAutoscaler) *metric.Family {
 				ms := []*metric.Metric{}
@@ -118,10 +121,11 @@ func (f *vpaV1Factory) MetricFamilyGenerators() []generator.FamilyGenerator {
 				}
 			}),
 		),
-		*generator.NewFamilyGenerator(
+		*generator.NewFamilyGeneratorWithStability(
 			"kube_verticalpodautoscaler_spec_resourcepolicy_container_policies_minallowed",
 			"Minimum resources the VerticalPodAutoscaler can set for containers matching the name.",
 			metric.Gauge,
+			basemetrics.ALPHA,
 			"",
 			wrapVPAFunc(func(a *autoscaling.VerticalPodAutoscaler) *metric.Family {
 				ms := []*metric.Metric{}
@@ -140,10 +144,11 @@ func (f *vpaV1Factory) MetricFamilyGenerators() []generator.FamilyGenerator {
 				}
 			}),
 		),
-		*generator.NewFamilyGenerator(
+		*generator.NewFamilyGeneratorWithStability(
 			"kube_verticalpodautoscaler_spec_resourcepolicy_container_policies_maxallowed",
 			"Maximum resources the VerticalPodAutoscaler can set for containers matching the name.",
 			metric.Gauge,
+			basemetrics.ALPHA,
 			"",
 			wrapVPAFunc(func(a *autoscaling.VerticalPodAutoscaler) *metric.Family {
 				ms := []*metric.Metric{}
@@ -161,10 +166,11 @@ func (f *vpaV1Factory) MetricFamilyGenerators() []generator.FamilyGenerator {
 				}
 			}),
 		),
-		*generator.NewFamilyGenerator(
+		*generator.NewFamilyGeneratorWithStability(
 			"kube_verticalpodautoscaler_status_recommendation_containerrecommendations_lowerbound",
 			"Minimum resources the container can use before the VerticalPodAutoscaler updater evicts it.",
 			metric.Gauge,
+			basemetrics.ALPHA,
 			"",
 			wrapVPAFunc(func(a *autoscaling.VerticalPodAutoscaler) *metric.Family {
 				ms := []*metric.Metric{}
@@ -182,10 +188,11 @@ func (f *vpaV1Factory) MetricFamilyGenerators() []generator.FamilyGenerator {
 				}
 			}),
 		),
-		*generator.NewFamilyGenerator(
+		*generator.NewFamilyGeneratorWithStability(
 			"kube_verticalpodautoscaler_status_recommendation_containerrecommendations_upperbound",
 			"Maximum resources the container can use before the VerticalPodAutoscaler updater evicts it.",
 			metric.Gauge,
+			basemetrics.ALPHA,
 			"",
 			wrapVPAFunc(func(a *autoscaling.VerticalPodAutoscaler) *metric.Family {
 				ms := []*metric.Metric{}
@@ -203,10 +210,11 @@ func (f *vpaV1Factory) MetricFamilyGenerators() []generator.FamilyGenerator {
 				}
 			}),
 		),
-		*generator.NewFamilyGenerator(
+		*generator.NewFamilyGeneratorWithStability(
 			"kube_verticalpodautoscaler_status_recommendation_containerrecommendations_target",
 			"Target resources the VerticalPodAutoscaler recommends for the container.",
 			metric.Gauge,
+			basemetrics.ALPHA,
 			"",
 			wrapVPAFunc(func(a *autoscaling.VerticalPodAutoscaler) *metric.Family {
 				ms := []*metric.Metric{}
@@ -223,10 +231,11 @@ func (f *vpaV1Factory) MetricFamilyGenerators() []generator.FamilyGenerator {
 				}
 			}),
 		),
-		*generator.NewFamilyGenerator(
+		*generator.NewFamilyGeneratorWithStability(
 			"kube_verticalpodautoscaler_status_recommendation_containerrecommendations_uncappedtarget",
 			"Target resources the VerticalPodAutoscaler recommends for the container ignoring bounds.",
 			metric.Gauge,
+			basemetrics.ALPHA,
 			"",
 			wrapVPAFunc(func(a *autoscaling.VerticalPodAutoscaler) *metric.Family {
 				ms := []*metric.Metric{}

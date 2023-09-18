@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+	basemetrics "k8s.io/component-base/metrics"
 	v1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	apiregistrationclient "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset/typed/apiregistration/v1"
 	"k8s.io/kube-state-metrics/v2/pkg/customresource"
@@ -56,6 +57,7 @@ func (f *apiserviceFactory) MetricFamilyGenerators() []generator.FamilyGenerator
 			descApiServiceAnnotationsName,
 			descApiServiceAnnotationsHelp,
 			metric.Gauge,
+			basemetrics.ALPHA,
 			"",
 			wrapAPIServiceFunc(func(a *v1.APIService) *metric.Family {
 				annotationKeys, annotationValues := createPrometheusLabelKeysValues("annotation", a.Annotations, []string{"*"})
@@ -74,6 +76,7 @@ func (f *apiserviceFactory) MetricFamilyGenerators() []generator.FamilyGenerator
 			descApiServiceLabelsName,
 			descApiServiceLabelsHelp,
 			metric.Gauge,
+			basemetrics.ALPHA,
 			"",
 			wrapAPIServiceFunc(func(a *v1.APIService) *metric.Family {
 				labelKeys, labelValues := createPrometheusLabelKeysValues("label", a.Labels, []string{"*"})
@@ -92,6 +95,7 @@ func (f *apiserviceFactory) MetricFamilyGenerators() []generator.FamilyGenerator
 			"kube_apiservice_status_condition",
 			"The condition of this APIService.",
 			metric.Gauge,
+			basemetrics.ALPHA,
 			"",
 			wrapAPIServiceFunc(func(a *v1.APIService) *metric.Family {
 				ms := make([]*metric.Metric, 0, len(a.Status.Conditions)*len(conditionStatusesAPIServicesV1))

@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+	basemetrics "k8s.io/component-base/metrics"
 	"k8s.io/kube-state-metrics/v2/pkg/customresource"
 	"k8s.io/kube-state-metrics/v2/pkg/metric"
 	generator "k8s.io/kube-state-metrics/v2/pkg/metric_generator"
@@ -85,6 +86,7 @@ func (f *cronjobv1beta1Factory) MetricFamilyGenerators() []generator.FamilyGener
 			descCronJobLabelsName,
 			descCronJobLabelsHelp,
 			metric.Gauge,
+			basemetrics.STABLE,
 			"",
 			wrapCronJobFunc(func(j *batchv1beta1.CronJob) *metric.Family {
 				labelKeys, labelValues := createPrometheusLabelKeysValues("label", j.Labels, []string{"*"})
@@ -103,6 +105,7 @@ func (f *cronjobv1beta1Factory) MetricFamilyGenerators() []generator.FamilyGener
 			"kube_cronjob_info",
 			"Info about cronjob.",
 			metric.Gauge,
+			basemetrics.STABLE,
 			"",
 			wrapCronJobFunc(func(j *batchv1beta1.CronJob) *metric.Family {
 				return &metric.Family{
@@ -120,6 +123,7 @@ func (f *cronjobv1beta1Factory) MetricFamilyGenerators() []generator.FamilyGener
 			"kube_cronjob_created",
 			"Unix creation timestamp",
 			metric.Gauge,
+			basemetrics.STABLE,
 			"",
 			wrapCronJobFunc(func(j *batchv1beta1.CronJob) *metric.Family {
 				ms := []*metric.Metric{}
@@ -140,6 +144,7 @@ func (f *cronjobv1beta1Factory) MetricFamilyGenerators() []generator.FamilyGener
 			"kube_cronjob_status_active",
 			"Active holds pointers to currently running jobs.",
 			metric.Gauge,
+			basemetrics.STABLE,
 			"",
 			wrapCronJobFunc(func(j *batchv1beta1.CronJob) *metric.Family {
 				return &metric.Family{
@@ -157,6 +162,7 @@ func (f *cronjobv1beta1Factory) MetricFamilyGenerators() []generator.FamilyGener
 			"kube_cronjob_status_last_schedule_time",
 			"LastScheduleTime keeps information of when was the last time the job was successfully scheduled.",
 			metric.Gauge,
+			basemetrics.STABLE,
 			"",
 			wrapCronJobFunc(func(j *batchv1beta1.CronJob) *metric.Family {
 				ms := []*metric.Metric{}
@@ -178,6 +184,7 @@ func (f *cronjobv1beta1Factory) MetricFamilyGenerators() []generator.FamilyGener
 			"kube_cronjob_spec_suspend",
 			"Suspend flag tells the controller to suspend subsequent executions.",
 			metric.Gauge,
+			basemetrics.STABLE,
 			"",
 			wrapCronJobFunc(func(j *batchv1beta1.CronJob) *metric.Family {
 				ms := []*metric.Metric{}
@@ -199,6 +206,7 @@ func (f *cronjobv1beta1Factory) MetricFamilyGenerators() []generator.FamilyGener
 			"kube_cronjob_spec_starting_deadline_seconds",
 			"Deadline in seconds for starting the job if it misses scheduled time for any reason.",
 			metric.Gauge,
+			basemetrics.STABLE,
 			"",
 			wrapCronJobFunc(func(j *batchv1beta1.CronJob) *metric.Family {
 				ms := []*metric.Metric{}
@@ -221,6 +229,7 @@ func (f *cronjobv1beta1Factory) MetricFamilyGenerators() []generator.FamilyGener
 			"kube_cronjob_next_schedule_time",
 			"Next time the cronjob should be scheduled. The time after lastScheduleTime, or after the cron job's creation time if it's never been scheduled. Use this to determine if the job is delayed.",
 			metric.Gauge,
+			basemetrics.STABLE,
 			"",
 			wrapCronJobFunc(func(j *batchv1beta1.CronJob) *metric.Family {
 				ms := []*metric.Metric{}
@@ -246,6 +255,7 @@ func (f *cronjobv1beta1Factory) MetricFamilyGenerators() []generator.FamilyGener
 			"kube_cronjob_metadata_resource_version",
 			"Resource version representing a specific version of the cronjob.",
 			metric.Gauge,
+			basemetrics.STABLE,
 			"",
 			wrapCronJobFunc(func(j *batchv1beta1.CronJob) *metric.Family {
 				return &metric.Family{
@@ -257,6 +267,7 @@ func (f *cronjobv1beta1Factory) MetricFamilyGenerators() []generator.FamilyGener
 			"kube_cronjob_spec_successful_job_history_limit",
 			"Successful job history limit tells the controller how many completed jobs should be preserved.",
 			metric.Gauge,
+			basemetrics.ALPHA,
 			"",
 			wrapCronJobFunc(func(j *batchv1beta1.CronJob) *metric.Family {
 				ms := []*metric.Metric{}
@@ -278,6 +289,7 @@ func (f *cronjobv1beta1Factory) MetricFamilyGenerators() []generator.FamilyGener
 			"kube_cronjob_spec_failed_job_history_limit",
 			"Failed job history limit tells the controller how many failed jobs should be preserved.",
 			metric.Gauge,
+			basemetrics.ALPHA,
 			"",
 			wrapCronJobFunc(func(j *batchv1beta1.CronJob) *metric.Family {
 				ms := []*metric.Metric{}
