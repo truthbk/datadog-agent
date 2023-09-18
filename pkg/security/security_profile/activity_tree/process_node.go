@@ -157,6 +157,8 @@ func (pn *ProcessNode) Matches(entry *model.Process, matchArgs bool, normalize b
 			return false
 		}
 		pn.Process.FileEvent.PathnameStr = pattern
+	} else if pn.Process.FileEvent.PathnameStr != entry.FileEvent.PathnameStr {
+		return false
 	}
 
 	if sprocess.IsBusybox(entry.FileEvent.PathnameStr) {
