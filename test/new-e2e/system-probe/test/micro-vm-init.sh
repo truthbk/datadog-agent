@@ -15,7 +15,11 @@ eval $(gimme "$GOVERSION")
 ## Start docker
 systemctl start docker
 ## Load docker images
-[ -d $KITCHEN_DOCKERS ] && find $KITCHEN_DOCKERS -maxdepth 1 -type f -exec docker load -i {} \;
+[ -d $KITCHEN_DOCKERS ] && find $KITCHEN_DOCKERS -maxdepth 1 -type f > /kitchen-dockers.txt
+while read p; do
+    docker load "$p" &
+done < /kitchen-dockers.txt
+wait
 
 # VM provisioning end !
 
