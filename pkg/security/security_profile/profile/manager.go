@@ -12,7 +12,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/DataDog/datadog-go/v5/statsd"
@@ -129,10 +128,10 @@ type SecurityProfileManager struct {
 	securityProfileMap         *ebpf.Map
 	securityProfileSyscallsMap *ebpf.Map
 
-	profilesLock sync.Mutex
+	profilesLock utils.Mutex
 	profiles     map[cgroupModel.WorkloadSelector]*SecurityProfile
 
-	pendingCacheLock sync.Mutex
+	pendingCacheLock utils.Mutex
 	pendingCache     *simplelru.LRU[cgroupModel.WorkloadSelector, *SecurityProfile]
 	cacheHit         *atomic.Uint64
 	cacheMiss        *atomic.Uint64

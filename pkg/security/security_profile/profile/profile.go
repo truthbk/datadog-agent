@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sync"
 	"time"
 
 	"golang.org/x/exp/slices"
@@ -38,14 +37,14 @@ type EventTypeState struct {
 
 // SecurityProfile defines a security profile
 type SecurityProfile struct {
-	sync.Mutex
+	utils.Mutex
 	loadedInKernel         bool
 	loadedNano             uint64
 	selector               cgroupModel.WorkloadSelector
 	profileCookie          uint64
 	anomalyDetectionEvents []model.EventType
 	eventTypeState         map[model.EventType]*EventTypeState
-	eventTypeStateLock     sync.Mutex
+	eventTypeStateLock     utils.Mutex
 
 	// Instances is the list of workload instances to witch the profile should apply
 	Instances []*cgroupModel.CacheEntry

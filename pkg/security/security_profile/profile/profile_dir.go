@@ -16,7 +16,6 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/DataDog/datadog-go/v5/statsd"
@@ -51,7 +50,7 @@ type profileFSEntry struct {
 
 // DirectoryProvider is a ProfileProvider that fetches Security Profiles from the filesystem
 type DirectoryProvider struct {
-	sync.Mutex
+	utils.Mutex
 	directory      string
 	watcherEnabled bool
 
@@ -60,7 +59,7 @@ type DirectoryProvider struct {
 	watcher           *fsnotify.Watcher
 	newFilesDebouncer *debouncer.Debouncer
 	newFiles          map[string]bool
-	newFilesLock      sync.Mutex
+	newFilesLock      utils.Mutex
 
 	// we use a debouncer to forward new profiles to the profile manager in order to prevent a deadlock
 	workloadSelectorDebouncer *debouncer.Debouncer
