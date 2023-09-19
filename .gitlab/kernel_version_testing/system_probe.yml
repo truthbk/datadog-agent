@@ -320,9 +320,10 @@ kernel_matrix_testing_setup_env:
     - MICRO_VM_NAME=$(cat $CI_PROJECT_DIR/stack.outputs | grep $ARCH-$TAG | grep $TEST_SET | cut -d ' ' -f 1)
     # ssh into each micro-vm and run initialization script. This script will also run the tests.
     - START=`date +%s`
-    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "scp -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa /home/ubuntu/*.tar.gz root@${MICRO_VM_IP}:/"
+    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "ls -lh /home/ubuntu && dd if=/dev/zero of=/home/ubuntu/deps.img bs=1 count=0 seek=1G && mkdir /home/ubuntu/deps && sudo mount -o exec,loop deps.img /home/ubuntu/deps && mv *.tar.gz /home/ubuntu/deps && sudo umount /home/ubuntu/deps.img && virsh attach-disk $(virsh list --name | grep ${MICRO_VM_NAME} | head -n 1 | tr -d '\n') /home/ubuntu/deps.img vdb --driver qemu --type disk --mode readonly"
     - END=`date +%s`
     - echo `expr $END - $START`
+    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "ssh -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP} 'mkdir /mnt/deps && mount /dev/vdb /mnt/deps && mv /mnt/deps/*.tar.gz / && umount /dev/vdb'"
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "ssh -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP} 'cd / && tar xzf /dependencies-${ARCH}.tar.gz --strip-components=1 && tar xzf /btfs-${ARCH}.tar.gz --strip-components=1 && tar xzf /tests-${ARCH}.tar.gz --strip-components=1 && chmod +x /micro-vm-init.sh && /micro-vm-init.sh ${GO_VERSION} ${RETRY} ${ARCH} ${RUNNER_CMD}'"
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "scp -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP}:/ci-visibility/junit.tar.gz /home/ubuntu/junit.tar.gz"
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "scp -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP}:/ci-visibility/testjson.tar.gz /home/ubuntu/testjson.tar.gz"
