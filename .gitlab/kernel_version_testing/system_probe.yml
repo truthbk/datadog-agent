@@ -323,7 +323,7 @@ kernel_matrix_testing_setup_env:
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "scp -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa /home/ubuntu/*.tar.gz root@${MICRO_VM_IP}:/"
     - END=`date +%s`
     - echo `expr $END - $START`
-    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "ssh -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP} 'tar xzf /dependencies-${ARCH}.tar.gz --strip-components=1 && tar xzf /btfs-${ARCH}.tar.gz --strip-components=1 && tar xzf /tests-${ARCH}.tar.gz --strip-components=1 && /micro-vm-init.sh ${GO_VERSION} ${RETRY} ${ARCH} ${RUNNER_CMD}'"
+    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "ssh -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP} 'cd / && tar xzf /dependencies-${ARCH}.tar.gz --strip-components=1 && tar xzf /btfs-${ARCH}.tar.gz --strip-components=1 && tar xzf /tests-${ARCH}.tar.gz --strip-components=1 && /micro-vm-init.sh ${GO_VERSION} ${RETRY} ${ARCH} ${RUNNER_CMD}'"
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "scp -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP}:/ci-visibility/junit.tar.gz /home/ubuntu/junit.tar.gz"
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "scp -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP}:/ci-visibility/testjson.tar.gz /home/ubuntu/testjson.tar.gz"
     - scp -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP:/home/ubuntu/testjson.tar.gz $DD_AGENT_TESTING_DIR/
