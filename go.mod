@@ -561,7 +561,7 @@ require (
 	github.com/DataDog/agent-payload/v5 v5.0.96
 	github.com/DataDog/datadog-agent/pkg/proto v0.48.0-rc.2
 	github.com/DataDog/opentelemetry-mapping-go/pkg/otlp/logs v0.8.0
-	github.com/aquasecurity/trivy v0.0.0
+	github.com/aquasecurity/trivy v0.36.2-0.20230116143143-e2dfee208fe3
 	github.com/cloudfoundry-community/go-cfclient/v2 v2.0.1-0.20230503155151-3d15366c5820
 	github.com/containerd/typeurl/v2 v2.1.1
 	github.com/gocomply/scap v0.1.2-0.20230531064509-55a00f73e8d6
