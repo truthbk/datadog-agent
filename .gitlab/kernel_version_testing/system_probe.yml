@@ -319,6 +319,8 @@ kernel_matrix_testing_setup_env:
     - MICRO_VM_IP=$(cat $CI_PROJECT_DIR/stack.outputs | grep $ARCH-$TAG | grep $TEST_SET | cut -d ' ' -f 2)
     - MICRO_VM_NAME=$(cat $CI_PROJECT_DIR/stack.outputs | grep $ARCH-$TAG | grep $TEST_SET | cut -d ' ' -f 1)
     # ssh into each micro-vm and run initialization script. This script will also run the tests.
+    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "virsh list"
+    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "virsh list | grep $MICRO_VM_NAME"
     - START=`date +%s`
     - DEPS_IMG="/home/ubuntu/${MICRO_VM_NAME}.img"
     - DEPS_DIR="/home/ubuntu/deps/$MICRO_VM_NAME"
