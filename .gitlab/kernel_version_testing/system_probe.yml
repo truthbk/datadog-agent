@@ -322,7 +322,7 @@ kernel_matrix_testing_setup_env:
     - START=`date +%s`
     - DEPS_IMG="/home/ubuntu/${MICRO_VM_NAME}.img"
     - DEPS_DIR="/home/ubuntu/deps/$MICRO_VM_NAME"
-    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "ls -lh /home/ubuntu && dd if=/dev/zero of=$DEPS_IMG bs=1 count=0 seek=3G && mkfs.ext4 -F $DEPS_IMG && mkdir -p $DEPS_DIR && sudo mount -o exec,loop $DEPS_IMG $DEPS_DIR && sudo cp *.tar.gz $DEPS_DIR && sudo umount $DEPS_IMG && virsh attach-disk $(virsh list --name | grep ${MICRO_VM_NAME} | head -n 1 | tr -d '\n') $DEPS_IMG vdb --driver qemu --type disk --mode readonly"
+    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "ls -lh /home/ubuntu && dd if=/dev/zero of=$DEPS_IMG bs=1 count=0 seek=3G && mkfs.ext4 -F $DEPS_IMG && mkdir -p $DEPS_DIR && sudo mount -o exec,loop $DEPS_IMG $DEPS_DIR && sudo cp *.tar.gz $DEPS_DIR && sudo umount $DEPS_IMG && virsh attach-disk \$(virsh list --name | grep ${MICRO_VM_NAME} | head -n 1 | tr -d '\n') $DEPS_IMG vdb --driver qemu --type disk --mode readonly"
     - END=`date +%s`
     - echo `expr $END - $START`
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "ssh -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP} 'mkdir /mnt/deps && mount /dev/vdb /mnt/deps && mv /mnt/deps/*.tar.gz / && umount /dev/vdb'"
