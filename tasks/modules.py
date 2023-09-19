@@ -23,6 +23,7 @@ class GoModule:
         importable=True,
         independent=False,
         lint_targets=None,
+        module_import_path="",
     ):
         self.path = path
         self.targets = targets if targets else ["."]
@@ -35,6 +36,7 @@ class GoModule:
         # at the cost of spending some time parsing the module.
         self.importable = importable
         self.independent = independent
+        self.module_import_path = module_import_path
 
         self._dependencies = None
 
@@ -115,6 +117,8 @@ class GoModule:
         >>> [mod.import_path for mod in mods]
         ["github.com/DataDog/datadog-agent", "github.com/DataDog/datadog-agent/pkg/util/log"]
         """
+        if self.module_import_path != "":
+            return self.module_import_path
         path = "github.com/DataDog/datadog-agent"
         if self.path != ".":
             path += "/" + self.path
@@ -157,7 +161,7 @@ DEFAULT_MODULES = {
     "pkg/util/log": GoModule("pkg/util/log", independent=True),
     "pkg/util/pointer": GoModule("pkg/util/pointer", independent=True),
     "pkg/util/scrubber": GoModule("pkg/util/scrubber", independent=True),
-    "pkg/trivy": GoModule("pkg/trivy", independent=True),
+    "pkg/trivy": GoModule("pkg/trivy", independent=True, module_import_path="github.com/aquasecurity/trivy"),
 }
 
 MAIN_TEMPLATE = """package main
