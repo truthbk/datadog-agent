@@ -673,6 +673,22 @@ def omnibus_build(
     with timed(quiet=True) as bundle_elapsed:
         bundle_install_omnibus(ctx, gem_path, env)
 
+    omnibus_cache_dir = os.environ.get('OMNIBUS_GIT_CACHE_DIR')
+    use_omnibus_git_cache = omnibus_cache_dir is not None
+    if use_omnibus_git_cache:
+        remote_cache_name = os.environ.get('CI_JOB_NAME_SLUG')
+        use_remote_cache = remote_cache_name is not None
+        if use_remote_cache:
+            cache_state = None
+            git_cache_url = f"s3://{os.environ['S3_OMNIBUS_CACHE_BUCKET']}/builds/{remote_cache_name}"
+            bundle_path = "/tmp/omnibus-git-cache-bundle"
+            with timed(quiet=True) as restore_cache:
+                # Allow failure in case the cache was evicted
+                if ctx.run(f"aws s3 cp --only-show-errors {git_cache_url} {bundle_path}", warn=True):
+                    ctx.run(f"git bundle verify {bundle_path}")
+                    ctx.run(f"git clone --mirror {bundle_path} {omnibus_cache_dir}")
+                    cache_state = ctx.run(f"git -C {omnibus_cache_dir} tag -l").stdout
+
     with timed(quiet=True) as omnibus_elapsed:
         omnibus_run_task(
             ctx=ctx,
@@ -684,6 +700,17 @@ def omnibus_build(
             log_level=log_level,
         )
 
+    if use_omnibus_git_cache and use_remote_cache:
+        # FIXME: Once ready, be sure to restrict publishing the cache to main/stable branches
+        with timed(quiet=True) as update_cache:
+            if ctx.run(f"git -C {omnibus_cache_dir} tag -l").stdout != cache_state:
+                # Purge the cache manually as omnibus will stick to not restoring a tag when
+                # a mismatch is detected, but will keep the old cached tags
+                ctx.run(f"git -C {omnibus_cache_dir} reflog --expire-unreachable=new --all")
+                ctx.run(f"git -C {omnibus_cache_dir} gc --prune=now")
+                ctx.run(f"git -C {omnibus_cache_dir} bundle create {bundle_path} --tags")
+                ctx.run(f"aws s3 cp --only-show-errors {bundle_path} {git_cache_url}")
+
     # Delete the temporary pip.conf file once the build is done
     os.remove(pip_config_file)
 
@@ -692,6 +719,9 @@ def omnibus_build(
         print(f"Deps:    {deps_elapsed.duration}")
     print(f"Bundle:  {bundle_elapsed.duration}")
     print(f"Omnibus: {omnibus_elapsed.duration}")
+    if use_omnibus_git_cache and use_remote_cache:
+        print(f"Restoring omnibus cache: {restore_cache.duration}")
+        print(f"Updating omnibus cache: {update_cache.duration}")
 
 
 @task
