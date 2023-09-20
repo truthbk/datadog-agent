@@ -33,6 +33,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "adduser@3.116ubuntu1",
 								Name:       "adduser",
+								Arch:       "all",
 								Version:    "3.116ubuntu1",
 								SrcName:    "adduser",
 								SrcVersion: "3.116ubuntu1",
@@ -45,6 +46,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "apt@1.6.3ubuntu0.1",
 								Name:       "apt",
+								Arch:       "amd64",
 								Version:    "1.6.3ubuntu0.1",
 								SrcName:    "apt",
 								SrcVersion: "1.6.3ubuntu0.1",
@@ -64,6 +66,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "base-files@10.1ubuntu2.2",
 								Name:       "base-files",
+								Arch:       "amd64",
 								Version:    "10.1ubuntu2.2",
 								SrcName:    "base-files",
 								SrcVersion: "10.1ubuntu2.2",
@@ -72,6 +75,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "base-passwd@3.5.44",
 								Name:       "base-passwd",
+								Arch:       "amd64",
 								Version:    "3.5.44",
 								SrcName:    "base-passwd",
 								SrcVersion: "3.5.44",
@@ -84,6 +88,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "bash@4.4.18-2ubuntu1",
 								Name:       "bash",
+								Arch:       "amd64",
 								Version:    "4.4.18-2ubuntu1",
 								SrcName:    "bash",
 								SrcVersion: "4.4.18-2ubuntu1",
@@ -96,6 +101,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "bsdutils@1:2.31.1-0.4ubuntu3.1",
 								Name:       "bsdutils",
+								Arch:       "amd64",
 								Version:    "1:2.31.1-0.4ubuntu3.1",
 								SrcName:    "util-linux",
 								SrcVersion: "2.31.1-0.4ubuntu3.1",
@@ -104,6 +110,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "bzip2@1.0.6-8.1",
 								Name:       "bzip2",
+								Arch:       "amd64",
 								Version:    "1.0.6-8.1",
 								SrcName:    "bzip2",
 								SrcVersion: "1.0.6-8.1",
@@ -116,6 +123,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "coreutils@8.28-1ubuntu1",
 								Name:       "coreutils",
+								Arch:       "amd64",
 								Version:    "8.28-1ubuntu1",
 								SrcName:    "coreutils",
 								SrcVersion: "8.28-1ubuntu1",
@@ -124,6 +132,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "dash@0.5.8-2.10",
 								Name:       "dash",
+								Arch:       "amd64",
 								Version:    "0.5.8-2.10",
 								SrcName:    "dash",
 								SrcVersion: "0.5.8-2.10",
@@ -135,6 +144,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							},
 							{ID: "debconf@1.5.66",
 								Name:       "debconf",
+								Arch:       "all",
 								Version:    "1.5.66",
 								SrcName:    "debconf",
 								SrcVersion: "1.5.66",
@@ -143,6 +153,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "debianutils@4.8.4",
 								Name:       "debianutils",
+								Arch:       "amd64",
 								Version:    "4.8.4",
 								SrcName:    "debianutils",
 								SrcVersion: "4.8.4",
@@ -151,6 +162,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "diffutils@1:3.6-1",
 								Name:       "diffutils",
+								Arch:       "amd64",
 								Version:    "1:3.6-1",
 								SrcName:    "diffutils",
 								SrcVersion: "1:3.6-1",
@@ -159,6 +171,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "dpkg@1.19.0.5ubuntu2",
 								Name:       "dpkg",
+								Arch:       "amd64",
 								Version:    "1.19.0.5ubuntu2",
 								SrcName:    "dpkg",
 								SrcVersion: "1.19.0.5ubuntu2",
@@ -168,6 +181,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "e2fsprogs@1.44.1-1",
 								Name:       "e2fsprogs",
+								Arch:       "amd64",
 								Version:    "1.44.1-1",
 								SrcName:    "e2fsprogs",
 								SrcVersion: "1.44.1-1",
@@ -176,6 +190,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "fdisk@2.31.1-0.4ubuntu3.1",
 								Name:       "fdisk",
+								Arch:       "amd64",
 								Version:    "2.31.1-0.4ubuntu3.1",
 								SrcName:    "util-linux",
 								SrcVersion: "2.31.1-0.4ubuntu3.1",
@@ -192,6 +207,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "findutils@4.6.0+git+20170828-2",
 								Name:       "findutils",
+								Arch:       "amd64",
 								Version:    "4.6.0+git+20170828-2",
 								SrcName:    "findutils",
 								SrcVersion: "4.6.0+git+20170828-2",
@@ -200,6 +216,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "gcc-8-base@8-20180414-1ubuntu2",
 								Name:       "gcc-8-base",
+								Arch:       "amd64",
 								Version:    "8-20180414-1ubuntu2",
 								SrcName:    "gcc-8",
 								SrcVersion: "8-20180414-1ubuntu2",
@@ -208,6 +225,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "gpgv@2.2.4-1ubuntu1.1",
 								Name:       "gpgv",
+								Arch:       "amd64",
 								Version:    "2.2.4-1ubuntu1.1",
 								SrcName:    "gnupg2",
 								SrcVersion: "2.2.4-1ubuntu1.1",
@@ -223,6 +241,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "grep@3.1-2",
 								Name:       "grep",
+								Arch:       "amd64",
 								Version:    "3.1-2",
 								SrcName:    "grep",
 								SrcVersion: "3.1-2",
@@ -232,6 +251,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "gzip@1.6-5ubuntu1",
 								Name:       "gzip",
+								Arch:       "amd64",
 								Version:    "1.6-5ubuntu1",
 								SrcName:    "gzip",
 								SrcVersion: "1.6-5ubuntu1",
@@ -241,6 +261,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "hostname@3.20",
 								Name:       "hostname",
+								Arch:       "amd64",
 								Version:    "3.20",
 								SrcName:    "hostname",
 								SrcVersion: "3.20",
@@ -249,6 +270,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "init-system-helpers@1.51",
 								Name:       "init-system-helpers",
+								Arch:       "all",
 								Version:    "1.51",
 								SrcName:    "init-system-helpers",
 								SrcVersion: "1.51",
@@ -258,6 +280,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libacl1@2.2.52-3build1",
 								Name:       "libacl1",
+								Arch:       "amd64",
 								Version:    "2.2.52-3build1",
 								SrcName:    "acl",
 								SrcVersion: "2.2.52-3build1",
@@ -270,6 +293,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libapt-pkg5.0@1.6.3ubuntu0.1",
 								Name:       "libapt-pkg5.0",
+								Arch:       "amd64",
 								Version:    "1.6.3ubuntu0.1",
 								SrcName:    "apt",
 								SrcVersion: "1.6.3ubuntu0.1",
@@ -289,6 +313,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libattr1@1:2.4.47-2build1",
 								Name:       "libattr1",
+								Arch:       "amd64",
 								Version:    "1:2.4.47-2build1",
 								SrcName:    "attr",
 								SrcVersion: "1:2.4.47-2build1",
@@ -298,6 +323,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libaudit-common@1:2.8.2-1ubuntu1",
 								Name:       "libaudit-common",
+								Arch:       "all",
 								Version:    "1:2.8.2-1ubuntu1",
 								SrcName:    "audit",
 								SrcVersion: "1:2.8.2-1ubuntu1",
@@ -306,6 +332,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libaudit1@1:2.8.2-1ubuntu1",
 								Name:       "libaudit1",
+								Arch:       "amd64",
 								Version:    "1:2.8.2-1ubuntu1",
 								SrcName:    "audit",
 								SrcVersion: "1:2.8.2-1ubuntu1",
@@ -317,6 +344,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libblkid1@2.31.1-0.4ubuntu3.1",
 								Name:       "libblkid1",
+								Arch:       "amd64",
 								Version:    "2.31.1-0.4ubuntu3.1",
 								SrcName:    "util-linux",
 								SrcVersion: "2.31.1-0.4ubuntu3.1",
@@ -327,6 +355,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libbz2-1.0@1.0.6-8.1",
 								Name:       "libbz2-1.0",
+								Arch:       "amd64",
 								Version:    "1.0.6-8.1",
 								SrcName:    "bzip2",
 								SrcVersion: "1.0.6-8.1",
@@ -336,6 +365,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libc-bin@2.27-3ubuntu1",
 								Name:       "libc-bin",
+								Arch:       "amd64",
 								Version:    "2.27-3ubuntu1",
 								SrcName:    "glibc",
 								SrcVersion: "2.27-3ubuntu1",
@@ -346,6 +376,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libc6@2.27-3ubuntu1",
 								Name:       "libc6",
+								Arch:       "amd64",
 								Version:    "2.27-3ubuntu1",
 								SrcName:    "glibc",
 								SrcVersion: "2.27-3ubuntu1",
@@ -355,6 +386,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libcap-ng0@0.7.7-3.1",
 								Name:       "libcap-ng0",
+								Arch:       "amd64",
 								Version:    "0.7.7-3.1",
 								SrcName:    "libcap-ng",
 								SrcVersion: "0.7.7-3.1",
@@ -364,6 +396,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libcom-err2@1.44.1-1",
 								Name:       "libcom-err2",
+								Arch:       "amd64",
 								Version:    "1.44.1-1",
 								SrcName:    "e2fsprogs",
 								SrcVersion: "1.44.1-1",
@@ -373,6 +406,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libdb5.3@5.3.28-13.1ubuntu1",
 								Name:       "libdb5.3",
+								Arch:       "amd64",
 								Version:    "5.3.28-13.1ubuntu1",
 								SrcName:    "db5.3",
 								SrcVersion: "5.3.28-13.1ubuntu1",
@@ -382,6 +416,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libdebconfclient0@0.213ubuntu1",
 								Name:       "libdebconfclient0",
+								Arch:       "amd64",
 								Version:    "0.213ubuntu1",
 								SrcName:    "cdebconf",
 								SrcVersion: "0.213ubuntu1",
@@ -391,6 +426,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libext2fs2@1.44.1-1",
 								Name:       "libext2fs2",
+								Arch:       "amd64",
 								Version:    "1.44.1-1",
 								SrcName:    "e2fsprogs",
 								SrcVersion: "1.44.1-1",
@@ -400,6 +436,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libfdisk1@2.31.1-0.4ubuntu3.1",
 								Name:       "libfdisk1",
+								Arch:       "amd64",
 								Version:    "2.31.1-0.4ubuntu3.1",
 								SrcName:    "util-linux",
 								SrcVersion: "2.31.1-0.4ubuntu3.1",
@@ -411,6 +448,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libffi6@3.2.1-8",
 								Name:       "libffi6",
+								Arch:       "amd64",
 								Version:    "3.2.1-8",
 								SrcName:    "libffi",
 								SrcVersion: "3.2.1-8",
@@ -420,6 +458,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libgcc1@1:8-20180414-1ubuntu2",
 								Name:       "libgcc1",
+								Arch:       "amd64",
 								Version:    "1:8-20180414-1ubuntu2",
 								SrcName:    "gcc-8",
 								SrcVersion: "8-20180414-1ubuntu2",
@@ -430,6 +469,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libgcrypt20@1.8.1-4ubuntu1.1",
 								Name:       "libgcrypt20",
+								Arch:       "amd64",
 								Version:    "1.8.1-4ubuntu1.1",
 								SrcName:    "libgcrypt20",
 								SrcVersion: "1.8.1-4ubuntu1.1",
@@ -440,6 +480,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libgmp10@2:6.1.2+dfsg-2",
 								Name:       "libgmp10",
+								Arch:       "amd64",
 								Version:    "2:6.1.2+dfsg-2",
 								SrcName:    "gmp",
 								SrcVersion: "2:6.1.2+dfsg-2",
@@ -449,6 +490,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libgnutls30@3.5.18-1ubuntu1",
 								Name:       "libgnutls30",
+								Arch:       "amd64",
 								Version:    "3.5.18-1ubuntu1",
 								SrcName:    "gnutls28",
 								SrcVersion: "3.5.18-1ubuntu1",
@@ -466,6 +508,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libgpg-error0@1.27-6",
 								Name:       "libgpg-error0",
+								Arch:       "amd64",
 								Version:    "1.27-6",
 								SrcName:    "libgpg-error",
 								SrcVersion: "1.27-6",
@@ -475,6 +518,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libhogweed4@3.4-1",
 								Name:       "libhogweed4",
+								Arch:       "amd64",
 								Version:    "3.4-1",
 								SrcName:    "nettle",
 								SrcVersion: "3.4-1",
@@ -486,6 +530,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libidn2-0@2.0.4-1.1build2",
 								Name:       "libidn2-0",
+								Arch:       "amd64",
 								Version:    "2.0.4-1.1build2",
 								SrcName:    "libidn2",
 								SrcVersion: "2.0.4-1.1build2",
@@ -496,6 +541,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "liblz4-1@0.0~r131-2ubuntu3",
 								Name:       "liblz4-1",
+								Arch:       "amd64",
 								Version:    "0.0~r131-2ubuntu3",
 								SrcName:    "lz4",
 								SrcVersion: "0.0~r131-2ubuntu3",
@@ -505,6 +551,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "liblzma5@5.1.1alpha+20120614-2+b3",
 								Name:       "liblzma5",
+								Arch:       "amd64",
 								Version:    "5.1.1alpha+20120614-2+b3",
 								SrcName:    "xz-utils",
 								SrcVersion: "5.1.1alpha+20120614-2",
@@ -514,6 +561,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libmount1@2.31.1-0.4ubuntu3.1",
 								Name:       "libmount1",
+								Arch:       "amd64",
 								Version:    "2.31.1-0.4ubuntu3.1",
 								SrcName:    "util-linux",
 								SrcVersion: "2.31.1-0.4ubuntu3.1",
@@ -525,6 +573,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libncurses5@6.1-1ubuntu1.18.04",
 								Name:       "libncurses5",
+								Arch:       "amd64",
 								Version:    "6.1-1ubuntu1.18.04",
 								SrcName:    "ncurses",
 								SrcVersion: "6.1-1ubuntu1.18.04",
@@ -535,6 +584,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libncursesw5@6.1-1ubuntu1.18.04",
 								Name:       "libncursesw5",
+								Arch:       "amd64",
 								Version:    "6.1-1ubuntu1.18.04",
 								SrcName:    "ncurses",
 								SrcVersion: "6.1-1ubuntu1.18.04",
@@ -545,6 +595,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libnettle6@3.4-1",
 								Name:       "libnettle6",
+								Arch:       "amd64",
 								Version:    "3.4-1",
 								SrcName:    "nettle",
 								SrcVersion: "3.4-1",
@@ -554,6 +605,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libp11-kit0@0.23.9-2",
 								Name:       "libp11-kit0",
+								Arch:       "amd64",
 								Version:    "0.23.9-2",
 								SrcName:    "p11-kit",
 								SrcVersion: "0.23.9-2",
@@ -564,6 +616,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libpam-modules@1.1.8-3.6ubuntu2",
 								Name:       "libpam-modules",
+								Arch:       "amd64",
 								Version:    "1.1.8-3.6ubuntu2",
 								SrcName:    "pam",
 								SrcVersion: "1.1.8-3.6ubuntu2",
@@ -572,6 +625,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libpam-modules-bin@1.1.8-3.6ubuntu2",
 								Name:       "libpam-modules-bin",
+								Arch:       "amd64",
 								Version:    "1.1.8-3.6ubuntu2",
 								SrcName:    "pam",
 								SrcVersion: "1.1.8-3.6ubuntu2",
@@ -584,6 +638,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libpam-runtime@1.1.8-3.6ubuntu2",
 								Name:       "libpam-runtime",
+								Arch:       "all",
 								Version:    "1.1.8-3.6ubuntu2",
 								SrcName:    "pam",
 								SrcVersion: "1.1.8-3.6ubuntu2",
@@ -595,6 +650,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libpam0g@1.1.8-3.6ubuntu2",
 								Name:       "libpam0g",
+								Arch:       "amd64",
 								Version:    "1.1.8-3.6ubuntu2",
 								SrcName:    "pam",
 								SrcVersion: "1.1.8-3.6ubuntu2",
@@ -606,6 +662,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libpcre3@2:8.39-9",
 								Name:       "libpcre3",
+								Arch:       "amd64",
 								Version:    "2:8.39-9",
 								SrcName:    "pcre3",
 								SrcVersion: "2:8.39-9",
@@ -615,6 +672,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libprocps6@2:3.3.12-3ubuntu1.1",
 								Name:       "libprocps6",
+								Arch:       "amd64",
 								Version:    "2:3.3.12-3ubuntu1.1",
 								SrcName:    "procps",
 								SrcVersion: "2:3.3.12-3ubuntu1.1",
@@ -625,6 +683,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libseccomp2@2.3.1-2.1ubuntu4",
 								Name:       "libseccomp2",
+								Arch:       "amd64",
 								Version:    "2.3.1-2.1ubuntu4",
 								SrcName:    "libseccomp",
 								SrcVersion: "2.3.1-2.1ubuntu4",
@@ -634,6 +693,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libselinux1@2.7-2build2",
 								Name:       "libselinux1",
+								Arch:       "amd64",
 								Version:    "2.7-2build2",
 								SrcName:    "libselinux",
 								SrcVersion: "2.7-2build2",
@@ -644,6 +704,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libsemanage-common@2.7-2build2",
 								Name:       "libsemanage-common",
+								Arch:       "all",
 								Version:    "2.7-2build2",
 								SrcName:    "libsemanage",
 								SrcVersion: "2.7-2build2",
@@ -652,6 +713,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libsemanage1@2.7-2build2",
 								Name:       "libsemanage1",
+								Arch:       "amd64",
 								Version:    "2.7-2build2",
 								SrcName:    "libsemanage",
 								SrcVersion: "2.7-2build2",
@@ -666,6 +728,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libsepol1@2.7-1",
 								Name:       "libsepol1",
+								Arch:       "amd64",
 								Version:    "2.7-1",
 								SrcName:    "libsepol",
 								SrcVersion: "2.7-1",
@@ -675,6 +738,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libsmartcols1@2.31.1-0.4ubuntu3.1",
 								Name:       "libsmartcols1",
+								Arch:       "amd64",
 								Version:    "2.31.1-0.4ubuntu3.1",
 								SrcName:    "util-linux",
 								SrcVersion: "2.31.1-0.4ubuntu3.1",
@@ -684,6 +748,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libss2@1.44.1-1",
 								Name:       "libss2",
+								Arch:       "amd64",
 								Version:    "1.44.1-1",
 								SrcName:    "e2fsprogs",
 								SrcVersion: "1.44.1-1",
@@ -694,6 +759,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libstdc++6@8-20180414-1ubuntu2",
 								Name:       "libstdc++6",
+								Arch:       "amd64",
 								Version:    "8-20180414-1ubuntu2",
 								SrcName:    "gcc-8",
 								SrcVersion: "8-20180414-1ubuntu2",
@@ -705,6 +771,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libsystemd0@237-3ubuntu10.3",
 								Name:       "libsystemd0",
+								Arch:       "amd64",
 								Version:    "237-3ubuntu10.3",
 								SrcName:    "systemd",
 								SrcVersion: "237-3ubuntu10.3",
@@ -713,6 +780,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libtasn1-6@4.13-2",
 								Name:       "libtasn1-6",
+								Arch:       "amd64",
 								Version:    "4.13-2",
 								SrcName:    "libtasn1-6",
 								SrcVersion: "4.13-2",
@@ -722,6 +790,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libtinfo5@6.1-1ubuntu1.18.04",
 								Name:       "libtinfo5",
+								Arch:       "amd64",
 								Version:    "6.1-1ubuntu1.18.04",
 								SrcName:    "ncurses",
 								SrcVersion: "6.1-1ubuntu1.18.04",
@@ -731,6 +800,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libudev1@237-3ubuntu10.3",
 								Name:       "libudev1",
+								Arch:       "amd64",
 								Version:    "237-3ubuntu10.3",
 								SrcName:    "systemd",
 								SrcVersion: "237-3ubuntu10.3",
@@ -740,6 +810,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libunistring2@0.9.9-0ubuntu1",
 								Name:       "libunistring2",
+								Arch:       "amd64",
 								Version:    "0.9.9-0ubuntu1",
 								SrcName:    "libunistring",
 								SrcVersion: "0.9.9-0ubuntu1",
@@ -749,6 +820,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libustr-1.0-1@1.0.4-3+b2",
 								Name:       "libustr-1.0-1",
+								Arch:       "amd64",
 								Version:    "1.0.4-3+b2",
 								SrcName:    "ustr",
 								SrcVersion: "1.0.4-3",
@@ -758,6 +830,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libuuid1@2.31.1-0.4ubuntu3.1",
 								Name:       "libuuid1",
+								Arch:       "amd64",
 								Version:    "2.31.1-0.4ubuntu3.1",
 								SrcName:    "util-linux",
 								SrcVersion: "2.31.1-0.4ubuntu3.1",
@@ -767,6 +840,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libzstd1@1.3.3+dfsg-2ubuntu1",
 								Name:       "libzstd1",
+								Arch:       "amd64",
 								Version:    "1.3.3+dfsg-2ubuntu1",
 								SrcName:    "libzstd",
 								SrcVersion: "1.3.3+dfsg-2ubuntu1",
@@ -776,6 +850,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "login@1:4.5-1ubuntu1",
 								Name:       "login",
+								Arch:       "amd64",
 								Version:    "1:4.5-1ubuntu1",
 								SrcName:    "shadow",
 								SrcVersion: "1:4.5-1ubuntu1",
@@ -784,6 +859,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "lsb-base@9.20170808ubuntu1",
 								Name:       "lsb-base",
+								Arch:       "all",
 								Version:    "9.20170808ubuntu1",
 								SrcName:    "lsb",
 								SrcVersion: "9.20170808ubuntu1",
@@ -792,6 +868,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "mawk@1.3.3-17ubuntu3",
 								Name:       "mawk",
+								Arch:       "amd64",
 								Version:    "1.3.3-17ubuntu3",
 								SrcName:    "mawk",
 								SrcVersion: "1.3.3-17ubuntu3",
@@ -800,6 +877,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "mount@2.31.1-0.4ubuntu3.1",
 								Name:       "mount",
+								Arch:       "amd64",
 								Version:    "2.31.1-0.4ubuntu3.1",
 								SrcName:    "util-linux",
 								SrcVersion: "2.31.1-0.4ubuntu3.1",
@@ -809,6 +887,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "ncurses-base@6.1-1ubuntu1.18.04",
 								Name:       "ncurses-base",
+								Arch:       "all",
 								Version:    "6.1-1ubuntu1.18.04",
 								SrcName:    "ncurses",
 								SrcVersion: "6.1-1ubuntu1.18.04",
@@ -817,6 +896,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "ncurses-bin@6.1-1ubuntu1.18.04",
 								Name:       "ncurses-bin",
+								Arch:       "amd64",
 								Version:    "6.1-1ubuntu1.18.04",
 								SrcName:    "ncurses",
 								SrcVersion: "6.1-1ubuntu1.18.04",
@@ -825,6 +905,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "passwd@1:4.5-1ubuntu1",
 								Name:       "passwd",
+								Arch:       "amd64",
 								Version:    "1:4.5-1ubuntu1",
 								SrcName:    "shadow",
 								SrcVersion: "1:4.5-1ubuntu1",
@@ -839,6 +920,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "perl-base@5.26.1-6ubuntu0.2",
 								Name:       "perl-base",
+								Arch:       "amd64",
 								Version:    "5.26.1-6ubuntu0.2",
 								SrcName:    "perl",
 								SrcVersion: "5.26.1-6ubuntu0.2",
@@ -847,6 +929,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "procps@2:3.3.12-3ubuntu1.1",
 								Name:       "procps",
+								Arch:       "amd64",
 								Version:    "2:3.3.12-3ubuntu1.1",
 								SrcName:    "procps",
 								SrcVersion: "2:3.3.12-3ubuntu1.1",
@@ -862,6 +945,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "sed@4.4-2",
 								Name:       "sed",
+								Arch:       "amd64",
 								Version:    "4.4-2",
 								SrcName:    "sed",
 								SrcVersion: "4.4-2",
@@ -870,6 +954,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "sensible-utils@0.0.12",
 								Name:       "sensible-utils",
+								Arch:       "all",
 								Version:    "0.0.12",
 								SrcName:    "sensible-utils",
 								SrcVersion: "0.0.12",
@@ -878,6 +963,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "sysvinit-utils@2.88dsf-59.10ubuntu1",
 								Name:       "sysvinit-utils",
+								Arch:       "amd64",
 								Version:    "2.88dsf-59.10ubuntu1",
 								SrcName:    "sysvinit",
 								SrcVersion: "2.88dsf-59.10ubuntu1",
@@ -889,6 +975,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "tar@1.29b-2",
 								Name:       "tar",
+								Arch:       "amd64",
 								Version:    "1.29b-2",
 								SrcName:    "tar",
 								SrcVersion: "1.29b-2",
@@ -897,6 +984,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "ubuntu-keyring@2018.02.28",
 								Name:       "ubuntu-keyring",
+								Arch:       "all",
 								Version:    "2018.02.28",
 								SrcName:    "ubuntu-keyring",
 								SrcVersion: "2018.02.28",
@@ -905,6 +993,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "util-linux@2.31.1-0.4ubuntu3.1",
 								Name:       "util-linux",
+								Arch:       "amd64",
 								Version:    "2.31.1-0.4ubuntu3.1",
 								SrcName:    "util-linux",
 								SrcVersion: "2.31.1-0.4ubuntu3.1",
@@ -914,6 +1003,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "zlib1g@1:1.2.11.dfsg-0ubuntu2",
 								Name:       "zlib1g",
+								Arch:       "amd64",
 								Version:    "1:1.2.11.dfsg-0ubuntu2",
 								SrcName:    "zlib",
 								SrcVersion: "1:1.2.11.dfsg-0ubuntu2",
@@ -937,6 +1027,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libgcc1@1:5.1.1-12ubuntu1",
 								Name:       "libgcc1",
+								Arch:       "amd64",
 								Version:    "1:5.1.1-12ubuntu1",
 								SrcName:    "gcc-5",
 								SrcVersion: "5.1.1-12ubuntu1",
@@ -945,6 +1036,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libpam-modules-bin@1.1.8-3.1ubuntu3",
 								Name:       "libpam-modules-bin",
+								Arch:       "amd64",
 								Version:    "1.1.8-3.1ubuntu3",
 								SrcName:    "pam",
 								SrcVersion: "1.1.8-3.1ubuntu3",
@@ -953,6 +1045,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "libpam-runtime@1.1.8-3.1ubuntu3",
 								Name:       "libpam-runtime",
+								Arch:       "all",
 								Version:    "1.1.8-3.1ubuntu3",
 								SrcName:    "pam",
 								SrcVersion: "1.1.8-3.1ubuntu3",
@@ -961,6 +1054,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 							{
 								ID:         "makedev@2.3.1-93ubuntu1",
 								Name:       "makedev",
+								Arch:       "all",
 								Version:    "2.3.1-93ubuntu1",
 								SrcName:    "makedev",
 								SrcVersion: "2.3.1-93ubuntu1",
@@ -981,7 +1075,7 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 						FilePath: "var/lib/dpkg/status",
 						Packages: []types.Package{
 							{
-								ID: "apt@1.6.3ubuntu0.1", Name: "apt", Version: "1.6.3ubuntu0.1",
+								ID: "apt@1.6.3ubuntu0.1", Name: "apt", Arch: "amd64", Version: "1.6.3ubuntu0.1",
 								SrcName: "apt", SrcVersion: "1.6.3ubuntu0.1", Maintainer: "Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>"},
 						},
 					},
@@ -993,22 +1087,24 @@ func Test_dpkgAnalyzer_Analyze(t *testing.T) {
 			testFile: "./testdata/bash.list",
 			filePath: "var/lib/dpkg/info/tar.list",
 			want: &analyzer.AnalysisResult{
-				SystemInstalledFiles: []string{
-					"/bin/tar",
-					"/etc",
-					"/usr/lib/mime/packages/tar",
-					"/usr/sbin/rmt-tar",
-					"/usr/sbin/tarcat",
-					"/usr/share/doc/tar/AUTHORS",
-					"/usr/share/doc/tar/NEWS.gz",
-					"/usr/share/doc/tar/README.Debian",
-					"/usr/share/doc/tar/THANKS.gz",
-					"/usr/share/doc/tar/changelog.Debian.gz",
-					"/usr/share/doc/tar/copyright",
-					"/usr/share/man/man1/tar.1.gz",
-					"/usr/share/man/man1/tarcat.1.gz",
-					"/usr/share/man/man8/rmt-tar.8.gz",
-					"/etc/rmt",
+				SystemInstalledFiles: map[string][]string{
+					"tar": {
+						"/bin/tar",
+						"/etc",
+						"/usr/lib/mime/packages/tar",
+						"/usr/sbin/rmt-tar",
+						"/usr/sbin/tarcat",
+						"/usr/share/doc/tar/AUTHORS",
+						"/usr/share/doc/tar/NEWS.gz",
+						"/usr/share/doc/tar/README.Debian",
+						"/usr/share/doc/tar/THANKS.gz",
+						"/usr/share/doc/tar/changelog.Debian.gz",
+						"/usr/share/doc/tar/copyright",
+						"/usr/share/man/man1/tar.1.gz",
+						"/usr/share/man/man1/tarcat.1.gz",
+						"/usr/share/man/man8/rmt-tar.8.gz",
+						"/etc/rmt",
+					},
 				},
 			},
 		},

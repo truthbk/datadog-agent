@@ -2,6 +2,7 @@ package dpkg
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/aquasecurity/trivy/pkg/fanal/analyzer"
 	"github.com/aquasecurity/trivy/pkg/fanal/analyzer/os"
@@ -28,6 +29,8 @@ func (h dpkgHook) Handle(_ context.Context, r *analyzer.AnalysisResult, blob *ty
 	if r.OS.Family != os.Debian && r.OS.Family != os.Ubuntu {
 		return nil
 	}
+
+	fmt.Printf("Handle: r.SystemInstalledFiles: %+v\n", r.SystemInstalledFiles)
 
 	for i, pkgInfo := range r.PackageInfos {
 		for j, pkg := range pkgInfo.Packages {

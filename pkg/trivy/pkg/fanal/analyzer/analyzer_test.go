@@ -382,9 +382,11 @@ func TestAnalyzeFile(t *testing.T) {
 						},
 					},
 				},
-				SystemInstalledFiles: []string{
-					"lib/libc.musl-x86_64.so.1",
-					"lib/ld-musl-x86_64.so.1",
+				SystemInstalledFiles: map[string][]string{
+					"libc.musl-x86_64.so.1": {
+						"/lib/apk/db/libc.musl-x86_64.so.1",
+						"/lib/apk/db/ld-musl-x86_64.so.1",
+					},
 				},
 			},
 		},
