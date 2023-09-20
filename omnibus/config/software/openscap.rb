@@ -39,6 +39,13 @@ relative_path "openscap-#{version}"
 build do
   env = with_standard_compiler_flags(with_embedded_path)
 
+  # Pending fixes.
+  patch source: "1001-Fix-deadlocks-reported-by-Coverity.patch", env: env
+  patch source: "1002-Fix-memory-leaks-reported-by-Coverity.patch", env: env
+  patch source: "1003-Fix-out-of-bounds-access-reported-by-Coverity.patch", env: env
+  patch source: "1004-Fix-incorrect-expressions-reported-by-Coverity.patch", env: env
+  patch source: "1005-Fix-uninitialized-variables-reported-by-Coverity.patch", env: env
+
   patch source: "get_results_from_session.patch", env: env # add a function to retrieve results from session
   patch source: "session_result_reset.patch", env: env # add a function to reset results from session
   patch source: "session_reset_syschar.patch", env: env # also reset system characteristics
