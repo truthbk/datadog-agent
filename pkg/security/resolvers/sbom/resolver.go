@@ -257,12 +257,15 @@ func (r *Resolver) analyzeWorkload(sbom *SBOM) error {
 		// check if this pid still exists and is in the expected container ID (if we loose an exit and need to wait for
 		// the flush to remove a pid, there might be a significant delay before a PID is removed from this list. Checking
 		// the container ID reduces drastically the likelihood of this race)
+		fmt.Printf("Testing PID %d from container '%s'\n", rootCandidatePID, sbom.ContainerID)
 		computedID, err := utils.GetProcContainerID(rootCandidatePID, rootCandidatePID)
 		if err != nil {
+			fmt.Printf("Error getting container ID for PID %d\n", rootCandidatePID)
 			sbom.cgroup.RemovePID(rootCandidatePID)
 			continue
 		}
 		if string(computedID) != sbom.ContainerID {
+			fmt.Printf("computedID != container ID ('%s' != '%s')\n", computedID, sbom.ContainerID)
 			sbom.cgroup.RemovePID(rootCandidatePID)
 			continue
 		}
@@ -299,6 +302,28 @@ func (r *Resolver) analyzeWorkload(sbom *SBOM) error {
 			} else {
 				fmt.Printf("Read file %s:\n%s\n", containerOSReleasePath, string(content))
 			}
+
+			testPidOneCmdline := path.Join(scannedPath, "/proc/1/cmdline")
+			fmt.Printf("Testing path %s\n", testPidOneCmdline)
+			content, err = os.ReadFile(testPidOneCmdline)
+			if err != nil {
+				fmt.Printf("failed to read file %s: %s\n", testPidOneCmdline, err)
+			} else {
+				fmt.Printf("Read file %s:\n%s\n", testPidOneCmdline, string(content))
+			}
+
+			lateComputedID, err := utils.GetProcContainerID(rootCandidatePID, rootCandidatePID)
+			if err != nil {
+				fmt.Printf("Error getting container ID for PID %d\n", rootCandidatePID)
+				sbom.cgroup.RemovePID(rootCandidatePID)
+				continue
+			}
+			if string(lateComputedID) != sbom.ContainerID {
+				fmt.Printf("computedID != container ID ('%s' != '%s')\n", lateComputedID, sbom.ContainerID)
+				sbom.cgroup.RemovePID(rootCandidatePID)
+				continue
+			}
+
 			scanned = true
 			break
 		} else {
@@ -327,7 +352,7 @@ func (r *Resolver) analyzeWorkload(sbom *SBOM) error {
 				seclog.Tracef("indexing %s as %+v", file, pkg)
 				sbom.files[file] = pkg
 				if strings.HasSuffix(file, "touch") || strings.HasSuffix(file, "os-release") {
-					seclog.Infof("indexing %s as %+v", file, pkg)
+					seclog.Infof("indexing %s as %+v for '%s'", file, pkg, sbom.ContainerID)
 				}
 			}
 		}
