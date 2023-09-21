@@ -35,7 +35,7 @@ require (
 
 require (
 	github.com/DataDog/agent-payload/v5 v5.0.73
-	github.com/DataDog/test-infra-definitions v0.0.0-20230921105916-9f6aa562e7c3
+	github.com/DataDog/test-infra-definitions v0.0.0-20230921132525-ce4ba1740e81
 	github.com/docker/cli v24.0.4+incompatible
 	github.com/docker/docker v24.0.4+incompatible
 	github.com/pkg/sftp v1.13.6
