@@ -270,9 +270,17 @@ func (r *Resolver) analyzeWorkload(sbom *SBOM) error {
 			continue
 		}
 
+		scannedPath := utils.ProcRootPath(rootCandidatePID)
+		baseFilesPath := path.Join(scannedPath, "/var/lib/dpkg/info/base-files.list")
+		_, err = os.Lstat(baseFilesPath)
+		if err != nil {
+			fmt.Printf("failed to lstat %s: %s\n", baseFilesPath, err)
+		} else {
+			fmt.Printf("%s exists\n", baseFilesPath)
+		}
+
 		lastErr = r.generateSBOM(utils.ProcRootPath(rootCandidatePID), sbom)
 		if lastErr == nil {
-			scannedPath := utils.ProcRootPath(rootCandidatePID)
 			fi, err := os.Lstat(scannedPath)
 			if err != nil {
 				fmt.Printf("failed to lstat %s\n", scannedPath)
