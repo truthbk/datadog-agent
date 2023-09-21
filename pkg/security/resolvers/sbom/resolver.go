@@ -271,6 +271,21 @@ func (r *Resolver) analyzeWorkload(sbom *SBOM) error {
 		}
 
 		scannedPath := utils.ProcRootPath(rootCandidatePID)
+		fi, err := os.Lstat(scannedPath)
+		if err != nil {
+			fmt.Printf("failed to lstat %s\n", scannedPath)
+		} else {
+			fmt.Printf("lstat %s:\nName: %s\nMode: %s\n", scannedPath, fi.Name(), fi.Mode())
+			if fi.Mode()&fs.ModeSymlink != 0 {
+				lp, err := os.Readlink(scannedPath)
+				if err != nil {
+					fmt.Printf("readlink on %s failed: %s\n", scannedPath, err)
+				} else {
+					fmt.Printf("link %s -> %s\n", scannedPath, lp)
+				}
+			}
+		}
+
 		baseFilesPath := path.Join(scannedPath, "/var/lib/dpkg/info/base-files.list")
 		_, err = os.Lstat(baseFilesPath)
 		if err != nil {
@@ -281,20 +296,6 @@ func (r *Resolver) analyzeWorkload(sbom *SBOM) error {
 
 		lastErr = r.generateSBOM(utils.ProcRootPath(rootCandidatePID), sbom)
 		if lastErr == nil {
-			fi, err := os.Lstat(scannedPath)
-			if err != nil {
-				fmt.Printf("failed to lstat %s\n", scannedPath)
-			} else {
-				fmt.Printf("lstat %s:\nName: %s\nMode: %s\n", scannedPath, fi.Name(), fi.Mode())
-				if fi.Mode()&fs.ModeSymlink != 0 {
-					lp, err := os.Readlink(scannedPath)
-					if err != nil {
-						fmt.Printf("readlink on %s failed: %s\n", scannedPath, err)
-					} else {
-						fmt.Printf("link %s -> %s\n", scannedPath, lp)
-					}
-				}
-			}
 			testInitMountNsFs := path.Join(scannedPath, fmt.Sprintf("/proc/%d", rootCandidatePID))
 			fmt.Printf("Testing path %s\n", testInitMountNsFs)
 			_, err = os.Lstat(testInitMountNsFs)
