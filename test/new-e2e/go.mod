@@ -21,8 +21,8 @@ require (
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/fatih/color v1.13.0
-	github.com/pulumi/pulumi-command/sdk v0.9.0 // indirect
-	github.com/pulumi/pulumi/sdk/v3 v3.84.0
+	github.com/pulumi/pulumi-command/sdk v0.7.2 // indirect
+	github.com/pulumi/pulumi/sdk/v3 v3.83.0
 	github.com/samber/lo v1.38.1
 	github.com/sethvargo/go-retry v0.2.4
 	github.com/stretchr/testify v1.8.4
