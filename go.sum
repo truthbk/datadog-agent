@@ -165,12 +165,10 @@ github.com/DataDog/opentelemetry-mapping-go/pkg/quantile v0.8.0 h1:IDyjHFtUgx+VV
 github.com/DataDog/opentelemetry-mapping-go/pkg/quantile v0.8.0/go.mod h1:qpCkRg9O1kbvenpvjRIGH07v8ozAadJP25yS+uwHyeg=
 github.com/DataDog/sketches-go v1.4.2 h1:gppNudE9d19cQ98RYABOetxIhpTCl4m7CnbRZjvVA/o=
 github.com/DataDog/sketches-go v1.4.2/go.mod h1:xJIXldczJyyjnbDop7ZZcLxJdV3+7Kra7H1KMgpgkLk=
-github.com/DataDog/trivy v0.0.0-20230526171704-5aaa4575395e h1:sw8zPMtAx20gY2wSdANQ/Z64B1hOMrku+zoPFGcumLk=
-github.com/DataDog/trivy v0.0.0-20230526171704-5aaa4575395e/go.mod h1:f1nyvEyWU3w5L8dYIQljloMO/BX0i0OK9NwGeZtvmFw=
+github.com/DataDog/trivy v0.0.0-20230921114821-5ccf5722eaca h1:mVdDhVM9TGgsM6MvyKSzJhHy+GegtToLqB7LHXMkzdc=
+github.com/DataDog/trivy v0.0.0-20230921114821-5ccf5722eaca/go.mod h1:f1nyvEyWU3w5L8dYIQljloMO/BX0i0OK9NwGeZtvmFw=
 github.com/DataDog/viper v1.12.0 h1:FufyZpZPxyszafSV5B8Q8it75IhhuJwH0T7QpT6HnD0=
 github.com/DataDog/viper v1.12.0/go.mod h1:wDdUVJ2SHaMaPrCZrlRCObwkubsX8j5sme3LaR/SGTc=
-github.com/DataDog/walker v0.0.0-20230418153152-7f29bb2dc950 h1:2imDajw3V85w1iqHsuXN+hUBZQVF+r9eME8tsPq/HpA=
-github.com/DataDog/walker v0.0.0-20230418153152-7f29bb2dc950/go.mod h1:FU+7qU8DeQQgSZDmmThMJi93kPkLFgy0oVAcLxurjIk=
 github.com/DataDog/watermarkpodautoscaler v0.5.2 h1:hPbhnpWQrM1bRPmwCgFMmSQWohHHCDkzgsMlegGr5t8=
 github.com/DataDog/watermarkpodautoscaler v0.5.2/go.mod h1:wmxU62NOlfdWqlGf9Te/j+BiyZkjock5S5265g/KvK8=
 github.com/DataDog/zstd v1.4.5/go.mod h1:1jcaCB/ufaK+sKp1NBhlGmpz41jOoPQ35bpF36t7BBo=
@@ -216,6 +214,8 @@ github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdko
 github.com/StackExchange/wmi v0.0.0-20181212234831-e0a55b97c705/go.mod h1:3eOhrUMpNV+6aFIbp5/iudMxNCF27Vw2OZgy4xEx0Fg=
 github.com/StackExchange/wmi v1.2.1 h1:VIkavFPXSjcnS+O8yTq7NI32k0R5Aj+v39y29VYDOSA=
 github.com/StackExchange/wmi v1.2.1/go.mod h1:rcmrprowKIVzvc+NUiLncP2uuArMWLCbu9SBzvHz7e8=
+github.com/YoannGh/walker v0.0.0-20230921115904-eda75e96e9bb h1:B+46uO2BOaM1w+BIuhNnlKueLMXUQ3R1S2SP+kbW80U=
+github.com/YoannGh/walker v0.0.0-20230921115904-eda75e96e9bb/go.mod h1:FU+7qU8DeQQgSZDmmThMJi93kPkLFgy0oVAcLxurjIk=
 github.com/acobaugh/osrelease v0.1.0 h1:Yb59HQDGGNhCj4suHaFQQfBps5wyoKLSSX/J/+UifRE=
 github.com/acobaugh/osrelease v0.1.0/go.mod h1:4bFEs0MtgHNHBrmHCt67gNisnabCRAlzdVasCEGHTWY=
 github.com/acomagu/bufpipe v1.0.3/go.mod h1:mxdxdup/WdsKVreO5GpW4+M/1CE2sMG4jeGJ2sYmHc4=

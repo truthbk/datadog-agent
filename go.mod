@@ -644,8 +644,8 @@ replace k8s.io/cri-api => k8s.io/cri-api v0.25.5
 // Use custom Trivy fork to reduce binary size
 // Pull in replacements needed by upstream Trivy
 replace (
-	github.com/aquasecurity/trivy => github.com/DataDog/trivy v0.0.0-20230526171704-5aaa4575395e
-	github.com/saracen/walker => github.com/DataDog/walker v0.0.0-20230418153152-7f29bb2dc950
+	github.com/aquasecurity/trivy => github.com/DataDog/trivy v0.0.0-20230921114821-5ccf5722eaca
+	github.com/saracen/walker => github.com/YoannGh/walker v0.0.0-20230921115904-eda75e96e9bb
 	github.com/spdx/tools-golang => github.com/spdx/tools-golang v0.3.0
 	oras.land/oras-go => oras.land/oras-go v1.1.1
 )
