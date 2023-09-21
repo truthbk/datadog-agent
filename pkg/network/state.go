@@ -144,6 +144,7 @@ type client struct {
 
 	closedConnections []ConnectionStats
 	stats             map[StatCookie]StatCounters
+	statsConns        map[StatCookie]*ConnectionStats
 	// maps by dns key the domain (string) to stats structure
 	dnsStats        dns.StatsByKeyByNameByType
 	httpStatsDelta  map[http.Key]*http.RequestStats
@@ -662,6 +663,7 @@ func (ns *networkState) getClient(clientID string) *client {
 	c := &client{
 		lastFetch:             time.Now(),
 		stats:                 make(map[StatCookie]StatCounters),
+		statsConns:            make(map[StatCookie]*ConnectionStats),
 		closedConnections:     make([]ConnectionStats, 0, minClosedCapacity),
 		closedConnectionsKeys: make(map[StatCookie]int),
 		dnsStats:              dns.StatsByKeyByNameByType{},
@@ -695,6 +697,7 @@ func (ns *networkState) mergeConnections(id string, active []ConnectionStats) (_
 				// remove any previous stats since we
 				// can't distinguish between the two sets of stats
 				delete(client.stats, cookie)
+				delete(client.statsConns, cookie)
 				if activeConn.LastUpdateEpoch > closedConn.LastUpdateEpoch {
 					// keep active connection
 					return false
@@ -719,15 +722,17 @@ func (ns *networkState) mergeConnections(id string, active []ConnectionStats) (_
 	// do the same for active connections
 	// keep stats for only active connections
 	newStats := make(map[StatCookie]StatCounters, len(activeByCookie))
+	newStatsConns := make(map[StatCookie]*ConnectionStats, len(activeByCookie))
 	active = filterConnections(active, func(c *ConnectionStats) bool {
 		if _, isActive := activeByCookie[c.Cookie]; !isActive {
 			return false
 		}
 
-		ns.createStatsForCookie(client, c.Cookie)
+		ns.createStatsForCookie(client, c)
 		ns.updateConnWithStats(client, c.Cookie, c)
 
 		newStats[c.Cookie] = client.stats[c.Cookie]
+		newStatsConns[c.Cookie] = client.statsConns[c.Cookie]
 
 		if c.Last.IsZero() {
 			// not reporting an "empty" connection
@@ -738,6 +743,7 @@ func (ns *networkState) mergeConnections(id string, active []ConnectionStats) (_
 	})
 
 	client.stats = newStats
+	client.statsConns = newStatsConns
 
 	return active, closed
 }
@@ -750,7 +756,7 @@ func (ns *networkState) updateConnWithStats(client *client, cookie StatCookie, c
 		if last, underflow = c.Monotonic.Sub(sts); underflow {
 			stateTelemetry.statsUnderflows.Inc()
 			log.DebugFunc(func() string {
-				return fmt.Sprintf("Stats underflow for cookie:%d, stats counters:%+v, connection counters:%+v", c.Cookie, sts, c.Monotonic)
+				return fmt.Sprintf("Stats underflow for cookie:%d, stats counters:%+v stats connection:%s, connection counters:%+v connection:%s", c.Cookie, sts, client.statsConns[cookie], c.Monotonic, c)
 			})
 
 			c.Monotonic = c.Monotonic.Max(sts)
@@ -759,20 +765,22 @@ func (ns *networkState) updateConnWithStats(client *client, cookie StatCookie, c
 
 		c.Last = c.Last.Add(last)
 		client.stats[cookie] = c.Monotonic
+		client.statsConns[cookie] = c
 	} else {
 		c.Last = c.Last.Add(c.Monotonic)
 	}
 }
 
 // createStatsForCookie will create a new stats object for a key if it doesn't already exist.
-func (ns *networkState) createStatsForCookie(client *client, cookie StatCookie) {
-	if _, ok := client.stats[cookie]; !ok {
+func (ns *networkState) createStatsForCookie(client *client, c *ConnectionStats) {
+	if _, ok := client.stats[c.Cookie]; !ok {
 		if len(client.stats) >= ns.maxClientStats {
 			stateTelemetry.connDropped.Inc()
 			return
 		}
 
-		client.stats[cookie] = StatCounters{}
+		client.stats[c.Cookie] = StatCounters{}
+		client.statsConns[c.Cookie] = c
 	}
 }
 
