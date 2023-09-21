@@ -324,7 +324,7 @@ kernel_matrix_testing_setup_env:
     - START=`date +%s`
     - DEPS_IMG="/home/kernel-version-testing/kmt-ramfs/deps.img"
     - DEPS_DIR="/home/kernel-version-testing/kmt-ramfs/deps"
-    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "time { (sudo cp /tmp/*.tar.gz $DEPS_DIR && sudo umount $DEPS_IMG) }"
+    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "time { (mountpoint $DEPS_DIR && sudo cp /tmp/*.tar.gz $DEPS_DIR && sudo umount $DEPS_IMG) }"
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "time { (sudo virsh attach-disk \$(sudo virsh list --name | grep ${MICRO_VM_NAME} | head -n 1 | tr -d '\n') $DEPS_IMG vdb --driver qemu --type disk --mode readonly) }"
     - END=`date +%s`
     - echo `expr $END - $START`
