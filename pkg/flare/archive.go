@@ -309,9 +309,9 @@ func getDiagnoses(isFlareLocal bool) func() ([]byte, error) {
 
 		// ... but when running within Agent some diagnose suites need to know
 		// that to run more optimally/differently by using existing in-memory objects
-		if !isFlareLocal {
-			diagCfg.RunningInAgentProcess = true
-		}
+		// if !isFlareLocal {
+		// 	diagCfg.RunningInAgentProcess = true
+		// }
 
 		return diagnose.RunStdOut(w, diagCfg)
 	}
