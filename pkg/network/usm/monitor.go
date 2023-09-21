@@ -49,9 +49,10 @@ var (
 		http2.Spec,
 		kafka.Spec,
 		javaTLSSpec,
-		// opensslSpec is unique, as we're modifying its factory during runtime to allow getting more parameters in the
-		// factory.
+		// opensslSpec + goTLSSpect are unique, as we're modifying its factory during runtime to allow getting more
+		// parameters in the factory.
 		opensslSpec,
+		goTLSSpec,
 	}
 )
 
@@ -93,6 +94,7 @@ func NewMonitor(c *config.Config, connectionProtocolMap, sockFD *ebpf.Map, bpfTe
 	}
 
 	opensslSpec.Factory = newSSLProgramProtocolFactory(mgr.Manager.Manager, sockFD, bpfTelemetry)
+	goTLSSpec.Factory = newGoTLSProgram(mgr.Manager.Manager, sockFD)
 
 	enabledProtocols, disabledProtocols, err := initProtocols(c, mgr)
 	if err != nil {
@@ -166,7 +168,7 @@ func (m *Monitor) Start() error {
 	// enabledProtocolsTmp to m.enabledProtocols, we'll use the enabledProtocolsTmp.
 	enabledProtocolsTmp := m.enabledProtocols[:0]
 	for _, protocol := range m.enabledProtocols {
-		startErr := protocol.PreStart(m.ebpfProgram.Manager.Manager)
+		startErr := protocol.PreStart(m.ebpfProgram.Manager.Manager, m.ebpfProgram.buildMode)
 		if startErr != nil {
 			log.Errorf("could not complete pre-start phase of %s monitoring: %s", protocol.Name(), startErr)
 			continue
