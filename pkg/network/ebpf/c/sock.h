@@ -71,11 +71,15 @@ static __always_inline void get_tcp_segment_counts(struct sock* skp, __u32* pack
     // counting segments/packets not currently supported on prebuilt
     // to implement, would need to do the offset-guess on the following
     // fields in the tcp_sk: packets_in & packets_out (respectively)
-    *packets_in = 0;
-    *packets_out = 0;
+    if (packets_in)
+        *packets_in = 0;
+    if (packets_out)
+        *packets_out = 0;
 #elif defined(COMPILE_CORE) || defined(COMPILE_RUNTIME)
-    BPF_CORE_READ_INTO(packets_out, tcp_sk(skp), segs_out);
-    BPF_CORE_READ_INTO(packets_in, tcp_sk(skp), segs_in);
+    if (packets_out)
+        BPF_CORE_READ_INTO(packets_out, tcp_sk(skp), segs_out);
+    if (packets_in)
+        BPF_CORE_READ_INTO(packets_in, tcp_sk(skp), segs_in);
 #endif
 }
 

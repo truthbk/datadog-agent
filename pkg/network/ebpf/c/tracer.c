@@ -53,7 +53,9 @@ int kprobe__tcp_sendmsg(struct pt_regs *ctx) {
     struct sock *skp = (struct sock *)PT_REGS_PARM1(ctx);
 #endif
     log_debug("kprobe/tcp_sendmsg: pid_tgid: %d, sock: %llx\n", pid_tgid, skp);
-    bpf_map_update_with_telemetry(tcp_sendmsg_args, &pid_tgid, &skp, BPF_ANY);
+    tcp_msg_args_t args = { .sk = skp };
+    get_tcp_segment_counts(skp, &args.segs_in, &args.segs_out);
+    bpf_map_update_with_telemetry(tcp_sendmsg_args, &pid_tgid, &args, BPF_ANY);
     return 0;
 }
 
@@ -63,7 +65,9 @@ int kprobe__tcp_sendmsg__pre_4_1_0(struct pt_regs *ctx) {
     u64 pid_tgid = bpf_get_current_pid_tgid();
     log_debug("kprobe/tcp_sendmsg: pid_tgid: %d\n", pid_tgid);
     struct sock *skp = (struct sock *)PT_REGS_PARM2(ctx);
-    bpf_map_update_with_telemetry(tcp_sendmsg_args, &pid_tgid, &skp, BPF_ANY);
+    tcp_msg_args_t args = { .sk = skp };
+    get_tcp_segment_counts(skp, &args.segs_in, &args.segs_out);
+    bpf_map_update_with_telemetry(tcp_sendmsg_args, &pid_tgid, &args, BPF_ANY);
     return 0;
 }
 #endif
@@ -71,13 +75,14 @@ int kprobe__tcp_sendmsg__pre_4_1_0(struct pt_regs *ctx) {
 SEC("kretprobe/tcp_sendmsg")
 int kretprobe__tcp_sendmsg(struct pt_regs *ctx) {
     u64 pid_tgid = bpf_get_current_pid_tgid();
-    struct sock **skpp = (struct sock **)bpf_map_lookup_elem(&tcp_sendmsg_args, &pid_tgid);
-    if (!skpp) {
+    tcp_msg_args_t *args = bpf_map_lookup_elem(&tcp_sendmsg_args, &pid_tgid);
+    if (!args) {
         log_debug("kretprobe/tcp_sendmsg: sock not found\n");
         return 0;
     }
 
-    struct sock *skp = *skpp;
+    struct sock *skp = args->sk;
+    u32 segs_in = args->segs_in, segs_out = args->segs_out;
     bpf_map_delete_elem(&tcp_sendmsg_args, &pid_tgid);
 
     int sent = PT_REGS_RC(ctx);
@@ -97,11 +102,12 @@ int kretprobe__tcp_sendmsg(struct pt_regs *ctx) {
 
     handle_tcp_stats(&t, skp, 0);
 
-    __u32 packets_in = 0;
-    __u32 packets_out = 0;
+    __u32 packets_in = 0, packets_out = 0;
     get_tcp_segment_counts(skp, &packets_in, &packets_out);
+    packets_in = packets_in > segs_in ? packets_in - segs_in : 0;
+    packets_out = packets_out > segs_out ? packets_out - segs_out : 0;
 
-    return handle_message(&t, sent, 0, CONN_DIRECTION_UNKNOWN, packets_out, packets_in, PACKET_COUNT_ABSOLUTE, skp);
+    return handle_message(&t, sent, 0, CONN_DIRECTION_UNKNOWN, packets_out, packets_in, PACKET_COUNT_INCREMENT, skp);
 }
 
 SEC("kprobe/tcp_sendpage")

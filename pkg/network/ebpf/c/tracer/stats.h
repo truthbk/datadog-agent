@@ -230,7 +230,7 @@ static __always_inline int handle_skb_consume_udp(struct sock *sk, struct sk_buf
     return handle_message(&t, 0, data_len, CONN_DIRECTION_UNKNOWN, 0, 1, PACKET_COUNT_INCREMENT, sk);
 }
 
-static __always_inline int handle_tcp_recv(u64 pid_tgid, struct sock *skp, int recv) {
+static __always_inline int handle_tcp_recv(u64 pid_tgid, struct sock *skp, int recv, u32 segs_in, u32 segs_out) {
     conn_tuple_t t = {};
     if (!read_conn_tuple(&t, skp, pid_tgid, CONN_TYPE_TCP)) {
         return 0;
@@ -241,8 +241,10 @@ static __always_inline int handle_tcp_recv(u64 pid_tgid, struct sock *skp, int r
     __u32 packets_in = 0;
     __u32 packets_out = 0;
     get_tcp_segment_counts(skp, &packets_in, &packets_out);
+    packets_in = packets_in > segs_in ? (packets_in - segs_in) : 0;
+    packets_out = packets_out > segs_out ? (packets_out - segs_out) : 0;
 
-    return handle_message(&t, 0, recv, CONN_DIRECTION_UNKNOWN, packets_out, packets_in, PACKET_COUNT_ABSOLUTE, skp);
+    return handle_message(&t, 0, recv, CONN_DIRECTION_UNKNOWN, packets_out, packets_in, PACKET_COUNT_INCREMENT, skp);
 }
 
 #endif // __TRACER_STATS_H

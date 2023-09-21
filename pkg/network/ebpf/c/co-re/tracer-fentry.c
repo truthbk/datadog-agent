@@ -212,7 +212,7 @@ int BPF_PROG(tcp_recvmsg_exit, struct sock *sk, struct msghdr *msg, size_t len, 
     }
 
     u64 pid_tgid = bpf_get_current_pid_tgid();
-    return handle_tcp_recv(pid_tgid, sk, copied);
+    return handle_tcp_recv(pid_tgid, sk, copied, 0, 0);
 }
 
 SEC("fexit/tcp_recvmsg")
@@ -223,7 +223,7 @@ int BPF_PROG(tcp_recvmsg_exit_pre_5_19_0, struct sock *sk, struct msghdr *msg, s
     }
 
     u64 pid_tgid = bpf_get_current_pid_tgid();
-    return handle_tcp_recv(pid_tgid, sk, copied);
+    return handle_tcp_recv(pid_tgid, sk, copied, 0, 0);
 }
 
 SEC("fentry/tcp_close")

@@ -128,4 +128,9 @@ typedef struct {
     };
 } ip_make_skb_args_t;
 
+typedef struct {
+    struct sock *sk;
+    __u32 segs_in, segs_out;
+} tcp_msg_args_t;
+
 #endif
