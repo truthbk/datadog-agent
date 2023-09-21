@@ -326,10 +326,10 @@ kernel_matrix_testing_setup_env:
     - DEPS_DIR="/home/kernel-version-testing/kmt-ramfs/deps"
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "time { (mountpoint $DEPS_DIR && sudo cp /tmp/*.tar.gz $DEPS_DIR && sudo umount $DEPS_IMG) }"
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "time { (sudo virsh attach-disk \$(sudo virsh list --name | grep ${MICRO_VM_NAME} | head -n 1 | tr -d '\n') $DEPS_IMG vdb --driver qemu --type disk --mode readonly) }"
-    - END=`date +%s`
-    - echo `expr $END - $START`
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "ssh -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP} 'time { (mkdir /mnt/deps && mount /dev/vdb /mnt/deps && cp /mnt/deps/*.tar.gz / && umount /dev/vdb) }'"
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "ssh -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP} 'time { (cd / && tar xzf /dependencies-${ARCH}.tar.gz --strip-components=1 && tar xzf /btfs-${ARCH}.tar.gz --strip-components=1 && tar xzf /tests-${ARCH}.tar.gz --strip-components=1 && chmod +x /micro-vm-init.sh) }'"
+    - END=`date +%s`
+    - echo `expr $END - $START`
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "ssh -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP} '/micro-vm-init.sh ${GO_VERSION} ${RETRY} ${ARCH} ${RUNNER_CMD}'"
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "scp -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP}:/ci-visibility/junit.tar.gz /home/ubuntu/junit.tar.gz"
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "scp -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP}:/ci-visibility/testjson.tar.gz /home/ubuntu/testjson.tar.gz"

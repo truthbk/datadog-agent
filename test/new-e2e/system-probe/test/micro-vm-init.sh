@@ -18,11 +18,7 @@ systemctl start docker
 
 START=`date +%s`
 ## Load docker images
-[ -d $KITCHEN_DOCKERS ] && find $KITCHEN_DOCKERS -maxdepth 1 -type f > /kitchen-dockers.txt
-while read p; do
-    docker load -i "$p" &
-done < /kitchen-dockers.txt
-wait
+[ -d $KITCHEN_DOCKERS ] && find $KITCHEN_DOCKERS -maxdepth 1 -type f -exec docker load -i {} \;
 END=`date +%s`
 echo "Docker load time:"
 echo `expr $END - $START`
