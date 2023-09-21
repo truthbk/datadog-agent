@@ -200,8 +200,8 @@ func (p *oscapIO) Run(ctx context.Context) error {
 		}
 	}()
 
-	// Stop oscap-io process after 60 minutes of inactivity.
-	timeout := 60 * time.Minute
+	// Stop oscap-io process after 2 minutes of inactivity.
+	timeout := 2 * time.Minute
 
 	go func() {
 		t := time.NewTimer(timeout)
