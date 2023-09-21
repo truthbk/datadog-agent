@@ -325,7 +325,7 @@ kernel_matrix_testing_setup_env:
     - DEPS_IMG="/tmp/${MICRO_VM_NAME}.img"
     - DEPS_DIR="/tmp/deps/$MICRO_VM_NAME"
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "time { (ls -lh /tmp && dd if=/dev/zero of=$DEPS_IMG bs=1G count=3 && mkfs.ext4 -F $DEPS_IMG && mkdir -p $DEPS_DIR && sudo mount -o exec,loop $DEPS_IMG $DEPS_DIR) }"
-    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "time { (sudo cp *.tar.gz $DEPS_DIR && sudo umount $DEPS_IMG) }"
+    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "time { (sudo cp /tmp/*.tar.gz $DEPS_DIR && sudo umount $DEPS_IMG) }"
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "time { (sudo virsh attach-disk \$(sudo virsh list --name | grep ${MICRO_VM_NAME} | head -n 1 | tr -d '\n') $DEPS_IMG vdb --driver qemu --type disk --mode readonly) }"
     - END=`date +%s`
     - echo `expr $END - $START`
