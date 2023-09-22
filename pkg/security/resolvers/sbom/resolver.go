@@ -205,8 +205,8 @@ func (r *Resolver) Start(ctx context.Context) {
 			case sbom := <-r.scannerChan:
 				if err := retry.Do(func() error {
 					return r.analyzeWorkload(sbom)
-				}, retry.Attempts(maxSBOMGenerationRetries), retry.Delay(20*time.Millisecond)); err != nil {
-					seclog.Errorf(err.Error())
+				}, retry.Attempts(maxSBOMGenerationRetries), retry.Delay(200*time.Millisecond)); err != nil {
+					seclog.Errorf("%v", err)
 				}
 			}
 		}
