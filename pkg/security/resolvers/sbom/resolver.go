@@ -12,11 +12,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/DataDog/datadog-go/v5/statsd"
@@ -106,6 +106,7 @@ type Resolver struct {
 	scannerChan    chan *SBOM
 	statsdClient   statsd.ClientInterface
 	sbomScanner    *sbomscanner.Scanner
+	hostRootDevice uint64
 
 	sbomGenerations       *atomic.Uint64
 	failedSBOMGenerations *atomic.Uint64
@@ -133,12 +134,23 @@ func NewSBOMResolver(c *config.RuntimeSecurityConfig, statsdClient statsd.Client
 		return nil, fmt.Errorf("couldn't create new SBOMResolver: %w", err)
 	}
 
+	hostProcRootPath := utils.ProcRootPath(1)
+	fi, err := os.Stat(hostProcRootPath)
+	if err != nil {
+		return nil, fmt.Errorf("stat failed for `%s`: couldn't stat host proc root path: %w", hostProcRootPath, err)
+	}
+	stat, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok {
+		return nil, fmt.Errorf("stat failed for `%s`: couldn't stat host proc root path", hostProcRootPath)
+	}
+
 	resolver := &Resolver{
 		statsdClient:          statsdClient,
 		sboms:                 make(map[string]*SBOM),
 		sbomsCache:            sbomsCache,
 		scannerChan:           make(chan *SBOM, 100),
 		sbomScanner:           sbomScanner,
+		hostRootDevice:        stat.Dev,
 		sbomGenerations:       atomic.NewUint64(0),
 		sbomsCacheHit:         atomic.NewUint64(0),
 		sbomsCacheMiss:        atomic.NewUint64(0),
@@ -270,23 +282,9 @@ func (r *Resolver) analyzeWorkload(sbom *SBOM) error {
 			continue
 		}
 
-		scannedPath := utils.ProcRootPath(rootCandidatePID)
-		fi, err := os.Lstat(scannedPath)
-		if err != nil {
-			fmt.Printf("failed to lstat %s\n", scannedPath)
-		} else {
-			fmt.Printf("lstat %s:\nName: %s\nMode: %s\n", scannedPath, fi.Name(), fi.Mode())
-			if fi.Mode()&fs.ModeSymlink != 0 {
-				lp, err := os.Readlink(scannedPath)
-				if err != nil {
-					fmt.Printf("readlink on %s failed: %s\n", scannedPath, err)
-				} else {
-					fmt.Printf("link %s -> %s\n", scannedPath, lp)
-				}
-			}
-		}
+		containerProcRootPath := utils.ProcRootPath(rootCandidatePID)
 
-		baseFilesPath := path.Join(scannedPath, "/var/lib/dpkg/info/base-files.list")
+		baseFilesPath := path.Join(containerProcRootPath, "/var/lib/dpkg/info/base-files.list")
 		_, err = os.Lstat(baseFilesPath)
 		if err != nil {
 			fmt.Printf("failed to lstat %s: %s\n", baseFilesPath, err)
@@ -294,45 +292,23 @@ func (r *Resolver) analyzeWorkload(sbom *SBOM) error {
 			fmt.Printf("%s exists\n", baseFilesPath)
 		}
 
-		lastErr = r.generateSBOM(utils.ProcRootPath(rootCandidatePID), sbom)
+		if sbom.ContainerID != "" {
+			fi, err := os.Stat(containerProcRootPath)
+			if err != nil {
+				return fmt.Errorf("stat failed for `%s`: couldn't stat container proc root path: %w", containerProcRootPath, err)
+			}
+			stat, ok := fi.Sys().(*syscall.Stat_t)
+			if !ok {
+				return fmt.Errorf("stat failed for `%s`: couldn't stat container proc root path", containerProcRootPath)
+			}
+			if stat.Dev == r.hostRootDevice {
+				fmt.Printf("couldn't generate sbom: container '%s' not yet ready (devs %d != %d)\n", r.hostRootDevice, stat.Dev)
+				return fmt.Errorf("couldn't generate sbom: container '%s' not yet ready", sbom.ContainerID)
+			}
+		}
+
+		lastErr = r.generateSBOM(containerProcRootPath, sbom)
 		if lastErr == nil {
-			testInitMountNsFs := path.Join(scannedPath, fmt.Sprintf("/proc/%d", rootCandidatePID))
-			fmt.Printf("Testing path %s\n", testInitMountNsFs)
-			_, err = os.Lstat(testInitMountNsFs)
-			if err != nil {
-				fmt.Printf("probably not in init mount ns fs, got err: %s\n", err)
-			} else {
-				fmt.Printf("maybe in mount ns fs !!\n")
-			}
-			containerOSReleasePath := path.Join(scannedPath, "etc/os-release")
-			content, err := os.ReadFile(containerOSReleasePath)
-			if err != nil {
-				fmt.Printf("failed to read file %s: %s\n", containerOSReleasePath, err)
-			} else {
-				fmt.Printf("Read file %s:\n%s\n", containerOSReleasePath, string(content))
-			}
-
-			testPidOneCmdline := path.Join(scannedPath, "/proc/1/cmdline")
-			fmt.Printf("Testing path %s\n", testPidOneCmdline)
-			content, err = os.ReadFile(testPidOneCmdline)
-			if err != nil {
-				fmt.Printf("failed to read file %s: %s\n", testPidOneCmdline, err)
-			} else {
-				fmt.Printf("Read file %s:\n%s\n", testPidOneCmdline, string(content))
-			}
-
-			lateComputedID, err := utils.GetProcContainerID(rootCandidatePID, rootCandidatePID)
-			if err != nil {
-				fmt.Printf("Error getting container ID for PID %d\n", rootCandidatePID)
-				sbom.cgroup.RemovePID(rootCandidatePID)
-				continue
-			}
-			if string(lateComputedID) != sbom.ContainerID {
-				fmt.Printf("computedID != container ID ('%s' != '%s')\n", lateComputedID, sbom.ContainerID)
-				sbom.cgroup.RemovePID(rootCandidatePID)
-				continue
-			}
-
 			scanned = true
 			break
 		} else {
