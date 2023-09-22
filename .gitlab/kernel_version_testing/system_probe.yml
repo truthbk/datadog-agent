@@ -257,7 +257,7 @@ kernel_matrix_testing_setup_env:
   needs: ["go_deps", "go_tools_deps"]
   tags: ["arch:amd64"]
   variables:
-    EC2_X86_INSTANCE_TYPE: "m5.metal"
+    EC2_X86_INSTANCE_TYPE: "m5d.metal"
     EC2_ARM_INSTANCE_TYPE: "m6g.metal"
     X86_AMI_ID: $KERNEL_MATRIX_TESTING_X86_AMI_ID
     ARM_AMI_ID: $KERNEL_MATRIX_TESTING_ARM_AMI_ID
