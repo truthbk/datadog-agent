@@ -169,33 +169,33 @@ var goTLSSpec = &protocols.ProtocolSpec{
 		{Name: goTLSReadArgsMap},
 		{Name: goTLSWriteArgsMap},
 	},
-	Probes: []*manager.Probe{
-		{
-			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				EBPFFuncName: connReadProbe,
-			},
-		},
-		{
-			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				EBPFFuncName: connReadRetProbe,
-			},
-		},
-		{
-			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				EBPFFuncName: connWriteProbe,
-			},
-		},
-		{
-			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				EBPFFuncName: connWriteRetProbe,
-			},
-		},
-		{
-			ProbeIdentificationPair: manager.ProbeIdentificationPair{
-				EBPFFuncName: connCloseProbe,
-			},
-		},
-	},
+	//Probes: []*manager.Probe{
+	//	{
+	//		ProbeIdentificationPair: manager.ProbeIdentificationPair{
+	//			EBPFFuncName: connReadProbe,
+	//		},
+	//	},
+	//	{
+	//		ProbeIdentificationPair: manager.ProbeIdentificationPair{
+	//			EBPFFuncName: connReadRetProbe,
+	//		},
+	//	},
+	//	{
+	//		ProbeIdentificationPair: manager.ProbeIdentificationPair{
+	//			EBPFFuncName: connWriteProbe,
+	//		},
+	//	},
+	//	{
+	//		ProbeIdentificationPair: manager.ProbeIdentificationPair{
+	//			EBPFFuncName: connWriteRetProbe,
+	//		},
+	//	},
+	//	{
+	//		ProbeIdentificationPair: manager.ProbeIdentificationPair{
+	//			EBPFFuncName: connCloseProbe,
+	//		},
+	//	},
+	//},
 }
 
 func newGoTLSProgram(m *manager.Manager, sockFD *ebpf.Map) protocols.ProtocolFactory {

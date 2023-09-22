@@ -50,37 +50,4 @@ int tracepoint__net__netif_receive_skb(struct pt_regs* ctx) {
     return 0;
 }
 
-// GO TLS PROBES placeholders
-
-// func (c *Conn) Write(b []byte) (int, error)
-SEC("uprobe/crypto/tls.(*Conn).Write")
-int uprobe__crypto_tls_Conn_Write(struct pt_regs *ctx) {
-    return 0;
-}
-
-// func (c *Conn) Write(b []byte) (int, error)
-SEC("uprobe/crypto/tls.(*Conn).Write/return")
-int uprobe__crypto_tls_Conn_Write__return(struct pt_regs *ctx) {
-    return 0;
-}
-
-// func (c *Conn) Read(b []byte) (int, error)
-SEC("uprobe/crypto/tls.(*Conn).Read")
-int uprobe__crypto_tls_Conn_Read(struct pt_regs *ctx) {
-    return 0;
-}
-
-// func (c *Conn) Read(b []byte) (int, error)
-SEC("uprobe/crypto/tls.(*Conn).Read/return")
-int uprobe__crypto_tls_Conn_Read__return(struct pt_regs *ctx) {
-    return 0;
-}
-
-// func (c *Conn) Close(b []byte) (int, error)
-SEC("uprobe/crypto/tls.(*Conn).Close")
-int uprobe__crypto_tls_Conn_Close(struct pt_regs *ctx) {
-    return 0;
-}
-
-
 char _license[] SEC("license") = "GPL";
