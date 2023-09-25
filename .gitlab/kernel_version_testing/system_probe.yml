@@ -263,7 +263,7 @@ upload_minimized_btfs_arm64:
     - !reference [.shared_filters_and_queries]
     - INSTANCE_IP=$(aws ec2 describe-instances --filters $FILTER_TEAM $FILTER_MANAGED $FILTER_STATE $FILTER_PIPELINE "Name=instance-type,Values=${INSTANCE_TYPE}" --output text --query $QUERY_PRIVATE_IPS)
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "sudo bash -c 'mkdir ${MOUNTFS} && mount -t ramfs -o size=20g ramfs ${MOUNTFS} && dd if=/dev/zero of=${DEPS_IMG} bs=1G count=15 && mkfs.ext4 -F ${DEPS_IMG} && mkdir ${DEPS_DIR} && mount -o exec,loop ${DEPS_IMG} ${DEPS_DIR}'"
-    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "sudo bash -c 'mv /tmp/*.tar.gz ${DEPS_DIR} && tar xzf dependencies-${ARCH}.tar.gz --strip-components=1 -C ${DEPS_DIR} && tar xzf tests-${ARCH}.tar.gz --strip-components=1 -C ${DEPS_DIR} && tar xzf btfs-${ARCH}.tar.gz --strip-components=1 -C ${DEPS_DIR} && umount ${DEPS_IMG}'"
+    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "sudo bash -c 'mv /tmp/*.tar.gz ${DEPS_DIR} && tar xzf ${DEPS_DIR}/dependencies-${ARCH}.tar.gz --strip-components=1 -C ${DEPS_DIR} && tar xzf ${DEPS_DIR}/tests-${ARCH}.tar.gz --strip-components=1 -C ${DEPS_DIR} && tar xzf ${DEPS_DIR}/btfs-${ARCH}.tar.gz --strip-components=1 -C ${DEPS_DIR} && umount ${DEPS_IMG}'"
 
 setup_dependencies_x64:
   extends:
