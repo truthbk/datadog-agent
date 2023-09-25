@@ -270,6 +270,7 @@ setup_dependencies_x64:
   needs: ["upload_dependencies_x64", "upload_system_probe_tests_x64", "upload_minimized_btfs_x64"]
   variables:
     ARCH: x86_64
+    AWS_EC2_SSH_KEY_FILE: $CI_PROJECT_DIR/ssh_key
 
 setup_dependencies_arm64:
   extends:
@@ -277,6 +278,7 @@ setup_dependencies_arm64:
   needs: ["upload_dependencies_arm64", "upload_system_probe_tests_arm64", "upload_minimized_btfs_arm64"]
   variables:
     ARCH: arm64
+    AWS_EC2_SSH_KEY_FILE: $CI_PROJECT_DIR/ssh_key
 
 kernel_matrix_testing_setup_env:
   extends:
