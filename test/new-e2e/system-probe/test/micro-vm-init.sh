@@ -16,7 +16,7 @@ eval $(gimme "$GOVERSION")
 systemctl start docker
 ## Load docker images
 START=`date +%s`
-[ -d $KITCHEN_DOCKERS ] && find $KITCHEN_DOCKERS -maxdepth 1 -type f | xargs -r -p4 docker load -i {}
+[ -d $KITCHEN_DOCKERS ] && find $KITCHEN_DOCKERS -maxdepth 1 -type f | xargs -r -P 4 -i docker load -i {}
 END=`date +%s`
 echo "Docker load time:"
 echo `expr $END - $START`
