@@ -260,7 +260,8 @@ upload_minimized_btfs_arm64:
     - MOUNTFS="/home/kernel-version-testing/kmt-ramfs"
     - DEPS_DIR="${MOUNTFS}/deps"
     - DEPS_IMG="${MOUNTFS}/deps.img"
-    - INSTANCE_IP=$(cat $CI_PROJECT_DIR/stack.outputs | grep $ARCH-instance-ip | cut -d ' ' -f 2)
+    - !reference [.shared_filters_and_queries]
+    - INSTANCE_IP=$(aws ec2 describe-instances --filters $FILTER_TEAM $FILTER_MANAGED $FILTER_STATE $FILTER_PIPELINE "Name=instance-type,Values=${INSTANCE_TYPE}" --output text --query $QUERY_PRIVATE_IPS)
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "mkdir ${MOUNTFS} && sudo mount -t ramfs -o size=10g ramfs ${MOUNTFS} && sudo dd if=/dev/zero of=${DEPS_IMG} bs=1G count=7 && sudo mkfs.ext4 -F ${DEPS_IMG} && sudo mkdir ${DEPS_DIR} && sudo mount -o exec,loop ${DEPS_IMG} ${DEPS_DIR}"
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "mv /tmp/*.tar.gz ${DEPS_DIR} && cd ${DEPS_DIR} && tar xzf dependencies-${ARCH}.tar.gz --strip-components=1 && tar xzf tests-${ARCH}.tar.gz --strip-components=1 && tar xzf btfs-${ARCH}.tar.gz --strip-components=1 && sudo umount ${DEPS_IMG}"
 
@@ -271,6 +272,7 @@ setup_dependencies_x64:
   variables:
     ARCH: x86_64
     AWS_EC2_SSH_KEY_FILE: $CI_PROJECT_DIR/ssh_key
+    INSTANCE_TYPE: m5d.metal
 
 setup_dependencies_arm64:
   extends:
@@ -279,6 +281,7 @@ setup_dependencies_arm64:
   variables:
     ARCH: arm64
     AWS_EC2_SSH_KEY_FILE: $CI_PROJECT_DIR/ssh_key
+    INSTANCE_TYPE: m6gd.metal
 
 kernel_matrix_testing_setup_env:
   extends:
