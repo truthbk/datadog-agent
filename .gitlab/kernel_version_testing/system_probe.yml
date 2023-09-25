@@ -256,7 +256,7 @@ upload_minimized_btfs_arm64:
   before_script:
     - !reference [.kernel_matrix_testing_new_profile]
     - !reference [.write_ssh_key_file]
-  scripts:
+  script:
     - MOUNTFS="/home/kernel-version-testing/kmt-ramfs"
     - DEPS_DIR="${MOUNTFS}/deps"
     - DEPS_IMG="${MOUNTFS}/deps.img"
