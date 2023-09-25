@@ -9,8 +9,8 @@ github.com/DataDog/datadog-api-client-go v1.16.0 h1:5jOZv1m98criCvYTa3qpW8Hzv301
 github.com/DataDog/datadog-api-client-go v1.16.0/go.mod h1:PgrP2ABuJWL3Auw2iEkemAJ/r72ghG4DQQmb5sgnKW4=
 github.com/DataDog/mmh3 v0.0.0-20200805151601-30884ca2197a h1:m9REhmyaWD5YJ0P53ygRHxKKo+KM+nw+zz0hEdKztMo=
 github.com/DataDog/mmh3 v0.0.0-20200805151601-30884ca2197a/go.mod h1:SvsjzyJlSg0rKsqYgdcFxeEVflx3ZNAyFfkUHP0TxXg=
-github.com/DataDog/test-infra-definitions v0.0.0-20230922125226-744a75d2817e h1:rbnYtuut3ctZ/ltKd/NJGPa4+oJBsR2V5Dr1cKTVIGY=
-github.com/DataDog/test-infra-definitions v0.0.0-20230922125226-744a75d2817e/go.mod h1:buLeNA6H7/WU+W1Te1toombEWWhdxQjVsQNkLhmfyW0=
+github.com/DataDog/test-infra-definitions v0.0.0-20230919144548-f4f52d64a31e h1:u3eKXw8hEwZxLCkspLiZhpDfSnVoOzppwHwDy5TuxLc=
+github.com/DataDog/test-infra-definitions v0.0.0-20230919144548-f4f52d64a31e/go.mod h1:UmA+qVnbzsxHlu3E9bEA9TpdFsO6n7alWbb120UNRrQ=
 github.com/DataDog/zstd v1.5.0 h1:+K/VEwIAaPcHiMtQvpLD4lqW7f0Gk3xdYZmI1hD+CXo=
 github.com/DataDog/zstd v1.5.0/go.mod h1:g4AWEaM3yOg3HYfnJ3YIawPnVdXJh9QME85blwSAmyw=
 github.com/DataDog/zstd_0 v0.0.0-20210310093942-586c1286621f h1:5Vuo4niPKFkfwW55jV4vY0ih3VQ9RaQqeqY67fvRn8A=
@@ -395,8 +395,8 @@ github.com/pulumi/pulumi-aws/sdk/v5 v5.42.0/go.mod h1:qFeKTFSNIlMHotu9ntOWFjJBHt
 github.com/pulumi/pulumi-awsx/sdk v1.0.5 h1:9iGZYh1tkZb7Op2TpuYiAY4Tflt4U9332K2QvuZj4G4=
 github.com/pulumi/pulumi-awsx/sdk v1.0.5/go.mod h1:3oPWzeHq0zMg70zF4B/4pkQsR5QEF08+Td63hfhwCok=
 github.com/pulumi/pulumi-azure-native-sdk v1.104.0 h1:vyD4PvKSOkwL1z9WTis3ZE9XC73UM/7AyMNek4Vm1+E=
-github.com/pulumi/pulumi-command/sdk v0.9.0 h1:YD2MMFO6caMiaBc+DIXwcGXsvuxsU2f2n3zLapltslE=
-github.com/pulumi/pulumi-command/sdk v0.9.0/go.mod h1:jZaG2y3ZXEtsFKarNVva7jhAWCiaDgZMbKPfcetlA8o=
+github.com/pulumi/pulumi-command/sdk v0.7.2 h1:YmnCX2lc70kpO9DxE4TJyApL1Tq19gxAaVpThQuDthY=
+github.com/pulumi/pulumi-command/sdk v0.7.2/go.mod h1:niZxKP6w3PQdwOWnRwjop2LNd1TcdIQR+LuzIEGX4kU=
 github.com/pulumi/pulumi-docker/sdk/v3 v3.6.1 h1:plWLn9O6u80Vr37LoCsckyobBfcrdTU9cERor72QjqA=
 github.com/pulumi/pulumi-docker/sdk/v3 v3.6.1/go.mod h1:N4Yu4c49QErfucPt9Y/fGmpTryRqc0VfhyKHsGR9/g8=
 github.com/pulumi/pulumi-eks/sdk v1.0.3 h1:JmO5ndticLk4f8ldeSxulkSLp6luwGEaH/JyVg7+X6w=

@@ -15,13 +15,13 @@ require (
 	// `TEST_INFRA_DEFINITIONS_BUILDIMAGES` matches the commit sha in the module version
 	// Example: 	github.com/DataDog/test-infra-definitions v0.0.0-YYYYMMDDHHmmSS-0123456789AB
 	// => TEST_INFRA_DEFINITIONS_BUILDIMAGES: 0123456789AB
-	github.com/DataDog/test-infra-definitions v0.0.0-20230922125226-744a75d2817e
+	github.com/DataDog/test-infra-definitions v0.0.0-20230919144548-f4f52d64a31e
 	github.com/aws/aws-sdk-go-v2 v1.21.0
 	github.com/aws/aws-sdk-go-v2/config v1.18.42
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.36.4
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/fatih/color v1.13.0
-	github.com/pulumi/pulumi-command/sdk v0.9.0 // indirect
+	github.com/pulumi/pulumi-command/sdk v0.7.2 // indirect
 	github.com/pulumi/pulumi/sdk/v3 v3.83.0
 	github.com/samber/lo v1.38.1
 	github.com/sethvargo/go-retry v0.2.4
