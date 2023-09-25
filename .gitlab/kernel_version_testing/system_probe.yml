@@ -247,6 +247,36 @@ upload_minimized_btfs_arm64:
   - set -x
   - export AWS_PROFILE=agent-qa-ci
 
+.setup_dependencies:
+  stage: kernel_matrix_testing
+  rules:
+    !reference [ .on_system_probe_changes_or_manual ]
+  tags: ["arch:amd64"]
+  before_script:
+    - !reference [.kernel_matrix_testing_new_profile]
+    - !reference [.write_ssh_key_file]
+  scripts:
+    - MOUNTFS="/home/kernel-version-testing/kmt-ramfs"
+    - DEPS_DIR="${MOUNTFS}/deps"
+    - DEPS_IMG="${MOUNTFS}/deps.img"
+    - INSTANCE_IP=$(cat $CI_PROJECT_DIR/stack.outputs | grep $ARCH-instance-ip | cut -d ' ' -f 2)
+    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "mkdir ${MOUNTFS} && sudo mount -t ramfs -o size=10g ramfs ${MOUNTFS} && sudo dd if=/dev/zero of=${DEPS_IMG} bs=1G count=7 && sudo mkfs.ext4 -F ${DEPS_IMG} && sudo mkdir ${DEPS_DIR} && sudo mount -o exec,loop ${DEPS_IMG} ${DEPS_DIR}"
+    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "mv /tmp/*.tar.gz ${DEPS_DIR} && cd ${DEPS_DIR} && tar xzf dependencies-${ARCH}.tar.gz --strip-components=1 && tar xzf tests-${ARCH}.tar.gz --strip-components=1 && tar xzf btfs-${ARCH}.tar.gz --strip-components=1 && sudo umount ${DEPS_IMG}"
+
+setup_dependencies_x64:
+  extends:
+    - .setup_dependencies
+  needs: ["upload_dependencies_x64", "upload_system_probe_tests_x64", "upload_minimized_btfs_x64"]
+  variables:
+    ARCH: x86_64
+
+setup_dependencies_arm64:
+  extends:
+    - .setup_dependencies
+  needs: ["upload_dependencies_arm64", "upload_system_probe_tests_arm64", "upload_minimized_btfs_arm64"]
+  variables:
+    ARCH: arm64
+
 kernel_matrix_testing_setup_env:
   extends:
     - .kitchen_ec2_location_us_east_1
@@ -319,9 +349,11 @@ kernel_matrix_testing_setup_env:
     - MICRO_VM_IP=$(cat $CI_PROJECT_DIR/stack.outputs | grep $ARCH-$TAG | cut -d ' ' -f 2)
     - MICRO_VM_NAME=$(cat $CI_PROJECT_DIR/stack.outputs | grep $ARCH-$TAG | cut -d ' ' -f 1)
     # ssh into each micro-vm and run initialization script. This script will also run the tests.
+    - DEPS_IMG="/home/kernel-version-testing/kmt-ramfs/deps.img"
     - START=`date +%s`
-    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "scp -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa /tmp/*.tar.gz root@${MICRO_VM_IP}:/"
-    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "ssh -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP} 'cd / && tar xzf /dependencies-${ARCH}.tar.gz --strip-components=1 && tar xzf /tests-${ARCH}.tar.gz --strip-components=1 && tar xzf /btfs-${ARCH}.tar.gz --strip-components=1 && chmod +x micro-vm-init.sh'"
+    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "time { (sudo virsh attach-disk \$(sudo virsh list --name | grep ${MICRO_VM_NAME} | head -n 1 | tr -d '\n') $DEPS_IMG vdb --driver qemu --type disk --mode readonly) }"
+    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "ssh -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP} 'time { (mkdir /mnt/deps && mount -o ro,noload /dev/vdb /mnt/deps) }'"
+    - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "ssh -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP} 'time { (cp /mnt/deps/micro-vm-init.sh /) }'"
     - END=`date +%s`
     - echo `expr $END - $START`
     - ssh -o StrictHostKeyChecking=no -i $AWS_EC2_SSH_KEY_FILE ubuntu@$INSTANCE_IP "ssh -o StrictHostKeyChecking=no -i /home/kernel-version-testing/ddvm_rsa root@${MICRO_VM_IP} '/micro-vm-init.sh ${GO_VERSION} ${RETRY} ${ARCH}'"
@@ -334,7 +366,7 @@ kernel_matrix_testing_setup_env:
 kernel_matrix_testing_run_tests_x64:
   extends:
     - .kernel_matrix_testing_run_tests
-  needs: ["kernel_matrix_testing_setup_env", "upload_dependencies_x64", "upload_system_probe_tests_x64", "upload_minimized_btfs_x64"]
+  needs: ["kernel_matrix_testing_setup_env", "setup_dependencies_x64"]
   timeout: 3h
   variables:
     ARCH: "x86_64"
@@ -345,7 +377,7 @@ kernel_matrix_testing_run_tests_x64:
 kernel_matrix_testing_run_tests_arm64:
   extends:
     - .kernel_matrix_testing_run_tests
-  needs: ["kernel_matrix_testing_setup_env", "upload_dependencies_arm64", "upload_system_probe_tests_arm64", "upload_minimized_btfs_arm64"]
+  needs: ["kernel_matrix_testing_setup_env", "setup_dependencies_arm64"]
   timeout: 3h
   variables:
     ARCH: "arm64"
