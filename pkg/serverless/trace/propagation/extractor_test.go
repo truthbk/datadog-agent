@@ -9,6 +9,62 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type propID struct {
+	asUint uint64
+	asStr  string
+}
+
+var (
+	ddTraceID  = propID{1111111111111111111, "1111111111111111111"}
+	ddSpanID   = propID{2222222222222222222, "2222222222222222222"}
+	w3cTraceID = propID{3333333333333333333, "2e426101834d5555"}
+	w3cSpanID  = propID{4444444444444444444, "3dadd6acaf11c71c"}
+)
+
+var (
+	headersAll = `{
+		"x-datadog-trace-id": "` + ddTraceID.asStr + `",
+		"x-datadog-parent-id": "` + ddSpanID.asStr + `",
+		"x-datadog-sampling-priority": "1",
+		"x-datadog-tags": "_dd.p.dm=-0",
+		"traceparent": "00-0000000000000000` + w3cTraceID.asStr + "-" + w3cSpanID.asStr + `-01",
+		"tracestate": "dd=s:1;t.dm:-0"
+	}`
+	headersDD = `{
+		"x-datadog-trace-id": "` + ddTraceID.asStr + `",
+		"x-datadog-parent-id": "` + ddSpanID.asStr + `",
+		"x-datadog-sampling-priority": "1",
+		"x-datadog-tags": "_dd.p.dm=-0",
+	}`
+	headersW3C = `{
+		"traceparent": "00-0000000000000000` + w3cTraceID.asStr + "-" + w3cSpanID.asStr + `-01",
+		"tracestate": "dd=s:1;t.dm:-0"
+	}`
+
+	eventSqsMessage = func(hdrs string) events.SQSMessage {
+		return events.SQSMessage{
+			MessageAttributes: map[string]events.SQSMessageAttribute{
+				"_datadog": events.SQSMessageAttribute{
+					DataType:    "String",
+					StringValue: aws.String(hdrs),
+				},
+			},
+		}
+	}
+	eventSnsSqsMessage = func(hdrs string) events.SQSMessage {
+		return events.SQSMessage{
+			Body: `{
+					"MessageAttributes": {
+						"_datadog": {
+							"Type": "Binary",
+							"Value": "` + base64.StdEncoding.EncodeToString([]byte(hdrs)) + `"
+						}
+					}
+				}`,
+		}
+	}
+)
+
 func TestNilExtractor(t *testing.T) {
 	var extractor *Extractor
 	tc, err := extractor.Extract("hello world")
@@ -18,30 +74,20 @@ func TestNilExtractor(t *testing.T) {
 }
 
 func TestExtractorExtract(t *testing.T) {
-	type propID struct {
-		asUint uint64
-		asStr  string
-	}
-	ddTraceID := propID{3754030949214830614, "3754030949214830614"}
-	ddSpanID := propID{9807017789787771839, "9807017789787771839"}
-	w3cTraceID := propID{3754030949214781440, "3418ff4233c50000"}
-	w3cSpanID := propID{9807017789787734016, "881986b8523c0000"}
-
 	testcases := []struct {
 		name     string
-		extType  string
 		event    interface{}
 		expCtx   *TraceContext
 		expNoErr bool
 	}{
 		{
-			name:     "string-event",
+			name:     "unsupported-event",
 			event:    "hello world",
 			expCtx:   nil,
 			expNoErr: false,
 		},
 		{
-			name: "get-reader-error",
+			name: "unable-to-get-carrier",
 			event: events.SQSMessage{
 				Body: "",
 			},
@@ -49,86 +95,14 @@ func TestExtractorExtract(t *testing.T) {
 			expNoErr: false,
 		},
 		{
-			name: "extract-error",
-			event: events.SQSMessage{
-				MessageAttributes: map[string]events.SQSMessageAttribute{
-					"_datadog": events.SQSMessageAttribute{
-						DataType:    "String",
-						StringValue: aws.String("{}"),
-					},
-				},
-			},
+			name:     "extraction-error",
+			event:    eventSqsMessage("{}"),
 			expCtx:   nil,
 			expNoErr: false,
 		},
 		{
-			name:    "extract-sqs-datadog-headers",
-			extType: "datadog",
-			event: events.SQSMessage{
-				MessageAttributes: map[string]events.SQSMessageAttribute{
-					"_datadog": events.SQSMessageAttribute{
-						DataType: "String",
-						StringValue: aws.String(`{
-							"x-datadog-trace-id": "` + ddTraceID.asStr + `",
-							"x-datadog-parent-id": "` + ddSpanID.asStr + `",
-							"x-datadog-sampling-priority": "1",
-							"x-datadog-tags": "_dd.p.dm=-0",
-							"traceparent": "00-0000000000000000` + w3cTraceID.asStr + "-" + w3cSpanID.asStr + `-01",
-							"tracestate": "dd=s:1;t.dm:-0"
-						}`),
-					},
-				},
-			},
-			expCtx: &TraceContext{
-				TraceID:  ddTraceID.asUint,
-				ParentID: ddSpanID.asUint,
-			},
-			expNoErr: true,
-		},
-		{
-			name:    "extract-snssqs-datadog-headers",
-			extType: "datadog",
-			event: events.SQSMessage{
-				Body: `{
-					"MessageAttributes": {
-						"_datadog": {
-							"Type": "Binary",
-							"Value": "` + base64.StdEncoding.EncodeToString([]byte(`{
-								"x-datadog-trace-id": "`+ddTraceID.asStr+`",
-								"x-datadog-parent-id": "`+ddSpanID.asStr+`",
-								"x-datadog-sampling-priority": "1",
-								"x-datadog-tags": "_dd.p.dm=-0",
-								"traceparent": "00-0000000000000000`+w3cTraceID.asStr+"-"+w3cSpanID.asStr+`-01",
-								"tracestate": "dd=s:1;t.dm:-0"
-							}`)) + `"
-						}
-					}
-				}`,
-			},
-			expCtx: &TraceContext{
-				TraceID:  ddTraceID.asUint,
-				ParentID: ddSpanID.asUint,
-			},
-			expNoErr: true,
-		},
-		{
-			name:    "extract-sqs-tracecontext-headers",
-			extType: "tracecontext",
-			event: events.SQSMessage{
-				MessageAttributes: map[string]events.SQSMessageAttribute{
-					"_datadog": events.SQSMessageAttribute{
-						DataType: "String",
-						StringValue: aws.String(`{
-							"x-datadog-trace-id": "` + ddTraceID.asStr + `",
-							"x-datadog-parent-id": "` + ddSpanID.asStr + `",
-							"x-datadog-sampling-priority": "1",
-							"x-datadog-tags": "_dd.p.dm=-0",
-							"traceparent": "00-0000000000000000` + w3cTraceID.asStr + "-" + w3cSpanID.asStr + `-01",
-							"tracestate": "dd=s:1;t.dm:-0"
-						}`),
-					},
-				},
-			},
+			name:  "extract-from-sqs",
+			event: eventSqsMessage(headersAll),
 			expCtx: &TraceContext{
 				TraceID:  w3cTraceID.asUint,
 				ParentID: w3cSpanID.asUint,
@@ -136,50 +110,8 @@ func TestExtractorExtract(t *testing.T) {
 			expNoErr: true,
 		},
 		{
-			// XXX: This is surprising
-			// The go tracer is designed to always place the tracecontext propagator first
-			// see https://github.com/DataDog/dd-trace-go/blob/6a938b3b4054ce036cc60147ab42a86f743fcdd5/ddtrace/tracer/textmap.go#L231
-			name:    "datadog,tracecontext-uses-tracecontext",
-			extType: "datadog,tracecontext",
-			event: events.SQSMessage{
-				MessageAttributes: map[string]events.SQSMessageAttribute{
-					"_datadog": events.SQSMessageAttribute{
-						DataType: "String",
-						StringValue: aws.String(`{
-							"x-datadog-trace-id": "` + ddTraceID.asStr + `",
-							"x-datadog-parent-id": "` + ddSpanID.asStr + `",
-							"x-datadog-sampling-priority": "1",
-							"x-datadog-tags": "_dd.p.dm=-0",
-							"traceparent": "00-0000000000000000` + w3cTraceID.asStr + "-" + w3cSpanID.asStr + `-01",
-							"tracestate": "dd=s:1;t.dm:-0"
-						}`),
-					},
-				},
-			},
-			expCtx: &TraceContext{
-				TraceID:  w3cTraceID.asUint,
-				ParentID: w3cSpanID.asUint,
-			},
-			expNoErr: true,
-		},
-		{
-			name:    "extract-sqs-tracecontext,datadog-headers",
-			extType: "tracecontext,datadog",
-			event: events.SQSMessage{
-				MessageAttributes: map[string]events.SQSMessageAttribute{
-					"_datadog": events.SQSMessageAttribute{
-						DataType: "String",
-						StringValue: aws.String(`{
-							"x-datadog-trace-id": "` + ddTraceID.asStr + `",
-							"x-datadog-parent-id": "` + ddSpanID.asStr + `",
-							"x-datadog-sampling-priority": "1",
-							"x-datadog-tags": "_dd.p.dm=-0",
-							"traceparent": "00-0000000000000000` + w3cTraceID.asStr + "-" + w3cSpanID.asStr + `-01",
-							"tracestate": "dd=s:1;t.dm:-0"
-						}`),
-					},
-				},
-			},
+			name:  "extract-from-snssqs",
+			event: eventSnsSqsMessage(headersAll),
 			expCtx: &TraceContext{
 				TraceID:  w3cTraceID.asUint,
 				ParentID: w3cSpanID.asUint,
@@ -190,12 +122,83 @@ func TestExtractorExtract(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("DD_TRACE_PROPAGATION_STYLE", tc.extType)
 			extractor := NewExtractor()
 			ctx, err := extractor.Extract(tc.event)
 			t.Logf("Extract returned TraceContext=%#v error=%#v", ctx, err)
 			assert.Equal(t, tc.expNoErr, err == nil)
 			assert.Equal(t, tc.expCtx, ctx)
+		})
+	}
+}
+
+func TestPropagationStyle(t *testing.T) {
+	testcases := []struct {
+		name       string
+		propType   string
+		hdrs       string
+		expTraceID uint64
+	}{
+		{
+			name:       "no-type-headers-all",
+			propType:   "",
+			hdrs:       headersAll,
+			expTraceID: w3cTraceID.asUint,
+		},
+		{
+			name:       "datadog-type-headers-all",
+			propType:   "datadog",
+			hdrs:       headersAll,
+			expTraceID: ddTraceID.asUint,
+		},
+		{
+			name:       "tracecontet-type-headers-all",
+			propType:   "tracecontext",
+			hdrs:       headersAll,
+			expTraceID: w3cTraceID.asUint,
+		},
+		{
+			// XXX: This is surprising
+			// The go tracer is designed to always place the tracecontext propagator first
+			// see https://github.com/DataDog/dd-trace-go/blob/6a938b3b4054ce036cc60147ab42a86f743fcdd5/ddtrace/tracer/textmap.go#L231
+			name:       "datadog,tracecontext-type-headers-all",
+			propType:   "datadog,tracecontext",
+			hdrs:       headersAll,
+			expTraceID: w3cTraceID.asUint,
+		},
+		{
+			name:       "tracecontext,datadog-type-headers-all",
+			propType:   "tracecontext,datadog",
+			hdrs:       headersAll,
+			expTraceID: w3cTraceID.asUint,
+		},
+		{
+			name:       "datadog-type-headers-w3c",
+			propType:   "datadog",
+			hdrs:       headersW3C,
+			expTraceID: 0,
+		},
+		{
+			name:       "tracecontet-type-headers-dd",
+			propType:   "tracecontext",
+			hdrs:       headersDD,
+			expTraceID: 0,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("DD_TRACE_PROPAGATION_STYLE", tc.propType)
+			extractor := NewExtractor()
+			event := eventSqsMessage(tc.hdrs)
+			ctx, err := extractor.Extract(event)
+			t.Logf("Extract returned TraceContext=%#v error=%#v", ctx, err)
+			if tc.expTraceID == 0 {
+				assert.NotNil(t, err)
+				assert.Nil(t, ctx)
+			} else {
+				assert.Nil(t, err)
+				assert.Equal(t, tc.expTraceID, ctx.TraceID)
+			}
 		})
 	}
 }
