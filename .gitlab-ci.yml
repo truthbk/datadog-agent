@@ -310,8 +310,8 @@ workflow:
         USE_CACHING_PROXY_RUBY: "true"
     - <<: *if_deploy
       variables:
-        USE_CACHING_PROXY_PYTHON: "false"
-        USE_CACHING_PROXY_RUBY: "false"
+        USE_CACHING_PROXY_PYTHON: "true"
+        USE_CACHING_PROXY_RUBY: "true"
     - if: $CI_COMMIT_TAG == null
       variables:
         USE_CACHING_PROXY_PYTHON: "false"
