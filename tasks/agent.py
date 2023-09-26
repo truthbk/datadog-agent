@@ -676,6 +676,8 @@ def omnibus_build(
     omnibus_cache_dir = os.environ.get('OMNIBUS_GIT_CACHE_DIR')
     use_omnibus_git_cache = omnibus_cache_dir is not None
     if use_omnibus_git_cache:
+        # Fixme: not really sure why this is needed, but it appears to be
+        omnibus_cache_dir += '/opt/datadog-agent'
         remote_cache_name = os.environ.get('CI_JOB_NAME_SLUG')
         use_remote_cache = remote_cache_name is not None
         if use_remote_cache:
