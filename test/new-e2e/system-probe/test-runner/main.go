@@ -39,7 +39,7 @@ type TestConfig struct {
 const (
 	Testsuite   = "testsuite"
 	TestDirRoot = "/mnt/deps/opt/system-probe-tests"
-	GoTestSum   = "/go/bin/gotestsum"
+	GoTestSum   = "/mnt/deps/go/bin/gotestsum"
 
 	XMLDir       = "junit"
 	JSONDir      = "pkgjson"
