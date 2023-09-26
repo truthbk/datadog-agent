@@ -321,9 +321,9 @@ func run() error {
 		return fmt.Errorf("error calling uname: %w", err)
 	}
 	fmt.Printf("running on: %s\n", unix.ByteSliceToString(uname.Release[:]))
-	if err := fixAssetPermissions(); err != nil {
-		return err
-	}
+	//if err := fixAssetPermissions(); err != nil {
+	//	return err
+	//}
 
 	if err := os.RemoveAll(CIVisibility); err != nil {
 		return fmt.Errorf("failed to remove contents of %s: %w", CIVisibility, err)
