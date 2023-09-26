@@ -190,3 +190,20 @@ test:
 	res = config.IsSectionSet("yetanothertest")
 	assert.Equal(t, false, res)
 }
+
+func TestSetWithSource(t *testing.T) {
+	config := NewConfig("test", "DD", strings.NewReplacer(".", "_"))
+	config.SetWithSource("foo", "bar", SourceYaml)
+	config.SetWithSource("foo", "baz", SourceEnvVar)
+	config.SetWithSource("foo", "qux", SourceSelf)
+	config.SetWithSource("foo", "quux", SourceRC)
+	config.SetWithSource("foo", "corge", SourceRuntime)
+
+	assert.Equal(t, config.AllYamlSettingsWithoutDefault(), map[string]interface{}{"foo": "bar"})
+	assert.Equal(t, config.AllEnvVarSettingsWithoutDefault(), map[string]interface{}{"foo": "baz"})
+	assert.Equal(t, config.AllSelfSettingsWithoutDefault(), map[string]interface{}{"foo": "qux"})
+	assert.Equal(t, config.AllRemoteSettingsWithoutDefault(), map[string]interface{}{"foo": "quux"})
+	assert.Equal(t, config.AllRuntimeSettingsWithoutDefault(), map[string]interface{}{"foo": "corge"})
+
+	assert.Equal(t, config.Get("foo"), "corge")
+}

@@ -40,11 +40,20 @@ func (s Source) String() string {
 	return string(s)
 }
 
+type sourceConfig struct {
+	yaml    *viper.Viper
+	envVar  *viper.Viper
+	self    *viper.Viper
+	remote  *viper.Viper
+	runtime *viper.Viper
+}
+
 // safeConfig implements Config:
 // - wraps viper with a safety lock
 // - implements the additional DDHelpers
 type safeConfig struct {
 	*viper.Viper
+	*sourceConfig
 	sync.RWMutex
 	envPrefix      string
 	envKeyReplacer *strings.Replacer
@@ -58,11 +67,32 @@ type safeConfig struct {
 	configEnvVars map[string]struct{}
 }
 
-// Set wraps Viper for concurrent access
+// Set wraps Viper for concurrent access.
+// Use SetWithSource for anything other than tests.
 func (c *safeConfig) Set(key string, value interface{}) {
+	c.SetWithSource(key, value, SourceDefault)
+}
+
+// SetWithSource wraps Viper for concurrent access and save the source to a dedicated Viper instance
+func (c *safeConfig) SetWithSource(key string, value interface{}, source Source) {
 	c.Lock()
 	defer c.Unlock()
 	c.Viper.Set(key, value)
+
+	switch source {
+	case SourceYaml:
+		c.sourceConfig.yaml.Set(key, value)
+	case SourceEnvVar:
+		c.sourceConfig.envVar.Set(key, value)
+	case SourceSelf:
+		c.sourceConfig.self.Set(key, value)
+	case SourceRC:
+		c.sourceConfig.remote.Set(key, value)
+	case SourceRuntime:
+		c.sourceConfig.runtime.Set(key, value)
+	default:
+		log.Trace("Unknown source changed a setting '%s' to '%s' through Viper", key, value)
+	}
 }
 
 // SetDefault wraps Viper for concurrent access
@@ -445,6 +475,56 @@ func (c *safeConfig) AllSettingsWithoutDefault() map[string]interface{} {
 	return c.Viper.AllSettingsWithoutDefault()
 }
 
+// AllYamlSettingsWithoutDefault wraps Viper for concurrent access
+func (c *safeConfig) AllYamlSettingsWithoutDefault() map[string]interface{} {
+	c.Lock()
+	defer c.Unlock()
+
+	// AllYamlSettingsWithoutDefault returns a fresh map, so the caller may do with it
+	// as they please without holding the lock.
+	return c.sourceConfig.yaml.AllSettingsWithoutDefault()
+}
+
+// AllEnvVarSettingsWithoutDefault wraps Viper for concurrent access
+func (c *safeConfig) AllEnvVarSettingsWithoutDefault() map[string]interface{} {
+	c.Lock()
+	defer c.Unlock()
+
+	// AllEnvVarSettingsWithoutDefault returns a fresh map, so the caller may do with it
+	// as they please without holding the lock.
+	return c.sourceConfig.envVar.AllSettingsWithoutDefault()
+}
+
+// AllSelfSettingsWithoutDefault wraps Viper for concurrent access
+func (c *safeConfig) AllSelfSettingsWithoutDefault() map[string]interface{} {
+	c.Lock()
+	defer c.Unlock()
+
+	// AllSelfSettingsWithoutDefault returns a fresh map, so the caller may do with it
+	// as they please without holding the lock.
+	return c.sourceConfig.self.AllSettingsWithoutDefault()
+}
+
+// AllRemoteSettingsWithoutDefault wraps Viper for concurrent access
+func (c *safeConfig) AllRemoteSettingsWithoutDefault() map[string]interface{} {
+	c.Lock()
+	defer c.Unlock()
+
+	// AllRemoteSettingsWithoutDefault returns a fresh map, so the caller may do with it
+	// as they please without holding the lock.
+	return c.sourceConfig.remote.AllSettingsWithoutDefault()
+}
+
+// AllRuntimeSettingsWithoutDefault wraps Viper for concurrent access
+func (c *safeConfig) AllRuntimeSettingsWithoutDefault() map[string]interface{} {
+	c.Lock()
+	defer c.Unlock()
+
+	// AllRuntimeSettingsWithoutDefault returns a fresh map, so the caller may do with it
+	// as they please without holding the lock.
+	return c.sourceConfig.runtime.AllSettingsWithoutDefault()
+}
+
 // AddConfigPath wraps Viper for concurrent access
 func (c *safeConfig) AddConfigPath(in string) {
 	c.Lock()
@@ -510,10 +590,23 @@ func (c *safeConfig) Object() ConfigReader {
 	return c
 }
 
+// newSourceConfig returns a new sourceConfig object.
+// Initialize one instance of Viper per source of setting.
+func newSourceConfig() *sourceConfig {
+	return &sourceConfig{
+		yaml:    viper.New(),
+		envVar:  viper.New(),
+		self:    viper.New(),
+		remote:  viper.New(),
+		runtime: viper.New(),
+	}
+}
+
 // NewConfig returns a new Config object.
 func NewConfig(name string, envPrefix string, envKeyReplacer *strings.Replacer) Config {
 	config := safeConfig{
 		Viper:         viper.New(),
+		sourceConfig:  newSourceConfig(),
 		configEnvVars: map[string]struct{}{},
 	}
 	config.SetConfigName(name)
