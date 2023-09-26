@@ -207,3 +207,59 @@ func TestSetWithSource(t *testing.T) {
 
 	assert.Equal(t, config.Get("foo"), "corge")
 }
+
+func TestIsSetForSource(t *testing.T) {
+	config := NewConfig("test", "DD", strings.NewReplacer(".", "_"))
+	assert.False(t, config.IsSetForSource("foo", SourceYaml))
+	config.SetWithSource("foo", "bar", SourceYaml)
+	assert.True(t, config.IsSetForSource("foo", SourceYaml))
+}
+
+func TestUnsetForSource(t *testing.T) {
+	config := NewConfig("test", "DD", strings.NewReplacer(".", "_"))
+	config.SetWithSource("foo", "bar", SourceYaml)
+	config.UnsetForSource("foo", SourceYaml)
+	assert.False(t, config.IsSetForSource("foo", SourceYaml))
+}
+
+func TestGetFromSource(t *testing.T) {
+	config := NewConfig("test", "DD", strings.NewReplacer(".", "_"))
+	config.SetWithSource("foo", "bar", SourceYaml)
+	config.SetWithSource("foo", "baz", SourceEnvVar)
+
+	assert.Equal(t, "bar", config.GetFromSource("foo", SourceYaml))
+	assert.Equal(t, nil, config.GetFromSource("foo", SourceSelf))
+}
+
+func TestGetFromAllSource(t *testing.T) {
+	config := NewConfig("test", "DD", strings.NewReplacer(".", "_"))
+	config.SetWithSource("foo", "bar", SourceYaml)
+	config.SetWithSource("foo", "baz", SourceEnvVar)
+
+	assert.Equal(
+		t,
+		map[Source]interface{}{
+			SourceDefault: nil,
+			SourceYaml:    "bar",
+			SourceEnvVar:  "baz",
+			SourceSelf:    nil,
+			SourceRC:      nil,
+			SourceRuntime: nil,
+		},
+		config.GetFromAllSource("foo"),
+	)
+}
+
+func TestAllYamlSettingsWithoutDefault(t *testing.T) {
+	config := NewConfig("test", "DD", strings.NewReplacer(".", "_"))
+	config.SetWithSource("foo", "bar", SourceYaml)
+	config.SetWithSource("baz", "qux", SourceYaml)
+	config.UnsetForSource("foo", SourceYaml)
+	assert.Equal(
+		t,
+		map[string]interface{}{
+			"baz": "qux",
+		},
+		config.AllYamlSettingsWithoutDefault(),
+	)
+}

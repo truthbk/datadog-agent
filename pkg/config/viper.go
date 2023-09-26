@@ -25,13 +25,15 @@ type Source string
 
 // The default source is set as an empty string so that if the source isn't properly initialized, it is considered SourceDefault
 const (
-	SourceDefault Source = ""
+	SourceDefault Source = "default"
 	SourceYaml    Source = "yaml"
 	SourceEnvVar  Source = "env-var"
 	SourceSelf    Source = "self-config"
 	SourceRC      Source = "remote-config"
 	SourceRuntime Source = "runtime"
 )
+
+var sources = []Source{SourceDefault, SourceYaml, SourceEnvVar, SourceSelf, SourceRC, SourceRuntime}
 
 func (s Source) String() string {
 	if s == SourceDefault {
@@ -91,7 +93,27 @@ func (c *safeConfig) SetWithSource(key string, value interface{}, source Source)
 	case SourceRuntime:
 		c.sourceConfig.runtime.Set(key, value)
 	default:
-		log.Trace("Unknown source changed a setting '%s' to '%s' through Viper", key, value)
+		log.Trace("Unknown source changed a setting %q to %s through Viper", key, value)
+	}
+}
+
+func (c *safeConfig) UnsetForSource(key string, source Source) {
+	c.Lock()
+	defer c.Unlock()
+
+	switch source {
+	case SourceYaml:
+		c.sourceConfig.yaml.Set(key, nil)
+	case SourceEnvVar:
+		c.sourceConfig.envVar.Set(key, nil)
+	case SourceSelf:
+		c.sourceConfig.self.Set(key, nil)
+	case SourceRC:
+		c.sourceConfig.remote.Set(key, nil)
+	case SourceRuntime:
+		c.sourceConfig.runtime.Set(key, nil)
+	default:
+		log.Trace("Unknown source tried to unset setting %q", key)
 	}
 }
 
@@ -152,6 +174,28 @@ func (c *safeConfig) IsSet(key string) bool {
 	return c.Viper.IsSet(key)
 }
 
+// IsSet wraps Viper for concurrent access
+func (c *safeConfig) IsSetForSource(key string, source Source) bool {
+	c.RLock()
+	defer c.RUnlock()
+
+	switch source {
+	case SourceYaml:
+		return c.sourceConfig.yaml.IsSet(key)
+	case SourceEnvVar:
+		return c.sourceConfig.envVar.IsSet(key)
+	case SourceSelf:
+		return c.sourceConfig.self.IsSet(key)
+	case SourceRC:
+		return c.sourceConfig.remote.IsSet(key)
+	case SourceRuntime:
+		return c.sourceConfig.runtime.IsSet(key)
+	default:
+		log.Trace("Unknown source tried to check setting %q is set", key)
+		return false
+	}
+}
+
 // IsSectionSet checks if a section is set by checking if either it
 // or any of its subkeys is set.
 func (c *safeConfig) IsSectionSet(section string) bool {
@@ -191,6 +235,46 @@ func (c *safeConfig) Get(key string) interface{} {
 		log.Warnf("failed to get configuration value for key %q: %s", key, err)
 	}
 	return val
+}
+
+// GetFromSource wraps Viper for comcurrent access
+// and returns the value a source wants a setting to be
+func (c *safeConfig) GetFromSource(key string, source Source) interface{} {
+	c.RLock()
+	defer c.RUnlock()
+	var val interface{}
+	var err error
+
+	switch source {
+	case SourceYaml:
+		val, err = c.sourceConfig.yaml.GetE(key)
+	case SourceEnvVar:
+		val, err = c.sourceConfig.envVar.GetE(key)
+	case SourceSelf:
+		val, err = c.sourceConfig.self.GetE(key)
+	case SourceRC:
+		val, err = c.sourceConfig.remote.GetE(key)
+	case SourceRuntime:
+		val, err = c.sourceConfig.runtime.GetE(key)
+	default:
+		err = fmt.Errorf("tried to get value of setting %q  for unknown source %s", key, source)
+	}
+
+	if err != nil {
+		log.Warnf("failed to get configuration value for key %q: %s", key, err)
+	}
+	return val
+}
+
+func (c *safeConfig) GetFromAllSource(key string) map[Source]interface{} {
+	c.RLock()
+	defer c.RUnlock()
+	vals := make(map[Source]interface{}, 0)
+
+	for _, s := range sources {
+		vals[s] = c.GetFromSource(key, s)
+	}
+	return vals
 }
 
 // GetString wraps Viper for concurrent access

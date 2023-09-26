@@ -25,6 +25,8 @@ type Proxy struct {
 // ConfigReader is a subset of Config that only allows reading of configuration
 type ConfigReader interface {
 	Get(key string) interface{}
+	GetFromSource(key string, source Source) interface{}
+	GetFromAllSource(key string) map[Source]interface{}
 	GetString(key string) string
 	GetBool(key string) bool
 	GetInt(key string) int
@@ -53,6 +55,7 @@ type ConfigReader interface {
 	AllKeys() []string
 
 	IsSet(key string) bool
+	IsSetForSource(key string, source Source) bool
 
 	// UnmarshalKey Unmarshal a configuration key into a struct
 	UnmarshalKey(key string, rawVal interface{}, opts ...viper.DecoderConfigOption) error
@@ -82,6 +85,7 @@ type ConfigReader interface {
 type ConfigWriter interface {
 	Set(key string, value interface{})
 	SetWithSource(key string, value interface{}, source Source)
+	UnsetForSource(key string, source Source)
 	CopyConfig(cfg Config)
 }
 
