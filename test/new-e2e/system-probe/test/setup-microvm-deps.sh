@@ -16,9 +16,9 @@ LLC_BPF=$DD_AGENT_TESTING_DIR/test/kitchen/site-cookbooks/dd-system-probe-check/
 GO_BIN=go/bin
 GOTESTSUM=$DD_AGENT_TESTING_DIR/test/kitchen/site-cookbooks/dd-system-probe-check/files/default/gotestsum
 TEST2JSON=$DD_AGENT_TESTING_DIR/test/kitchen/site-cookbooks/dd-system-probe-check/files/default/test2json
-EMBEDDED_BIN=opt/datadog-agent/embedded/bin
-EMBEDDED_INC=opt/datadog-agent/embedded/include
-SYSTEM_PROBE_TESTS=/opt/system-probe-tests
+EMBEDDED_BIN=datadog-agent/embedded/bin
+EMBEDDED_INC=datadog-agent/embedded/include
+SYSTEM_PROBE_TESTS=/system-probe-tests
 
 [ -f $TEST2JSON ] || sudo cp $(go env GOTOOLDIR)/test2json $TEST2JSON
 

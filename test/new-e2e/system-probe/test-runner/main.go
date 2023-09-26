@@ -38,7 +38,7 @@ type TestConfig struct {
 
 const (
 	Testsuite   = "testsuite"
-	TestDirRoot = "/opt/opt/system-probe-tests"
+	TestDirRoot = "/opt/system-probe-tests"
 	GoTestSum   = "/opt/go/bin/gotestsum"
 
 	XMLDir       = "junit"
