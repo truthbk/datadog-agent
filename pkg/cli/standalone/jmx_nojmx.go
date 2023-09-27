@@ -15,16 +15,16 @@ import (
 )
 
 // ExecJMXCommandConsole is not supported when the 'jmx' build tag isn't included
-func ExecJMXCommandConsole(command string, selectedChecks []string, logLevel string, configs []integration.Config, senderManager sender.SenderManager) error {
+func ExecJMXCommandConsole(string, []string, string, []integration.Config, sender.SenderManager) error {
 	return fmt.Errorf("not supported: the Agent is compiled without the 'jmx' build tag")
 }
 
 // ExecJmxListWithMetricsJSON is not supported when the 'jmx' build tag isn't included
-func ExecJmxListWithMetricsJSON(selectedChecks []string, logLevel string, configs []integration.Config, senderManager sender.SenderManager) error {
+func ExecJmxListWithMetricsJSON([]string, string, []integration.Config, sender.SenderManager) error {
 	return fmt.Errorf("not supported: the Agent is compiled without the 'jmx' build tag")
 }
 
 // ExecJmxListWithRateMetricsJSON is not supported when the 'jmx' build tag isn't included
-func ExecJmxListWithRateMetricsJSON(selectedChecks []string, logLevel string, configs []integration.Config, senderManager sender.SenderManager) error {
+func ExecJmxListWithRateMetricsJSON([]string, string, []integration.Config, sender.SenderManager) error {
 	return fmt.Errorf("not supported: the Agent is compiled without the 'jmx' build tag")
 }

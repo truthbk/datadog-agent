@@ -19,14 +19,14 @@ import (
 type EventSerializer struct{}
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
-func (v EventSerializer) MarshalEasyJSON(w *jwriter.Writer) {
+func (v EventSerializer) MarshalEasyJSON(*jwriter.Writer) {
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
-func (v *EventSerializer) UnmarshalEasyJSON(l *jlexer.Lexer) {
+func (v *EventSerializer) UnmarshalEasyJSON(*jlexer.Lexer) {
 }
 
 // NewEventSerializer creates a new event serializer based on the event type
-func NewEventSerializer(event *model.Event, resolvers *resolvers.Resolvers) *EventSerializer {
+func NewEventSerializer(*model.Event, *resolvers.Resolvers) *EventSerializer {
 	return nil
 }

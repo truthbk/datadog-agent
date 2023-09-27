@@ -217,7 +217,7 @@ func NewProbe(config *config.Config, opts Opts) (*Probe, error) {
 }
 
 // OnNewDiscarder is called when a new discarder is found. We currently don't generate discarders on Windows.
-func (p *Probe) OnNewDiscarder(rs *rules.RuleSet, ev *model.Event, field eval.Field, eventType eval.EventType) {
+func (p *Probe) OnNewDiscarder(*rules.RuleSet, *model.Event, eval.Field, eval.EventType) {
 }
 
 // ApplyRuleSet setup the probes for the provided set of rules and returns the policy report.

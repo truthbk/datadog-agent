@@ -61,7 +61,7 @@ func GetStackManager() *StackManager {
 	return stackManager
 }
 
-func newStackManager(ctx context.Context) (*StackManager, error) {
+func newStackManager(context.Context) (*StackManager, error) {
 	return &StackManager{
 		stacks: make(map[string]*auto.Stack),
 	}, nil

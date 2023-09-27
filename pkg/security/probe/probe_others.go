@@ -34,41 +34,41 @@ type Probe struct {
 }
 
 // AddEventHandler set the probe event handler
-func (p *Probe) AddEventHandler(eventType model.EventType, handler EventHandler) error {
+func (p *Probe) AddEventHandler(model.EventType, EventHandler) error {
 	return nil
 }
 
 // AddFullAccessEventHandler sets a probe event handler for the UnknownEventType which requires access to all the struct fields
-func (p *Probe) AddFullAccessEventHandler(handler EventHandler) error {
+func (p *Probe) AddFullAccessEventHandler(EventHandler) error {
 	return nil
 }
 
 // AddCustomEventHandler set the probe event handler
-func (p *Probe) AddCustomEventHandler(eventType model.EventType, handler CustomEventHandler) error {
+func (p *Probe) AddCustomEventHandler(model.EventType, CustomEventHandler) error {
 	return nil
 }
 
 // NewEvaluationSet returns a new evaluation set with rule sets tagged by the passed-in tag values for the "ruleset" tag key
-func (p *Probe) NewEvaluationSet(eventTypeEnabled map[eval.EventType]bool, ruleSetTagValues []string) (*rules.EvaluationSet, error) {
+func (p *Probe) NewEvaluationSet(map[eval.EventType]bool, []string) (*rules.EvaluationSet, error) {
 	return nil, nil
 }
 
 // ApplyRuleSet setup the probes for the provided set of rules and returns the policy report.
-func (p *Probe) ApplyRuleSet(rs *rules.RuleSet) (*kfilters.ApplyRuleSetReport, error) {
+func (p *Probe) ApplyRuleSet(*rules.RuleSet) (*kfilters.ApplyRuleSetReport, error) {
 	return nil, nil
 }
 
 // OnNewDiscarder is called when a new discarder is found. We currently don't generate discarders on Windows.
-func (p *Probe) OnNewDiscarder(rs *rules.RuleSet, ev *model.Event, field eval.Field, eventType eval.EventType) {
+func (p *Probe) OnNewDiscarder(*rules.RuleSet, *model.Event, eval.Field, eval.EventType) {
 }
 
 // GetService returns the service name from the process tree
-func (p *Probe) GetService(ev *model.Event) string {
+func (p *Probe) GetService(*model.Event) string {
 	return ""
 }
 
 // GetEventTags returns the event tags
-func (p *Probe) GetEventTags(containerID string) []string {
+func (p *Probe) GetEventTags(string) []string {
 	return nil
 }
 

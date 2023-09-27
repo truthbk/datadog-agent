@@ -104,7 +104,7 @@ func mockCounterFromHandle(hCounter PDH_HCOUNTER) (mockCounter, error) {
 	return ctr, nil
 
 }
-func mockPdhGetFormattedCounterArray(hCounter PDH_HCOUNTER, format uint32) (outItems []PdhCounterValueItem, err error) {
+func mockPdhGetFormattedCounterArray(hCounter PDH_HCOUNTER, _ uint32) (outItems []PdhCounterValueItem, err error) {
 	ctr, err := mockCounterFromHandle(hCounter)
 	if err != nil {
 		return nil, err

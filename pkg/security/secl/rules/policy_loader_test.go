@@ -467,11 +467,11 @@ type dummyDirProvider struct {
 	dummyLoadPoliciesFunc func() ([]*Policy, *multierror.Error)
 }
 
-func (d dummyDirProvider) LoadPolicies(_ []MacroFilter, _ []RuleFilter) ([]*Policy, *multierror.Error) {
+func (d dummyDirProvider) LoadPolicies([]MacroFilter, []RuleFilter) ([]*Policy, *multierror.Error) {
 	return d.dummyLoadPoliciesFunc()
 }
 
-func (dummyDirProvider) SetOnNewPoliciesReadyCb(f func()) {}
+func (dummyDirProvider) SetOnNewPoliciesReadyCb(func()) {}
 
 func (dummyDirProvider) Start() {}
 
@@ -487,11 +487,11 @@ type dummyRCProvider struct {
 	dummyLoadPoliciesFunc func() ([]*Policy, *multierror.Error)
 }
 
-func (d dummyRCProvider) LoadPolicies(_ []MacroFilter, _ []RuleFilter) ([]*Policy, *multierror.Error) {
+func (d dummyRCProvider) LoadPolicies([]MacroFilter, []RuleFilter) ([]*Policy, *multierror.Error) {
 	return d.dummyLoadPoliciesFunc()
 }
 
-func (dummyRCProvider) SetOnNewPoliciesReadyCb(f func()) {}
+func (dummyRCProvider) SetOnNewPoliciesReadyCb(func()) {}
 
 func (dummyRCProvider) Start() {}
 

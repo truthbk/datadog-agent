@@ -7,10 +7,10 @@
 
 package compliance
 
-func getProcessContainerID(pid int32) (string, bool) {
+func getProcessContainerID(int32) (string, bool) {
 	return "", false
 }
 
-func getProcessRootPath(pid int32) (string, bool) {
+func getProcessRootPath(int32) (string, bool) {
 	return "", false
 }

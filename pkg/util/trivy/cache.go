@@ -218,7 +218,7 @@ func (c *ScannerCache) PutBlob(blobID string, blobInfo types.BlobInfo) error {
 
 // DeleteBlobs implements cache.Cache#DeleteBlobs does nothing because the cache cleaning logic is
 // managed by CacheCleaner
-func (c *ScannerCache) DeleteBlobs(blobIDs []string) error {
+func (c *ScannerCache) DeleteBlobs([]string) error {
 	return nil
 }
 

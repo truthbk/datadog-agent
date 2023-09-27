@@ -132,7 +132,7 @@ func (h *RemoteConfigHandler) onAgentConfigUpdate(updates map[string]state.RawCo
 	}
 }
 
-func (h *RemoteConfigHandler) onUpdate(update map[string]state.RawConfig, applyStateCallback func(string, state.ApplyStatus)) {
+func (h *RemoteConfigHandler) onUpdate(update map[string]state.RawConfig, _ func(string, state.ApplyStatus)) {
 	if len(update) == 0 {
 		log.Debugf("no samplers configuration in remote config update payload")
 		return

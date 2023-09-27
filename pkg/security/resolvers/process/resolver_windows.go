@@ -49,7 +49,7 @@ type ResolverOpts struct {
 }
 
 // NewResolver returns a new process resolver
-func NewResolver(config *config.Config, statsdClient statsd.ClientInterface, scrubber *procutil.DataScrubber,
+func NewResolver(_ *config.Config, statsdClient statsd.ClientInterface, scrubber *procutil.DataScrubber,
 	opts ResolverOpts) (*Resolver, error) {
 
 	p := &Resolver{
@@ -131,7 +131,7 @@ func (p *Resolver) GetEntry(pid Pid) *model.ProcessCacheEntry {
 }
 
 // Resolve returns the cache entry for the given pid
-func (p *Resolver) Resolve(pid, tid uint32, inode uint64, useFallBack bool) *model.ProcessCacheEntry {
+func (p *Resolver) Resolve(pid, _ uint32, _ uint64, _ bool) *model.ProcessCacheEntry {
 	return p.GetEntry(pid)
 }
 

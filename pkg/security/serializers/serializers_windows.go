@@ -59,14 +59,14 @@ type EventSerializer struct {
 	*BaseEventSerializer `json:"evt,omitempty"`
 }
 
-func newFileSerializer(fe *model.FileEvent, e *model.Event, forceInode ...uint64) *FileSerializer {
+func newFileSerializer(fe *model.FileEvent, e *model.Event, _ ...uint64) *FileSerializer {
 	return &FileSerializer{
 		Path: e.FieldHandlers.ResolveFilePath(e, fe),
 		Name: e.FieldHandlers.ResolveFileBasename(e, fe),
 	}
 }
 
-func newProcessSerializer(ps *model.Process, e *model.Event, resolvers *resolvers.Resolvers) *ProcessSerializer {
+func newProcessSerializer(ps *model.Process, e *model.Event, _ *resolvers.Resolvers) *ProcessSerializer {
 	psSerializer := &ProcessSerializer{
 		ExecTime: getTimeIfNotZero(ps.ExecTime),
 		ExitTime: getTimeIfNotZero(ps.ExitTime),
@@ -85,7 +85,7 @@ func newProcessSerializer(ps *model.Process, e *model.Event, resolvers *resolver
 	return psSerializer
 }
 
-func newNetworkDeviceSerializer(e *model.Event) *NetworkDeviceSerializer {
+func newNetworkDeviceSerializer(*model.Event) *NetworkDeviceSerializer {
 	return &NetworkDeviceSerializer{}
 }
 
@@ -122,7 +122,7 @@ func newProcessContextSerializer(pc *model.ProcessContext, e *model.Event, resol
 	return &ps
 }
 
-func serializeOutcome(retval int64) string {
+func serializeOutcome(int64) string {
 	return "unknown"
 }
 

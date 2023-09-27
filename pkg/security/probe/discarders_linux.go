@@ -539,7 +539,7 @@ type DiscardersDump struct {
 	Stats  map[string]discarder.Stats `yaml:"stats"`
 }
 
-func dumpPidDiscarders(resolver *dentry.Resolver, pidMap *ebpf.Map) ([]PidDiscarderDump, error) {
+func dumpPidDiscarders(_ *dentry.Resolver, pidMap *ebpf.Map) ([]PidDiscarderDump, error) {
 	var dumps []PidDiscarderDump
 
 	info, err := pidMap.Info()

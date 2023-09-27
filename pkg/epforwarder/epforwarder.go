@@ -230,7 +230,7 @@ func init() {
 }
 
 // Enumerate known epforwarder pipelines and endpoints to test each of them connectivity
-func diagnose(diagnoseCfg diagnosis.Config, senderManager pkgsender.SenderManager) []diagnosis.Diagnosis {
+func diagnose(diagnosis.Config, pkgsender.SenderManager) []diagnosis.Diagnosis {
 
 	var diagnoses []diagnosis.Diagnosis
 

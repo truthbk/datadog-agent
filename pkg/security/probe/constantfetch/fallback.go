@@ -134,12 +134,12 @@ func (f *FallbackConstantFetcher) appendRequest(id string) {
 }
 
 // AppendSizeofRequest appends a sizeof request
-func (f *FallbackConstantFetcher) AppendSizeofRequest(id, typeName, headerName string) {
+func (f *FallbackConstantFetcher) AppendSizeofRequest(id, _, _ string) {
 	f.appendRequest(id)
 }
 
 // AppendOffsetofRequest appends an offset request
-func (f *FallbackConstantFetcher) AppendOffsetofRequest(id, typeName, fieldName, headerName string) {
+func (f *FallbackConstantFetcher) AppendOffsetofRequest(id, _, _, _ string) {
 	f.appendRequest(id)
 }
 
@@ -210,7 +210,7 @@ func getSizeOfStructInode(kv *kernel.Version) uint64 {
 	return sizeOf
 }
 
-func getSuperBlockFlagsOffset(kv *kernel.Version) uint64 {
+func getSuperBlockFlagsOffset(*kernel.Version) uint64 {
 	return uint64(80)
 }
 

@@ -371,7 +371,7 @@ func (a *Agent) runAptConfigurationExport(ctx context.Context) {
 	}
 }
 
-func (a *Agent) reportEvents(ctx context.Context, benchmark *Benchmark, events ...*CheckEvent) {
+func (a *Agent) reportEvents(_ context.Context, _ *Benchmark, events ...*CheckEvent) {
 	store := workloadmeta.GetGlobalStore()
 	for _, event := range events {
 		a.updateEvent(event)

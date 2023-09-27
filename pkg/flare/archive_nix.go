@@ -11,4 +11,4 @@ import (
 	flaretypes "github.com/DataDog/datadog-agent/comp/core/flare/types"
 )
 
-func getWindowsData(fb flaretypes.FlareBuilder) {}
+func getWindowsData(flaretypes.FlareBuilder) {}

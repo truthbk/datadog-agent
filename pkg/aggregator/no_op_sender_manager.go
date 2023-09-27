@@ -21,7 +21,7 @@ func NewNoOpSenderManager() NoOpSenderManager {
 }
 
 // GetSender returns a sender.Sender with passed ID
-func (NoOpSenderManager) GetSender(id checkid.ID) (sender.Sender, error) {
+func (NoOpSenderManager) GetSender(checkid.ID) (sender.Sender, error) {
 	return nil, errors.New("NotImplemented")
 }
 
@@ -31,7 +31,7 @@ func (NoOpSenderManager) SetSender(sender.Sender, checkid.ID) error {
 }
 
 // DestroySender frees up the resources used by the sender with passed ID (by deregistering it from the aggregator)
-func (NoOpSenderManager) DestroySender(id checkid.ID) {}
+func (NoOpSenderManager) DestroySender(checkid.ID) {}
 
 // GetDefaultSender returns a default sender.
 func (NoOpSenderManager) GetDefaultSender() (sender.Sender, error) {
