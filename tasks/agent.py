@@ -710,7 +710,7 @@ def omnibus_build(
             # Do this before checking for tag differents, in order to remove staled tags
             # in case they were included in the bundle in a previous build
             # Allow the command to fail since an empty cache will cause a git reflog failure
-            if ctx.run(f"git -C {omnibus_cache_dir} reflog --expire-unreachable=now --all", warn=True):
+            if ctx.run(f"git -C {omnibus_cache_dir} reflog expire --expire-unreachable=now --all", warn=True):
                 ctx.run(f"git -C {omnibus_cache_dir} gc --prune=now")
             if ctx.run(f"git -C {omnibus_cache_dir} tag -l").stdout != cache_state:
                 ctx.run(f"git -C {omnibus_cache_dir} bundle create {bundle_path} --tags")
