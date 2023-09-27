@@ -71,46 +71,35 @@ static __always_inline bool read_var_int_tls(tls_dispatcher_arguments_t *info, _
     return read_var_int_with_given_current_char_tls(info, current_char_as_number, max_number_for_bits, out);
 }
 
-static __always_inline __u8 find_relevant_headers_tls(tls_dispatcher_arguments_t *info, http2_frame_with_offset *frames_array) {
+static __always_inline bool is_relevant_frame_tls(tls_dispatcher_arguments_t *info, struct http2_frame *header) {
     bool is_headers_frame, is_data_end_of_stream;
-    __u8 interesting_frame_index = 0;
-    struct http2_frame current_frame = {};
-
-    (void)is_data_end_of_stream;
 
     // Filter preface.
     skip_preface_tls(info);
 
-#pragma unroll(HTTP2_MAX_FRAMES_TO_FILTER)
-    for (__u32 iteration = 0; iteration < HTTP2_MAX_FRAMES_TO_FILTER; ++iteration) {
-        // Checking we can read HTTP2_FRAME_HEADER_SIZE from the skb.
-        if (info->off + HTTP2_FRAME_HEADER_SIZE > info->len) {
-            break;
-        }
-        if (interesting_frame_index >= HTTP2_MAX_FRAMES_ITERATIONS) {
-            break;
-        }
-
-        read_into_user_buffer_http2_frame_header((char *)&current_frame, info->buf + info->off);
-        info->off += HTTP2_FRAME_HEADER_SIZE;
-        if (!format_http2_frame_header(&current_frame)) {
-            break;
-        }
-
-        // END_STREAM can appear only in Headers and Data frames.
-        // Check out https://datatracker.ietf.org/doc/html/rfc7540#section-6.1 for data frame, and
-        // https://datatracker.ietf.org/doc/html/rfc7540#section-6.2 for headers frame.
-        is_headers_frame = current_frame.type == kHeadersFrame;
-        is_data_end_of_stream = ((current_frame.flags & HTTP2_END_OF_STREAM) == HTTP2_END_OF_STREAM) && (current_frame.type == kDataFrame);
-        if (is_headers_frame || is_data_end_of_stream) {
-            frames_array[interesting_frame_index].frame = current_frame;
-            frames_array[interesting_frame_index].offset = info->off;
-            interesting_frame_index++;
-        }
-        info->off += current_frame.length;
+    // Checking we can read HTTP2_FRAME_HEADER_SIZE from the skb.
+    if (info->off + HTTP2_FRAME_HEADER_SIZE > info->len) {
+        log_debug("[grpctls] could not read frame header");
+        return false;
     }
 
-    return interesting_frame_index;
+    read_into_user_buffer_http2_frame_header((char *)header, info->buf + info->off);
+    info->off += HTTP2_FRAME_HEADER_SIZE;
+    if (!format_http2_frame_header(header)) {
+        log_debug("[grpctls] could not read frame header");
+        return false;
+    }
+
+    log_debug("[grpctls] frame: len=%u, type=%u", header->length, header->type);
+    log_debug("[grpctls] info->off: %u, info->len=%u", info->off, info->len);
+
+    // END_STREAM can appear only in Headers and Data frames.
+    // Check out https://datatracker.ietf.org/doc/html/rfc7540#section-6.1 for data frame, and
+    // https://datatracker.ietf.org/doc/html/rfc7540#section-6.2 for headers frame.
+    is_headers_frame = header->type == kHeadersFrame;
+    is_data_end_of_stream = ((header->flags & HTTP2_END_OF_STREAM) == HTTP2_END_OF_STREAM) && (header->type == kDataFrame);
+
+    return is_headers_frame || is_data_end_of_stream;
 }
 
 // parse_field_literal_tls handling the case when the key is part of the static table and the value is a dynamic string
@@ -210,7 +199,7 @@ static __always_inline __u8 filter_relevant_headers_tls(tls_dispatcher_arguments
         }
     }
 
-    log_debug("[filter_relevant_headers_tls] interesting headers: %d\n", interesting_headers);
+    log_debug("[grpctls] >> interesting headers: %d\n", interesting_headers);
 
     return interesting_headers;
 }
@@ -224,6 +213,7 @@ static __always_inline void process_headers_tls(tls_dispatcher_arguments_t *info
         if (iteration >= interesting_headers) {
             break;
         }
+        log_debug("[grpctls] >>> iteration %u", iteration);
 
         current_header = &headers_to_process[iteration];
 
@@ -239,6 +229,14 @@ static __always_inline void process_headers_tls(tls_dispatcher_arguments_t *info
                 current_stream->request_method = *static_value;
             } else if (current_header->index >= k200 && current_header->index <= k500) {
                 current_stream->response_status_code = *static_value;
+            } else if (current_header->index == kEmptyPath) {
+                log_debug("[grpctls] >>>> empty path");
+                current_stream->path_size = HTTP_ROOT_PATH_LEN;
+                bpf_memcpy(current_stream->request_path, HTTP_ROOT_PATH, HTTP_ROOT_PATH_LEN);
+            } else if (current_header->index == kIndexPath) {
+                log_debug("[grpctls] >>>> index path");
+                current_stream->path_size = HTTP_INDEX_PATH_LEN;
+                bpf_memcpy(current_stream->request_path, HTTP_INDEX_PATH, HTTP_INDEX_PATH_LEN);
             }
             continue;
         }
@@ -274,6 +272,7 @@ static __always_inline void process_headers_frame_tls(tls_dispatcher_arguments_t
     bpf_memset(headers_to_process, 0, HTTP2_MAX_HEADERS_COUNT_FOR_PROCESSING * sizeof(http2_header_t));
 
     __u8 interesting_headers = filter_relevant_headers_tls(info, dynamic_index, headers_to_process, current_frame_header->length);
+    log_debug("[grpctls] >> relevant headers %u", interesting_headers);
     if (interesting_headers > 0) {
         process_headers_tls(info, dynamic_index, current_stream, headers_to_process, interesting_headers);
     }
