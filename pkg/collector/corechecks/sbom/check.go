@@ -65,9 +65,9 @@ var /* const */ (
 	}
 
 	hostPeriodicRefreshSecondsValueRange = &configValueRange{
-		min:          60,        // 1 min
-		max:          604800,    // 1 week
-		defaultValue: 3600 * 24, // 1h
+		min:          60,       // 1 min
+		max:          604800,   // 1 week
+		defaultValue: 3600 * 4, // 4h
 	}
 )
 
