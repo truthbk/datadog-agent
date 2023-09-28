@@ -57,8 +57,7 @@ func NewPipeline(outputChan chan *message.Payload,
 		encoder = processor.RawEncoder
 	}
 
-	strategy := getStrategy(strategyInput, senderInput, flushChan, endpo
-		ints, serverless, pipelineID)
+	strategy := getStrategy(strategyInput, senderInput, flushChan, endpoints, serverless, pipelineID)
 	logsSender = sender.NewSender(senderInput, outputChan, mainDestinations, coreConfig.Datadog.GetInt("logs_config.buf_size"))
 
 	inputChan := make(chan *message.Message, coreConfig.Datadog.GetInt("logs_config.chan_size"))
