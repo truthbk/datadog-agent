@@ -19,7 +19,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
 	"github.com/DataDog/datadog-agent/pkg/logs/internal/decoder"
 	"github.com/DataDog/datadog-agent/pkg/logs/internal/framer"
-	"github.com/DataDog/datadog-agent/pkg/logs/internal/parsers/journald"
+	"github.com/DataDog/datadog-agent/pkg/logs/internal/parsers/noop"
 	"github.com/DataDog/datadog-agent/pkg/logs/internal/status"
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
 	"github.com/DataDog/datadog-agent/pkg/logs/sources"
@@ -45,17 +45,22 @@ type Tailer struct {
 	}
 	stop chan struct{}
 	done chan struct{}
+	// v1behavior indicates if we want to process and send the whole structured log message
+	// instead of on the logs content. Note that the default behavior is now to only send
+	// the logs content, as other tailers do.
+	v1behavior bool
 }
 
 // NewTailer returns a new tailer.
-func NewTailer(source *sources.LogSource, outputChan chan *message.Message, journal Journal) *Tailer {
+func NewTailer(source *sources.LogSource, outputChan chan *message.Message, journal Journal, v1behavior bool) *Tailer {
 	return &Tailer{
-		decoder:    decoder.NewDecoderWithFraming(sources.NewReplaceableSource(source), journald.New(), framer.NoFraming, nil, status.NewInfoRegistry()),
+		decoder:    decoder.NewDecoderWithFraming(sources.NewReplaceableSource(source), noop.New(), framer.NoFraming, nil, status.NewInfoRegistry()),
 		source:     source,
 		outputChan: outputChan,
 		journal:    journal,
 		stop:       make(chan struct{}, 1),
 		done:       make(chan struct{}, 1),
+		v1behavior: v1behavior,
 	}
 }
 
@@ -174,7 +179,7 @@ func (t *Tailer) setup() error {
 
 func (t *Tailer) forwardMessages() {
 	for decodedMessage := range t.decoder.OutputChan {
-		if len(decodedMessage.Content) > 0 {
+		if len(decodedMessage.GetContent()) > 0 {
 			t.outputChan <- decodedMessage
 		}
 	}
@@ -242,15 +247,29 @@ func (t *Tailer) tail() {
 			if t.shouldDrop(entry) {
 				continue
 			}
+
+			structuredContent, jsonMarshaled := t.getContent(entry)
+			var msg *message.Message
+			if t.v1behavior {
+				msg = message.NewMessage(
+					jsonMarshaled,
+					t.getOrigin(entry),
+					t.getStatus(entry),
+					time.Now().UnixNano(),
+				)
+			} else {
+				msg = message.NewStructuredMessage(
+					&structuredContent,
+					t.getOrigin(entry),
+					t.getStatus(entry),
+					time.Now().UnixNano(),
+				)
+			}
+
 			select {
 			case <-t.stop:
 				return
-			case t.decoder.InputChan <- message.NewMessage(
-				t.getContent(entry),
-				t.getOrigin(entry),
-				t.getStatus(entry),
-				time.Now().UnixNano(),
-			):
+			case t.decoder.InputChan <- msg:
 			}
 		}
 	}
@@ -290,6 +309,7 @@ func (t *Tailer) shouldDrop(entry *sdjournal.JournalEntry) bool {
 	return false
 }
 
+// TODO(remy): maybe rewrite the comment
 // getContent returns all the fields of the entry as a json-string,
 // remapping "MESSAGE" into "message" and bundling all the other keys in a "journald" attribute.
 // ex:
@@ -307,24 +327,32 @@ func (t *Tailer) shouldDrop(entry *sdjournal.JournalEntry) bool {
 //     ...
 //     }
 //     }
-func (t *Tailer) getContent(entry *sdjournal.JournalEntry) []byte {
-	payload := make(map[string]interface{})
+//
+// TODO(remy): possible improvements: in theory, when not using the v1 behavior
+// we don't really need to marshal the payload here. However, we still use it
+// here to increase the "BytesRead" information.
+func (t *Tailer) getContent(entry *sdjournal.JournalEntry) (message.BasicStructuredContent, []byte) {
+	payload := message.BasicStructuredContent{
+		Data: make(map[string]interface{}),
+	}
 	fields := entry.Fields
-	if message, exists := fields[sdjournal.SD_JOURNAL_FIELD_MESSAGE]; exists {
-		payload["message"] = message
+	var msg string
+	var exists bool
+	if msg, exists = fields[sdjournal.SD_JOURNAL_FIELD_MESSAGE]; exists {
+		payload.SetContent([]byte(msg))
 		delete(fields, sdjournal.SD_JOURNAL_FIELD_MESSAGE)
 	}
-	payload["journald"] = fields
+	payload.Data["journald"] = fields
 
-	content, err := json.Marshal(payload)
+	jsonMarshaled, err := json.Marshal(payload.Data)
 	if err != nil {
+		log.Error("can't marshal journald tailed log", err)
 		// ensure the message has some content if the json encoding failed
 		value, _ := entry.Fields[sdjournal.SD_JOURNAL_FIELD_MESSAGE]
-		content = []byte(value)
+		payload.SetContent([]byte(value)) // best effort trying to have something in the log
 	}
-	t.source.BytesRead.Add(int64(len(content)))
-
-	return content
+	t.source.BytesRead.Add(int64(len(jsonMarshaled)))
+	return payload, jsonMarshaled
 }
 
 // getOrigin returns the message origin computed from the journal entry

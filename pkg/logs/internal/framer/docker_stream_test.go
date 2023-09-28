@@ -32,11 +32,13 @@ func dummyHeaderContent(tenPos int, data []byte) []byte {
 	return hdr
 }
 
+// TODO(remy): test structured & unstructured ones
+
 func TestDetectDockerHeader(t *testing.T) {
 	gotContent := []string{}
 	gotLens := []int{}
 	outputFn := func(msg *message.Message, rawDataLen int) {
-		gotContent = append(gotContent, string(msg.Content))
+		gotContent = append(gotContent, string(msg.GetContent()))
 		gotLens = append(gotLens, rawDataLen)
 	}
 
@@ -46,10 +48,8 @@ func TestDetectDockerHeader(t *testing.T) {
 		input := []byte("hello\n")
 		input = append(input, getDummyHeader(i)...) // docker header
 		input = append(input, []byte("2018-06-14T18:27:03.246999277Z app logs\n")...)
-		msg := message.Message{
-			Content: input,
-		}
-		fr.Process(&msg)
+		msg := message.NewMessage(input, nil, "", 0)
+		fr.Process(msg)
 	}
 	assert.Equal(t, []string{
 		"hello",
@@ -68,7 +68,7 @@ func TestDetectMultipleDockerHeader(t *testing.T) {
 	gotContent := []string{}
 	gotLens := []int{}
 	outputFn := func(msg *message.Message, rawDataLen int) {
-		gotContent = append(gotContent, string(msg.Content))
+		gotContent = append(gotContent, string(msg.GetContent()))
 		gotLens = append(gotLens, rawDataLen)
 	}
 
@@ -79,10 +79,8 @@ func TestDetectMultipleDockerHeader(t *testing.T) {
 		input = append(input, getDummyHeader(4+i%4)...) // docker header
 		input = append(input, []byte(fmt.Sprintf("2018-06-14T18:27:03.246999277Z app logs %d\n", i))...)
 	}
-	msg := message.Message{
-		Content: input,
-	}
-	fr.Process(&msg)
+	msg := message.NewMessage(input, nil, "", 0)
+	fr.Process(msg)
 
 	for i := 0; i < 100; i++ {
 		data := []byte(fmt.Sprintf("2018-06-14T18:27:03.246999277Z app logs %d", i))
@@ -95,7 +93,7 @@ func TestDetectMultipleDockerHeaderOnAChunkedLine(t *testing.T) {
 	gotContent := []string{}
 	gotLens := []int{}
 	outputFn := func(message *message.Message, rawDataLen int) {
-		gotContent = append(gotContent, string(message.Content))
+		gotContent = append(gotContent, string(message.GetContent()))
 		gotLens = append(gotLens, rawDataLen)
 	}
 
@@ -118,10 +116,8 @@ func TestDetectMultipleDockerHeaderOnAChunkedLine(t *testing.T) {
 	input = append(input, []byte("2018-06-14T18:27:03.246999277Z the very end\n")...)
 	l2 := len(input)
 
-	logMessage := message.Message{
-		Content: input,
-	}
-	fr.Process(&logMessage)
+	logMessage := message.NewMessage(input, nil, "", 0)
+	fr.Process(logMessage)
 
 	assert.Equal(t, []string{
 		string(input[:l1-1]),
@@ -134,7 +130,7 @@ func TestDecoderNoNewLineBeforeDockerHeader(t *testing.T) {
 	gotContent := []string{}
 	gotLens := []int{}
 	outputFn := func(msg *message.Message, rawDataLen int) {
-		gotContent = append(gotContent, string(msg.Content))
+		gotContent = append(gotContent, string(msg.GetContent()))
 		gotLens = append(gotLens, rawDataLen)
 	}
 
@@ -144,10 +140,8 @@ func TestDecoderNoNewLineBeforeDockerHeader(t *testing.T) {
 		input := []byte("hello")
 		input = append(input, getDummyHeader(i)...) // docker header
 		input = append(input, []byte("2018-06-14T18:27:03.246999277Z app logs\n")...)
-		logMessage := message.Message{
-			Content: input,
-		}
-		fr.Process(&logMessage)
+		logMessage := message.NewMessage(input, nil, "", 0)
+		fr.Process(logMessage)
 		assert.Equal(t, string(input[:len(input)-1]), gotContent[i-4])
 		assert.Equal(t, len(input), gotLens[i-4])
 	}

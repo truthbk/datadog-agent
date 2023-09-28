@@ -22,24 +22,24 @@ import (
 
 // NewInput returns a new input.
 func NewInput(content []byte) *message.Message {
-	return &message.Message{
-		Content:            content,
-		IngestionTimestamp: time.Now().UnixNano(),
-	}
+	return message.NewMessage(content, nil, "", time.Now().UnixNano())
 }
 
 // NewMessage returns a new output.
 func NewMessage(content []byte, status string, rawDataLen int, readTimestamp string) *message.Message {
-	return &message.Message{
-		Content:            content,
+	msg := message.Message{
+		MessageContent: message.MessageContent{
+			State: message.StateEncoded,
+		},
 		Status:             status,
 		RawDataLen:         rawDataLen,
 		IngestionTimestamp: time.Now().UnixNano(),
-
 		ParsingExtra: message.ParsingExtra{
 			Timestamp: readTimestamp,
 		},
 	}
+	msg.SetContent(content)
+	return &msg
 }
 
 // Decoder translates a sequence of byte buffers (such as from a file or a
@@ -215,13 +215,13 @@ func (d *Decoder) run() {
 	}()
 	for {
 		select {
-		case data, isOpen := <-d.InputChan:
+		case msg, isOpen := <-d.InputChan:
 			if !isOpen {
 				// InputChan has been closed, no more lines are expected
 				return
 			}
 
-			d.framer.Process(data)
+			d.framer.Process(msg)
 
 		case <-d.lineParser.flushChan():
 			log.Debug("Flushing line parser because the flush timeout has been reached.")
