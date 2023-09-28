@@ -101,18 +101,21 @@ func (d *dispatcher) removeConfig(digest string) {
 	delete(d.store.digestToConfig, digest)
 	delete(d.store.danglingConfigs, digest)
 
-	for k, v := range d.store.idToDigest {
-		if v == digest {
-			configsInfo.Delete(node.name, checkName, string(k), le.JoinLeaderValue)
-			delete(d.store.idToDigest, k)
+	var checkIDToRemove checkid.ID
+	for checkID, checkDigest := range d.store.idToDigest {
+		if checkDigest == digest {
+			checkIDToRemove = checkID
+			delete(d.store.idToDigest, checkIDToRemove)
 		}
 	}
 
 	// Remove from node configs if assigned
 	if found {
 		node.Lock()
+		nodeName := node.name
 		node.removeConfig(digest)
 		node.Unlock()
+		configsInfo.Delete(nodeName, checkName, string(checkIDToRemove), le.JoinLeaderValue)
 	}
 }
 

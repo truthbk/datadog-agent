@@ -400,6 +400,26 @@ func TestDanglingConfig(t *testing.T) {
 	assert.Equal(t, 0, len(dispatcher.store.danglingConfigs))
 }
 
+func TestUnscheduleDanglingConfig(t *testing.T) {
+	testDispatcher := newDispatcher()
+
+	testConfig := integration.Config{
+		Name:         "cluster-check-example",
+		ClusterCheck: true,
+		Instances:    make([]integration.Data, 1),
+	}
+
+	// False because because no node is available
+	assert.False(t, testDispatcher.shouldDispatchDanling())
+
+	// No nodes created, so it will not get assigned
+	testDispatcher.Schedule([]integration.Config{testConfig})
+
+	testDispatcher.Unschedule([]integration.Config{testConfig})
+
+	assert.Empty(t, testDispatcher.store.danglingConfigs)
+}
+
 func TestReset(t *testing.T) {
 	dispatcher := newDispatcher()
 	config := generateIntegration("cluster-check")
