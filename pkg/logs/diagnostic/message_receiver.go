@@ -8,7 +8,7 @@ package diagnostic
 import (
 	"sync"
 
-	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
+	coreConfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/logs/message"
 )
 
@@ -46,14 +46,14 @@ func NewBufferedMessageReceiver(f Formatter) *BufferedMessageReceiver {
 		f = &logFormatter{}
 	}
 	return &BufferedMessageReceiver{
-		inputChan: make(chan messagePair, config.ChanSize),
+		inputChan: make(chan messagePair, coreConfig.Datadog.GetInt("logs_config.chan_size")),
 		formatter: f,
 	}
 }
 
 // Start opens new input channel
 func (b *BufferedMessageReceiver) Start() {
-	b.inputChan = make(chan messagePair, config.ChanSize)
+	b.inputChan = make(chan messagePair, coreConfig.Datadog.GetInt("logs_config.chan_size"))
 }
 
 // Stop closes the input channel
@@ -102,7 +102,7 @@ func (b *BufferedMessageReceiver) HandleMessage(m message.Message, eventType str
 
 // Filter writes the buffered events from the input channel formatted as a string to the output channel
 func (b *BufferedMessageReceiver) Filter(filters *Filters, done <-chan struct{}) <-chan string {
-	out := make(chan string, config.ChanSize)
+	out := make(chan string, coreConfig.Datadog.GetInt("logs_config.chan_size"))
 	go func() {
 		defer close(out)
 		for {

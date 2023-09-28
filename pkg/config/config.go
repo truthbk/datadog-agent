@@ -869,6 +869,8 @@ func InitConfig(config Config) {
 	config.BindEnvAndSetDefault("log_enabled", false) // deprecated, use logs_enabled instead
 	// collect all logs from all containers:
 	config.BindEnvAndSetDefault("logs_config.container_collect_all", false)
+	config.BindEnvAndSetDefault("logs_config.buf_size", 10)
+	config.BindEnvAndSetDefault("logs_config.chan_size", 100)
 	// add a socks5 proxy:
 	config.BindEnvAndSetDefault("logs_config.socks5_proxy_address", "")
 	// specific logs-agent api-key

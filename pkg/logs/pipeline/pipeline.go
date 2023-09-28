@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/DataDog/datadog-agent/comp/logs/agent/config"
+	coreConfig "github.com/DataDog/datadog-agent/pkg/config"
 	"github.com/DataDog/datadog-agent/pkg/logs/client"
 	"github.com/DataDog/datadog-agent/pkg/logs/client/http"
 	"github.com/DataDog/datadog-agent/pkg/logs/client/tcp"
@@ -39,7 +40,7 @@ func NewPipeline(outputChan chan *message.Payload,
 
 	mainDestinations := getDestinations(endpoints, destinationsContext, pipelineID)
 
-	strategyInput := make(chan *message.Message, config.ChanSize)
+	strategyInput := make(chan *message.Message, coreConfig.Datadog.GetInt("logs_config.chan_size"))
 	senderInput := make(chan *message.Payload, 1) // Only buffer 1 message since payloads can be large
 	flushChan := make(chan struct{})
 
@@ -56,10 +57,11 @@ func NewPipeline(outputChan chan *message.Payload,
 		encoder = processor.RawEncoder
 	}
 
-	strategy := getStrategy(strategyInput, senderInput, flushChan, endpoints, serverless, pipelineID)
-	logsSender = sender.NewSender(senderInput, outputChan, mainDestinations, config.DestinationPayloadChanSize)
+	strategy := getStrategy(strategyInput, senderInput, flushChan, endpo
+		ints, serverless, pipelineID)
+	logsSender = sender.NewSender(senderInput, outputChan, mainDestinations, coreConfig.Datadog.GetInt("logs_config.buf_size"))
 
-	inputChan := make(chan *message.Message, config.ChanSize)
+	inputChan := make(chan *message.Message, coreConfig.Datadog.GetInt("logs_config.chan_size"))
 	processor := processor.New(inputChan, strategyInput, processingRules, encoder, diagnosticMessageReceiver)
 
 	return &Pipeline{
