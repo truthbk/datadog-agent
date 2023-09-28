@@ -1,0 +1,6 @@
+---
+enhancements:
+  - |
+    Add a heartbeat mechanism for SBOM collection to avoid
+    having to send the whole SBOM has not changed since the last computation.
+    For host SBOM, the default interval is changed from 24 hours to 4 hours.
