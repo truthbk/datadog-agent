@@ -27,7 +27,7 @@ func PathPatternBuilder(pattern string, path string, opts PathPatternBuilderOpts
 		result                               = make([]byte, lenMax)
 		offsetPattern, offsetPath, size      = 0, 0, 0
 		wildcardCount, nodeCount, suffixNode = 0, 0, 0
-		wildcard, inPattern, inPath          bool
+		wildcard                             bool
 
 		computeNode = func() bool {
 			if wildcard {
@@ -45,13 +45,13 @@ func PathPatternBuilder(pattern string, path string, opts PathPatternBuilderOpts
 				result[size], result[size+1] = '/', '*'
 				size += 2
 
-				offsetPattern, suffixNode = i, 0
+				suffixNode = 0
 			} else {
 				copy(result[size:], pattern[offsetPattern:i])
 				size += i - offsetPattern
-				offsetPattern = i
 				suffixNode++
 			}
+			offsetPattern = i
 			offsetPath = j
 
 			if i > 0 {
@@ -63,14 +63,15 @@ func PathPatternBuilder(pattern string, path string, opts PathPatternBuilderOpts
 
 	for i != len(pattern) && j != len(path) {
 		pn, ph := pattern[i], path[j]
-		if pn == '/' && !inPattern {
-			offsetPattern = i
-			inPattern = true
-		}
+		if pn == '/' && ph == '/' {
+			if !computeNode() {
+				return false, ""
+			}
+			wildcard = false
 
-		if ph == '/' && !inPath {
-			offsetPath = j
-			inPath = true
+			i++
+			j++
+			continue
 		}
 
 		if pn != ph {
@@ -89,17 +90,6 @@ func PathPatternBuilder(pattern string, path string, opts PathPatternBuilderOpts
 				wildcard = true
 			}
 			break
-		}
-
-		pn, ph = pattern[i], path[j]
-		if pn == '/' && ph == '/' {
-			if !computeNode() {
-				return false, ""
-			}
-			wildcard, inPattern = false, false
-
-			i++
-			j++
 		}
 	}
 
