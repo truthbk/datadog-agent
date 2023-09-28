@@ -14,7 +14,7 @@
         "WINDOWS_DDNPM_DRIVER": "release-signed",
         "WINDOWS_DDNPM_VERSION": "2.5.2",
         "WINDOWS_DDNPM_SHASUM": "57a53c23e0b40da1e75094058498f9982dc80f6aa7feb5a1c8aece6e08292840",
-        "SECURITY_AGENT_POLICIES_VERSION": "master",
+        "SECURITY_AGENT_POLICIES_VERSION": "master"
     },
     "nightly-a7": {
         "INTEGRATIONS_CORE_VERSION": "master",
@@ -26,7 +26,7 @@
         "WINDOWS_DDNPM_DRIVER": "release-signed",
         "WINDOWS_DDNPM_VERSION": "2.5.2",
         "WINDOWS_DDNPM_SHASUM": "57a53c23e0b40da1e75094058498f9982dc80f6aa7feb5a1c8aece6e08292840",
-        "SECURITY_AGENT_POLICIES_VERSION": "master",
+        "SECURITY_AGENT_POLICIES_VERSION": "master"
     },
     "release-a6": {
         "INTEGRATIONS_CORE_VERSION": "7.48.0-rc.2",
