@@ -667,3 +667,5 @@ exclude (
 	github.com/knadh/koanf/maps v0.1.1
 	github.com/knadh/koanf/providers/confmap v0.1.0
 )
+
+replace github.com/DataDog/agent-payload/v5 v5.0.96 => github.com/DataDog/agent-payload/v5 v5.0.97-0.20230928222639-5e0490734812
